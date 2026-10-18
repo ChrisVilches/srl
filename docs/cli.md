@@ -27,7 +27,7 @@ agents all use the same commands. There is no separate API.
 
 | Command | Does |
 |---|---|
-| `srl init [DIR]` | Create a store. |
+| `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
 | `srl check [--fix]` | Validate atoms, drills and cards. `--fix` assigns missing IDs. |
 | `srl reindex` | Rebuild the index cache. |
 

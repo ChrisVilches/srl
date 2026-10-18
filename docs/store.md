@@ -42,7 +42,14 @@ Every command looks for the store in this order and uses the first match:
 3. The current directory or its nearest parent that contains `srl.toml`.
 4. The default store, `~/.local/share/srl`.
 
-`srl init [DIR]` creates a store with a default `srl.toml` and empty folders.
+Every command except `srl init` requires the store it finds to exist (to
+contain `srl.toml`), and fails otherwise.
+
+`srl init [DIR]` creates a store with a default `srl.toml` (every key
+commented out) and empty `atoms/` and `log/` folders. Like `git init`, it
+creates the store in `DIR`, else in `--dir`, else in `SRL_DIR`, else in the
+current directory. The directory may already hold other files, but not
+`srl.toml`. `srl init` prints each path it creates.
 
 ## Configuration: `srl.toml`
 

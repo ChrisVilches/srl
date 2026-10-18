@@ -1,5 +1,6 @@
-//! Finding a store (see `docs/store.md`, "Finding the store").
+//! Finding and creating a store (see `docs/store.md`).
 
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{Error, Result};
@@ -9,6 +10,28 @@ const CONFIG_FILE: &str = "srl.toml";
 
 /// The default store, relative to the home directory.
 const DEFAULT_STORE: &str = ".local/share/srl";
+
+/// The folders `srl init` creates.
+const FOLDERS: [&str; 2] = ["atoms", "log"];
+
+/// The `srl.toml` that `srl init` writes: every key at its default, commented
+/// out (see `docs/store.md`, "Configuration").
+const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is optional; these are the defaults.
+
+[schedule]
+# desired_retention = 0.9    # FSRS target probability of recall
+# day_starts_at = 4          # hour (local time) when a new study day begins
+# new_per_day = 10           # new atoms introduced per day, across all selectors
+# leech_lapses = 8           # an atom with this many lapses is a leech
+# mature_days = 21           # an atom with at least this stability (days) is mature
+# weights = [...]            # custom FSRS weights; default weights if absent
+
+[grading]
+# cmd = ""                   # external grader for `cmd` cards; empty means fall back to self-grading
+
+[drills]
+# timeout_seconds = 10       # a drill that takes longer is skipped
+"#;
 
 /// Everything needed to find a store, gathered by the caller.
 ///
@@ -47,6 +70,48 @@ impl Store {
             .ok_or_else(|| Error::NoStore {
                 cwd: lookup.cwd.clone(),
             })
+    }
+
+    /// Finds the store like [`Store::locate`], and checks that it exists.
+    pub fn open(lookup: &Lookup) -> Result<Self> {
+        let store = Self::locate(lookup)?;
+        if store.root.join(CONFIG_FILE).is_file() {
+            Ok(store)
+        } else {
+            Err(Error::NotAStore { root: store.root })
+        }
+    }
+
+    /// The directory `srl init [DIR]` creates a store in: `DIR`, `--dir`,
+    /// `SRL_DIR` or the current directory, whichever comes first.
+    pub fn init_target(lookup: &Lookup, dir: Option<PathBuf>) -> PathBuf {
+        dir.or_else(|| lookup.dir.clone())
+            .or_else(|| lookup.env_dir.clone())
+            .map_or_else(|| lookup.cwd.clone(), |dir| lookup.cwd.join(dir))
+    }
+
+    /// Creates a store in `root`, which may already exist and hold other
+    /// files, and returns the paths it creates. With `dry_run`, only returns
+    /// them.
+    pub fn init(root: &Path, dry_run: bool) -> Result<Vec<PathBuf>> {
+        let config = root.join(CONFIG_FILE);
+        if config.exists() {
+            return Err(Error::StoreExists {
+                root: root.to_path_buf(),
+            });
+        }
+        let folders = FOLDERS
+            .iter()
+            .map(|folder| root.join(folder))
+            .filter(|folder| !folder.is_dir())
+            .collect::<Vec<_>>();
+        if !dry_run {
+            for folder in &folders {
+                fs::create_dir_all(folder).map_err(Error::io(folder))?;
+            }
+            fs::write(&config, DEFAULT_CONFIG).map_err(Error::io(&config))?;
+        }
+        Ok(std::iter::once(config).chain(folders).collect())
     }
 
     /// The store's directory.
@@ -126,6 +191,67 @@ mod tests {
             ..Lookup::default()
         };
         assert_eq!(root(&lookup), PathBuf::from("/home/u/.local/share/srl"));
+    }
+
+    #[test]
+    fn open_refuses_a_directory_without_config() {
+        let tmp = TempDir::new().unwrap();
+        let lookup = Lookup {
+            dir: Some(tmp.path().to_path_buf()),
+            ..Lookup::default()
+        };
+        assert!(matches!(Store::open(&lookup), Err(Error::NotAStore { .. })));
+    }
+
+    #[test]
+    fn init_target_is_the_argument_then_the_flag_then_the_current_directory() {
+        let lookup = Lookup {
+            env_dir: Some("/env".into()),
+            cwd: "/cwd".into(),
+            home: Some("/home/u".into()),
+            ..Lookup::default()
+        };
+        assert_eq!(
+            Store::init_target(&lookup, Some("sub".into())),
+            PathBuf::from("/cwd/sub")
+        );
+        assert_eq!(Store::init_target(&lookup, None), PathBuf::from("/env"));
+        let bare = Lookup {
+            env_dir: None,
+            ..lookup
+        };
+        assert_eq!(Store::init_target(&bare, None), PathBuf::from("/cwd"));
+    }
+
+    #[test]
+    fn init_creates_a_store_that_open_finds() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("new");
+        let created = Store::init(&root, false).unwrap();
+        assert_eq!(created.len(), 3);
+        assert!(root.join("atoms").is_dir());
+        assert!(root.join("log").is_dir());
+        let lookup = Lookup {
+            cwd: root.join("atoms"),
+            ..Lookup::default()
+        };
+        assert_eq!(Store::open(&lookup).unwrap().root(), root);
+    }
+
+    #[test]
+    fn init_refuses_an_existing_store() {
+        let tmp = tree();
+        assert!(matches!(
+            Store::init(&tmp.path().join("notes"), false),
+            Err(Error::StoreExists { .. })
+        ));
+    }
+
+    #[test]
+    fn init_dry_run_writes_nothing() {
+        let tmp = TempDir::new().unwrap();
+        assert_eq!(Store::init(tmp.path(), true).unwrap().len(), 3);
+        assert!(fs::read_dir(tmp.path()).unwrap().next().is_none());
     }
 
     #[test]

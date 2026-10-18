@@ -10,12 +10,12 @@ use anyhow::{Context, bail};
 use srl_core::{Lookup, Store};
 
 use crate::args::{Cli, Command, SessionCommand};
-use crate::{Outcome, external};
+use crate::{Outcome, external, output};
 
 pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
     let name = match cli.command {
         Command::External(args) => return external::run(&args),
-        Command::Init { .. } => "init",
+        Command::Init { dir, dry_run } => return init(cli.dir, dir, dry_run.dry_run),
         Command::Check { .. } => "check",
         Command::Reindex => "reindex",
         Command::New { .. } => "new",
@@ -43,11 +43,18 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Stats { .. } => "stats",
         Command::Log { .. } => "log",
     };
-    let store = Store::locate(&lookup(cli.dir)?)?;
+    let store = Store::open(&lookup(cli.dir)?)?;
     bail!(
         "`srl {name}` is not implemented yet (store: {})",
         store.root().display()
     )
+}
+
+/// `srl init [DIR]`: prints each path it creates.
+fn init(flag: Option<PathBuf>, dir: Option<PathBuf>, dry_run: bool) -> anyhow::Result<Outcome> {
+    let root = Store::init_target(&lookup(flag)?, dir);
+    output::paths(&Store::init(&root, dry_run)?);
+    Ok(Outcome::Done)
 }
 
 /// Gathers what `Store::locate` needs from the flag and the environment.

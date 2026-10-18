@@ -223,6 +223,7 @@ dependencies = [
  "anyhow",
  "clap",
  "srl-core",
+ "tempfile",
 ]
 
 [[package]]
