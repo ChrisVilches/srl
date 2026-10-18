@@ -69,6 +69,12 @@ pub enum Error {
     )]
     PathTooLong { dir: PathBuf, limit: usize },
 
+    #[error(
+        "the full path of atoms/{path} is longer than {limit} characters, the most Windows \
+         allows without long paths; give it a shorter name, or move the store to a shorter path"
+    )]
+    PathOverLimit { path: String, limit: usize },
+
     #[error("line {line} of standard input is not a valid atom: {reason}; nothing was added")]
     InvalidLine { line: usize, reason: String },
 

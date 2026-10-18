@@ -271,8 +271,8 @@ Known places:
 
 | Where | What differs | Status |
 |---|---|---|
-| `store.rs`, `markdown_files` | macOS (HFS+) may list file names in Unicode NFD, so paths could sort and match differently | TODO in code |
-| `add.rs`, `path_room`; [atoms.md](atoms.md) | Windows' 260-character path limit | Handled: new paths are cut to 259 UTF-16 units on every platform. **TODO in code and spec**: not run on Windows; existing files over the limit aren't checked |
+| `store.rs`, `atom_paths`, `nfc`; [store.md](store.md) | macOS often lists file names in Unicode NFD, so paths could sort and match differently | Handled: paths are sorted and matched against `path:` globs in NFC, and new names are NFC, on every platform |
+| `add.rs`, `path_room`; `check.rs`, `long_paths`; [atoms.md](atoms.md) | Windows' 260-character path limit | Handled: new paths are cut to 259 UTF-16 units on every platform, and `srl check` reports existing files over it. **TODO in code and spec**: not run on Windows |
 | `editor.rs`, `DEFAULT_EDITOR`; [cli.md](cli.md) | `EDITOR`/`VISUAL` are rarely set on Windows, and editor paths there often contain spaces | Handled: the default is `notepad` on Windows and `vi` elsewhere, and a quoted program may contain spaces. **TODO in code and spec**: not run on Windows; Windows 11's Notepad may return at once (then `srl` reports the file unchanged) |
 | `study.rs`, `colors_work`; [frontends.md](frontends.md) | ANSI colors show as text in the old Windows console | Handled: virtual terminal mode is turned on (with `anstyle-query`), else highlights are printed raw and the reason reported. **TODO in code and spec**: not run on Windows |
 | `drill.rs`, `programs`; [drills.md](drills.md) | "Executable" and `#!` scripts are Unix concepts | Handled: `which` decides, with the execute bit on Unix and `PATHEXT` on Windows. The Windows test drills (`.cmd`) compile (`scripts/check-windows.sh`) but have not been run yet |

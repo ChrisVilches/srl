@@ -3,6 +3,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use unicode_normalization::UnicodeNormalization;
+
 use crate::{Error, Result};
 
 /// The file whose presence marks a directory as a store.
@@ -178,11 +180,14 @@ impl Store {
     }
 
     /// Every atom file: each `.md` file under `atoms/`, at any depth, as a
-    /// path relative to `atoms/` with `/` between folders, sorted.
+    /// path relative to `atoms/` with `/` between folders, as named on
+    /// disk. Sorted by their [NFC](nfc) form, so that the Unicode form a
+    /// file system gives names in never changes the order (see
+    /// `docs/store.md`, "File names").
     pub fn atom_paths(&self) -> Result<Vec<String>> {
         let dir = self.atoms_dir();
         let mut paths = markdown_files(&dir, "")?;
-        paths.sort();
+        paths.sort_by_cached_key(|path| (nfc(path), path.clone()));
         Ok(paths)
     }
 
@@ -195,12 +200,6 @@ impl Store {
 }
 
 /// The `.md` files under `dir`, whose path relative to `atoms/` is `prefix`.
-///
-// TODO(platform): macOS (HFS+) may return file names in Unicode NFD form, so
-// `をものともせず.md` can be listed with decomposed characters. Paths would
-// then sort differently and not match NFC text in `path:` globs. Normalize
-// names to NFC here if that turns out to happen (see docs/rust.md, "Platform
-// independence").
 fn markdown_files(dir: &Path, prefix: &str) -> Result<Vec<String>> {
     let entries = fs::read_dir(dir).map_err(Error::io(dir))?;
     entries
@@ -222,6 +221,13 @@ fn markdown_files(dir: &Path, prefix: &str) -> Result<Vec<String>> {
         })
         .collect::<Result<Vec<_>>>()
         .map(|lists| lists.concat())
+}
+
+/// `text` in Unicode NFC, the composed form most systems write. macOS often
+/// gives file names in the decomposed form (NFD) instead; paths are
+/// compared in NFC so that both match the same way.
+pub(crate) fn nfc(text: &str) -> String {
+    text.nfc().collect()
 }
 
 /// The nearest of `dir` and its parents that contains `srl.toml`.
@@ -366,5 +372,23 @@ mod tests {
             ..Lookup::default()
         };
         assert!(matches!(Store::locate(&lookup), Err(Error::NoStore { .. })));
+    }
+
+    #[test]
+    fn atom_paths_sort_by_their_composed_form_and_stay_as_named() {
+        let tmp = TempDir::new().unwrap();
+        Store::init(tmp.path(), false).unwrap();
+        let store = Store::open(&Lookup {
+            dir: Some(tmp.path().to_path_buf()),
+            ..Lookup::default()
+        })
+        .unwrap();
+        // "é" decomposed, as macOS often names files: by bytes it sorts
+        // before "f", composed it sorts after.
+        let decomposed = "e\u{301}.md";
+        for name in ["ea.md", "f.md", decomposed] {
+            fs::write(store.atoms_dir().join(name), "").unwrap();
+        }
+        assert_eq!(store.atom_paths().unwrap(), ["ea.md", "f.md", decomposed]);
     }
 }

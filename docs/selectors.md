@@ -19,7 +19,7 @@ mean the same.
 | Term | Matches |
 |---|---|
 | `tag:a` | Atoms with tag `a` or any tag under it (`tag:japanese` matches `japanese/grammar`) |
-| `path:GLOB` | Atoms whose file path, relative to `atoms/`, matches the glob. `*` matches within one folder, `**` across folders: `path:japanese/*` is the files directly in `japanese/`, `path:japanese/**` everything below it. |
+| `path:GLOB` | Atoms whose file path, relative to `atoms/`, matches the glob. `*` matches within one folder, `**` across folders: `path:japanese/*` is the files directly in `japanese/`, `path:japanese/**` everything below it. Paths and globs are compared in Unicode NFC (see [store.md](store.md), "File names"). |
 | `id:ID` | The atom with that ID |
 | `status:S` | Atoms with status `active`, `draft` or `suspended` |
 | `state:S` | Atoms in a scheduling state: `new`, `due`, `young`, `mature`, `leech` (see [scheduling.md](scheduling.md)). States come from replaying the log, so a selector with `state:` needs the configuration and the local time zone. |

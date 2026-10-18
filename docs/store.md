@@ -59,6 +59,20 @@ creates the store in `DIR`, else in `--dir`, else in `SRL_DIR`, else in the
 current directory. The directory may already hold other files, but not
 `srl.toml`. `srl init` prints each path it creates.
 
+## File names
+
+Unicode can write some letters in two forms: composed (NFC, `é` as one
+character) and decomposed (NFD, `e` plus an accent). Most systems name files
+in NFC, but macOS often gives names in NFD, and a store copied between
+systems can hold both.
+
+- `srl` sorts atom paths, and matches them against `path:` globs, in NFC,
+  so the form of a file's name never changes which atoms a selector picks
+  or their order. A `path:` glob is read in NFC too.
+- Paths are printed as they are on disk (in `--json` output and errors), so
+  that they always name the file.
+- New files (`srl add`, `srl new`) get names in NFC.
+
 ## Configuration: `srl.toml`
 
 Every key is optional. These are the defaults:

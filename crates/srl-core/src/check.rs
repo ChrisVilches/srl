@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use jiff::civil::Date;
 
-use crate::add::random_ids;
+use crate::add::{self, random_ids};
 use crate::{Atom, Atoms, Drills, Error, Id, Result, Store, atom, drill, frontmatter};
 
 /// An atom that `srl check --fix` gave an ID (or would, with `--dry-run`).
@@ -23,8 +23,9 @@ pub struct Fixed {
 pub struct Report {
     /// The atoms that got an ID, with `fix`.
     pub fixed: Vec<Fixed>,
-    /// Every problem left, in the order: unreadable atom files, then each
-    /// atom's facets, drills and cards, by path.
+    /// Every problem left, in the order: paths over the length limit,
+    /// unreadable atom files, then each atom's facets, drills and cards, by
+    /// path.
     pub problems: Vec<Error>,
 }
 
@@ -59,8 +60,27 @@ pub fn check(
         .collect::<Vec<_>>();
     Ok(Report {
         fixed,
-        problems: atoms.problems.into_iter().chain(card_problems).collect(),
+        problems: long_paths(store)?
+            .into_iter()
+            .chain(atoms.problems)
+            .chain(card_problems)
+            .collect(),
     })
+}
+
+/// The atom files whose full path is longer than new files may be (see
+/// `docs/atoms.md`, "Creating atoms"), as problems.
+fn long_paths(store: &Store) -> Result<Vec<Error>> {
+    let room = add::path_room(store)?;
+    Ok(store
+        .atom_paths()?
+        .into_iter()
+        .filter(|path| add::units(path) > room.units)
+        .map(|path| Error::PathOverLimit {
+            path,
+            limit: add::MAX_PATH,
+        })
+        .collect())
 }
 
 /// The problems of one atom's facets, drills and cards.
@@ -241,6 +261,25 @@ mod tests {
                 "---\nid: {}\ntitle: x  # a comment\n---\nbody\n",
                 report.fixed[0].id
             )
+        );
+    }
+
+    #[test]
+    fn paths_longer_than_new_files_may_be_are_reported() {
+        let atom = "---\nid: aaaaa1\ntitle: x\n---\n";
+        let (_tmp, store) = store(&[("a.md", "---\nid: aaaaa2\ntitle: y\n---\n")]);
+        let long = format!(
+            "{}/{}/{}.md",
+            "x".repeat(100),
+            "y".repeat(100),
+            "z".repeat(60)
+        );
+        fs::create_dir_all(store.atom_file(&long).parent().unwrap()).unwrap();
+        fs::write(store.atom_file(&long), atom).unwrap();
+        let problems = run(&store, None, false).problems;
+        assert!(
+            matches!(&problems[..], [Error::PathOverLimit { path, .. }] if *path == long),
+            "{problems:?}"
         );
     }
 }

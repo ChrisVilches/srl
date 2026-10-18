@@ -2,6 +2,7 @@
 
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 
+use crate::store::nfc;
 use crate::{Atom, Error, Id, Memories, Result, State, Status};
 
 /// The keys of `key:value` terms.
@@ -111,7 +112,7 @@ impl Filter {
                             .is_some_and(|rest| rest.starts_with('/'))
                 })
             }),
-            Self::Path(globs) => globs.is_match(atom.path()),
+            Self::Path(globs) => globs.is_match(nfc(atom.path())),
             Self::Id(ids) => ids.contains(atom.id()),
             Self::Status(statuses) => statuses.contains(&atom.content().status()),
             Self::State(states) => {
@@ -200,12 +201,13 @@ fn keyed(key: &str, values: &str) -> std::result::Result<Filter, String> {
     }
 }
 
-/// Globs where `*` stops at `/` and `**` crosses it.
+/// Globs where `*` stops at `/` and `**` crosses it. Patterns and paths are
+/// both compared in NFC (see `docs/store.md`, "File names").
 fn globs(patterns: &[&str]) -> std::result::Result<GlobSet, String> {
     patterns
         .iter()
         .map(|pattern| {
-            GlobBuilder::new(pattern)
+            GlobBuilder::new(&nfc(pattern))
                 .literal_separator(true)
                 .build()
                 .map_err(|error| format!("`{pattern}` is not a valid glob ({error})"))
@@ -414,6 +416,17 @@ mod tests {
             "\"closed\"glued",
         ] {
             assert!(Selector::parse(text).is_err(), "accepted {text}");
+        }
+    }
+
+    #[test]
+    fn path_globs_match_whatever_unicode_form_names_are_in() {
+        let decomposed = atom("aaaaa1", "cafe\u{301}.md", "title: x", "");
+        let composed = atom("aaaaa2", "caf\u{e9}.md", "title: x", "");
+        for pattern in ["path:caf\u{e9}.md", "path:cafe\u{301}.md"] {
+            let selector = Selector::parse(pattern).unwrap();
+            assert!(selector.matches(&decomposed, None), "{pattern}");
+            assert!(selector.matches(&composed, None), "{pattern}");
         }
     }
 }

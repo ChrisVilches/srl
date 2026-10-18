@@ -9,12 +9,13 @@ use std::path::{self, Path, PathBuf};
 use serde_json::Value;
 
 use crate::atom::{self, Content};
+use crate::store::nfc;
 use crate::{Atom, Atoms, Error, Id, Result, Status, Store, random, yaml};
 
 /// The longest full path of a new atom file, in UTF-16 units: Windows' limit
 /// of 260 without long paths, less the terminating NUL (see `docs/atoms.md`,
 /// "Creating atoms").
-const MAX_PATH: usize = 259;
+pub(crate) const MAX_PATH: usize = 259;
 
 /// The most characters of a title that go into a file name.
 const SLUG_LEN: usize = 60;
@@ -197,7 +198,7 @@ fn place(content: &Content, id: &Id, room: usize, taken: impl Fn(&str) -> bool) 
 }
 
 /// The length of `text` in UTF-16 units, as Windows counts path lengths.
-fn units(text: &str) -> usize {
+pub(crate) fn units(text: &str) -> usize {
     text.encode_utf16().count()
 }
 
@@ -227,9 +228,9 @@ fn shorten(name: &str, room: usize) -> String {
 ///
 // TODO(platform): Not run on Windows yet. `srl` itself copes with longer
 // paths there (Rust's standard library uses the long path form), so the
-// limit is for other programs. Existing files over the limit are not
-// checked. See docs/atoms.md, "Creating atoms".
-fn path_room(store: &Store) -> Result<PathRoom> {
+// limit is for other programs. `srl check` reports existing files over
+// it. See docs/atoms.md, "Creating atoms".
+pub(crate) fn path_room(store: &Store) -> Result<PathRoom> {
     let dir = path::absolute(store.atoms_dir()).map_err(Error::io(store.atoms_dir()))?;
     // Lossy only for counting: a part that isn't valid Unicode becomes one
     // replacement character. Such names only occur on Unix, where the limit
@@ -242,18 +243,17 @@ fn path_room(store: &Store) -> Result<PathRoom> {
 }
 
 /// The room for new paths in a store's `atoms/` folder.
-struct PathRoom {
-    units: usize,
+pub(crate) struct PathRoom {
+    pub(crate) units: usize,
     /// The absolute path of `atoms/`.
     dir: PathBuf,
 }
-/// A file name from text: lowercase, letters and digits of any script kept,
-/// every other run of characters turned into one `-`, at most `SLUG_LEN`
-/// characters. A name that Windows reserves for a device gets a `_`, so that
-/// the same name works on every platform.
+/// A file name from text: in NFC and lowercase, letters and digits of any
+/// script kept, every other run of characters turned into one `-`, at most
+/// `SLUG_LEN` characters. A name that Windows reserves for a device gets a
+/// `_`, so that the same name works on every platform.
 fn slug(text: &str) -> String {
-    let words = text
-        .to_lowercase()
+    let words = nfc(&text.to_lowercase())
         .split(|character: char| !character.is_alphanumeric())
         .filter(|word| !word.is_empty())
         .map(str::to_owned)
@@ -361,6 +361,7 @@ mod tests {
         assert_eq!(slug("  C++ / Rust!  "), "c-rust");
         assert_eq!(slug("〜"), "");
         assert_eq!(slug(&"a".repeat(100)).chars().count(), SLUG_LEN);
+        assert_eq!(slug("Cafe\u{301}"), "caf\u{e9}");
     }
 
     #[test]
