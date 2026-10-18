@@ -91,7 +91,7 @@ The body can be empty. An atom made only of a cue and facets is complete.
 | Status | Studied? | Meaning |
 |---|---|---|
 | `active` | yes | Normal atom. |
-| `draft` | no | Proposed, waiting for you. Listed by `srl inbox`. `srl accept SELECTOR` makes matching drafts active. |
+| `draft` | no | Proposed, waiting for you. Listed by `srl drafts`. `srl accept SELECTOR` makes matching drafts active. |
 | `suspended` | no | Kept but not studied. |
 
 Drafts exist so that atoms written by agents or imports never enter your study

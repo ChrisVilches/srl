@@ -299,14 +299,14 @@ fn bad_selectors_exit_with_2_and_explain() {
 }
 
 #[test]
-fn inbox_lists_only_drafts() {
+fn drafts_lists_only_drafts() {
     let tmp = japanese();
-    let output = srl(&["inbox", "--dir", dir(&tmp)]);
+    let output = srl(&["drafts", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(0));
     let stdout = stdout(&output);
     assert_eq!(stdout.lines().count(), 1);
     assert!(stdout.contains("鮪"));
-    let none = srl(&["inbox", "tag:japanese", "--dir", dir(&tmp)]);
+    let none = srl(&["drafts", "tag:japanese", "--dir", dir(&tmp)]);
     assert_eq!(none.status.code(), Some(1));
 }
 

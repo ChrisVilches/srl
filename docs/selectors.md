@@ -63,7 +63,7 @@ Some commands add a term of their own:
 | Command | Adds |
 |---|---|
 | `srl next`, `srl study` | `status:active` (drafts and suspended atoms are never studied) |
-| `srl inbox` | `status:draft` |
+| `srl drafts` | `status:draft` |
 
 Every other command applies the selector exactly as written.
 

@@ -110,7 +110,7 @@ pub(crate) enum Command {
         json: Json,
     },
     /// List drafts.
-    Inbox {
+    Drafts {
         #[command(flatten)]
         selector: Selector,
         #[command(flatten)]

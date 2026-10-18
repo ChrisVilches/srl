@@ -24,7 +24,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             let selector = Selector::parse(&selector.terms.join(" "))?;
             return find(&store()?, &selector, json.json);
         }
-        Command::Inbox { selector, json } => {
+        Command::Drafts { selector, json } => {
             let selector = Selector::parse(&selector.terms.join(" "))?.and_status(Status::Draft);
             return find(&store()?, &selector, json.json);
         }
@@ -83,7 +83,7 @@ fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
     Ok(Outcome::Done)
 }
 
-/// `srl find` and `srl inbox`: lists the matching atoms.
+/// `srl find` and `srl drafts`: lists the matching atoms.
 fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
     let atoms = load(store)?;
     let found = atoms.select(selector);
