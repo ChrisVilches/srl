@@ -18,7 +18,7 @@ my-store/
     2026-10.jsonl
   drills/                drills that belong to this store (optional)
     srl-drill-conj
-  sessions/              prepared lists of cards to play (optional)
+  sessions/              prepared lists of cards to study (optional)
     n1-food.jsonl
   .cache/                derived data, safe to delete
     index.sqlite

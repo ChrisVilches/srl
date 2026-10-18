@@ -48,8 +48,8 @@ introduced, Again count).
 Keys: Enter to reveal or submit, `1`–`4` to rate (Enter accepts the suggested
 rating), `e` to open the atom in `$EDITOR`, `s` to suspend it, `q` to quit.
 
-`srl play NAME` is the same frontend reading cards from a session file
-instead of `srl next`.
+`srl study --session NAME` is the same frontend reading cards from a session
+file instead of `srl next`.
 
 ## A web viewer
 

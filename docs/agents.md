@@ -99,7 +99,7 @@ JSONL to `srl add --draft --stdin`. It records where the material came from in
 3. Write cards that use the grammar with food vocabulary, in the card format.
 4. `srl session put n1-food`.
 
-You then study it with `srl play n1-food`, with or without an LLM.
+You then study it with `srl study --session n1-food`, with or without an LLM.
 
 ### Tutor: an interactive session
 

@@ -56,8 +56,8 @@ reached, `srl next` only returns due atoms until the next study day.
 
 ## Reviews outside the schedule
 
-Reviewing an atom that is not due (for example by playing a prepared session
-with `srl play`) is allowed. The review is recorded like any other, and FSRS
+Reviewing an atom that is not due (for example by studying a prepared session
+with `srl study --session`) is allowed. The review is recorded like any other, and FSRS
 treats it as an early review.
 
 ## Cards about several atoms

@@ -53,12 +53,12 @@ agents all use the same commands. There is no separate API.
 | Command | Does |
 |---|---|
 | `srl study [SELECTOR]` | The built-in terminal frontend (see [frontends.md](frontends.md)). |
+| `srl study --session NAME` | Study a prepared session with the same frontend (see below). |
 | `srl next [SELECTOR] [--drill NAME] [--json]` | Print the next card. Exit 1 if there is none. |
 | `srl cards ID [--json]` | Print every card of an atom, from every applicable drill. |
 | `srl grade` | Grade an answer: card and response as JSON on stdin (see [grading.md](grading.md)). |
 | `srl review --stdin` | Record a review: `{"card": …, "rating": N, "response": […], "by": "human"}`. |
 | `srl review ID… --rating N [--by agent]` | Record a review without a card. |
-| `srl play NAME` | Study a prepared session (see below). |
 | `srl reset SELECTOR` | Make matching atoms new again. |
 
 ### Sessions
@@ -86,10 +86,10 @@ agents all use the same commands. There is no separate API.
 A session is a prepared list of cards in `sessions/NAME.jsonl`, usually written
 by an agent ("15 questions on N1 grammar using food vocabulary") or a script.
 
-- `srl play NAME` shows the cards in file order, each once, regardless of
-  whether their atoms are due.
+- `srl study --session NAME` shows the cards in file order, each once,
+  regardless of whether their atoms are due.
 - Reviews are recorded normally and update the atoms' schedules.
-- A session can be played again; it is just a file.
+- A session can be studied again; it is just a file.
 
 > **TODO:** Revisit sessions once they are implemented. Build real scripts
 > around `srl` (for example an agent preparing a session), look at how

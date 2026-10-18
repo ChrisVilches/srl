@@ -79,7 +79,7 @@ never affects scheduling, because scheduling belongs to the atom.
 | Source | Stored? |
 |---|---|
 | A drill run by `srl next` | No |
-| `sessions/<name>.jsonl`, played with `srl play` | Yes, as a prepared list |
+| `sessions/<name>.jsonl`, studied with `srl study --session` | Yes, as a prepared list |
 
 Cards in sessions use exactly the same format, and are validated when written
 (`srl session put`).
