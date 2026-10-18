@@ -112,9 +112,7 @@ pub fn add(
             let id = ids
                 .by_ref()
                 .find(|id| !used_ids.contains(id))
-                .ok_or_else(|| Error::InvalidNewAtom {
-                    reason: "no free ID was found".to_owned(),
-                })?;
+                .expect("the sequence of IDs should be endless");
             used_ids.insert(id.clone());
             let path = place(&content, &id, |path| {
                 used_paths.contains(path) || store.atom_file(path).exists()
@@ -132,14 +130,14 @@ pub fn add(
     Ok(prepared.into_iter().map(|(added, _)| added).collect())
 }
 
-/// The IDs made from `seed`, with the splitmix64 generator. Endless, unless
-/// an ID can't be made, which ends it (and then `add` reports an error).
+/// An endless sequence of IDs made from `seed`, with the splitmix64
+/// generator.
 fn random_ids(seed: u64) -> impl Iterator<Item = Id> {
     std::iter::successors(Some(seed), |state| {
         Some(state.wrapping_add(0x9E37_79B9_7F4A_7C15))
     })
     .skip(1)
-    .map_while(|state| {
+    .map(|state| {
         let mixed = (state ^ (state >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
         let mixed = (mixed ^ (mixed >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
         Id::from_number(mixed ^ (mixed >> 31))

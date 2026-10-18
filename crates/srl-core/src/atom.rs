@@ -36,17 +36,21 @@ impl Id {
         }
     }
 
-    /// The ID made of the last six base-36 digits of `number`. `None` only if
-    /// a digit can't be looked up, which doesn't happen.
-    pub(crate) fn from_number(number: u64) -> Option<Self> {
-        std::iter::successors(Some(number), |rest| Some(rest / 36))
-            .take(ID_LEN)
-            .map(|rest| {
-                let digit = usize::try_from(rest % 36).ok()?;
-                ID_CHARS.get(digit).copied().map(char::from)
-            })
-            .collect::<Option<String>>()
-            .map(Self)
+    /// The ID made of the last six base-36 digits of `number`.
+    pub(crate) fn from_number(number: u64) -> Self {
+        Self(
+            std::iter::successors(Some(number), |rest| Some(rest / 36))
+                .take(ID_LEN)
+                .map(|rest| {
+                    let digit =
+                        usize::try_from(rest % 36).expect("a digit below 36 should fit in a usize");
+                    let byte = ID_CHARS
+                        .get(digit)
+                        .expect("a digit below 36 should index ID_CHARS");
+                    char::from(*byte)
+                })
+                .collect(),
+        )
     }
 
     pub fn as_str(&self) -> &str {
@@ -294,8 +298,12 @@ pub(crate) fn split_front_matter(text: &str) -> Option<(&str, &str)> {
             Some((start, line))
         })
         .find(|(_, line)| line.trim_end_matches(['\n', '\r']) == "---")?;
-    let (front, fence_and_body) = rest.split_at_checked(start)?;
-    let body = fence_and_body.strip_prefix(line)?;
+    let (front, fence_and_body) = rest
+        .split_at_checked(start)
+        .expect("the start of a line should be a character boundary");
+    let body = fence_and_body
+        .strip_prefix(line)
+        .expect("the text at the start of the fence line should be that line");
     Some((front, body))
 }
 
@@ -524,9 +532,9 @@ mod tests {
         for bad in ["a7f3k", "a7f3k2x", "A7F3K2", "a7f-k2", ""] {
             assert!(Id::parse(bad).is_err(), "accepted {bad}");
         }
-        assert_eq!(Id::from_number(0).unwrap().as_str(), "aaaaaa");
-        assert_eq!(Id::from_number(35).unwrap().as_str(), "9aaaaa");
-        assert!(Id::parse(Id::from_number(u64::MAX).unwrap().as_str()).is_ok());
+        assert_eq!(Id::from_number(0).as_str(), "aaaaaa");
+        assert_eq!(Id::from_number(35).as_str(), "9aaaaa");
+        assert!(Id::parse(Id::from_number(u64::MAX).as_str()).is_ok());
     }
 
     #[test]
