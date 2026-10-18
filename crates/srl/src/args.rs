@@ -17,7 +17,7 @@ pub(crate) struct Cli {
         long,
         global = true,
         value_name = "DIR",
-        help = "The store to use (default: SRL_DIR, then the nearest store, then ~/.local/share/srl)"
+        help = "The store to use (default: SRL_DIR, then the nearest store, then srl in the platform data directory)"
     )]
     pub(crate) dir: Option<PathBuf>,
 

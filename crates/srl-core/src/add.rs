@@ -94,7 +94,6 @@ pub fn add(
     seed: u64,
     dry_run: bool,
 ) -> Result<Vec<Added>> {
-    let dir = store.atoms_dir();
     let mut used_ids = existing
         .atoms
         .iter()
@@ -118,7 +117,7 @@ pub fn add(
                 })?;
             used_ids.insert(id.clone());
             let path = place(&content, &id, |path| {
-                used_paths.contains(path) || dir.join(path).exists()
+                used_paths.contains(path) || store.atom_file(path).exists()
             });
             used_paths.insert(path.clone());
             let text = render(&content, &id)?;
@@ -127,7 +126,7 @@ pub fn add(
         .collect::<Result<Vec<_>>>()?;
     if !dry_run {
         for (added, text) in &prepared {
-            write_new(&dir.join(&added.path), text)?;
+            write_new(&store.atom_file(&added.path), text)?;
         }
     }
     Ok(prepared.into_iter().map(|(added, _)| added).collect())
@@ -150,6 +149,12 @@ fn random_ids(seed: u64) -> impl Iterator<Item = Id> {
 /// The path of a new atom, relative to `atoms/`: a folder made from the first
 /// tag, and a file name made from the cue. If the cue gives no name, the name
 /// is the ID; if the name is `taken`, the ID is added to it.
+///
+// TODO(platform): Windows limits paths to 260 characters unless long paths
+// are enabled. Names are at most `SLUG_LEN` characters, but a store deep in
+// the file system with a long first tag can still exceed it, and then
+// writing fails with an error. Decide whether to cap the whole path (see
+// docs/rust.md, "Platform independence").
 fn place(content: &Content, id: &Id, taken: impl Fn(&str) -> bool) -> String {
     let folder = content
         .tags()
@@ -177,7 +182,8 @@ fn place(content: &Content, id: &Id, taken: impl Fn(&str) -> bool) -> String {
 
 /// A file name from text: lowercase, letters and digits of any script kept,
 /// every other run of characters turned into one `-`, at most `SLUG_LEN`
-/// characters.
+/// characters. A name that Windows reserves for a device gets a `_`, so that
+/// the same name works on every platform.
 fn slug(text: &str) -> String {
     let words = text
         .to_lowercase()
@@ -186,12 +192,32 @@ fn slug(text: &str) -> String {
         .map(str::to_owned)
         .collect::<Vec<_>>()
         .join("-");
-    words
+    let name = words
         .chars()
         .take(SLUG_LEN)
         .collect::<String>()
         .trim_end_matches('-')
-        .to_owned()
+        .to_owned();
+    if is_device_name(&name) {
+        format!("{name}_")
+    } else {
+        name
+    }
+}
+
+/// Whether Windows reserves `name` for a device, which makes it unusable as
+/// a file or folder name there, with any extension.
+fn is_device_name(name: &str) -> bool {
+    const DEVICES: [&str; 4] = ["con", "prn", "aux", "nul"];
+    const NUMBERED: [&str; 2] = ["com", "lpt"];
+    const DIGITS: &str = "0123456789¹²³";
+    DEVICES.contains(&name)
+        || NUMBERED.iter().any(|prefix| {
+            name.strip_prefix(prefix).is_some_and(|rest| {
+                let mut chars = rest.chars();
+                chars.next().is_some_and(|digit| DIGITS.contains(digit)) && chars.next().is_none()
+            })
+        })
 }
 
 /// The file of a new atom. Checks that it reads back as the same atom.
@@ -268,6 +294,16 @@ mod tests {
         assert_eq!(slug("  C++ / Rust!  "), "c-rust");
         assert_eq!(slug("〜"), "");
         assert_eq!(slug(&"a".repeat(100)).chars().count(), SLUG_LEN);
+    }
+
+    #[test]
+    fn windows_device_names_get_an_underscore() {
+        for name in ["CON", "nul", "Com1", "lpt9", "com¹", "AUX!"] {
+            assert!(slug(name).ends_with('_'), "{name} became {}", slug(name));
+        }
+        for name in ["console", "com10", "lpt", "nuls"] {
+            assert!(!slug(name).ends_with('_'), "{name} became {}", slug(name));
+        }
     }
 
     #[test]

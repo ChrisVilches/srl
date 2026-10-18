@@ -14,6 +14,9 @@ filename ending in `.md`. The file has two parts:
 - **The body is prose.** Free Markdown after the front-matter. It is shown to
   people and given to LLMs as context, but no program parses it.
 
+Files are UTF-8. Both `\n` and `\r\n` line endings are read, and a UTF-8 byte
+order mark is ignored, so files edited on any platform work.
+
 The smallest useful atom:
 
 ```markdown
@@ -143,7 +146,12 @@ them afterwards. The names follow one rule:
 - A **name** is made from text by lowercasing it, keeping letters and digits
   of any script, turning every other run of characters into one `-`, and
   keeping at most 60 characters. `Move semantics in Rust` becomes
-  `move-semantics-in-rust`; `〜をものともせず` becomes `をものともせず`.
+  `move-semantics-in-rust`; `〜をものともせず` becomes `をものともせず`. A
+  name that Windows reserves for a device (`con`, `prn`, `aux`, `nul`,
+  `com0`–`com9`, `lpt0`–`lpt9`) gets a `_` (`con_`) on every platform, so a
+  store can be copied between platforms. Names never contain characters that
+  any platform forbids, and are lowercase, so they don't clash on file
+  systems that ignore case.
 - The **folder** is the first tag, with each part between `/` turned into a
   name. Without tags, the file goes directly in `atoms/`.
 - The **file** is the cue's name plus `.md`. If the cue gives an empty name,
@@ -151,7 +159,13 @@ them afterwards. The names follow one rule:
 
 New files are written with the fields in the order of the table above and
 `tags` on one line (`tags: [a, b]`), then the facets, then the body. An
-existing file is never overwritten.
+existing file is never overwritten. They are UTF-8 with `\n` line endings on
+every platform.
+
+> **TODO (platform):** Windows limits paths to 260 characters unless long
+> paths are enabled. A store deep in the file system with a long first tag
+> can exceed it, and then `srl add` fails. Decide whether to cap the whole
+> path.
 
 ## Atoms as JSON
 

@@ -317,12 +317,11 @@ impl Atoms {
     /// or whose ID an earlier file (by path) already has, is skipped and
     /// reported in `problems`.
     pub fn load(store: &Store) -> Result<Self> {
-        let dir = store.atoms_dir();
         let (atoms, problems) = store
             .atom_paths()?
             .into_iter()
             .map(|path| {
-                let file = dir.join(&path);
+                let file = store.atom_file(&path);
                 let text = fs::read_to_string(&file).map_err(Error::io(file))?;
                 Atom::parse(path, text)
             })

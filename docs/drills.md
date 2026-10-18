@@ -39,6 +39,16 @@ A drill named `NAME` is the first of:
 So a store or a user can replace a built-in drill by providing a program with
 the same name.
 
+> **TODO (platform):** "Executable" means different things per platform. On
+> Unix it is a file with the execute permission, and a script runs through
+> its `#!` line (like the Python example below). On Windows there is no
+> execute permission and `#!` lines are ignored: a drill must be a file with
+> an extension from `PATHEXT` (`.exe`, `.cmd`, `.bat`, …), and a Python
+> drill needs a `.cmd` wrapper. Before drills are implemented, decide how
+> `drills/srl-drill-NAME` is found and run on Windows (search `PATHEXT` as
+> for `PATH`, as `srl NAME` already does; maybe also accept `.py` and run it
+> with `python`).
+
 `srl drills` lists the drills found, with the first line of each one's help.
 
 ## The drill protocol

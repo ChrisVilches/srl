@@ -40,7 +40,14 @@ Every command looks for the store in this order and uses the first match:
 1. The `--dir DIR` flag.
 2. The `SRL_DIR` environment variable.
 3. The current directory or its nearest parent that contains `srl.toml`.
-4. The default store, `~/.local/share/srl`.
+4. The default store: a folder `srl` in the platform's directory for
+   application data.
+
+| Platform | Default store |
+|---|---|
+| Linux and other Unix | `$XDG_DATA_HOME/srl`, or `~/.local/share/srl` if `XDG_DATA_HOME` is not set |
+| macOS | `~/Library/Application Support/srl` |
+| Windows | `%APPDATA%\srl` (for example `C:\Users\NAME\AppData\Roaming\srl`) |
 
 Every command except `srl init` requires the store it finds to exist (to
 contain `srl.toml`), and fails otherwise.

@@ -170,6 +170,47 @@ types, so that the compiler checks them:
   something as deprecated, replace it in the same change.
 - **Use the current edition** (2024) and the current stable toolchain.
 
+### Platform independence
+
+`srl` must work the same on Linux, macOS and Windows. Write code that doesn't
+depend on the platform, and flag every place that does.
+
+- **Paths:** build them with `Path::join`, never by gluing strings with `/`
+  or `\`. Atom paths are `String`s with `/` between folders, because they are
+  part of the formats (JSON output, `path:` selectors); turn them into file
+  paths only with `Store::atom_file`.
+- **Platform locations** come from a crate, never from hard-coded paths such
+  as `~/.local/share`: the default store uses `dirs::data_dir()`.
+- **Finding programs** uses `which`, which follows `PATHEXT` on Windows.
+  Running a bare name with `std::process::Command` only finds `.exe` there.
+- **File names `srl` creates** must be valid everywhere: no characters any
+  platform forbids, no Windows device names, lowercase (see
+  [atoms.md](atoms.md), "Creating atoms").
+- **Text files** are written as UTF-8 with `\n`, and read with either `\n` or
+  `\r\n`.
+- **Tests** must not assume a platform either: build paths with `join`, and
+  don't rely on Unix-only tools.
+
+When something can't be platform-independent yet, mark it in both places:
+
+1. a comment starting with `TODO(platform):` right above the code, saying
+   what differs and what to decide;
+2. a note starting with **TODO (platform):** in the specification document
+   that describes the behaviour, or in the table below if it only concerns
+   the code.
+
+`grep -rn 'TODO(platform)\|TODO (platform)' crates docs` lists them all.
+Known places:
+
+| Where | What differs | Status |
+|---|---|---|
+| `store.rs`, `markdown_files` | macOS (HFS+) may list file names in Unicode NFD, so paths could sort and match differently | TODO in code |
+| `add.rs`, `place`; [atoms.md](atoms.md) | Windows' 260-character path limit | TODO in code and spec |
+| [cli.md](cli.md), `srl new` / `srl edit` | `$EDITOR` is rarely set on Windows | TODO in spec (not implemented yet) |
+| [drills.md](drills.md), finding drills | "Executable" and `#!` scripts are Unix concepts | TODO in spec (not implemented yet) |
+| [log.md](log.md), appending events | Atomic appends aren't guaranteed on Windows or network file systems | TODO in spec (not implemented yet) |
+| `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
+
 ## Testing
 
 Write tests for every module that has logic, which is nearly all of
@@ -230,6 +271,8 @@ Current dependencies:
 | `clap` (derive) | `srl` | Argument parsing, help and usage errors |
 | `anyhow` | `srl` | Error type with context in the CLI |
 | `getrandom` | `srl` | The random seed for new atom IDs (the core derives IDs from it) |
+| `dirs` | `srl` | The platform's data directory, for the default store |
+| `which` | `srl` | Finding `srl-NAME` on `PATH`, with `PATHEXT` on Windows |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
 | `saphyr` | `srl-core` | YAML 1.2 parsing and writing of front-matter |
 | `globset` | `srl-core` | `path:` globs in selectors |

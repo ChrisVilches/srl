@@ -166,6 +166,6 @@ fn lookup(dir: Option<PathBuf>) -> anyhow::Result<Lookup> {
             .filter(|value| !value.is_empty())
             .map(PathBuf::from),
         cwd: env::current_dir().context("cannot read the current directory")?,
-        home: env::home_dir(),
+        data_dir: dirs::data_dir(),
     })
 }

@@ -19,7 +19,13 @@ agents all use the same commands. There is no separate API.
 - **`--dir DIR`** on every command, to choose the store (see
   [store.md](store.md)).
 - **Extension like git.** `srl NAME` runs `srl-NAME` from `PATH` if `NAME` is
-  not a built-in command. Frontends and other tools plug in this way.
+  not a built-in command. Frontends and other tools plug in this way. `PATH`
+  is searched the way the platform's shell searches it: on Windows,
+  `srl-NAME` may have any extension listed in `PATHEXT` (`.exe`, `.cmd`,
+  `.bat`, …).
+- **Platform independence.** `srl` behaves the same on Linux, macOS and
+  Windows. Where it can't, the document says so in a note marked
+  **TODO (platform)**.
 
 ## Commands
 
@@ -47,6 +53,12 @@ agents all use the same commands. There is no separate API.
 | `srl inbox [SELECTOR] [--json]` | List drafts: the same as `srl find SELECTOR status:draft`. |
 | `srl accept SELECTOR` | Make matching drafts active. |
 | `srl suspend SELECTOR` / `srl unsuspend SELECTOR` | Change status between `active` and `suspended`. |
+
+> **TODO (platform):** `srl new` and `srl edit ID` open `$EDITOR`, which is
+> usually set on Unix but rarely on Windows. Decide what happens when it is
+> not set (an error that says to set it, or `VISUAL`, or a platform default
+> such as `notepad`), and how `$EDITOR` values with arguments
+> (`code --wait`) are split on each platform.
 
 ### Studying
 

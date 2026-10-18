@@ -138,7 +138,12 @@ fn added_atoms_can_be_shown() {
     assert_eq!(added.status.code(), Some(0));
     let id = stdout(&added).trim().to_owned();
     assert_eq!(id.len(), 6);
-    let path = tmp.path().join("atoms/kanji/food/鮪.md");
+    let path = tmp
+        .path()
+        .join("atoms")
+        .join("kanji")
+        .join("food")
+        .join("鮪.md");
     let file = fs::read_to_string(path).unwrap();
     let shown = srl(&["show", "--dir", dir(&tmp), &id]);
     assert_eq!(shown.status.code(), Some(0));
@@ -221,7 +226,11 @@ fn broken_atom_files_are_reported_and_skipped() {
     let id = stdout(&srl(&["add", "--dir", dir(&tmp), "--cue", "x"]))
         .trim()
         .to_owned();
-    fs::write(tmp.path().join("atoms/broken.md"), "no front-matter\n").unwrap();
+    fs::write(
+        tmp.path().join("atoms").join("broken.md"),
+        "no front-matter\n",
+    )
+    .unwrap();
     let output = srl(&["show", "--dir", dir(&tmp), &id]);
     assert_eq!(output.status.code(), Some(0));
     assert!(stdout(&output).contains("cue: x"));

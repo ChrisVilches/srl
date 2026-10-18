@@ -8,8 +8,8 @@ use crate::{Error, Result};
 /// The file whose presence marks a directory as a store.
 const CONFIG_FILE: &str = "srl.toml";
 
-/// The default store, relative to the home directory.
-const DEFAULT_STORE: &str = ".local/share/srl";
+/// The default store, relative to the platform's data directory.
+const DEFAULT_STORE: &str = "srl";
 
 /// The folder of atom files.
 const ATOMS: &str = "atoms";
@@ -39,7 +39,8 @@ const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is optional; thes
 /// Everything needed to find a store, gathered by the caller.
 ///
 /// The core never reads the process environment itself; the CLI fills this
-/// in from `--dir`, `SRL_DIR`, the current directory and `HOME`.
+/// in from `--dir`, `SRL_DIR`, the current directory and the platform's data
+/// directory.
 #[derive(Debug, Clone, Default)]
 pub struct Lookup {
     /// The `--dir` flag.
@@ -48,8 +49,10 @@ pub struct Lookup {
     pub env_dir: Option<PathBuf>,
     /// The current directory.
     pub cwd: PathBuf,
-    /// The home directory, if there is one.
-    pub home: Option<PathBuf>,
+    /// The platform's directory for application data, if there is one:
+    /// `$XDG_DATA_HOME` or `~/.local/share` on Linux, `~/Library/Application
+    /// Support` on macOS, `%APPDATA%` on Windows (see `docs/store.md`).
+    pub data_dir: Option<PathBuf>,
 }
 
 /// One `srl` store: a directory holding atoms, the log and configuration.
@@ -61,14 +64,19 @@ pub struct Store {
 impl Store {
     /// Finds the store, using the first match of: `--dir`, `SRL_DIR`, the
     /// nearest directory from `cwd` upwards that contains `srl.toml`, and the
-    /// default store under the home directory.
+    /// default store in the platform's data directory.
     pub fn locate(lookup: &Lookup) -> Result<Self> {
         lookup
             .dir
             .clone()
             .or_else(|| lookup.env_dir.clone())
             .or_else(|| marked_ancestor(&lookup.cwd))
-            .or_else(|| lookup.home.as_ref().map(|home| home.join(DEFAULT_STORE)))
+            .or_else(|| {
+                lookup
+                    .data_dir
+                    .as_ref()
+                    .map(|data| data.join(DEFAULT_STORE))
+            })
             .map(|root| Self { root })
             .ok_or_else(|| Error::NoStore {
                 cwd: lookup.cwd.clone(),
@@ -135,9 +143,22 @@ impl Store {
         paths.sort();
         Ok(paths)
     }
+
+    /// The file of an atom path from [`Store::atom_paths`], with the
+    /// platform's separator between folders.
+    pub fn atom_file(&self, path: &str) -> PathBuf {
+        path.split('/')
+            .fold(self.atoms_dir(), |file, part| file.join(part))
+    }
 }
 
 /// The `.md` files under `dir`, whose path relative to `atoms/` is `prefix`.
+///
+// TODO(platform): macOS (HFS+) may return file names in Unicode NFD form, so
+// `をものともせず.md` can be listed with decomposed characters. Paths would
+// then sort differently and not match NFC text in `path:` globs. Normalize
+// names to NFC here if that turns out to happen (see docs/rust.md, "Platform
+// independence").
 fn markdown_files(dir: &Path, prefix: &str) -> Result<Vec<String>> {
     let entries = fs::read_dir(dir).map_err(Error::io(dir))?;
     entries
@@ -180,7 +201,7 @@ mod tests {
     /// `notes/japanese/grammar/`.
     fn tree() -> TempDir {
         let tmp = TempDir::new().unwrap();
-        fs::create_dir_all(tmp.path().join("notes/japanese/grammar")).unwrap();
+        fs::create_dir_all(tmp.path().join("notes").join("japanese").join("grammar")).unwrap();
         fs::write(tmp.path().join("notes").join(CONFIG_FILE), "").unwrap();
         tmp
     }
@@ -196,7 +217,7 @@ mod tests {
             dir: Some("/flag".into()),
             env_dir: Some("/env".into()),
             cwd: tmp.path().join("notes"),
-            home: Some("/home/u".into()),
+            data_dir: Some("/data".into()),
         };
         assert_eq!(root(&lookup), PathBuf::from("/flag"));
     }
@@ -216,8 +237,8 @@ mod tests {
     fn nearest_parent_with_config_is_found() {
         let tmp = tree();
         let lookup = Lookup {
-            cwd: tmp.path().join("notes/japanese/grammar"),
-            home: Some("/home/u".into()),
+            cwd: tmp.path().join("notes").join("japanese").join("grammar"),
+            data_dir: Some("/data".into()),
             ..Lookup::default()
         };
         assert_eq!(root(&lookup), tmp.path().join("notes"));
@@ -228,10 +249,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let lookup = Lookup {
             cwd: tmp.path().to_path_buf(),
-            home: Some("/home/u".into()),
+            data_dir: Some("/data".into()),
             ..Lookup::default()
         };
-        assert_eq!(root(&lookup), PathBuf::from("/home/u/.local/share/srl"));
+        assert_eq!(root(&lookup), PathBuf::from("/data/srl"));
     }
 
     #[test]
@@ -249,7 +270,7 @@ mod tests {
         let lookup = Lookup {
             env_dir: Some("/env".into()),
             cwd: "/cwd".into(),
-            home: Some("/home/u".into()),
+            data_dir: Some("/data".into()),
             ..Lookup::default()
         };
         assert_eq!(
@@ -296,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn no_home_and_no_store_is_an_error() {
+    fn no_data_directory_and_no_store_is_an_error() {
         let tmp = TempDir::new().unwrap();
         let lookup = Lookup {
             cwd: tmp.path().to_path_buf(),

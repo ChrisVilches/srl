@@ -11,6 +11,7 @@ rust-version = "1.92"
 srl-core = { path = "crates/srl-core" }
 anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive"] }
+dirs = "7.0.0"
 getrandom = "0.4.3"
 globset = { version = "0.4.20", default-features = false }
 saphyr = { version = "0.2.2", default-features = false }
@@ -18,6 +19,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["preserve_order"] }
 tempfile = "3.27.0"
 thiserror = "2.0.21"
+which = "8.0.6"
 
 # Lint policy: see docs/rust.md, "Linting".
 [workspace.lints.rust]

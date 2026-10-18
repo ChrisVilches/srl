@@ -19,6 +19,12 @@ After each meaningful unit of work, make a git commit. Do not add Claude, or
 any other agent, as a co-author: no `Co-Authored-By` trailer and no other
 attribution lines in the commit message.
 
+### Keep the implementation platform-independent
+
+`srl` must work the same on Linux, macOS and Windows. Anything that can't be
+platform-independent yet gets a `TODO(platform):` comment above the code and
+a note in `docs/`. See [docs/rust.md](docs/rust.md), "Platform independence".
+
 ### Keep docs/ in sync with the specifications
 
 Whenever the specifications change, update the documents in `docs/` in the

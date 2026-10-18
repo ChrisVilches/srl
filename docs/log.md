@@ -12,6 +12,12 @@ computed from it.
 - Each event is written as a single line in one append, so several frontends
   can record reviews at the same time without corrupting the file.
 
+> **TODO (platform):** "One append can't be interleaved with another" holds
+> for files opened in append mode on Linux and macOS local file systems, but
+> isn't guaranteed on Windows or on network file systems. Before `srl review`
+> is written, decide how to make concurrent appends safe everywhere (for
+> example a lock file around each append).
+
 ## Events
 
 ### `review`

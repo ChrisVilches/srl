@@ -35,7 +35,10 @@ Double quotes make a term of everything up to the next `"`, spaces included,
 and it is always text. `-` before the opening quote negates it. Quotes must be
 closed, and followed by a space or the end. Your shell removes one level of
 quotes, so from the command line write `srl find '"some words"'`. Without the
-inner quotes, `srl find "some words"` is two terms, `some` and `words`.
+inner quotes, `srl find "some words"` is two terms, `some` and `words`. That
+example is for POSIX shells (sh, bash, zsh) and PowerShell 7.3 or later.
+In Windows PowerShell 5.1, write `srl find '\"some words\"'`; in `cmd.exe`,
+write `srl find "\"some words\""`.
 
 A value can't be empty (`tag:` or `tag:a,,b`), and `id:` and `status:` values
 must be valid IDs and statuses.
