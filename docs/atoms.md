@@ -202,13 +202,26 @@ carries on with the other atoms.
 
 ## Validation
 
-`srl check` reads every atom and reports:
+`srl check` reads every atom, runs every drill that applies to it, and
+reports:
 
 - missing or duplicate IDs (`srl check --fix` assigns IDs to atoms without one);
 - missing `cue`;
 - invalid YAML or unknown `status` values;
-- facets with no installed drill;
-- facets whose drill produces no cards or fails (see [drills.md](drills.md)).
+- facets with no installed drill, or whose name can't be a drill name;
+- drills that fail, write invalid cards, or write no cards at all, for any
+  drill that applies, `reveal` included (see [drills.md](drills.md) and
+  [cards.md](cards.md)).
+
+Each problem is reported on standard error, one per line. The exit code is
+0 if there are none, and 2 if there are any.
+
+`--fix` gives each file without an `id` a new one, by adding an `id` line
+right after the opening `---` and changing nothing else (as `srl accept`
+changes `status`). It prints one line per atom fixed: the new ID and the
+file, separated by two spaces. It then checks the store as it is after the
+fix. With `--dry-run` it prints the same lines, writes nothing, and checks
+the store as it is.
 
 ## Examples
 

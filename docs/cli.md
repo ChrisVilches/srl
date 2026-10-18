@@ -34,7 +34,7 @@ agents all use the same commands. There is no separate API.
 | Command | Does |
 |---|---|
 | `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
-| `srl check [--fix]` | Validate atoms, drills and cards. `--fix` assigns missing IDs. |
+| `srl check [--fix]` | Validate atoms, drills and cards; report each problem on standard error and exit with 2 if there are any. `--fix` assigns missing IDs and prints them (see [atoms.md](atoms.md), "Validation"). |
 | `srl reindex` | Rebuild the index cache. |
 
 ### Atoms
@@ -78,11 +78,32 @@ reports it and changes nothing.
 | `srl study [SELECTOR]` | The built-in terminal frontend (see [frontends.md](frontends.md)). |
 | `srl study --session NAME` | Study a prepared session with the same frontend (see below). |
 | `srl next [SELECTOR] [--drill NAME] [--json]` | Print the next card. Exit 1 if there is none. |
-| `srl cards ID [--json]` | Print every card of an atom, from every applicable drill. |
+| `srl cards ID [--json]` | Print every card of an atom, from every applicable drill (see below). Failing drills and invalid cards are reported, and make the exit code 2. |
 | `srl grade` | Grade an answer: card and response as JSON on stdin (see [grading.md](grading.md)). |
 | `srl review --stdin` | Record a review: `{"card": …, "rating": N, "response": […], "by": "human"}`. |
 | `srl review ID… --rating N [--by agent]` | Record a review without a card. |
 | `srl reset SELECTOR` | Make matching atoms new again. |
+
+`srl cards ID` orders the cards by drill, in the fixed drill order of
+[scheduling.md](scheduling.md) (`reveal`, `reverse`, `cloze`, `cards`,
+`confusable`, then the others by name), and keeps each drill's own order.
+With `--json` it prints one card per line in the format of
+[cards.md](cards.md). Without it, each card is printed for people: a line
+with its `ref` and grading mode separated by two spaces, the prompt, the
+choices as a numbered list (`choice` cards only), a line `---`, and the
+answer. Cards are separated by blank lines:
+
+```
+reveal  self
+鮪
+---
+まぐろ — tuna
+
+cloze:0:1  exact
+嵐を==[1]==、漁師たちは海へ出た。
+---
+嵐を==ものともせず==、漁師たちは海へ出た。
+```
 
 ### Sessions
 
@@ -95,7 +116,7 @@ reports it and changes nothing.
 
 | Command | Does |
 |---|---|
-| `srl drills [--json]` | List available drills and where they were found. |
+| `srl drills [--json]` | List available drills, where they were found, and the first line of their help (see [drills.md](drills.md), "Finding drills"). |
 
 ### Analysis
 

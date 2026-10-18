@@ -78,6 +78,13 @@ cmd = ""                     # external grader for `cmd` cards; empty means fall
 timeout_seconds = 10         # a drill that takes longer is skipped
 ```
 
+A key or table that is not listed here is an error, so a typo such as
+`timeout = 3` fails instead of being ignored. So is a value of the wrong
+type or out of range: `desired_retention` must be between 0 and 1
+(exclusive), `day_starts_at` an hour from 0 to 23, and `timeout_seconds` at
+least 1. Commands that need the configuration fail with a message naming the
+problem.
+
 ## The index cache
 
 `.cache/index.sqlite` holds a parsed copy of the atoms and log, plus each

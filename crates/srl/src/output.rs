@@ -62,6 +62,64 @@ pub(crate) fn tag_counts(counts: &[srl_core::TagCount]) {
     }
 }
 
+/// Prints one line per drill: name, where it was found (`built-in` or the
+/// program's path) and summary, separated by two spaces.
+pub(crate) fn drills(drills: &[(&srl_core::Drill, Option<String>)]) {
+    for (drill, summary) in drills {
+        let place = drill
+            .path()
+            .map_or_else(|| "built-in".to_owned(), |path| path.display().to_string());
+        let line = format!(
+            "{}  {place}  {}",
+            drill.name(),
+            summary.as_deref().unwrap_or("")
+        );
+        println!("{}", line.trim_end());
+    }
+}
+
+/// Prints one JSON line per drill: `{"name", "path", "summary"}`, with
+/// `path` `null` for a built-in drill and `summary` `null` if its help
+/// failed.
+pub(crate) fn drills_json(drills: &[(&srl_core::Drill, Option<String>)]) -> anyhow::Result<()> {
+    for (drill, summary) in drills {
+        let line = serde_json::json!({
+            "name": drill.name(),
+            "path": drill.path(),
+            "summary": summary,
+        });
+        println!("{}", serde_json::to_string(&line)?);
+    }
+    Ok(())
+}
+
+/// Prints cards for people: for each, a line with its ref and grading mode,
+/// the prompt, the choices as a numbered list if it has any, a line `---`,
+/// and the answer. Cards are separated by blank lines.
+pub(crate) fn cards(cards: &[srl_core::Card]) {
+    for (index, card) in cards.iter().enumerate() {
+        if index > 0 {
+            println!();
+        }
+        println!("{}  {}", card.reference(), card.grading().name());
+        println!("{}", card.prompt().trim_end());
+        if let srl_core::Grading::Choice { choices, .. } = card.grading() {
+            for (number, choice) in choices.iter().enumerate() {
+                println!("{}. {choice}", number + 1);
+            }
+        }
+        println!("---");
+        println!("{}", card.answer().trim_end());
+    }
+}
+
+/// Prints one line per atom that got an ID: the ID and its file.
+pub(crate) fn fixed(fixed: &[srl_core::Fixed]) {
+    for atom in fixed {
+        println!("{}  atoms/{}", atom.id, atom.path);
+    }
+}
+
 /// Prints whole files, separated by blank lines.
 pub(crate) fn files<'a>(texts: impl Iterator<Item = &'a str>) {
     for (index, text) in texts.enumerate() {

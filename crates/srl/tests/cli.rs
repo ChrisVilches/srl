@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 use tempfile::TempDir;
@@ -408,4 +409,184 @@ fn edit_stdin_replaces_the_file_in_place() {
     let dry = srl_with_input(&["edit", &id, "--stdin", "--dry-run", "--dir", d], &fine);
     assert_eq!(dry.status.code(), Some(0));
     assert_eq!(stdout(&srl(&["show", &id, "--dir", d])), text);
+}
+
+/// Writes a drill program `srl-drill-NAME` into `dir`. With `--help` it
+/// prints `help`. Otherwise it saves its input as `srl-drill-NAME.input` next
+/// to itself, then sleeps for `seconds` if that is above 0, and prints
+/// `lines` if not. Lines must not hold characters that `cmd.exe` treats
+/// specially (`& | < > ^ %`).
+#[cfg(unix)]
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn drill_program(dir: &Path, name: &str, help: &str, seconds: u32, lines: &[&str]) {
+    use std::os::unix::fs::PermissionsExt;
+    let quote = |text: &str| format!("'{}'", text.replace('\'', r"'\''"));
+    // `exec`, so that killing the drill kills the sleep, and nothing is left
+    // holding standard error open.
+    let rest = if seconds > 0 {
+        format!("exec sleep {seconds}\n")
+    } else {
+        let quoted = lines.iter().map(|line| quote(line)).collect::<Vec<_>>();
+        format!("printf '%s\\n' {}\n", quoted.join(" "))
+    };
+    let script = format!(
+        "#!/bin/sh\nif [ \"$1\" = --help ]; then printf '%s\\n' {}; exit 0; fi\ncat > \"$0.input\"\n{rest}",
+        quote(help),
+    );
+    let path = dir.join(format!("srl-drill-{name}"));
+    fs::write(&path, script).unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+#[cfg(windows)]
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn drill_program(dir: &Path, name: &str, help: &str, seconds: u32, lines: &[&str]) {
+    let rest = if seconds > 0 {
+        format!("ping -n {} 127.0.0.1 > nul 2> nul\r\n", seconds + 1)
+    } else {
+        lines
+            .iter()
+            .map(|line| format!("echo {line}\r\n"))
+            .collect()
+    };
+    let script = format!(
+        "@echo off\r\nif \"%~1\"==\"--help\" (\r\n  echo {help}\r\n  exit /b 0\r\n)\r\nfindstr \"^\" > \"%~dpn0.input\"\r\n{rest}"
+    );
+    fs::write(dir.join(format!("srl-drill-{name}.cmd")), script).unwrap();
+}
+
+/// A store with a `drills/` folder, and that folder.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn store_with_drills() -> (TempDir, PathBuf) {
+    let tmp = store();
+    let drills = tmp.path().join("drills");
+    fs::create_dir(&drills).unwrap();
+    (tmp, drills)
+}
+
+#[test]
+fn drills_lists_built_in_drills_and_the_stores_programs() {
+    let (tmp, drills) = store_with_drills();
+    drill_program(&drills, "conj", "# Conjugation cards", 0, &[]);
+    drill_program(&drills, "cloze", "My own cloze", 0, &[]);
+    let output = srl(&["drills", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let listed = stdout(&output);
+    let lines = listed.lines().collect::<Vec<_>>();
+    assert_eq!(lines.len(), 6, "{listed}");
+    assert!(lines[0].starts_with("cards  built-in  "));
+    assert!(lines[1].starts_with("cloze  ") && lines[1].ends_with("  My own cloze"));
+    assert!(lines[3].starts_with("conj  ") && lines[3].ends_with("  Conjugation cards"));
+    assert!(lines[3].contains("srl-drill-conj"));
+    let json = srl(&["drills", "--json", "--dir", dir(&tmp)]);
+    let reveal = stdout(&json)
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .find(|drill| drill["name"] == "reveal")
+        .unwrap();
+    assert!(reveal["path"].is_null());
+}
+
+#[test]
+fn cards_runs_every_drill_that_applies_and_drops_invalid_cards() {
+    let (tmp, drills) = store_with_drills();
+    drill_program(
+        &drills,
+        "conj",
+        "Conjugation",
+        0,
+        &[
+            r#"{"ref": "te", "prompt": "te-form?", "answer": "tabete", "grading": "exact", "accept": [["tabete"]]}"#,
+            r#"{"ref": "past", "prompt": "no grading", "answer": "tabeta"}"#,
+        ],
+    );
+    let d = dir(&tmp);
+    let line = r#"{"cue": "taberu", "answer": "to eat", "conj": {"verb": "taberu"}, "cloze": ["I {{eat}} bread."], "body": "A verb."}"#;
+    let id = stdout(&srl_with_input(&["add", "--stdin", "--dir", d], line))
+        .trim()
+        .to_owned();
+    let output = srl(&["cards", &id, "--json", "--dir", d]);
+    assert_eq!(output.status.code(), Some(2));
+    let refs = stdout(&output)
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap()["ref"].clone())
+        .collect::<Vec<_>>();
+    assert_eq!(refs, ["reveal", "cloze:0:1", "conj:te"]);
+    assert!(
+        stderr(&output).contains("no `grading`"),
+        "{}",
+        stderr(&output)
+    );
+
+    let input = fs::read_to_string(drills.join("srl-drill-conj.input")).unwrap();
+    let input = serde_json::from_str::<serde_json::Value>(&input).unwrap();
+    assert_eq!(input["id"], id.as_str());
+    assert_eq!(input["path"], "atoms/taberu.md");
+    assert_eq!(input["frontmatter"]["conj"]["verb"], "taberu");
+    assert_eq!(input["body"], "A verb.\n");
+    assert!(input["day"].as_str().unwrap().len() == "2026-10-26".len());
+
+    let text = srl(&["cards", &id, "--dir", d]);
+    assert!(stdout(&text).starts_with("reveal  self\ntaberu\n---\nto eat\n\ncloze:0:1  exact\n"));
+}
+
+#[test]
+fn a_drill_that_takes_too_long_is_skipped_and_reported() {
+    let (tmp, drills) = store_with_drills();
+    fs::write(
+        tmp.path().join("srl.toml"),
+        "[drills]\ntimeout_seconds = 1\n",
+    )
+    .unwrap();
+    drill_program(&drills, "slow", "Slow", 5, &[]);
+    let d = dir(&tmp);
+    let id = stdout(&srl_with_input(
+        &["add", "--stdin", "--dir", d],
+        r#"{"cue": "x", "slow": 1}"#,
+    ))
+    .trim()
+    .to_owned();
+    let output = srl(&["cards", &id, "--dir", d]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).starts_with("reveal  self\n"));
+    assert!(
+        stderr(&output).contains("longer than 1 seconds"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn check_reports_problems_and_fix_assigns_missing_ids() {
+    let tmp = store();
+    let d = dir(&tmp);
+    let clean = srl(&["check", "--dir", d]);
+    assert_eq!(clean.status.code(), Some(0), "{}", stderr(&clean));
+    assert!(clean.stdout.is_empty() && clean.stderr.is_empty());
+
+    let hand = tmp.path().join("atoms").join("hand.md");
+    fs::write(&hand, "---\ncue: written by hand  # a comment\n---\n").unwrap();
+    let missing = srl(&["check", "--dir", d]);
+    assert_eq!(missing.status.code(), Some(2));
+    assert!(stderr(&missing).contains("srl check --fix"));
+
+    let dry = srl(&["check", "--fix", "--dry-run", "--dir", d]);
+    assert!(stdout(&dry).ends_with("  atoms/hand.md\n"));
+    assert!(!fs::read_to_string(&hand).unwrap().contains("id:"));
+
+    let fixed = srl(&["check", "--fix", "--dir", d]);
+    assert_eq!(fixed.status.code(), Some(0), "{}", stderr(&fixed));
+    let id = stdout(&fixed).split("  ").next().unwrap().to_owned();
+    assert_eq!(
+        fs::read_to_string(&hand).unwrap(),
+        format!("---\nid: {id}\ncue: written by hand  # a comment\n---\n")
+    );
+
+    srl_with_input(
+        &["add", "--stdin", "--dir", d],
+        r#"{"cue": "y", "conj": {"verb": "x"}}"#,
+    );
+    let no_drill = srl(&["check", "--dir", d]);
+    assert_eq!(no_drill.status.code(), Some(2));
+    assert!(stderr(&no_drill).contains("no drill `conj`"));
 }

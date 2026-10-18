@@ -24,7 +24,10 @@ Consequences:
 
 Scheduling works in whole **study days**. A study day starts at
 `day_starts_at` (default 4:00 local time), so a late-night session counts as
-the day it began.
+the day it began: the study day of a moment is its local date, or the day
+before if the hour is earlier than `day_starts_at`. Local time is the
+system's time zone. If `srl` can't find the time zone, commands that need
+the study day fail and say so, rather than assume UTC.
 
 - Every interval is at least one day. A card rated Again is due again the next
   study day.

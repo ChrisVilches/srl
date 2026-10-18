@@ -9,7 +9,7 @@ use std::path::Path;
 use serde_json::Value;
 
 use crate::atom::Content;
-use crate::{Atom, Atoms, Error, Id, Result, Status, Store, yaml};
+use crate::{Atom, Atoms, Error, Id, Result, Status, Store, random, yaml};
 
 /// The most characters of a cue that go into a file name.
 const SLUG_LEN: usize = 60;
@@ -130,18 +130,9 @@ pub fn add(
     Ok(prepared.into_iter().map(|(added, _)| added).collect())
 }
 
-/// An endless sequence of IDs made from `seed`, with the splitmix64
-/// generator.
-fn random_ids(seed: u64) -> impl Iterator<Item = Id> {
-    std::iter::successors(Some(seed), |state| {
-        Some(state.wrapping_add(0x9E37_79B9_7F4A_7C15))
-    })
-    .skip(1)
-    .map(|state| {
-        let mixed = (state ^ (state >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        let mixed = (mixed ^ (mixed >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        Id::from_number(mixed ^ (mixed >> 31))
-    })
+/// An endless sequence of IDs made from `seed`.
+pub(crate) fn random_ids(seed: u64) -> impl Iterator<Item = Id> {
+    random::numbers(seed).map(Id::from_number)
 }
 
 /// The path of a new atom, relative to `atoms/`: a folder made from the first

@@ -14,12 +14,15 @@ const DEFAULT_STORE: &str = "srl";
 /// The folder of atom files.
 const ATOMS: &str = "atoms";
 
+/// The folder of the store's own drills.
+const DRILLS: &str = "drills";
+
 /// The folders `srl init` creates.
 const FOLDERS: [&str; 2] = [ATOMS, "log"];
 
 /// The `srl.toml` that `srl init` writes: every key at its default, commented
 /// out (see `docs/store.md`, "Configuration").
-const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is optional; these are the defaults.
+pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is optional; these are the defaults.
 
 [schedule]
 # desired_retention = 0.9    # FSRS target probability of recall
@@ -128,6 +131,16 @@ impl Store {
     /// The store's directory.
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// The configuration file, `srl.toml`.
+    pub fn config_file(&self) -> PathBuf {
+        self.root.join(CONFIG_FILE)
+    }
+
+    /// The folder of drills that belong to this store. It may not exist.
+    pub fn drills_dir(&self) -> PathBuf {
+        self.root.join(DRILLS)
     }
 
     /// The folder that holds the atom files.

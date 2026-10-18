@@ -64,6 +64,47 @@ pub enum Error {
     #[error("line {line} of standard input is not a valid atom: {reason}; nothing was added")]
     InvalidLine { line: usize, reason: String },
 
+    #[error("{} is not a valid configuration: {reason}; fix it (see docs/store.md)", file.display())]
+    InvalidConfig { file: PathBuf, reason: String },
+
+    #[error("cannot look for drills in {}: {reason}", folder.display())]
+    DrillSearch { folder: PathBuf, reason: String },
+
+    #[error("`srl-drill-{drill} --help` failed: {reason}; fix the drill program")]
+    DrillHelp { drill: String, reason: String },
+
+    #[error(
+        "drill `{drill}` failed for atom {id}: {reason}; its cards were skipped \
+         (fix the facet, or the drill program)"
+    )]
+    DrillFailed {
+        drill: String,
+        id: crate::Id,
+        reason: String,
+    },
+
+    #[error("drill `{drill}` wrote an invalid card for atom {id}: {reason}; the card was dropped")]
+    InvalidCard {
+        drill: String,
+        id: crate::Id,
+        reason: String,
+    },
+
+    #[error(
+        "atom {id} has the facet `{facet}`, but there is no drill `{facet}`; \
+         install srl-drill-{facet} or remove the facet (`srl drills` lists the drills)"
+    )]
+    NoDrill { id: crate::Id, facet: String },
+
+    #[error(
+        "atom {id} has the facet `{facet}`, which can't have a drill: drill names are lowercase \
+         letters, digits, - and _; rename or remove the facet"
+    )]
+    NotADrillName { id: crate::Id, facet: String },
+
+    #[error("drill `{drill}` writes no cards for atom {id}; check the facet (see `srl drills`)")]
+    NoCards { drill: String, id: crate::Id },
+
     #[error("cannot change atoms/{path}: {reason}; nothing was changed")]
     CannotEdit { path: String, reason: String },
 

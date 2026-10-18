@@ -43,10 +43,20 @@ The number of blanks a frontend should ask for is the length of `accept`. For
 3. **The format is extended for everyone or not at all.** If a drill needs
    something the format cannot express, the format gets a new field, and
    frontends learn it. No drill invents private fields.
-4. **`srl` validates every card** coming out of a drill or a cache: required
-   fields present, `accept` present for `exact` and `choice`, `choices` present
-   for `choice`, and every ID in `atoms` existing. Invalid cards are dropped and
-   reported.
+4. **`srl` validates every card** coming out of a drill or a cache, and
+   drops and reports each invalid one. A card is valid when:
+   - every required field is present, with the right type, and there is no
+     field the format doesn't have;
+   - `atoms` is not empty, and every ID in it is an atom of the store;
+   - `ref` is `DRILL` or starts with `DRILL:` followed by something, where
+     `DRILL` is the card's `drill`;
+   - `prompt` is not empty (`answer` may be);
+   - `exact` and `choice` cards have an `accept` with at least one entry,
+     each entry with at least one string;
+   - `choice` cards have exactly one `accept` entry, and `choices` with at
+     least two options;
+   - `self` and `cmd` cards have neither `accept` nor `choices`, and
+     `exact` cards have no `choices`.
 
 ## Text formatting
 

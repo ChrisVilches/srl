@@ -8,15 +8,24 @@
 
 mod add;
 mod atom;
+mod card;
+mod check;
+mod config;
+mod drill;
 mod edit;
 mod error;
 mod frontmatter;
+mod random;
 mod selector;
 mod store;
 mod yaml;
 
 pub use add::{Added, Flags, add};
 pub use atom::{Atom, Atoms, Content, Id, Status, TagCount};
+pub use card::{Card, Grading};
+pub use check::{Fixed, Report, check};
+pub use config::Config;
+pub use drill::{Drill, DrillCards, Drills, Search};
 pub use edit::{change_status, replace};
 pub use error::{Error, Result};
 pub use selector::Selector;

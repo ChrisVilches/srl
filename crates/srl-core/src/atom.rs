@@ -156,8 +156,17 @@ impl Content {
         &self.cue
     }
 
+    pub fn answer(&self) -> Option<&str> {
+        self.answer.as_deref()
+    }
+
     pub fn tags(&self) -> &[String] {
         &self.tags
+    }
+
+    /// The facets, in file order.
+    pub fn facets(&self) -> &Map<String, Value> {
+        &self.facets
     }
 
     pub fn status(&self) -> Status {

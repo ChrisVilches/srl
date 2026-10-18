@@ -20,9 +20,16 @@ crates/
     src/atom.rs           atoms.md: the atom file, IDs, status, reading atoms
     src/add.rs            atoms.md, "Creating atoms"
     src/edit.rs           atoms.md, "Status" and "Identity and editing"
+    src/check.rs          atoms.md, "Validation"
+    src/config.rs         store.md, "Configuration"; the study day
+    src/card.rs           cards.md
+    src/drill.rs          drills.md: finding and running drills
+    src/drill/builtin.rs  drills.md, "Built-in drills"
+    src/drill/process.rs  running a drill program with a time limit
     src/selector.rs       selectors.md
     src/yaml.rs         front-matter between YAML text and JSON values
     src/frontmatter.rs  setting one key in an existing atom file (see below)
+    src/random.rs       reproducible random numbers (IDs, drill seeds)
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
     src/args.rs         clap definitions, no logic
@@ -44,8 +51,12 @@ command-line arguments into calls to `srl-core` and prints the results.
   compile-time guarantee rather than a convention.
 - **`srl-core` takes its inputs explicitly.** It does not read environment
   variables, the current directory, the clock or standard input on its own.
-  The CLI gathers them and passes them in (see `Lookup` in `store.rs`). That
-  keeps every rule testable without a real process environment.
+  The CLI gathers them and passes them in (see `Lookup` in `store.rs`, and
+  `Search` and the study day in `drill.rs`). That keeps every rule testable
+  without a real process environment. Two exceptions come with running
+  drills: `which` reads `PATHEXT` itself on Windows, and the time limit on a
+  drill is measured with the monotonic clock (`Instant`). Neither decides
+  anything the specification describes in terms of time or environment.
 - **`srl-core` never prints.** It returns values and errors. Turning them
   into text or JSON is the CLI's job.
 - **`srl` contains no domain logic.** If a command needs a decision about
@@ -241,7 +252,7 @@ Known places:
 | `store.rs`, `markdown_files` | macOS (HFS+) may list file names in Unicode NFD, so paths could sort and match differently | TODO in code |
 | `add.rs`, `place`; [atoms.md](atoms.md) | Windows' 260-character path limit | TODO in code and spec |
 | [cli.md](cli.md), `srl new` / `srl edit` | `$EDITOR` is rarely set on Windows | TODO in spec (not implemented yet) |
-| [drills.md](drills.md), finding drills | "Executable" and `#!` scripts are Unix concepts | TODO in spec (not implemented yet) |
+| `drill.rs`, `programs`; [drills.md](drills.md) | "Executable" and `#!` scripts are Unix concepts | Handled: `which` decides, with the execute bit on Unix and `PATHEXT` on Windows. The Windows test drills (`.cmd`) have not been run yet |
 | [log.md](log.md), appending events | Atomic appends aren't guaranteed on Windows or network file systems | TODO in spec (not implemented yet) |
 | `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
 
@@ -306,7 +317,9 @@ Current dependencies:
 | `anyhow` | `srl` | Error type with context in the CLI |
 | `getrandom` | `srl` | The random seed for new atom IDs (the core derives IDs from it) |
 | `dirs` | `srl` | The platform's data directory, for the default store |
-| `which` | `srl` | Finding `srl-NAME` on `PATH`, with `PATHEXT` on Windows |
+| `which` | both | Finding `srl-NAME` and drill programs, with `PATHEXT` on Windows |
+| `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
+| `toml` | `srl-core` | Parsing `srl.toml` |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
 | `saphyr` | `srl-core` | YAML 1.2 parsing and writing of front-matter |
 | `globset` | `srl-core` | `path:` globs in selectors |

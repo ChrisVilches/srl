@@ -8,7 +8,10 @@ use std::io;
 use std::path::PathBuf;
 
 use anyhow::{Context, bail};
-use srl_core::{Atoms, Content, Error, Flags, Id, Lookup, Selector, Status, Store};
+use jiff::civil::Date;
+use srl_core::{
+    Atoms, Config, Content, Drills, Error, Flags, Id, Lookup, Search, Selector, Status, Store,
+};
 
 use crate::args::{AddArgs, Cli, Command, SessionCommand};
 use crate::{Outcome, external, output};
@@ -29,7 +32,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             return find(&store()?, &selector, json.json);
         }
         Command::Tags { json } => return tags(&store()?, json.json),
-        Command::Check { .. } => "check",
+        Command::Check { fix, dry_run } => return check(&store()?, fix, dry_run.dry_run),
         Command::Reindex => "reindex",
         Command::New { .. } => "new",
         Command::Edit { id, stdin, dry_run } => {
@@ -52,7 +55,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         }
         Command::Study { .. } => "study",
         Command::Next { .. } => "next",
-        Command::Cards { .. } => "cards",
+        Command::Cards { id, json } => return cards(&store()?, &id, json.json),
         Command::Grade => "grade",
         Command::Review(_) => "review",
         Command::Reset { .. } => "reset",
@@ -61,7 +64,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             SessionCommand::List { .. } => "session list",
             SessionCommand::Rm { .. } => "session rm",
         },
-        Command::Drills { .. } => "drills",
+        Command::Drills { json } => return drills(&store()?, json.json),
         Command::Stats { .. } => "stats",
         Command::Log { .. } => "log",
     };
@@ -183,6 +186,104 @@ fn show(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
     } else {
         Outcome::Failed
     })
+}
+
+/// `srl drills`: every drill, where it was found, and its summary. A drill
+/// whose `--help` fails is listed without a summary, and reported.
+fn drills(store: &Store, json: bool) -> anyhow::Result<Outcome> {
+    let config = Config::load(store)?;
+    let (drills, mut problems) = find_drills(store)?;
+    let listed = drills
+        .all()
+        .map(|drill| match drill.summary(config.drills.timeout()) {
+            Ok(summary) => (drill, Some(summary)),
+            Err(problem) => {
+                problems.push(problem);
+                (drill, None)
+            }
+        })
+        .collect::<Vec<_>>();
+    if json {
+        output::drills_json(&listed)?;
+    } else {
+        output::drills(&listed);
+    }
+    Ok(reported(&problems))
+}
+
+/// `srl cards ID`: every card of the atom, from every drill that applies.
+fn cards(store: &Store, id: &str, json: bool) -> anyhow::Result<Outcome> {
+    let id = Id::parse(id)?;
+    let atoms = load(store)?;
+    let atom = atoms.get(&id).ok_or(Error::UnknownId { id })?;
+    let config = Config::load(store)?;
+    let (drills, mut problems) = find_drills(store)?;
+    let made = drills.cards(atom, &atoms, today(&config)?, config.drills.timeout());
+    let cards = made
+        .into_iter()
+        .flat_map(|made| {
+            problems.extend(made.problems);
+            made.cards
+        })
+        .collect::<Vec<_>>();
+    if json {
+        output::json_lines(&cards)?;
+    } else {
+        output::cards(&cards);
+    }
+    Ok(reported(&problems))
+}
+
+/// `srl check [--fix]`: reports every problem, and prints the IDs it
+/// assigned. Fails if any problem is left.
+fn check(store: &Store, fix: bool, dry_run: bool) -> anyhow::Result<Outcome> {
+    let config = Config::load(store)?;
+    let (drills, search_problems) = find_drills(store)?;
+    let seed = if fix {
+        Some(getrandom::u64().context("cannot get random numbers for new IDs")?)
+    } else {
+        None
+    };
+    let day = today(&config)?;
+    let report = srl_core::check(store, &drills, day, config.drills.timeout(), seed, dry_run)?;
+    output::fixed(&report.fixed);
+    let problems = search_problems
+        .into_iter()
+        .chain(report.problems)
+        .collect::<Vec<_>>();
+    Ok(reported(&problems))
+}
+
+/// Finds every drill, looking in the store and on `PATH`.
+fn find_drills(store: &Store) -> anyhow::Result<(Drills, Vec<Error>)> {
+    let search = Search {
+        path: env::var_os("PATH")
+            .map(|path| env::split_paths(&path).collect())
+            .unwrap_or_default(),
+        cwd: env::current_dir().context("cannot read the current directory")?,
+    };
+    Ok(Drills::find(store, &search))
+}
+
+/// Today's study day, from the local time. Fails if the system's time zone
+/// can't be found, rather than guessing UTC.
+fn today(config: &Config) -> anyhow::Result<Date> {
+    let zone = jiff::tz::TimeZone::try_system().context(
+        "cannot find the system's time zone, which decides the study day; set the TZ environment variable",
+    )?;
+    let now = jiff::Timestamp::now().to_zoned(zone);
+    Ok(config.schedule.study_day(now.datetime()))
+}
+
+/// Reports `problems` on standard error. The command failed if there were
+/// any.
+fn reported(problems: &[Error]) -> Outcome {
+    problems.iter().for_each(output::problem);
+    if problems.is_empty() {
+        Outcome::Done
+    } else {
+        Outcome::Failed
+    }
 }
 
 /// `srl init [DIR]`: prints each path it creates.
