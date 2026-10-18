@@ -11,14 +11,16 @@ itself.
 
 ## How an LLM can touch `srl`
 
-There are exactly three ways, and in all of them the core only sees programs
-and JSON:
+There are exactly two ways, and in both the core only sees programs and
+JSON:
 
 | Way | Direction | Example |
 |---|---|---|
 | **An agent runs CLI commands** | Agent → `srl` | Adds draft atoms from an article; prepares a session; tutors you through `srl next` and `srl review`. |
 | **A drill calls an LLM** | `srl` → drill program → LLM | `srl-drill-llm` writes application questions for atoms with an `llm:` facet. |
-| **The external grader calls an LLM** | `srl` → grader command → LLM | `srl-grade-agi` judges sentences you wrote for `cmd` cards. |
+
+`srl` never judges answers. When you want an LLM to judge a free-form answer,
+the agent does it, outside `srl`, and records the rating it decided.
 
 ## Rules for agents
 
@@ -45,7 +47,7 @@ use. For example:
 | `srs_find`, `srs_show`, `srs_tags`, `srs_drills`, `srs_log`, `srs_stats` | Reading |
 | `srs_add` | `srl add --draft --stdin` (always draft) |
 | `srs_edit` | `srl edit ID --stdin` (only if you want agents to edit atoms) |
-| `srs_next`, `srs_grade`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
+| `srs_next`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
 | `srs_session_put` | Preparing sessions |
 | `read_file` | Reading source material (notes, articles) |
 
@@ -104,34 +106,27 @@ You then study it with `srl study --session n1-food`, with or without an LLM.
 ### Tutor: an interactive session
 
 With agi, each of your replies is one turn in a saved session (for example
-through `agi-repl`). The agent calls `srl next`, asks, judges your answer, and
-records `srl review --by agent`. It can probe a mistake with follow-up
-questions, and propose a new draft atom for a misconception it found.
+through `agi-repl`). The agent calls `srl next` and asks. What happens next is
+up to your instructions, for example:
+
+- you answer in your own words, the agent judges the answer and records its
+  rating, with your answer as `response`;
+- the agent shows the answer and the atom's body, you give the rating, and
+  the agent records it, with no `response`.
+
+Either way it records `srl review --by agent`. It can probe a mistake with
+follow-up questions, and propose a new draft atom for a misconception it
+found.
 
 ### Enrich: more variety, studied offline
 
 A batch job (for example nightly) gives due atoms more material through
-`srl edit`: more sentences in `cloze:`, more ready-made questions in `cards:`,
-more `confusable:` links.
+`srl edit`: more sentences in `cloze:`, more ready-made questions in `cards:`.
 
 Studying then needs no LLM at all.
 
 ### Analyze
 
 The agent reads `srl stats`, `srl find state:leech` and `srl log` to report weak
-areas, and proposes rewrites of leeches as edits or new drafts.
-
-## The grader script
-
-The `cmd` grader can be a few lines around agi:
-
-```sh
-#!/bin/sh
-# srl-grade-agi: reads {card, response, atom} on stdin, prints {correct, rating, feedback}
-exec agi --rm --sys ~/srl-agent/prompts/grader.md \
-  --schema 'correct:bool:"Is the answer acceptable?", rating:int(1..4):"FSRS rating", feedback:str:"One or two sentences"'
-```
-
-`correct` comes back as a single boolean here; the grader prompt (or a small
-`jq` step) wraps it in a list to match the protocol in
-[grading.md](grading.md).
+areas, and proposes rewrites of leeches as edits or new drafts. Where reviews
+kept a `response`, it can also look at what you actually answered.

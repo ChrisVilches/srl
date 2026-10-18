@@ -4,8 +4,9 @@ A **frontend** is a program that shows cards to a person and records the
 results. `srl` ships one, the terminal frontend `srl study`. Others are
 separate programs: a web viewer, a shell-prompt question, a script.
 
-Frontends understand the card format and nothing else. They don't know about
-facets, drills or where a card came from, so any frontend can show any card,
+Frontends understand the card format, and read an atom's body from
+`srl show`, and nothing else. They don't know about facets, drills or where
+a card came from, so any frontend can show any card,
 including cards from drills written after it.
 
 ## The frontend contract
@@ -13,22 +14,18 @@ including cards from drills written after it.
 Every frontend runs the same loop:
 
 1. **Get a card:** `srl next SELECTOR --json` (or the next card of a session).
-2. **Show the prompt.**
-3. **Collect the answer**, according to `grading`:
-   - `self`: wait until the person wants to see the answer;
-   - `exact`: one input per entry of `accept`;
-   - `choice`: show `choices` and take one pick;
-   - `cmd`: one free-text input.
-4. **Grade it**, for `exact`, `choice` and `cmd`: send card and response to
-   `srl grade`. If the result says `"fallback": "self"`, continue as for a
-   `self` card.
-5. **Show the result:** the answer, which blanks were right, the grader's
-   feedback, and the explanation.
-6. **Get a rating** from 1 to 4, with the suggested rating preselected.
-7. **Record it:** card, rating and response to `srl review --stdin`.
+2. **Show the prompt**, and wait until the person wants to see the answer.
+3. **Show the answer**, then the body of each of the card's atoms, which
+   `srl show ID --json` gives.
+4. **Get a rating** from 1 to 4.
+5. **Record it:** card and rating to `srl review --stdin`.
 
-A frontend never compares answers itself and never computes schedules. Both
-belong to the core, so every frontend behaves the same.
+The person rates every card; nothing is judged automatically. A frontend may
+also collect an answer before step 3 and pass it as `response`, which is
+only kept in the log.
+
+A frontend never computes schedules. That belongs to the core, so every
+frontend behaves the same.
 
 ## Rendering
 
@@ -50,21 +47,17 @@ when standard input is not a terminal.
 
 Input is read a line at a time: type, then Enter.
 
-- A `self` card: Enter shows the answer; `q` quits.
-- An `exact` card: one line per blank, asked as `[1]`, `[2]`, …
-- A `choice` card: the choices are numbered; type the number of one.
-- A `cmd` card: one line.
-- The rating: `1`–`4`. Enter alone takes the suggested rating, if there is
-  one (there is none for `self` cards and fallbacks). `e` opens the atom in
-  the editor (see [cli.md](cli.md), "Editing in the editor") and asks for
-  the rating again. `s` suspends the atom without recording a review. `q`
-  quits without recording this card.
+- The prompt: Enter shows the answer, followed by the body of each of the
+  card's atoms that has one; `q` quits.
+- The rating: `1`–`4`. `e` opens the atom in the editor (see
+  [cli.md](cli.md), "Editing in the editor") and asks for the rating again.
+  `s` suspends the atom without recording a review. `q` quits without
+  recording this card. Anything else asks again.
 - The end of input (Ctrl-D, or Ctrl-Z then Enter on Windows) quits at any
   point, without recording the card on screen.
 
-Answers can be any text, including `q`, so commands are only read where no
-answer is expected: before showing a `self` card's answer, and at the
-rating.
+`srl study` never asks for a typed answer, so its reviews have no
+`response`.
 
 Highlighted text (`==…==`) is bold yellow when standard output is a terminal
 and `NO_COLOR` is not set, and raw otherwise. Other Markdown is printed as
@@ -90,7 +83,7 @@ A web viewer is a frontend like any other, split in two:
 browser (HTML/JS)                     srl-web (small local server)       srl
 ──────────────────                    ────────────────────────────       ───
 render Markdown + ==mark==   ◄─JSON─  GET  /next?sel=…    ──runs──►  srl next SEL --json
-inputs, buttons, CSS theme   ──JSON─► POST /grade         ──runs──►  srl grade
+buttons, CSS theme           ◄─JSON─  GET  /atom?id=…     ──runs──►  srl show ID --json
                              ──JSON─► POST /review        ──runs──►  srl review --stdin
 ```
 
@@ -100,15 +93,15 @@ inputs, buttons, CSS theme   ──JSON─► POST /grade         ──runs─�
   markdown-it with a `==mark==` plugin) and styles it with CSS.
 - Drills never produce HTML.
 
-Because grading and scheduling live in the core, the web viewer and the
-terminal behave identically.
+Because scheduling lives in the core, the web viewer and the terminal behave
+identically.
 
 ## Specialized frontends
 
 Nothing stops a frontend from handling only some cards in a richer way, for
 example a kanji-drawing frontend that only studies `--drill writing` cards.
-That is allowed, never required, and still goes through `srl next`,
-`srl grade` and `srl review`.
+That is allowed, never required, and still goes through `srl next` and
+`srl review`.
 
 ## Small examples
 
@@ -119,7 +112,7 @@ A question in the shell prompt, rated later:
 precmd() { srl next --json 2>/dev/null | jq -r '"srl: " + .prompt' }
 ```
 
-A frontend in a few lines of shell, self-grading only:
+A frontend in a few lines of shell, without the bodies:
 
 ```sh
 while card=$(srl next "$1" --json); do

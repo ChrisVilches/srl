@@ -48,10 +48,9 @@ and line number. Every command carries on with the other events.
  "t": "2026-10-26T09:12:31+09:00",
  "atom": "a7f3k2",
  "rating": 3,
- "card": {"drill": "cloze", "ref": "cloze:0:1", "grading": "exact"},
- "response": ["ものともせず"],
+ "card": {"drill": "cloze", "ref": "cloze:0:1"},
+ "response": null,
  "by": "human",
- "grader": "exact",
  "hash": "3fa91c0d22be"}
 ```
 
@@ -60,11 +59,10 @@ and line number. Every command carries on with the other events.
 | `type` | `review` |
 | `t` | Time of the review, ISO 8601 to the second, with the local offset. |
 | `atom` | The atom's ID. A card about several atoms produces one event per atom. |
-| `rating` | 1–4, as stored (after the `choice` rule). |
-| `card` | Which card was used: drill, ref and grading mode. `null` when reviewed without a card (`srl review ID --rating N`). |
-| `response` | What you answered, as given to `srl review --stdin`; `null` if nothing was given, and always `null` without a card. |
-| `by` | `human` or `agent`: who ran the review. |
-| `grader` | What judged the answer: the card's grading mode (`self`, `exact`, `choice`), `cmd:<command>` for a `cmd` card with `[grading] cmd` set, and `self` for a `cmd` card without it or for a review without a card. |
+| `rating` | 1–4, as given (see [scheduling.md](scheduling.md), "Ratings"). |
+| `card` | Which card was used: drill and ref. `null` when reviewed without a card (`srl review ID --rating N`). |
+| `response` | What was answered, as text, if the review was recorded with one (`srl review --stdin`), for example an answer typed to an agent. `null` if none was given, which is usual: rating yourself needs no typed answer. Always `null` without a card. `srl` never reads it. |
+| `by` | `human` or `agent`: who recorded the review. It says nothing about how the rating was decided, or whether there is a `response`: an agent may record a rating you gave it, or one it judged from your answer. |
 | `hash` | The first 12 hex characters of the SHA-256 of the atom file at review time. |
 
 Every field is always written, with `null` where it doesn't apply.

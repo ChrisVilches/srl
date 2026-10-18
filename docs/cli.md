@@ -42,7 +42,7 @@ agents all use the same commands. There is no separate API.
 | Command | Does |
 |---|---|
 | `srl new [--draft]` | Write a new atom in the editor, starting from a template (see "Editing in the editor" below). Prints the new ID, like `srl add`; exit 1 if the template came back unchanged. |
-| `srl add [--draft] --title TITLE [--answer ANSWER] [--tag TAG]… [--source SOURCE]` | Add an atom from flags. |
+| `srl add [--draft] --title TITLE [--tag TAG]… [--source SOURCE]` | Add an atom from flags. It has no facets, so no cards, until you add some. |
 | `srl add [--draft] --stdin` | Add atoms from JSONL (see [atoms.md](atoms.md)). Prints the new IDs. |
 | `srl edit ID` | Edit an atom in the editor (see "Editing in the editor" below). Prints nothing. |
 | `srl edit ID --stdin` | Replace an atom's file with standard input, exactly as given. It must be a valid atom with the same `id`. The file keeps its path, even if the tags or title change. Prints nothing. `--dry-run` only checks the text. |
@@ -93,10 +93,14 @@ reports it and changes nothing.
 
 ```markdown
 ---
-# The title is required; everything else is optional. Write the knowledge
-# itself below the second `---`. Lines starting with # are comments.
+# The title is required; everything else is optional. Questions come from
+# facets, for example:
+#   cards:
+#     - q: The question
+#       a: The answer
+# Write the knowledge itself below the second `---`; it is shown after the
+# answer of every card. Lines starting with # are comments.
 title:
-answer:
 tags: []
 ---
 ```
@@ -124,33 +128,36 @@ that is not a valid atom adds nothing and is kept, as above. With
 | `srl study --session NAME` | Study a prepared session with the same frontend (see "Sessions" below). |
 | `srl next [SELECTOR] [--drill NAME] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`. Exit 1 if there is none. Failing drills are reported but don't change the exit code, so a study loop keeps going. |
 | `srl cards ID [--json]` | Print every card of an atom, from every applicable drill (see below). Failing drills and invalid cards are reported, and make the exit code 2. |
-| `srl grade` | Grade an answer: card and response as JSON on stdin; prints the result as JSON (see [grading.md](grading.md)). Exits 0 even when it falls back to self-grading. |
-| `srl review --stdin` | Record a review: `{"card": …, "rating": N, "response": […], "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
+| `srl review --stdin` | Record a review: `{"card": …, "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
 | `srl review ID… --rating N [--by agent]` | Record a review without a card. Every ID must be an atom of the store. Prints nothing. |
 | `srl reset SELECTOR` | Make matching atoms new again. Only atoms that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
 
-The card given to `srl grade` and `srl review --stdin` is checked like any
-card (see [cards.md](cards.md), rule 4), and every atom it names must exist.
+The rating is always given by whoever records the review (see
+[scheduling.md](scheduling.md), "Ratings"); `srl` never judges an answer.
+`response` is optional text: what was answered, if whoever records the
+review wants to keep it, such as an answer typed to an agent (see
+[log.md](log.md)). `by` says who recorded the review, not how the rating
+was decided.
+
+The card given to `srl review --stdin` is checked like any card (see
+[cards.md](cards.md), rule 4), and every atom it names must exist.
 With `--dry-run`, `srl review` prints the events it would write, one JSON
 line each, and `srl reset` prints the IDs it would reset; neither writes to
 the log.
 
-`srl cards ID` orders the cards by drill, in the fixed drill order of
-[scheduling.md](scheduling.md) (`reveal`, `reverse`, `cloze`, `cards`,
-`confusable`, then the others by name), and keeps each drill's own order.
-With `--json` it prints one card per line in the format of
+`srl cards ID` orders the cards by drill name, and keeps each drill's own
+order. With `--json` it prints one card per line in the format of
 [cards.md](cards.md). Without it, each card is printed for people: a line
-with its `ref` and grading mode separated by two spaces, the prompt, the
-choices as a numbered list (`choice` cards only), a line `---`, and the
-answer. Cards are separated by blank lines:
+with its `ref`, the prompt, a line `---`, and the answer. Cards are
+separated by blank lines:
 
 ```
-reveal  self
-鮪
+cards:0
+What does 〜をものともせず mean?
 ---
-まぐろ — tuna
+Undeterred by (adversity), braving.
 
-cloze:0:1  exact
+cloze:0:1
 嵐を==[1]==、漁師たちは海へ出た。
 ---
 嵐を==ものともせず==、漁師たちは海へ出た。
@@ -238,9 +245,8 @@ by an agent ("15 questions on N1 grammar using food vocabulary") or a script.
 ```sh
 sel='tag:jlpt/n1,kanji/food'
 while card=$(srl next "$sel" --json); do
-  # show the card, collect a response, optionally:
-  #   result=$(jq -n --argjson card "$card" --argjson r '["…"]' '{card: $card, response: $r}' | srl grade)
-  # then record the rating:
+  # show the prompt, then the answer and `srl show` of the card's atoms,
+  # ask for a rating, then record it:
   jq -n --argjson card "$card" --argjson rating 3 '{card: $card, rating: $rating}' | srl review --stdin
 done
 ```

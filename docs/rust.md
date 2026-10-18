@@ -26,7 +26,6 @@ crates/
     src/card.rs           cards.md
     src/drill.rs          drills.md: finding and running drills
     src/drill/builtin.rs  drills.md, "Built-in drills"
-    src/grade.rs          grading.md
     src/log.rs            log.md: reading and appending events
     src/review.rs         log.md and scheduling.md: recording reviews and resets
     src/schedule.rs       scheduling.md: replaying the log through FSRS, states
@@ -36,7 +35,7 @@ crates/
     src/index.rs          store.md, "The index cache": `.cache/index.sqlite`
     src/yaml.rs         front-matter between YAML text and JSON values
     src/frontmatter.rs  setting one key in an existing atom file (see below)
-    src/process.rs      running a program (drill, grader) with an optional time limit
+    src/process.rs      running a drill program with a time limit
     src/random.rs       reproducible random numbers (IDs, drill seeds)
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
@@ -53,7 +52,7 @@ crates/
 ### The core is a library, the CLI is a thin layer on top
 
 `srl-core` holds every rule from the specification: atoms, drills, cards,
-grading, scheduling, the log, selectors and the store. `srl` turns
+scheduling, the log, selectors and the store. `srl` turns
 command-line arguments into calls to `srl-core` and prints the results.
 
 - **`srl-core` does not depend on clap**, and has no other dependency that
@@ -64,8 +63,8 @@ command-line arguments into calls to `srl-core` and prints the results.
   The CLI gathers them and passes them in (see `Lookup` in `store.rs`,
   `Search` and the study day in `drill.rs`, and the current time `now` that
   `review.rs` stamps events with). That keeps every rule testable without a
-  real process environment. Two exceptions come with running programs
-  (drills and the external grader): `which` reads `PATHEXT` itself on
+  real process environment. Two exceptions come with running drill
+  programs: `which` reads `PATHEXT` itself on
   Windows, and a drill's time limit is measured with the monotonic clock
   (`Instant`). The wait for the log's lock in `log.rs` uses `Instant` too.
   None of them decides anything the specification describes in terms of
@@ -152,7 +151,7 @@ freely later.
 The specification is mostly closed sets and fixed formats. Write them as
 types, so that the compiler checks them:
 
-- **Closed sets are enums**: grading modes, statuses, scheduling states,
+- **Closed sets are enums**: statuses, scheduling states,
   ratings, selector terms. A `match` on them lists every variant. Don't use a
   `_ =>` arm on our own enums (the `wildcard_enum_match_arm` lint flags it),
   so that adding a variant shows every place that must handle it.
@@ -160,7 +159,7 @@ types, so that the compiler checks them:
   log lines, JSON on standard input) is parsed once, at the boundary, into
   types that can only hold valid values. After that, code doesn't check again.
   For example, a card from a drill is read as loose JSON and turned into a
-  `Card` whose grading variant carries exactly the fields it needs.
+  `Card` whose fields are known to be valid.
 - **serde derives are the formats.** A contract's struct, with its
   `#[derive(Serialize, Deserialize)]` and attributes, is the readable
   definition of that format in code.
@@ -349,7 +348,7 @@ Current dependencies:
 | `toml` | `srl-core` | Parsing `srl.toml` |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |
 | `sha2` | `srl-core` | The `hash` of review events |
-| `unicode-normalization` | `srl-core` | NFKC in answer normalization |
+| `unicode-normalization` | `srl-core` | NFC for comparing atom paths |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
 | `saphyr` | `srl-core` | YAML 1.2 parsing and writing of front-matter |
 | `globset` | `srl-core` | `path:` globs in selectors |

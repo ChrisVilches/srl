@@ -12,27 +12,25 @@ frontends never think about where cards come from.
  "drill": "cloze",
  "ref": "cloze:0:1",
  "prompt": "嵐を==[1]==、漁師たちは海へ出た。",
- "answer": "嵐を==ものともせず==、漁師たちは海へ出た。",
- "grading": "exact",
- "accept": [["ものともせず"]],
- "choices": null,
- "explanation": "Undeterred by (adversity), braving…"}
+ "answer": "嵐を==ものともせず==、漁師たちは海へ出た。"}
 ```
 
-| Field | Required | Meaning |
-|---|---|---|
-| `atoms` | yes | IDs of the atoms the rating applies to. Usually one. |
-| `drill` | yes | Name of the drill that produced the card. |
-| `ref` | yes | Stable identity of the card within its atom, prefixed with the drill name: `cloze:0:1`, `conj:te`, `reveal`. |
-| `prompt` | yes | The question. |
-| `answer` | yes | The answer, or a reference answer for `self` and `cmd` cards. |
-| `grading` | yes | `self`, `exact`, `choice` or `cmd`. See [grading.md](grading.md). |
-| `accept` | for `exact` and `choice` | List with one entry per blank; each entry is a list of accepted strings. |
-| `choices` | for `choice` | The options to choose from. |
-| `explanation` | no | Shown after answering. |
+| Field | Meaning |
+|---|---|
+| `atoms` | IDs of the atoms the rating applies to. Usually one. |
+| `drill` | Name of the drill that produced the card. |
+| `ref` | Stable identity of the card within its atom, prefixed with the drill name: `cloze:0:1`, `conj:te`, `cards:0`. |
+| `prompt` | The question. |
+| `answer` | The answer. |
 
-The number of blanks a frontend should ask for is the length of `accept`. For
-`self` and `cmd` cards there is one free answer (or none, for `self`).
+Every field is required. You always rate a card yourself (see
+[scheduling.md](scheduling.md), "Ratings"): a frontend shows the prompt, then
+the answer, and records the rating you give.
+
+A card carries no explanation. After the answer, a frontend shows the body of
+the card's atoms, which it gets with `srl show ID` (see
+[frontends.md](frontends.md)). Every card of an atom is explained by the same
+body.
 
 ## Rules
 
@@ -43,25 +41,19 @@ The number of blanks a frontend should ask for is the length of `accept`. For
 3. **The format is extended for everyone or not at all.** If a drill needs
    something the format cannot express, the format gets a new field, and
    frontends learn it. No drill invents private fields.
-4. **`srl` validates every card** coming out of a drill or a cache, and
+4. **`srl` validates every card** coming out of a drill or a session, and
    drops and reports each invalid one. A card is valid when:
-   - every required field is present, with the right type, and there is no
-     field the format doesn't have;
+   - every field is present, with the right type, and there is no field the
+     format doesn't have;
    - `atoms` is not empty, and every ID in it is an atom of the store;
    - `ref` is `DRILL` or starts with `DRILL:` followed by something, where
      `DRILL` is the card's `drill`;
-   - `prompt` is not empty (`answer` may be);
-   - `exact` and `choice` cards have an `accept` with at least one entry,
-     each entry with at least one string;
-   - `choice` cards have exactly one `accept` entry, and `choices` with at
-     least two options;
-   - `self` and `cmd` cards have neither `accept` nor `choices`, and
-     `exact` cards have no `choices`.
+   - `prompt` is not empty (`answer` may be).
 
 ## Text formatting
 
-The text fields `prompt`, `answer`, `explanation` and each entry of `choices`
-are **CommonMark Markdown plus one extension: `==highlight==`.**
+The text fields `prompt` and `answer` are **CommonMark Markdown plus one
+extension: `==highlight==`.**
 
 - `==…==` marks the important part: the blank in a cloze prompt, the filled-in
   span in its answer.

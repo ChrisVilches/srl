@@ -4,9 +4,19 @@
 one memory state, and every rating goes to the atom, whichever card produced
 it.
 
-> **TODO (design):** whether different directions of the same atom (such as
-> `reveal` and `reverse`) should get separate memory states is undecided
-> (see [overview.md](overview.md), "Open questions").
+## Ratings
+
+| Rating | Name | Meaning |
+|---|---|---|
+| 1 | Again | You did not know it. |
+| 2 | Hard | You knew it, with real difficulty. |
+| 3 | Good | You knew it. |
+| 4 | Easy | You knew it without effort. |
+
+**The rating is always given, never computed.** `srl` doesn't judge answers:
+you see the answer and rate yourself, or an agent you asked to judge your
+answer gives the rating. Either way, `srl review` records the rating as
+given.
 
 ## FSRS, computed from the log
 
@@ -73,13 +83,12 @@ the study day fail and say so, rather than assume UTC.
    ordered by file path.
 3. **One card for the chosen atom:** among the cards of every applicable
    drill, the one whose `ref` was used least recently for this atom according
-   to the log. Cards never used come first. Ties are broken by the fixed drill
-   order `reveal`, `reverse`, `cloze`, `cards`, `confusable`, then
-   other drills alphabetically, then by `ref`. `--drill NAME` restricts the
+   to the log. Cards never used come first. Ties are broken by drill name,
+   then by `ref`. `--drill NAME` restricts the
    pool to one drill.
 4. **An atom with no card is skipped**, and the next atom is tried. This
-   happens with `--drill NAME` on an atom that drill doesn't apply to, or
-   when every drill of the atom fails.
+   happens with an atom without facets, with `--drill NAME` on an atom that
+   drill doesn't apply to, or when every drill of the atom fails.
 5. If no atom qualifies, `srl next` prints nothing and exits with status 1.
 
 `--drill NAME` must name a drill that exists (see `srl drills`).
@@ -133,9 +142,8 @@ Every atom has one derived state, usable in selectors as `state:NAME`:
 ## What scheduling ignores
 
 - Atom content and edits.
-- Which drill or card produced a review (except that `choice` reviews cannot
-  be Easy; see [grading.md](grading.md)).
-- Who graded the review.
+- Which drill or card produced a review.
+- Who recorded the review, and its `response`.
 
 All of these are recorded in the log, so they can be analyzed later without
 having changed any scheduling.

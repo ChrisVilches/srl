@@ -66,9 +66,9 @@ document, listed at the end.
  └──────────────────────────────────────────────────────────────────────┘
           │ atom                                  ▲ review event
           ▼                                       │
-   Drills (programs) ──► Cards (fixed format) ──► Frontends ──► srl grade / srl review
-   built-in or yours      prompt, answer,         terminal, web,
-                          grading, …              scripts, agents
+   Drills (programs) ──► Cards (fixed format) ──► Frontends ──► srl review
+   built-in or yours      prompt, answer          terminal, web,
+                                                  scripts, agents
 ```
 
 ## Glossary
@@ -77,26 +77,25 @@ document, listed at the end.
 |---|---|
 | **Store** | A directory holding one `srl` database: atoms, log, config, caches. |
 | **Atom** | One thing you can know or not know. Has an ID, a title, optional tags, optional facets, and a free prose body. It is the only thing with a memory state. |
-| **Facet** | A named block of structured data in an atom's front-matter, such as `cloze:` or `cards:`. It describes one way the atom can be drilled. |
+| **Facet** | A named block of structured data in an atom's front-matter, such as `cloze:` or `cards:`. It describes one way the atom can be drilled. An atom's cards come only from its facets. |
 | **Drill** | A program that reads one facet of an atom and outputs cards. A drill and its facet share a name. |
-| **Card** | One ready-to-show question in a fixed format. Cards are produced on demand and are not stored (except in sessions). |
-| **Grading** | How an answer is judged: `self`, `exact`, `choice` or `cmd`. |
-| **Frontend** | A program that shows cards to a person and records the results: the terminal `srl study`, a web viewer, a shell prompt. |
+| **Card** | One ready-to-show question in a fixed format: a prompt and an answer. Cards are produced on demand and are not stored (except in sessions). |
+| **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
+| **Frontend** | A program that shows cards to a person and records the ratings: the terminal `srl study`, a web viewer, a shell prompt. |
 | **Review event** | One line in the log: this atom was rated this way, at this time, through this card. |
 | **Selector** | A short filter expression that picks atoms, such as `tag:jlpt/n1,kanji/food -status:draft`. |
 | **Memory state** | What FSRS knows about an atom (stability, difficulty, due date). Always computed from the log, never stored as truth. |
 
 ## The life of a review
 
-1. You write an atom, by hand or with `srl add`. It has a title, tags, perhaps a
-   `cloze:` facet with example sentences, and a prose explanation.
+1. You write an atom, by hand or with `srl add`. It has a title, tags, a
+   facet or two (`cloze:` sentences, `cards:` questions), and a prose body.
 2. `srl next tag:jlpt/n1` replays the log through FSRS, finds the most overdue
    atom matching the selector, and asks every applicable drill for cards. It
    returns the card used least recently for that atom.
-3. A frontend shows the card's prompt, collects your answer and, for
-   automatically graded cards, asks `srl grade` whether it was right.
-4. The frontend shows the answer and explanation and asks you for a rating
-   (1–4), suggesting one where it can.
+3. A frontend shows the card's prompt. When you're ready, it shows the
+   answer and the atom's body.
+4. You rate yourself from 1 (Again) to 4 (Easy).
 5. `srl review` appends a review event to the log. The atom's next due date
    follows from replaying the log again.
 
@@ -124,22 +123,20 @@ extensions.
 | Fixed (in the core) | Pluggable (outside the core) |
 |---|---|
 | Store layout, atom file format | Facets and the drills that read them |
-| Card format, grading modes and answer normalization | Frontends (terminal, web, ambient, …) |
-| Review event format, FSRS scheduling | External grader command |
-| Selector language | Agents and their prompts, tools and skills |
+| Card format | Frontends (terminal, web, ambient, …) |
+| Review event format, FSRS scheduling | Agents and their prompts, tools and skills |
+| Selector language | Judging answers, by you or an agent |
 | CLI commands and their JSON output | Ingestion: anything that ends in `srl add` |
 
 ## Where LLMs fit
 
-Nowhere inside, and in three places outside:
+Nowhere inside, and in two places outside:
 
 - **An agent operates the CLI**, the same way it might read and edit a notes
   folder: it adds draft atoms from articles, prepares study sessions, tutors
-  you, analyzes your log.
+  you (judging your free-form answers, if you ask it to), analyzes your log.
 - **A drill may call an LLM.** An `llm` drill is just another drill program.
   The core runs it like any other.
-- **The external grader may call an LLM** to judge free-form answers. The core
-  only sees a command that reads JSON and writes JSON.
 
 See [agents.md](agents.md).
 
@@ -151,8 +148,7 @@ See [agents.md](agents.md).
 | [atoms.md](atoms.md) | The atom file format, identity, status, creating and editing atoms |
 | [drills.md](drills.md) | The drill protocol, built-in drills, writing your own |
 | [cards.md](cards.md) | The card format and the text formatting allowed in cards |
-| [grading.md](grading.md) | Grading modes, answer normalization, suggested ratings, the external grader |
-| [scheduling.md](scheduling.md) | FSRS, days, choosing the next card, new-atom limits, states |
+| [scheduling.md](scheduling.md) | Ratings, FSRS, days, choosing the next card, new-atom limits, states |
 | [log.md](log.md) | The review log and its events |
 | [selectors.md](selectors.md) | The selector language |
 | [cli.md](cli.md) | Command conventions and the command reference |
@@ -182,14 +178,9 @@ Design decisions still to take:
 
 - **Sessions in the core or outside it.** Decide once sessions have been
   used in practice ([cli.md](cli.md), "Sessions").
-- **Alternative accepted answers inside cloze spans.** Today each blank
-  accepts only the span's own text ([drills.md](drills.md), "`cloze`").
 - **Media in cards (audio, images) and furigana markup.** Today card text is
   Markdown with `==highlight==` only ([cards.md](cards.md), "Text
   formatting").
-- **Separate memory states for different directions of the same atom.**
-  Today an atom has one memory state, whichever card was used
-  ([scheduling.md](scheduling.md)).
 - **Partial credit for prerequisite atoms (`requires:`).** Today there is no
   partial credit ([scheduling.md](scheduling.md), "Cards about several
   atoms"; the idea is in [ideas.md](ideas.md), "Knowledge structure").

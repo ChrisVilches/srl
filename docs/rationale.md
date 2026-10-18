@@ -38,7 +38,32 @@ memorizing the card instead of the fact, and lets new kinds of questions be
 added without losing history.
 
 Trade-off: cards of the same atom differ in difficulty, and FSRS sees that as
-noise. The `choice` rule (no Easy) removes the largest source of it.
+noise.
+
+## Why you always rate yourself
+
+Typing answers is slow, and a typed answer that was right in substance often
+fails a string comparison: another spelling, a synonym, kana instead of
+kanji. Seeing the answer and rating yourself is faster and more honest, as
+in Anki. So `srl` never judges answers: there are no answer checks, no
+suggested ratings, and every rating is given.
+
+Judging a free-form answer is still possible, by an agent outside `srl`:
+you answer it, it decides the rating, and records it with `--by agent`. The
+core stays the same either way.
+
+Trade-off: nothing stops you from rating yourself too kindly.
+
+## Why cards come only from facets
+
+An atom's title and a short answer could make a card of their own, but then
+the title, the answer and the body would play different roles depending on
+the drill. Instead there is one rule: facets give cards, the title is a
+label, and the body explains every card. A card about the same knowledge
+asked the other way round is just another item you write.
+
+Trade-off: a simple vocabulary atom needs a `cards:` item rather than only
+a title, and an atom made only of notes is not studied.
 
 ## Why front-matter is data and the body is prose
 
@@ -63,8 +88,6 @@ possible later.
 Facets and drills let new kinds of questions be added as small programs. The
 fixed card format means frontends never need to change when that happens: with
 N drills and M frontends, there are N + M pieces to write instead of N × M.
-Grading also lives in the core, so the terminal and the web viewer judge
-answers in the same way.
 
 Trade-off: frontends present everything through a generic format, so a kind of
 question that deserves a special interaction (drag to reorder, drawing) is
@@ -82,13 +105,13 @@ viewer or `jq` can show a card without giving the answer away.
 The store should be like a notes folder: complete on its own, and open to any
 agent. Keeping LLMs outside means `srl` works offline, costs nothing to run,
 behaves the same every time, and is not tied to a model, a provider or an
-agent. LLMs still contribute through three clearly bounded routes: agents
-running the CLI, drills, and the external grader.
+agent. LLMs still contribute through two clearly bounded routes: agents
+running the CLI, and drills.
 
 ## Why agent-made cards go into facets
 
 An agent that wants to add questions writes them into the atom's facets
-(`cards:`, `cloze:`, `confusable:`), or provides a drill. There is no separate
+(`cards:`, `cloze:`), or provides a drill. There is no separate
 card cache for agents. A cache would be a concept that exists only for agents,
 would break the rules that drills run only for their facet and that cards are
 not stored, and would hide content outside the atom file. Ready-made questions

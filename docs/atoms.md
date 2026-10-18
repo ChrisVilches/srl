@@ -24,20 +24,22 @@ The smallest useful atom:
 id: a7f3k2
 title: 〜をものともせず
 tags: [japanese/grammar, jlpt/n1]
+cards:
+  - q: What does 〜をものともせず mean?
+    a: Undeterred by (adversity), braving.
 ---
-Undeterred by (adversity), braving. Admiring tone; not used about oneself.
+Admiring tone; not used about oneself.
 ```
 
-That atom can already be studied without any LLM: the built-in `reveal` drill
-shows the title, then the body, and you rate yourself.
+Its questions come from its facets: here the `cards:` facet gives one card.
+You see the question, then the answer and the body, and rate yourself.
 
 ## Front-matter fields
 
 | Field | Required | Meaning |
 |---|---|---|
 | `id` | yes | Stable identity. Six characters `[a-z0-9]`, assigned by `srl`. Must be unique in the store. |
-| `title` | yes | What the atom is about, as a short Markdown string. The default question. |
-| `answer` | no | A short answer. If present, `reveal` shows it instead of the whole body. |
+| `title` | yes | What the atom is about, as a short Markdown string. A label for listings, file names and search; never a question. |
 | `tags` | no | List of tags. A `/` makes them hierarchical: `japanese/grammar`. Tags are case-sensitive. |
 | `status` | no | `active` (default), `draft` or `suspended`. |
 | `source` | no | Where the knowledge came from, as an opaque string: a path, a URL, a book reference. `srl` stores it and shows it, but never interprets it. |
@@ -54,27 +56,29 @@ facets, and each one can produce several cards.
 cloze:                               # read by the `cloze` drill
   - 嵐を{{ものともせず}}、漁師たちは海へ出た。
   - 周囲の反対を{{ものともせず}}、彼女は起業した。
-confusable: [b19x0q, c88p1d]         # read by the `confusable` drill
 cards:                               # read by the `cards` drill
   - q: Which particle precedes ものともせず?
     a: を
-    accept: [を]
 ```
 
-A facet with no installed drill is ignored when studying, and reported by
-`srl check`.
+**Cards come only from facets.** An atom without a facet has no cards: it is
+kept, listed and found by search, but never studied, and `srl check` reports
+it. A facet with no installed drill gives no cards either, and is reported by
+`srl check` too.
 
 ### The body
 
-The body is the knowledge itself, written for people. It is used:
+The body is the knowledge itself, written for people. No drill reads it. It
+is used:
 
-- as the answer of `reveal` cards when the atom has no `answer`;
-- as the explanation shown after answering any card, unless the drill provided
-  its own;
+- as the explanation shown after the answer of every card of the atom,
+  whichever facet the card came from;
 - for text search (`srl find "…"`);
 - as context for agents and LLM drills.
 
-The body can be empty. An atom made only of a title and facets is complete.
+The facets and the body describe the same knowledge, so one body explains
+every card. The body can be empty. An atom made only of a title and facets is
+complete.
 
 ## Identity and editing
 
@@ -116,7 +120,7 @@ export from another app):
 
 ```sh
 srl new                                       # open the editor with a template
-srl add --title "鮪" --answer "tuna (まぐろ)" --tag kanji/food
+srl add --title "鮪" --tag kanji/food          # no facets yet: add them with srl edit
 some-producer | srl add --stdin               # JSONL: one atom per line
 ```
 
@@ -187,14 +191,14 @@ same shape as a line of `srl add --stdin`, plus `id` and `path`:
 
 ```json
 {"id": "a7f3k2", "path": "japanese/grammar/をものともせず.md",
- "title": "〜をものともせず", "answer": null, "tags": ["japanese/grammar", "jlpt/n1"],
+ "title": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"],
  "status": "active", "source": "Tobira ch.3",
  "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred by (adversity)…\n"}
 ```
 
 - `path` is relative to `atoms/`, with `/` between folders.
 - Every front-matter field is present, with its default when the file leaves
-  it out: `answer` and `source` are `null`, `tags` is `[]`, `status` is
+  it out: `source` is `null`, `tags` is `[]`, `status` is
   `active`.
 - Each facet is a key of its own, between `source` and `body`, in file order.
 - Removing `id` and `path` gives a valid line for `srl add --stdin`.
@@ -220,10 +224,10 @@ reports:
 - missing or duplicate IDs (`srl check --fix` assigns IDs to atoms without one);
 - missing `title`;
 - invalid YAML or unknown `status` values;
+- atoms without a facet, which have no cards;
 - facets with no installed drill, or whose name can't be a drill name;
 - drills that fail, write invalid cards, or write no cards at all, for any
-  drill that applies, `reveal` included (see [drills.md](drills.md) and
-  [cards.md](cards.md)).
+  drill that applies (see [drills.md](drills.md) and [cards.md](cards.md)).
 
 Each problem is reported on standard error, one per line. The exit code is
 0 if there are none, and 2 if there are any.
@@ -243,9 +247,10 @@ A vocabulary atom with no body:
 ---
 id: k3m9q1
 title: 鮪
-answer: まぐろ — tuna
 tags: [kanji/food]
-reverse: true
+cards:
+  - q: 鮪
+    a: まぐろ — tuna
 ---
 ```
 
@@ -255,10 +260,10 @@ A concept with hand-written cards:
 ---
 id: r5t2w8
 title: Move semantics in Rust
-answer: Assigning a non-Copy value moves ownership; the source becomes invalid.
 tags: [rust/ownership]
-confusable: [r5t2w9]
 cards:
+  - q: What happens when a non-Copy value is assigned to another variable?
+    a: Ownership moves; the source becomes invalid.
   - q: |
       ```rust
       let a = String::new(); let b = a;

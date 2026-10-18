@@ -17,8 +17,9 @@ questions", once it is planned; partial credit for prerequisites is one.
   new draft atom for the misconception.
 - **Error classification.** On a wrong answer, an LLM labels the error and a
   fixed rule decides what to do: a slip needs nothing, confusion with another
-  atom adds a `confusable:` link, a missing prerequisite points to the atom that
-  should be studied first.
+  atom adds a `cards:` item that contrasts the two, a missing prerequisite
+  points to the atom that should be studied first. Needs the answer you gave,
+  kept as the review's `response`.
 - **Synthesis questions.** One question that needs two or three due atoms from
   different topics, recorded as a card about several atoms.
 - **Contextual questions.** Questions set in your own projects and interests,
@@ -46,8 +47,8 @@ questions", once it is planned; partial credit for prerequisites is one.
   for atoms with high stability. Would change how `srl next` picks a card.
 - **Ambient review.** One question at a time in the shell prompt, the tmux
   status line or a git hook.
-- **Code exercises graded by tests.** A drill writes an exercise; the grader
-  runs it in a sandbox.
+- **Code exercises checked by tests.** A drill writes an exercise; an agent
+  runs your solution in a sandbox and records the rating.
 
 ## Stores
 
@@ -61,5 +62,5 @@ questions", once it is planned; partial credit for prerequisites is one.
 - **Compare paradigms on yourself.** Every review records its drill, so you can
   measure whether atoms reviewed one way are retained better than atoms
   reviewed another way.
-- **How well the LLM grader agrees with you**, by comparing its suggested
-  ratings with the ratings you recorded.
+- **How well an agent's judgment agrees with yours**, by having it rate
+  answers you also rated yourself.
