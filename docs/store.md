@@ -73,6 +73,11 @@ systems can hold both.
   that they always name the file.
 - New files (`srl add`, `srl new`) get names in NFC.
 
+> **TODO (design):** only file paths are compared in NFC. Tags and other
+> front-matter text are compared exactly as written, so `tag:café` doesn't
+> match a tag typed in decomposed form (see [overview.md](overview.md),
+> "Open questions").
+
 ## Configuration: `srl.toml`
 
 Every key is optional. These are the defaults:

@@ -1,8 +1,11 @@
 # Ideas
 
-Mechanics that are not part of the specification yet. Each one can be built
-on top of the current design, mostly as agent workflows, drills or frontends,
-without changing the core. They are recorded here so they are not lost.
+Mechanics that are not part of the specification yet. They are recorded here
+so they are not lost, not as promises. Most can be built on top of the
+current design, as agent workflows, drills or frontends, without changing
+the core; the ones that would change the core say so. An idea becomes a
+design decision to take, listed in [overview.md](overview.md), "Open
+questions", once it is planned; partial credit for prerequisites is one.
 
 ## Agent workflows
 

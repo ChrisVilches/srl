@@ -161,9 +161,38 @@ See [agents.md](agents.md).
 | [rationale.md](rationale.md) | Why the main decisions were made |
 | [ideas.md](ideas.md) | Mechanics not specified yet, to build on top later |
 
-## Not decided yet
+## Open questions
 
-- Alternative accepted answers inside cloze spans.
-- Media in cards (audio, images) and furigana markup.
-- Separate memory states for different directions of the same atom.
-- Giving partial credit to prerequisite atoms (`requires:`).
+What the specification has not settled yet comes in three kinds, each kept
+in one place:
+
+- **Design decisions still to take** are listed below. Where the
+  specification touches one, a note marked **TODO (design):** says what is
+  open.
+- **Platform gaps** are notes marked **TODO (platform):** in the document
+  they concern, with a matching `TODO(platform):` comment in the code. The
+  table in [rust.md](rust.md), "Platform independence", lists them all.
+- **Ideas** that may be built on top later, without being promised, are in
+  [ideas.md](ideas.md).
+
+`grep -rn 'TODO (design)\|TODO (platform)\|TODO(platform)' docs crates`
+finds every marked note.
+
+Design decisions still to take:
+
+- **Sessions in the core or outside it.** Decide once sessions have been
+  used in practice ([cli.md](cli.md), "Sessions").
+- **Alternative accepted answers inside cloze spans.** Today each blank
+  accepts only the span's own text ([drills.md](drills.md), "`cloze`").
+- **Media in cards (audio, images) and furigana markup.** Today card text is
+  Markdown with `==highlight==` only ([cards.md](cards.md), "Text
+  formatting").
+- **Separate memory states for different directions of the same atom.**
+  Today an atom has one memory state, whichever card was used
+  ([scheduling.md](scheduling.md)).
+- **Partial credit for prerequisite atoms (`requires:`).** Today there is no
+  partial credit ([scheduling.md](scheduling.md), "Cards about several
+  atoms"; the idea is in [ideas.md](ideas.md), "Knowledge structure").
+- **Unicode forms in tags and other text.** File paths are compared in NFC,
+  but tags are compared exactly as written, so `tag:café` doesn't match a
+  tag typed in decomposed form ([store.md](store.md), "File names").

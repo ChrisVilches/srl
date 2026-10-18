@@ -4,6 +4,10 @@
 one memory state, and every rating goes to the atom, whichever card produced
 it.
 
+> **TODO (design):** whether different directions of the same atom (such as
+> `reveal` and `reverse`) should get separate memory states is undecided
+> (see [overview.md](overview.md), "Open questions").
+
 ## FSRS, computed from the log
 
 The scheduler is FSRS. An atom's memory state (stability, difficulty, last
@@ -97,6 +101,11 @@ treats it as an early review.
 A card can list several atoms in `atoms` (a sentence using two grammar points,
 a brain dump about a topic). Its rating is written as **one review event per
 atom, all with the same rating**. There is no partial credit.
+
+> **TODO (design):** whether a review should also give partial credit to the
+> atoms an atom requires (`requires:`) is undecided; it would need a new
+> scheduling rule (see [overview.md](overview.md), "Open questions", and
+> [ideas.md](ideas.md), "Knowledge structure").
 
 ## Reset
 

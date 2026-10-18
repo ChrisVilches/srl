@@ -74,6 +74,10 @@ The usual way to write a blank is `==[1]==`, `==[2]==`, … in order, but
 frontends do not parse prompts, so this is a convention for readers, not a
 rule.
 
+> **TODO (design):** cards can't carry media (audio, images) or furigana
+> yet; how to add them without breaking "raw text is always acceptable" is
+> undecided (see [overview.md](overview.md), "Open questions").
+
 ## Card identity
 
 A card is identified by its atom and its `ref`. `srl next` uses this to rotate

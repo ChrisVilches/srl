@@ -25,7 +25,7 @@ agents all use the same commands. There is no separate API.
   `.bat`, …).
 - **Platform independence.** `srl` behaves the same on Linux, macOS and
   Windows. Where it can't, the document says so in a note marked
-  **TODO (platform)**.
+  **TODO (platform)** (see [overview.md](overview.md), "Open questions").
 
 ## Commands
 
@@ -225,11 +225,11 @@ by an agent ("15 questions on N1 grammar using food vocabulary") or a script.
 - Reviews are recorded normally and update the atoms' schedules.
 - A session can be studied again; it is just a file.
 
-> **TODO:** Revisit sessions once they are implemented. Build real scripts
-> around `srl` (for example an agent preparing a session), look at how
-> sessions work in practice, and decide whether they belong in the core or
-> are better handled outside `srl`. Refactor this specification based on
-> that.
+> **TODO (design):** Revisit sessions once they have been used in practice.
+> Build real scripts around `srl` (for example an agent preparing a
+> session), see how sessions work, and decide whether they belong in the
+> core or are better handled outside `srl`. Then rewrite this section to
+> match (see [overview.md](overview.md), "Open questions").
 
 ## The study loop, scripted
 

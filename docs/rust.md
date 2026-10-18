@@ -258,6 +258,8 @@ When something can't be platform-independent yet, mark it in both places:
    the code.
 
 `grep -rn 'TODO(platform)\|TODO (platform)' crates docs` lists them all.
+Design decisions still to take are marked **TODO (design):** instead, and
+listed in [overview.md](overview.md), "Open questions".
 
 Code behind `cfg(windows)` isn't compiled on Linux or macOS, so it can
 break unnoticed. `scripts/check-windows.sh` runs clippy for a Windows

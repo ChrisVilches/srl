@@ -186,6 +186,10 @@ cloze:
 - grading: `exact`, with one `accept` entry per blank.
 - ref: `S:G`, the sentence index and the group number (`cloze:1:1`).
 
+> **TODO (design):** each blank accepts only its span's own text. There is
+> no syntax yet for alternative accepted answers inside a span (see
+> [overview.md](overview.md), "Open questions").
+
 ```json
 {"ref": "cloze:1:1",
  "prompt": "==[1]==を==[2]==、彼女は起業した。",
