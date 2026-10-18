@@ -7,8 +7,8 @@ computed from it.
 ## Files
 
 - `log/YYYY-MM.jsonl`, one file per month, one event per line.
-- **Append-only.** Events are never changed or deleted. Only `srs review` and
-  `srs reset` write to the log; never edit it by hand.
+- **Append-only.** Events are never changed or deleted. Only `srl review` and
+  `srl reset` write to the log; never edit it by hand.
 - Each event is written as a single line in one append, so several frontends
   can record reviews at the same time without corrupting the file.
 
@@ -34,13 +34,13 @@ computed from it.
 | `t` | Time of the review, ISO 8601 with offset. |
 | `atom` | The atom's ID. A card about several atoms produces one event per atom. |
 | `rating` | 1–4, as stored (after the `choice` rule). |
-| `card` | Which card was used: drill, ref and grading mode. `null` when reviewed without a card (`srs review ID --rating N`). |
+| `card` | Which card was used: drill, ref and grading mode. `null` when reviewed without a card (`srl review ID --rating N`). |
 | `response` | What you answered, if anything. |
 | `by` | `human` or `agent`: who ran the review. |
 | `grader` | `self`, `exact`, `choice`, or `cmd:<command>`: what judged the answer. |
 | `hash` | The first 12 hex characters of the SHA-256 of the atom file at review time. |
 
-`hash` is never used by `srs`. It exists so that you can later ask questions
+`hash` is never used by `srl`. It exists so that you can later ask questions
 like "did my retention change after I rewrote this atom?".
 
 ### `reset`
@@ -56,7 +56,7 @@ Replay of the atom's memory state starts empty after this event.
 The log is JSONL, so ordinary tools work:
 
 ```sh
-srs log tag:jlpt/n1 --json                       # events for matching atoms
+srl log tag:jlpt/n1 --json                       # events for matching atoms
 jq -c 'select(.rating == 1)' log/*.jsonl          # every Again
 duckdb -c "select card.drill, avg(rating) from 'log/*.jsonl'
            where type = 'review' group by 1"      # average rating per drill

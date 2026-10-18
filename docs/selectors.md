@@ -5,15 +5,15 @@ takes one, and it means the same thing everywhere: for a person typing, a
 script, or an agent.
 
 ```sh
-srs study tag:jlpt/n1,kanji/food
-srs find tag:rust -state:new
-srs accept status:draft tag:jlpt/n1
+srl study tag:jlpt/n1,kanji/food
+srl find tag:rust -state:new
+srl accept status:draft tag:jlpt/n1
 ```
 
 ## Syntax
 
 A selector is a list of **terms** separated by spaces. Command-line arguments
-are joined with spaces, so `srs find tag:a tag:b` and `srs find "tag:a tag:b"`
+are joined with spaces, so `srl find tag:a tag:b` and `srl find "tag:a tag:b"`
 mean the same.
 
 | Term | Matches |
@@ -44,20 +44,20 @@ Some commands add a term of their own:
 
 | Command | Adds |
 |---|---|
-| `srs next`, `srs study` | `status:active` (drafts and suspended atoms are never studied) |
-| `srs inbox` | `status:draft` |
+| `srl next`, `srl study` | `status:active` (drafts and suspended atoms are never studied) |
+| `srl inbox` | `status:draft` |
 
 Every other command applies the selector exactly as written.
 
 ## Examples
 
 ```sh
-srs next tag:jlpt/n1,kanji/food           # N1 grammar or food kanji
-srs find tag:japanese -tag:jlpt/n5        # all Japanese except N5
-srs find state:leech --json               # every leech
-srs find "ものともせず"                    # text search
-srs reset path:rust/ownership/*           # start a folder over
-srs find tag:vocab state:mature           # what you know well
+srl next tag:jlpt/n1,kanji/food           # N1 grammar or food kanji
+srl find tag:japanese -tag:jlpt/n5        # all Japanese except N5
+srl find state:leech --json               # every leech
+srl find "ものともせず"                    # text search
+srl reset path:rust/ownership/*           # start a folder over
+srl find tag:vocab state:mature           # what you know well
 ```
 
 Commands that print atoms follow `grep` exit codes: 0 if anything matched, 1 if

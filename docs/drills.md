@@ -1,13 +1,13 @@
 # Drills
 
 A **drill** is a program that turns one facet of an atom into cards. Drills
-are how `srs` supports different kinds of questions without the core knowing
+are how `srl` supports different kinds of questions without the core knowing
 anything about them: a new kind of question is a new drill, and the core,
 the frontends and the log stay unchanged.
 
 ```
 facet in the atom (any shape) ──► drill (any program) ──► cards (fixed format)
-conj: {verb: 食べる, …}            srs-drill-conj           {"prompt": "て-form of 食べる?", …}
+conj: {verb: 食べる, …}            srl-drill-conj           {"prompt": "て-form of 食べる?", …}
 ```
 
 ## Rules
@@ -18,7 +18,7 @@ conj: {verb: 食べる, …}            srs-drill-conj           {"prompt": "て
    exceptions: `reveal` runs for every atom, and `generated` runs when the atom
    has a cache file.
 3. **All drills that apply to an atom run, and their cards go into one pool.**
-   `srs next` picks one card from that pool (see
+   `srl next` picks one card from that pool (see
    [scheduling.md](scheduling.md)).
 4. **Cards are not stored.** They are produced when needed and thrown away.
    The review event records which card was used.
@@ -27,24 +27,24 @@ conj: {verb: 食べる, …}            srs-drill-conj           {"prompt": "て
    seeds it from the atom ID and the current study day, so a card stays the
    same for a whole day and changes the next.
 6. **A drill that fails is skipped.** Studying continues with the other drills'
-   cards; the error is reported on standard error and by `srs check`.
+   cards; the error is reported on standard error and by `srl check`.
 
 ## Finding drills
 
 A drill named `NAME` is the first of:
 
-1. an executable `drills/srs-drill-NAME` in the store;
-2. an executable `srs-drill-NAME` on `PATH`;
+1. an executable `drills/srl-drill-NAME` in the store;
+2. an executable `srl-drill-NAME` on `PATH`;
 3. a built-in drill.
 
 So a store or a user can replace a built-in drill by providing a program with
 the same name.
 
-`srs drills` lists the drills found, with the first line of each one's help.
+`srl drills` lists the drills found, with the first line of each one's help.
 
 ## The drill protocol
 
-A drill is any executable. `srs` runs it with no arguments, writes one atom as
+A drill is any executable. `srl` runs it with no arguments, writes one atom as
 JSON on its standard input, and reads cards as JSONL from its standard output.
 
 Input:
@@ -62,9 +62,9 @@ Input:
 Output: zero or more cards, one JSON object per line, in the card format of
 [cards.md](cards.md), with these simplifications:
 
-- `drill` may be left out; `srs` fills it in.
+- `drill` may be left out; `srl` fills it in.
 - `ref` only needs to be unique within this drill's output for this atom;
-  `srs` prefixes it with the drill name (`te` becomes `conj:te`).
+  `srl` prefixes it with the drill name (`te` becomes `conj:te`).
 - `atoms` may be left out; it defaults to `[id]`.
 - `explanation` may be left out; it defaults to the atom's body. Set it to an
   empty string to show no explanation.
@@ -74,7 +74,7 @@ longer than `[drills] timeout_seconds`, means the drill failed.
 
 ### Help
 
-`srs-drill-NAME --help` must print, in Markdown:
+`srl-drill-NAME --help` must print, in Markdown:
 
 1. a one-line summary;
 2. the shape of the facet, with every field explained;
@@ -87,7 +87,7 @@ documentation a facet has.
 
 ```python
 #!/usr/bin/env python3
-"""srs-drill-conj: conjugation cards for Japanese ichidan verbs."""
+"""srl-drill-conj: conjugation cards for Japanese ichidan verbs."""
 import json, sys
 
 if sys.argv[1:] == ["--help"]:
@@ -193,7 +193,7 @@ One multiple-choice card:
 ### `generated`
 
 Runs when `generated/<id>.jsonl` exists. Returns the cards in that file
-unchanged. The file is written with `srs generated put ID` (usually by an agent
+unchanged. The file is written with `srl generated put ID` (usually by an agent
 or a batch script) and can be deleted at any time.
 
 ## Drills that use an LLM
@@ -204,7 +204,7 @@ into the system:
 - **The LLM writes facet data.** An agent adds more sentences to `cloze:`, more
   items to `cards:`, more `confusable:` links. The ordinary drills then use
   that data as-is, offline and for free. This is just editing the atom.
-- **An `llm` drill writes cards.** A drill program named `srs-drill-llm` reads
+- **An `llm` drill writes cards.** A drill program named `srl-drill-llm` reads
   the whole atom as context and asks an LLM for cards. Like any drill, it only
   runs on atoms with its facet, for example
   `llm: {focus: "application questions using food vocabulary"}`. It can call

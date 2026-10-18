@@ -1,6 +1,6 @@
 # Scheduling
 
-`srs` schedules **atoms**, not cards. Every card of an atom shares the atom's
+`srl` schedules **atoms**, not cards. Every card of an atom shares the atom's
 one memory state, and every rating goes to the atom, whichever card produced
 it.
 
@@ -13,7 +13,7 @@ onwards.
 
 Consequences:
 
-- Changing `desired_retention` or the FSRS weights in `srs.toml` takes effect
+- Changing `desired_retention` or the FSRS weights in `srl.toml` takes effect
   for the whole history at once.
 - Replacing FSRS with another algorithm later only means replaying the same
   log differently.
@@ -29,11 +29,11 @@ the day it began.
 - Every interval is at least one day. A card rated Again is due again the next
   study day.
 - There are no learning steps within a day.
-- Once an atom is rated, it is not due again the same day, so `srs next` will
+- Once an atom is rated, it is not due again the same day, so `srl next` will
   not return it again. Nothing else is needed to keep an atom from repeating
   within a session.
 
-## Choosing the next card: `srs next SELECTOR`
+## Choosing the next card: `srl next SELECTOR`
 
 1. **Due atoms first.** Active atoms matching the selector whose due day is
    today or earlier, ordered by due day (oldest first), then by ID.
@@ -46,18 +46,18 @@ the day it began.
    order `reveal`, `reverse`, `cloze`, `cards`, `confusable`, `generated`, then
    other drills alphabetically, then by `ref`. `--drill NAME` restricts the
    pool to one drill.
-4. If no atom qualifies, `srs next` prints nothing and exits with status 1.
+4. If no atom qualifies, `srl next` prints nothing and exits with status 1.
 
 ### The new-atom limit
 
 `new_per_day` (default 10) is one global number: the count of atoms whose first
 review since their last reset happened today, across all selectors. When it is
-reached, `srs next` only returns due atoms until the next study day.
+reached, `srl next` only returns due atoms until the next study day.
 
 ## Reviews outside the schedule
 
 Reviewing an atom that is not due (for example by playing a prepared session
-with `srs play`) is allowed. The review is recorded like any other, and FSRS
+with `srl play`) is allowed. The review is recorded like any other, and FSRS
 treats it as an early review.
 
 ## Cards about several atoms
@@ -68,7 +68,7 @@ atom, all with the same rating**. There is no partial credit.
 
 ## Reset
 
-`srs reset SELECTOR` appends a `reset` event for each matching atom. From then
+`srl reset SELECTOR` appends a `reset` event for each matching atom. From then
 on, replay starts empty: the atom is new again. Earlier events stay in the log
 for analysis.
 

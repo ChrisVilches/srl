@@ -23,7 +23,7 @@ Everything else must justify itself.
 
 Files can be edited in any editor, diffed by git line by line, searched with
 `grep`, and read by agents directly. A database is better at queries and
-integrity, but those are covered by a derived index and `srs check`. The
+integrity, but those are covered by a derived index and `srl check`. The
 reverse is not true: editing, diffing and plain-text access cannot be added to
 a database without export and import machinery.
 
@@ -44,7 +44,7 @@ noise. The `choice` rule (no Easy) removes the largest source of it.
 
 A body with special sections (`## Cards`, `## Examples`) would need a second,
 fragile parser and would make the body something you must keep valid. With
-one rule, programs read only YAML, which `srs check` can validate strictly,
+one rule, programs read only YAML, which `srl check` can validate strictly,
 and the body is completely free.
 
 Trade-off: examples and hand-written cards are written in YAML rather than as
@@ -80,7 +80,7 @@ viewer or `jq` can show a card without giving the answer away.
 ## Why no LLM in the core
 
 The store should be like a notes folder: complete on its own, and open to any
-agent. Keeping LLMs outside means `srs` works offline, costs nothing to run,
+agent. Keeping LLMs outside means `srl` works offline, costs nothing to run,
 behaves the same every time, and is not tied to a model, a provider or an
 agent. LLMs still contribute through three clearly bounded routes: agents
 running the CLI, drills, and the external grader.
@@ -88,13 +88,13 @@ running the CLI, drills, and the external grader.
 ## Why not tied to Obsidian
 
 A vault is one source of knowledge among many (articles, PDFs, LLM
-generation, imports). `srs` has its own store, and atoms are copies, not
+generation, imports). `srl` has its own store, and atoms are copies, not
 links. An atom is a checked, condensed version of something, and should not
 change underneath its review history when the original note changes.
 
 ## Why flat rules
 
-Every rule in `srs` can be stated in one sentence, and each one picks the
+Every rule in `srl` can be stated in one sentence, and each one picks the
 simplest option even when a smarter one exists: whole days instead of
 learning steps, the same rating for every atom of a card instead of partial
 credit, one global new-atom limit. The result is behaviour you can predict

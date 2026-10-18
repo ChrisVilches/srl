@@ -1,7 +1,7 @@
 # The store
 
-A **store** is a directory that holds one `srs` database. It is owned and
-managed by `srs`: commands create and update its files. Because every file is
+A **store** is a directory that holds one `srl` database. It is owned and
+managed by `srl`: commands create and update its files. Because every file is
 plain text, you can also read, search and edit them directly, and version the
 whole store with git.
 
@@ -11,13 +11,13 @@ You can have several stores, for example one per language or one for work.
 
 ```
 my-store/
-  srs.toml               configuration; its presence marks the directory as a store
+  srl.toml               configuration; its presence marks the directory as a store
   atoms/                 one Markdown file per atom, in any subfolders
     japanese/grammar/wo-mono-tomo-sezu.md
   log/                   review events, one JSONL file per month
     2026-10.jsonl
   drills/                drills that belong to this store (optional)
-    srs-drill-conj
+    srl-drill-conj
   generated/             cached cards per atom, written by agents or scripts (disposable)
     a7f3k2.jsonl
   sessions/              prepared lists of cards to play (optional)
@@ -28,26 +28,26 @@ my-store/
 
 | Path | Source of truth? | Written by |
 |---|---|---|
-| `srs.toml` | yes | you |
-| `atoms/` | yes | `srs add`, `srs new`, `srs edit`, `srs accept`, or any editor |
-| `log/` | yes | `srs review`, `srs reset` only. Never edit by hand. |
+| `srl.toml` | yes | you |
+| `atoms/` | yes | `srl add`, `srl new`, `srl edit`, `srl accept`, or any editor |
+| `log/` | yes | `srl review`, `srl reset` only. Never edit by hand. |
 | `drills/` | yes | you |
-| `generated/` | no, disposable | `srs generated put` |
-| `sessions/` | yes, but disposable in practice | `srs session put` |
-| `.cache/` | no | `srs`, automatically |
+| `generated/` | no, disposable | `srl generated put` |
+| `sessions/` | yes, but disposable in practice | `srl session put` |
+| `.cache/` | no | `srl`, automatically |
 
 ## Finding the store
 
 Every command looks for the store in this order and uses the first match:
 
 1. The `--dir DIR` flag.
-2. The `SRS_DIR` environment variable.
-3. The current directory or its nearest parent that contains `srs.toml`.
-4. The default store, `~/.local/share/srs`.
+2. The `SRL_DIR` environment variable.
+3. The current directory or its nearest parent that contains `srl.toml`.
+4. The default store, `~/.local/share/srl`.
 
-`srs init [DIR]` creates a store with a default `srs.toml` and empty folders.
+`srl init [DIR]` creates a store with a default `srl.toml` and empty folders.
 
-## Configuration: `srs.toml`
+## Configuration: `srl.toml`
 
 Every key is optional. These are the defaults:
 
@@ -73,9 +73,9 @@ timeout_seconds = 10         # a drill that takes longer is skipped
 atom's current memory state, so that commands stay fast with many thousands of
 atoms.
 
-- `srs` refreshes it automatically: atom files whose modification time changed
+- `srl` refreshes it automatically: atom files whose modification time changed
   are re-read, and new log lines are replayed.
-- `srs reindex` rebuilds it from scratch.
+- `srl reindex` rebuilds it from scratch.
 - Deleting it loses nothing.
 - It can be queried directly for exploration (`sqlite3 .cache/index.sqlite`),
   but its schema is not a stable contract. Scripts should use the CLI's

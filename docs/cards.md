@@ -43,7 +43,7 @@ The number of blanks a frontend should ask for is the length of `accept`. For
 3. **The format is extended for everyone or not at all.** If a drill needs
    something the format cannot express, the format gets a new field, and
    frontends learn it. No drill invents private fields.
-4. **`srs` validates every card** coming out of a drill or a cache: required
+4. **`srl` validates every card** coming out of a drill or a cache: required
    fields present, `accept` present for `exact` and `choice`, `choices` present
    for `choice`, and every ID in `atoms` existing. Invalid cards are dropped and
    reported.
@@ -66,7 +66,7 @@ rule.
 
 ## Card identity
 
-A card is identified by its atom and its `ref`. `srs next` uses this to rotate
+A card is identified by its atom and its `ref`. `srl next` uses this to rotate
 through an atom's cards, and review events record it.
 
 Built-in drills derive refs from positions in a facet (`cloze:0:1` is the
@@ -78,9 +78,9 @@ never affects scheduling, because scheduling belongs to the atom.
 
 | Source | Stored? |
 |---|---|
-| A drill run by `srs next` | No |
+| A drill run by `srl next` | No |
 | `generated/<id>.jsonl`, through the `generated` drill | Yes, as a disposable cache |
-| `sessions/<name>.jsonl`, played with `srs play` | Yes, as a prepared list |
+| `sessions/<name>.jsonl`, played with `srl play` | Yes, as a prepared list |
 
 Cards in caches and sessions use exactly the same format, and are validated
-when written (`srs generated put`, `srs session put`).
+when written (`srl generated put`, `srl session put`).

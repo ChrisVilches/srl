@@ -32,19 +32,19 @@ shows the cue, then the body, and you rate yourself.
 
 | Field | Required | Meaning |
 |---|---|---|
-| `id` | yes | Stable identity. Six characters `[a-z0-9]`, assigned by `srs`. Must be unique in the store. |
+| `id` | yes | Stable identity. Six characters `[a-z0-9]`, assigned by `srl`. Must be unique in the store. |
 | `cue` | yes | What the atom is about, as a short Markdown string. The default question. |
 | `answer` | no | A short answer. If present, `reveal` shows it instead of the whole body. |
 | `tags` | no | List of tags. A `/` makes them hierarchical: `japanese/grammar`. Tags are case-sensitive. |
 | `status` | no | `active` (default), `draft` or `suspended`. |
-| `source` | no | Where the knowledge came from, as an opaque string: a path, a URL, a book reference. `srs` stores it and shows it, but never interprets it. |
+| `source` | no | Where the knowledge came from, as an opaque string: a path, a URL, a book reference. `srl` stores it and shows it, but never interprets it. |
 | *anything else* | no | A **facet**: data for the drill of the same name. |
 
 ### Facets
 
 Every other top-level key is a facet. The facet's name is the name of the
 drill that reads it, and the shape of its value is defined by that drill
-(`srs-drill-<name> --help` documents it). An atom can have any number of
+(`srl-drill-<name> --help` documents it). An atom can have any number of
 facets, and each one can produce several cards.
 
 ```yaml
@@ -59,7 +59,7 @@ cards:                               # read by the `cards` drill
 ```
 
 A facet with no installed drill is ignored when studying, and reported by
-`srs check`.
+`srl check`.
 
 ### The body
 
@@ -68,7 +68,7 @@ The body is the knowledge itself, written for people. It is used:
 - as the answer of `reveal` cards when the atom has no `answer`;
 - as the explanation shown after answering any card, unless the drill provided
   its own;
-- for text search (`srs find "…"`);
+- for text search (`srl find "…"`);
 - as context for agents and LLM drills.
 
 The body can be empty. An atom made only of a cue and facets is complete.
@@ -78,9 +78,9 @@ The body can be empty. An atom made only of a cue and facets is complete.
 - **The ID is the identity.** Rename or move the file freely; nothing breaks.
 - **Content can be changed at any time without consequences.** Fix a typo,
   rewrite the answer, add examples: the memory state stays as it is. Use your
-  editor, `srs edit ID` (opens `$EDITOR`), or `srs edit ID --stdin` (replaces
+  editor, `srl edit ID` (opens `$EDITOR`), or `srl edit ID --stdin` (replaces
   the whole file).
-- **Starting over is explicit.** `srs reset ID` clears the memory state, so the
+- **Starting over is explicit.** `srl reset ID` clears the memory state, so the
   atom becomes new again. It never happens automatically.
 
 ## Status
@@ -88,12 +88,12 @@ The body can be empty. An atom made only of a cue and facets is complete.
 | Status | Studied? | Meaning |
 |---|---|---|
 | `active` | yes | Normal atom. |
-| `draft` | no | Proposed, waiting for you. Listed by `srs inbox`. `srs accept SELECTOR` makes matching drafts active. |
+| `draft` | no | Proposed, waiting for you. Listed by `srl inbox`. `srl accept SELECTOR` makes matching drafts active. |
 | `suspended` | no | Kept but not studied. |
 
 Drafts exist so that atoms written by agents or imports never enter your study
-queue without your approval. `srs add --draft` creates drafts; accepting many
-at once is a single command (`srs accept status:draft tag:jlpt/n1`).
+queue without your approval. `srl add --draft` creates drafts; accepting many
+at once is a single command (`srl accept status:draft tag:jlpt/n1`).
 
 ## One atom per thing you can know
 
@@ -112,10 +112,10 @@ original source was (your notes, an article, a PDF, an LLM's own knowledge, an
 export from another app):
 
 ```sh
-srs new                                       # open $EDITOR with a template
-srs add --cue "鮪" --answer "tuna (まぐろ)" --tag kanji/food
-srs add path/to/atom.md                       # copy a file in, assigning an ID
-some-producer | srs add --stdin               # JSONL: one atom per line
+srl new                                       # open $EDITOR with a template
+srl add --cue "鮪" --answer "tuna (まぐろ)" --tag kanji/food
+srl add path/to/atom.md                       # copy a file in, assigning an ID
+some-producer | srl add --stdin               # JSONL: one atom per line
 ```
 
 On `--stdin`, each line is a JSON object with the front-matter fields
@@ -126,7 +126,7 @@ On `--stdin`, each line is a JSON object with the front-matter fields
  "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred by (adversity)…"}
 ```
 
-Add `--draft` to any form to create drafts. `srs add` prints the new IDs.
+Add `--draft` to any form to create drafts. `srl add` prints the new IDs.
 
 New files are placed under `atoms/`, in a folder taken from the first tag, and
 named after the cue (`atoms/japanese/grammar/wo-mono-tomo-sezu.md`). You can
@@ -134,9 +134,9 @@ move them afterwards.
 
 ## Validation
 
-`srs check` reads every atom and reports:
+`srl check` reads every atom and reports:
 
-- missing or duplicate IDs (`srs check --fix` assigns IDs to atoms without one);
+- missing or duplicate IDs (`srl check --fix` assigns IDs to atoms without one);
 - missing `cue`;
 - invalid YAML or unknown `status` values;
 - facets with no installed drill;

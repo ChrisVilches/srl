@@ -21,7 +21,7 @@ without changing the core. They are recorded here so they are not lost.
 - **Contextual questions.** Questions set in your own projects and interests,
   using a personal context file.
 - **Language practice at "i+1".** Sentences using only vocabulary you already
-  know (`srs find tag:vocab state:mature`) plus one new item.
+  know (`srl find tag:vocab state:mature`) plus one new item.
 - **Teach-back.** You explain an atom to a simulated confused student, or write
   the question yourself, and an LLM points out what was missing.
 - **Source drift.** Compare an atom with the current version of its `source`
@@ -40,7 +40,7 @@ without changing the core. They are recorded here so they are not lost.
 - **Confidence calibration.** Rate your confidence before answering, and track
   how well confidence predicts correctness. A frontend feature.
 - **Adaptive difficulty.** Prefer harder cards (production over recognition)
-  for atoms with high stability. Would change how `srs next` picks a card.
+  for atoms with high stability. Would change how `srl next` picks a card.
 - **Ambient review.** One question at a time in the shell prompt, the tmux
   status line or a git hook.
 - **Code exercises graded by tests.** A drill writes an exercise; the grader

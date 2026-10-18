@@ -1,13 +1,13 @@
-# srs — overview
+# srl — overview
 
-`srs` is a spaced repetition system for the command line. It stores knowledge as
+`srl` is a spaced repetition system for the command line. It stores knowledge as
 small plain-text units called **atoms**, turns them into questions called
 **cards**, records how well you answered, and schedules each atom for review
 with the FSRS algorithm.
 
 It is built to be used by a person with nothing but a terminal and an editor.
 An LLM agent can operate it too, through the same commands, but no part of
-`srs` depends on an LLM, an agent, or any particular note-taking app.
+`srl` depends on an LLM, an agent, or any particular note-taking app.
 
 This document explains the main ideas. Each area has its own detailed
 document, listed at the end.
@@ -23,15 +23,15 @@ document, listed at the end.
 - **Flexible paradigms.** New ways of asking questions and new ways of studying
   can be added as small programs, without changing the core.
 - **Predictable behaviour.** Every rule is simple enough to state in one
-  sentence. Where a smarter rule would be possible, `srs` picks the simple one
+  sentence. Where a smarter rule would be possible, `srl` picks the simple one
   and accepts the trade-off.
 
 ## Non-goals
 
-- `srs` is not tied to Obsidian or any other vault. A vault is just one place
+- `srl` is not tied to Obsidian or any other vault. A vault is just one place
   knowledge can come from.
-- `srs` does not contain, call or assume an LLM.
-- `srs` is not a sync service or a multi-user system.
+- `srl` does not contain, call or assume an LLM.
+- `srl` is not a sync service or a multi-user system.
 
 ## Principles
 
@@ -53,15 +53,15 @@ document, listed at the end.
 ```
  Sources (any): notes · articles · PDFs · LLM knowledge · CSV · your typing
           │
-          ▼   srs add / srs new / editing files
+          ▼   srl add / srl new / editing files
  ┌──────────────────────────────────────────────────────────────────────┐
- │ Store (srs's database, plain text)                                   │
+ │ Store (srl's database, plain text)                                   │
  │   atoms/**.md        one atom per file: front-matter + prose body    │
  │   log/*.jsonl        append-only review events                       │
  └──────────────────────────────────────────────────────────────────────┘
           │ atom                                  ▲ review event
           ▼                                       │
-   Drills (programs) ──► Cards (fixed format) ──► Frontends ──► srs grade / srs review
+   Drills (programs) ──► Cards (fixed format) ──► Frontends ──► srl grade / srl review
    built-in or yours      prompt, answer,         terminal, web,
                           grading, …              scripts, agents
 ```
@@ -70,29 +70,29 @@ document, listed at the end.
 
 | Term | Meaning |
 |---|---|
-| **Store** | A directory holding one `srs` database: atoms, log, config, caches. |
+| **Store** | A directory holding one `srl` database: atoms, log, config, caches. |
 | **Atom** | One thing you can know or not know. Has an ID, a cue, optional tags, optional facets, and a free prose body. It is the only thing with a memory state. |
 | **Facet** | A named block of structured data in an atom's front-matter, such as `cloze:` or `cards:`. It describes one way the atom can be drilled. |
 | **Drill** | A program that reads one facet of an atom and outputs cards. A drill and its facet share a name. |
 | **Card** | One ready-to-show question in a fixed format. Cards are produced on demand and are not stored (except in caches). |
 | **Grading** | How an answer is judged: `self`, `exact`, `choice` or `cmd`. |
-| **Frontend** | A program that shows cards to a person and records the results: the terminal `srs study`, a web viewer, a shell prompt. |
+| **Frontend** | A program that shows cards to a person and records the results: the terminal `srl study`, a web viewer, a shell prompt. |
 | **Review event** | One line in the log: this atom was rated this way, at this time, through this card. |
 | **Selector** | A short filter expression that picks atoms, such as `tag:jlpt/n1,kanji/food -status:draft`. |
 | **Memory state** | What FSRS knows about an atom (stability, difficulty, due date). Always computed from the log, never stored as truth. |
 
 ## The life of a review
 
-1. You write an atom, by hand or with `srs add`. It has a cue, tags, perhaps a
+1. You write an atom, by hand or with `srl add`. It has a cue, tags, perhaps a
    `cloze:` facet with example sentences, and a prose explanation.
-2. `srs next tag:jlpt/n1` replays the log through FSRS, finds the most overdue
+2. `srl next tag:jlpt/n1` replays the log through FSRS, finds the most overdue
    atom matching the selector, and asks every applicable drill for cards. It
    returns the card used least recently for that atom.
 3. A frontend shows the card's prompt, collects your answer and, for
-   automatically graded cards, asks `srs grade` whether it was right.
+   automatically graded cards, asks `srl grade` whether it was right.
 4. The frontend shows the answer and explanation and asks you for a rating
    (1–4), suggesting one where it can.
-5. `srs review` appends a review event to the log. The atom's next due date
+5. `srl review` appends a review event to the log. The atom's next due date
    follows from replaying the log again.
 
 The atom's content can be changed at any time. Its identity is its ID, so
@@ -100,7 +100,7 @@ edits never affect its schedule.
 
 ## The four contracts
 
-Most of `srs` is pluggable. These four formats are not, because everything else
+Most of `srl` is pluggable. These four formats are not, because everything else
 depends on them:
 
 | Contract | Joins | Document |
@@ -122,7 +122,7 @@ extensions.
 | Card format, grading modes and answer normalization | Frontends (terminal, web, ambient, …) |
 | Review event format, FSRS scheduling | External grader command |
 | Selector language | Agents and their prompts, tools and skills |
-| CLI commands and their JSON output | Ingestion: anything that ends in `srs add` |
+| CLI commands and their JSON output | Ingestion: anything that ends in `srl add` |
 
 ## Where LLMs fit
 
@@ -152,7 +152,7 @@ See [agents.md](agents.md).
 | [selectors.md](selectors.md) | The selector language |
 | [cli.md](cli.md) | Command conventions and the command reference |
 | [frontends.md](frontends.md) | The frontend contract, the terminal frontend, the web viewer |
-| [agents.md](agents.md) | Operating `srs` with an LLM agent, with agi as the example |
+| [agents.md](agents.md) | Operating `srl` with an LLM agent, with agi as the example |
 | [rationale.md](rationale.md) | Why the main decisions were made |
 | [ideas.md](ideas.md) | Mechanics not specified yet, to build on top later |
 
