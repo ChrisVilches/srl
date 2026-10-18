@@ -41,7 +41,7 @@ agents all use the same commands. There is no separate API.
 | `srl add [--draft] --stdin` | Add atoms from JSONL (see [atoms.md](atoms.md)). Prints the new IDs. |
 | `srl edit ID` | Edit an atom in `$EDITOR`. |
 | `srl edit ID --stdin` | Replace an atom's file with standard input. The `id` must not change. |
-| `srl show ID… [--json]` | Print atoms. |
+| `srl show ID… [--json]` | Print atoms: each file as it is, or JSON (see [atoms.md](atoms.md)). Unknown IDs are reported, and make the exit code 2. |
 | `srl find [SELECTOR] [--json]` | List matching atoms. |
 | `srl tags [--json]` | List every tag in use, with counts. |
 | `srl inbox [SELECTOR] [--json]` | List drafts. |

@@ -15,7 +15,11 @@ crates/
   srl-core/             the core, as a library
     src/lib.rs          the public API: re-exports only
     src/error.rs        the core's Error type
-    src/store.rs        one module per area of the specification
+    src/store.rs        one module per area of the specification:
+                          store.md: finding, creating and listing a store
+    src/atom.rs           atoms.md: the atom file, IDs, status, reading atoms
+    src/add.rs            atoms.md, "Creating atoms"
+    src/yaml.rs         front-matter between YAML text and JSON values
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
     src/args.rs         clap definitions, no logic
@@ -224,8 +228,11 @@ Current dependencies:
 |---|---|---|
 | `clap` (derive) | `srl` | Argument parsing, help and usage errors |
 | `anyhow` | `srl` | Error type with context in the CLI |
+| `getrandom` | `srl` | The random seed for new atom IDs (the core derives IDs from it) |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
-| `tempfile` | tests of `srl-core` | Temporary store trees |
+| `saphyr` | `srl-core` | YAML 1.2 parsing and writing of front-matter |
+| `serde` (derive), `serde_json` (`preserve_order`) | both | The JSON formats; facets keep their file order |
+| `tempfile` | tests of both crates | Temporary store trees |
 
 ## Linting and formatting
 
@@ -305,10 +312,15 @@ So:
    stay strings. Under YAML 1.1 rules an atom with `cue: no` would silently
    become `false`. Test this explicitly.
 
-When the YAML crate is chosen, prefer one that reports source positions
-(such as `saphyr`), because it makes step 2 exact. Check again whether a
-format-preserving YAML crate has appeared. If a mature one exists, it can
-replace steps 2 and 3, but steps 4 to 6 still apply.
+The YAML crate is `saphyr`: it follows YAML 1.2, rejects duplicate keys, and
+reports source positions, which makes step 2 exact. `yaml.rs` converts
+between YAML and the JSON values the rest of the core uses, and refuses YAML
+features atoms don't need (tags such as `!x`, aliases, non-text keys). New
+files are written through the same module and parsed again before they are
+saved, so a writer bug fails instead of storing a different atom. Before
+writing `frontmatter.rs`, check again whether a format-preserving YAML crate
+has appeared. If a mature one exists, it can replace steps 2 and 3, but steps
+4 to 6 still apply.
 
 ## The command line
 

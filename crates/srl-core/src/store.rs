@@ -11,8 +11,11 @@ const CONFIG_FILE: &str = "srl.toml";
 /// The default store, relative to the home directory.
 const DEFAULT_STORE: &str = ".local/share/srl";
 
+/// The folder of atom files.
+const ATOMS: &str = "atoms";
+
 /// The folders `srl init` creates.
-const FOLDERS: [&str; 2] = ["atoms", "log"];
+const FOLDERS: [&str; 2] = [ATOMS, "log"];
 
 /// The `srl.toml` that `srl init` writes: every key at its default, commented
 /// out (see `docs/store.md`, "Configuration").
@@ -118,6 +121,44 @@ impl Store {
     pub fn root(&self) -> &Path {
         &self.root
     }
+
+    /// The folder that holds the atom files.
+    pub fn atoms_dir(&self) -> PathBuf {
+        self.root.join(ATOMS)
+    }
+
+    /// Every atom file: each `.md` file under `atoms/`, at any depth, as a
+    /// path relative to `atoms/` with `/` between folders, sorted.
+    pub fn atom_paths(&self) -> Result<Vec<String>> {
+        let dir = self.atoms_dir();
+        let mut paths = markdown_files(&dir, "")?;
+        paths.sort();
+        Ok(paths)
+    }
+}
+
+/// The `.md` files under `dir`, whose path relative to `atoms/` is `prefix`.
+fn markdown_files(dir: &Path, prefix: &str) -> Result<Vec<String>> {
+    let entries = fs::read_dir(dir).map_err(Error::io(dir))?;
+    entries
+        .map(|entry| {
+            let path = entry.map_err(Error::io(dir))?.path();
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(|| Error::NonUtf8Path { path: path.clone() })?;
+            let relative = format!("{prefix}{name}");
+            if path.is_dir() {
+                markdown_files(&path, &format!("{relative}/"))
+            } else if path.extension().is_some_and(|extension| extension == "md") && path.is_file()
+            {
+                Ok(vec![relative])
+            } else {
+                Ok(Vec::new())
+            }
+        })
+        .collect::<Result<Vec<_>>>()
+        .map(|lists| lists.concat())
 }
 
 /// The nearest of `dir` and its parents that contains `srl.toml`.

@@ -4,24 +4,26 @@
 //! `output`. Commands that are not written yet fail with a clear message.
 
 use std::env;
+use std::io;
 use std::path::PathBuf;
 
 use anyhow::{Context, bail};
-use srl_core::{Lookup, Store};
+use srl_core::{Atoms, Content, Error, Flags, Id, Lookup, Store};
 
-use crate::args::{Cli, Command, SessionCommand};
+use crate::args::{AddArgs, Cli, Command, SessionCommand};
 use crate::{Outcome, external, output};
 
 pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
+    let store = || -> anyhow::Result<Store> { Ok(Store::open(&lookup(cli.dir.clone())?)?) };
     let name = match cli.command {
         Command::External(args) => return external::run(&args),
         Command::Init { dir, dry_run } => return init(cli.dir, dir, dry_run.dry_run),
+        Command::Show { ids, json } => return show(&store()?, &ids, json.json),
+        Command::Add(args) => return add(&store()?, args),
         Command::Check { .. } => "check",
         Command::Reindex => "reindex",
         Command::New { .. } => "new",
-        Command::Add(_) => "add",
         Command::Edit { .. } => "edit",
-        Command::Show { .. } => "show",
         Command::Find { .. } => "find",
         Command::Tags { .. } => "tags",
         Command::Inbox { .. } => "inbox",
@@ -43,11 +45,72 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Stats { .. } => "stats",
         Command::Log { .. } => "log",
     };
-    let store = Store::open(&lookup(cli.dir)?)?;
     bail!(
         "`srl {name}` is not implemented yet (store: {})",
-        store.root().display()
+        store()?.root().display()
     )
+}
+
+/// `srl add`: from flags or JSON lines. Prints the new IDs, or with
+/// `--dry-run` the IDs and the files that would be written.
+fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
+    if !args.files.is_empty() {
+        bail!("`srl add FILE…` is not implemented yet; use --cue or --stdin");
+    }
+    let contents = if args.stdin {
+        let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
+        Content::from_json_lines(&text)?
+    } else if let Some(cue) = args.cue {
+        vec![Content::from_flags(Flags {
+            cue,
+            answer: args.answer,
+            tags: args.tags,
+            source: args.source,
+        })?]
+    } else {
+        bail!("nothing to add; give --cue, --stdin or Markdown files");
+    };
+    let seed = getrandom::u64().context("cannot get random numbers for new IDs")?;
+    let dry_run = args.dry_run.dry_run;
+    let added = srl_core::add(store, &load(store)?, contents, args.draft, seed, dry_run)?;
+    output::added(&added, dry_run);
+    Ok(Outcome::Done)
+}
+
+/// Reads every atom and reports the files that were skipped.
+fn load(store: &Store) -> anyhow::Result<Atoms> {
+    let atoms = Atoms::load(store)?;
+    atoms.problems.iter().for_each(output::problem);
+    Ok(atoms)
+}
+
+/// `srl show ID…`: prints the atoms that exist, and fails if any does not.
+fn show(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
+    let ids = ids
+        .iter()
+        .map(|id| Id::parse(id))
+        .collect::<srl_core::Result<Vec<_>>>()?;
+    let atoms = load(store)?;
+    let found = ids
+        .iter()
+        .filter_map(|id| atoms.get(id))
+        .collect::<Vec<_>>();
+    if json {
+        output::json_lines(&found)?;
+    } else {
+        output::files(found.iter().map(|atom| atom.text()));
+    }
+    let missing = ids
+        .iter()
+        .filter(|id| atoms.get(id).is_none())
+        .map(|id| Error::UnknownId { id: id.clone() })
+        .collect::<Vec<_>>();
+    missing.iter().for_each(output::problem);
+    Ok(if missing.is_empty() {
+        Outcome::Done
+    } else {
+        Outcome::Failed
+    })
 }
 
 /// `srl init [DIR]`: prints each path it creates.

@@ -1,6 +1,8 @@
 //! Runs the real `srl` binary and checks exit codes and output streams.
 
-use std::process::{Command, Output};
+use std::fs;
+use std::io::Write;
+use std::process::{Command, Output, Stdio};
 
 use tempfile::TempDir;
 
@@ -11,6 +13,36 @@ fn srl(args: &[&str]) -> Output {
         .env_remove("SRL_DIR")
         .output()
         .unwrap()
+}
+
+/// Runs `srl` with `input` on standard input.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn srl_with_input(args: &[&str], input: &str) -> Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_srl"))
+        .args(args)
+        .env_remove("SRL_DIR")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
+}
+
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn stdout(output: &Output) -> String {
+    String::from_utf8(output.stdout.clone()).unwrap()
+}
+
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn stderr(output: &Output) -> String {
+    String::from_utf8(output.stderr.clone()).unwrap()
 }
 
 #[test]
@@ -87,4 +119,111 @@ fn init_dry_run_creates_nothing() {
     let output = srl(&["init", "--dry-run", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(0));
     assert!(!tmp.path().join("srl.toml").exists());
+}
+
+#[test]
+fn added_atoms_can_be_shown() {
+    let tmp = store();
+    let added = srl(&[
+        "add",
+        "--dir",
+        dir(&tmp),
+        "--cue",
+        "鮪",
+        "--answer",
+        "まぐろ — tuna",
+        "--tag",
+        "kanji/food",
+    ]);
+    assert_eq!(added.status.code(), Some(0));
+    let id = stdout(&added).trim().to_owned();
+    assert_eq!(id.len(), 6);
+    let path = tmp.path().join("atoms/kanji/food/鮪.md");
+    let file = fs::read_to_string(path).unwrap();
+    let shown = srl(&["show", "--dir", dir(&tmp), &id]);
+    assert_eq!(shown.status.code(), Some(0));
+    assert_eq!(stdout(&shown), file);
+    assert!(file.contains("tags: [kanji/food]"));
+}
+
+#[test]
+fn shown_json_can_be_added_again() {
+    let tmp = store();
+    let line = r#"{"cue": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"], "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred.\n"}"#;
+    let added = srl_with_input(&["add", "--stdin", "--dir", dir(&tmp)], line);
+    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+    let id = stdout(&added).trim().to_owned();
+    let shown = srl(&["show", "--json", "--dir", dir(&tmp), &id]);
+    let mut json: serde_json::Value = serde_json::from_str(&stdout(&shown)).unwrap();
+    let object = json.as_object_mut().unwrap();
+    object.remove("id");
+    object.remove("path");
+    let again = srl_with_input(
+        &["add", "--stdin", "--dir", dir(&tmp)],
+        &serde_json::to_string(&json).unwrap(),
+    );
+    assert_eq!(again.status.code(), Some(0), "{}", stderr(&again));
+    let second = stdout(&again).trim().to_owned();
+    let reshown = srl(&["show", "--json", "--dir", dir(&tmp), &second]);
+    let mut rejson: serde_json::Value = serde_json::from_str(&stdout(&reshown)).unwrap();
+    let reobject = rejson.as_object_mut().unwrap();
+    reobject.remove("id");
+    reobject.remove("path");
+    assert_eq!(rejson, json);
+}
+
+#[test]
+fn one_bad_stdin_line_adds_nothing() {
+    let tmp = store();
+    let output = srl_with_input(
+        &["add", "--stdin", "--dir", dir(&tmp)],
+        "{\"cue\": \"fine\"}\n{\"cue\": \"bad\", \"status\": \"paused\"}\n",
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("line 2"));
+    assert!(
+        fs::read_dir(tmp.path().join("atoms"))
+            .unwrap()
+            .next()
+            .is_none()
+    );
+}
+
+#[test]
+fn add_dry_run_writes_nothing() {
+    let tmp = store();
+    let output = srl(&["add", "--dry-run", "--dir", dir(&tmp), "--cue", "x"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(stdout(&output).contains("atoms/x.md"));
+    assert!(
+        fs::read_dir(tmp.path().join("atoms"))
+            .unwrap()
+            .next()
+            .is_none()
+    );
+}
+
+#[test]
+fn show_prints_what_it_finds_and_fails_on_unknown_ids() {
+    let tmp = store();
+    let id = stdout(&srl(&["add", "--dir", dir(&tmp), "--cue", "x"]))
+        .trim()
+        .to_owned();
+    let output = srl(&["show", "--dir", dir(&tmp), &id, "zzzzzz"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).contains("cue: x"));
+    assert!(stderr(&output).contains("zzzzzz"));
+}
+
+#[test]
+fn broken_atom_files_are_reported_and_skipped() {
+    let tmp = store();
+    let id = stdout(&srl(&["add", "--dir", dir(&tmp), "--cue", "x"]))
+        .trim()
+        .to_owned();
+    fs::write(tmp.path().join("atoms/broken.md"), "no front-matter\n").unwrap();
+    let output = srl(&["show", "--dir", dir(&tmp), &id]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(stdout(&output).contains("cue: x"));
+    assert!(stderr(&output).contains("atoms/broken.md"));
 }

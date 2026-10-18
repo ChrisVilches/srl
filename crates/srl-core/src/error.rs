@@ -29,6 +29,37 @@ pub enum Error {
         path: PathBuf,
         source: std::io::Error,
     },
+
+    #[error("the file name {path} is not valid UTF-8; rename it")]
+    NonUtf8Path { path: PathBuf },
+
+    #[error("`{text}` is not an atom ID; IDs are six characters a-z and 0-9")]
+    InvalidId { text: String },
+
+    #[error("skipped atoms/{path}: {reason}; fix the file")]
+    InvalidAtom { path: String, reason: String },
+
+    #[error("skipped atoms/{path}: it has no `id`; run `srl check --fix` to assign one")]
+    MissingId { path: String },
+
+    #[error(
+        "skipped atoms/{path}: its ID {id} is already used by atoms/{first}; \
+         give one of them a new ID by deleting its `id` line and running `srl check --fix`"
+    )]
+    DuplicateId {
+        id: crate::Id,
+        path: String,
+        first: String,
+    },
+
+    #[error("no atom has the ID {id}; list atoms with `srl find`")]
+    UnknownId { id: crate::Id },
+
+    #[error("cannot add the atom: {reason}")]
+    InvalidNewAtom { reason: String },
+
+    #[error("line {line} of standard input is not a valid atom: {reason}; nothing was added")]
+    InvalidLine { line: usize, reason: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

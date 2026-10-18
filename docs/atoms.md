@@ -38,7 +38,7 @@ shows the cue, then the body, and you rate yourself.
 | `tags` | no | List of tags. A `/` makes them hierarchical: `japanese/grammar`. Tags are case-sensitive. |
 | `status` | no | `active` (default), `draft` or `suspended`. |
 | `source` | no | Where the knowledge came from, as an opaque string: a path, a URL, a book reference. `srl` stores it and shows it, but never interprets it. |
-| *anything else* | no | A **facet**: data for the drill of the same name. |
+| *anything else* | no | A **facet**: data for the drill of the same name. `body` and `path` are reserved and cannot be facets (see "Atoms as JSON"). |
 
 ### Facets
 
@@ -126,11 +126,62 @@ On `--stdin`, each line is a JSON object with the front-matter fields
  "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred by (adversity)…"}
 ```
 
-Add `--draft` to any form to create drafts. `srl add` prints the new IDs.
+Fields that are absent or `null` get their defaults. A `body` that does not
+end with a newline gets one. Lines are checked before anything is written: if
+any line is invalid (not a JSON object, no `cue`, an `id`, a reserved name,
+`tags` that is not a list of text, an unknown `status`), `srl add` reports the
+first such line and adds nothing. Blank lines are ignored.
+
+Add `--draft` to any form to create drafts. `srl add` prints the new IDs, one
+per line. With `--dry-run` it prints each ID with the file it would write, and
+writes nothing.
 
 New files are placed under `atoms/`, in a folder taken from the first tag, and
-named after the cue (`atoms/japanese/grammar/wo-mono-tomo-sezu.md`). You can
-move them afterwards.
+named after the cue (`atoms/japanese/grammar/をものともせず.md`). You can move
+them afterwards. The names follow one rule:
+
+- A **name** is made from text by lowercasing it, keeping letters and digits
+  of any script, turning every other run of characters into one `-`, and
+  keeping at most 60 characters. `Move semantics in Rust` becomes
+  `move-semantics-in-rust`; `〜をものともせず` becomes `をものともせず`.
+- The **folder** is the first tag, with each part between `/` turned into a
+  name. Without tags, the file goes directly in `atoms/`.
+- The **file** is the cue's name plus `.md`. If the cue gives an empty name,
+  the file is `ID.md`; if the file already exists, it is `NAME-ID.md`.
+
+New files are written with the fields in the order of the table above and
+`tags` on one line (`tags: [a, b]`), then the facets, then the body. An
+existing file is never overwritten.
+
+## Atoms as JSON
+
+`srl show --json` and `srl find --json` print one JSON object per atom, in the
+same shape as a line of `srl add --stdin`, plus `id` and `path`:
+
+```json
+{"id": "a7f3k2", "path": "japanese/grammar/をものともせず.md",
+ "cue": "〜をものともせず", "answer": null, "tags": ["japanese/grammar", "jlpt/n1"],
+ "status": "active", "source": "Tobira ch.3",
+ "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred by (adversity)…\n"}
+```
+
+- `path` is relative to `atoms/`, with `/` between folders.
+- Every front-matter field is present, with its default when the file leaves
+  it out: `answer` and `source` are `null`, `tags` is `[]`, `status` is
+  `active`.
+- Each facet is a key of its own, between `source` and `body`, in file order.
+- Removing `id` and `path` gives a valid line for `srl add --stdin`.
+
+Because of this format, `body` and `path` are **reserved names**: they cannot
+be facets.
+
+## Reading atoms
+
+Every command that reads atoms reads every file under `atoms/`. A file that
+is not a valid atom (no front-matter, invalid YAML, no `id`, no `cue`, a field
+of the wrong type) is skipped, and reported on standard error with the reason.
+So is a file whose `id` an earlier file (by path) already has. The command
+carries on with the other atoms.
 
 ## Validation
 

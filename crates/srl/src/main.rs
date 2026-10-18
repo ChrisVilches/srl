@@ -18,12 +18,16 @@ enum Outcome {
     Done,
     /// Nothing was found or nothing is left. Exit code 1.
     Nothing,
+    /// Part of the command failed, and was already reported on standard
+    /// error. Exit code 2.
+    Failed,
 }
 
 fn main() -> ExitCode {
     match commands::run(argv::parse()) {
         Ok(Outcome::Done) => ExitCode::SUCCESS,
         Ok(Outcome::Nothing) => ExitCode::from(1),
+        Ok(Outcome::Failed) => ExitCode::from(2),
         Err(error) => {
             output::error(&error);
             ExitCode::from(2)

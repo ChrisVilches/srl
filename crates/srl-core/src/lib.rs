@@ -6,8 +6,13 @@
 //! `srl` binary crate is a thin layer that turns command-line arguments into
 //! calls to this crate and prints the results.
 
+mod add;
+mod atom;
 mod error;
 mod store;
+mod yaml;
 
+pub use add::{Added, Flags, add};
+pub use atom::{Atom, Atoms, Content, Id, Status};
 pub use error::{Error, Result};
 pub use store::{Lookup, Store};
