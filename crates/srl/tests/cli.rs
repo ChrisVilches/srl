@@ -85,16 +85,6 @@ fn dir(tmp: &TempDir) -> &str {
 }
 
 #[test]
-fn unwritten_commands_say_so_on_stderr() {
-    let tmp = store();
-    let output = srl(&["reindex", "--dir", dir(&tmp)]);
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains("not implemented yet"));
-    assert!(stderr.contains(dir(&tmp)));
-}
-
-#[test]
 fn commands_refuse_a_directory_that_is_not_a_store() {
     let tmp = TempDir::new().unwrap();
     let output = srl(&["find", "--dir", dir(&tmp)]);
@@ -887,4 +877,91 @@ fn new_refuses_without_a_terminal() {
         "{}",
         stderr(&output)
     );
+}
+/// What every command that reads atoms and memories prints: standard
+/// output, standard error and the exit code of each.
+fn snapshot(d: &str) -> Vec<(String, String, Option<i32>)> {
+    let commands: [&[&str]; 8] = [
+        &["find"],
+        &["find", "state:due"],
+        &["find", "state:new", "-tag:none"],
+        &["next", "--json"],
+        &["stats", "--json"],
+        &["log", "--json"],
+        &["log", "state:young"],
+        &["tags", "--json"],
+    ];
+    commands
+        .iter()
+        .map(|args| {
+            let output = srl(&[*args, &["--dir", d]].concat());
+            (stdout(&output), stderr(&output), output.status.code())
+        })
+        .collect()
+}
+
+#[test]
+fn the_index_cache_never_changes_what_commands_print() {
+    let (tmp, tuna, mackerel) = fish();
+    let d = dir(&tmp);
+    let cache = tmp.path().join(".cache");
+    srl(&["review", &tuna, "--rating", "3", "--dir", d]);
+    fs::write(
+        tmp.path().join("atoms").join("broken.md"),
+        "no front-matter\n",
+    )
+    .unwrap();
+    let log = tmp.path().join("log");
+    let month = fs::read_dir(&log).unwrap().next().unwrap().unwrap().path();
+    let text = fs::read_to_string(&month).unwrap();
+    fs::write(&month, format!("{text}not an event\n")).unwrap();
+
+    // Built by the first command, then used.
+    let built = snapshot(d);
+    assert!(cache.join("index.sqlite").is_file());
+    assert_eq!(fs::read_to_string(cache.join(".gitignore")).unwrap(), "*\n");
+    assert!(built[0].1.contains("broken.md"), "{}", built[0].1);
+    assert!(built[4].1.contains("skipped line"), "{}", built[4].1);
+    assert_eq!(snapshot(d), built);
+
+    // srl reindex starts over, prints nothing, and reports the files' problems.
+    let reindex = srl(&["reindex", "--dir", d]);
+    assert_eq!(reindex.status.code(), Some(0));
+    assert!(reindex.stdout.is_empty());
+    assert!(stderr(&reindex).contains("broken.md"));
+    assert_eq!(snapshot(d), built);
+
+    // Deleting the cache loses nothing.
+    fs::remove_dir_all(&cache).unwrap();
+    assert_eq!(snapshot(d), built);
+
+    // Changes to atoms and the log show up as they would without a cache.
+    srl(&["review", &mackerel, "--rating", "1", "--dir", d]);
+    srl(&["review", &tuna, "--rating", "4", "--dir", d]);
+    srl(&["suspend", &format!("id:{tuna}"), "--dir", d]);
+    let cached = snapshot(d);
+    fs::remove_dir_all(&cache).unwrap();
+    assert_eq!(snapshot(d), cached);
+    assert_ne!(cached, built);
+
+    // A damaged cache is rebuilt and reported.
+    fs::write(cache.join("index.sqlite"), "garbage ".repeat(100)).unwrap();
+    let found = srl(&["find", "--dir", d]);
+    assert!(stderr(&found).contains("rebuilt"), "{}", stderr(&found));
+    assert_eq!(stdout(&found), cached[0].0);
+    assert_eq!(snapshot(d), cached);
+
+    // A cache that can't be used is reported, and the files are read directly.
+    fs::remove_dir_all(&cache).unwrap();
+    fs::write(&cache, "not a folder").unwrap();
+    let found = srl(&["find", "--dir", d]);
+    assert!(
+        stderr(&found).contains("cannot use the index cache"),
+        "{}",
+        stderr(&found)
+    );
+    assert_eq!(stdout(&found), cached[0].0);
+    let next = srl(&["next", "--json", "--dir", d]);
+    assert_eq!(stdout(&next), cached[3].0);
+    assert_eq!(srl(&["reindex", "--dir", d]).status.code(), Some(2));
 }

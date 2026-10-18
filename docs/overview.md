@@ -167,4 +167,3 @@ See [agents.md](agents.md).
 - Media in cards (audio, images) and furigana markup.
 - Separate memory states for different directions of the same atom.
 - Giving partial credit to prerequisite atoms (`requires:`).
-- The exact schema of the SQLite index.

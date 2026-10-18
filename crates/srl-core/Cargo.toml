@@ -6,9 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+blake3.workspace = true
 fsrs.workspace = true
 globset.workspace = true
 jiff.workspace = true
+rusqlite.workspace = true
 saphyr.workspace = true
 serde.workspace = true
 serde_json.workspace = true

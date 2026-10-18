@@ -134,6 +134,25 @@ pub enum Error {
     #[error("cannot schedule with FSRS: {reason}; check `[schedule]` in srl.toml")]
     Fsrs { reason: String },
 
+    #[error(
+        "the index cache {} was damaged ({reason}), so it was rebuilt from the files; nothing was lost",
+        path.display()
+    )]
+    CacheRebuilt { path: PathBuf, reason: String },
+
+    #[error(
+        "cannot use the index cache {}: {reason}; reading the files directly instead, which is slower \
+         (check that you may write to the store's .cache folder, or delete it)",
+        path.display()
+    )]
+    CacheUnusable { path: PathBuf, reason: String },
+
+    #[error(
+        "cannot build the index cache {}: {reason}; check that you may write to the store's .cache folder",
+        path.display()
+    )]
+    Reindex { path: PathBuf, reason: String },
+
     #[error("there is no drill `{name}`; `srl drills` lists the drills")]
     UnknownDrill { name: String },
 

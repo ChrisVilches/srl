@@ -35,7 +35,7 @@ agents all use the same commands. There is no separate API.
 |---|---|
 | `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
 | `srl check [--fix]` | Validate atoms, drills and cards; report each problem on standard error and exit with 2 if there are any. `--fix` assigns missing IDs and prints them (see [atoms.md](atoms.md), "Validation"). |
-| `srl reindex` | Rebuild the index cache. |
+| `srl reindex` | Delete the index cache and build it again from the files (see [store.md](store.md), "The index cache"). Prints nothing; reports invalid atom files and log lines like other commands. |
 
 ### Atoms
 

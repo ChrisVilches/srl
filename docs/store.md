@@ -87,17 +87,52 @@ problem.
 
 ## The index cache
 
-`.cache/index.sqlite` holds a parsed copy of the atoms and log, plus each
-atom's current memory state, so that commands stay fast with many thousands of
-atoms.
+`.cache/index.sqlite` holds what is slow to compute from the files: each atom
+file's parsed front-matter, and the log replayed through FSRS (each atom's
+memory, every review, and the log lines that are not valid events). It is
+only ever an optimization: every command gives the same results with it,
+without it, or after it was deleted.
 
-- `srl` refreshes it automatically: atom files whose modification time changed
-  are re-read, and new log lines are replayed.
-- `srl reindex` rebuilds it from scratch.
-- Deleting it loses nothing.
+- **Every file is still read on every use**, and compared with the cache by
+  a hash of its content (BLAKE3). Modification times are never trusted. What
+  the cache saves is parsing and replaying, not reading.
+- **Atoms:** an atom file whose content is cached reuses its parsed
+  front-matter; any other file is parsed again. Files that are not valid
+  atoms are not cached, so they are read and reported every time.
+- **The log:** new lines are replayed on top of the cached memories when
+  every log file the cache has read still starts with exactly the bytes it
+  read (ending with a newline, unless nothing was added to that file), and
+  all new bytes are in the last file it read or in files whose names sort
+  after it. Anything else (an edited, shortened, removed or earlier file)
+  replays the whole log.
+- **Settings:** the whole log is replayed when `day_starts_at`,
+  `desired_retention` or `weights` differ from those the cache was built
+  with.
+- **Versions:** a cache written by another version of `srl` is rebuilt,
+  without a report.
+- **Damage:** a cache that SQLite can't read, or whose data doesn't make
+  sense, is deleted and rebuilt, and this is reported on standard error.
+- **No access:** if the cache can't be created, opened or written (for
+  example a read-only store, or another `srl` holding it for more than 5
+  seconds), this is reported on standard error and the command reads the
+  files directly.
+- `.cache/` is created by the first command that needs it, with a
+  `.gitignore` that ignores everything in it.
+- Each update is one SQLite transaction, so several `srl` processes can
+  share the cache.
+- `srl reindex` deletes it and builds it again. Deleting it by hand loses
+  nothing.
+- `srl log` lists events, so it reads the log files directly; `srl check`
+  checks the files, so it reads them directly too.
 - It can be queried directly for exploration (`sqlite3 .cache/index.sqlite`),
   but its schema is not a stable contract. Scripts should use the CLI's
   `--json` output instead.
+
+**TODO (platform):** SQLite's file locking is unreliable on network file
+systems (NFS, SMB), on every platform. Two `srl` processes updating the same
+cache there could damage it; damage is usually detected and the cache
+rebuilt, but not always. Keep stores on a local disk, or decide whether to
+put the cache outside the store in that case.
 
 ## Version control
 

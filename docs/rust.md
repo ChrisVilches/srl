@@ -32,6 +32,7 @@ crates/
     src/next.rs           scheduling.md, "Choosing the next card"
     src/selector.rs       selectors.md
     src/session.rs        cli.md, "Sessions"
+    src/index.rs          store.md, "The index cache": `.cache/index.sqlite`
     src/yaml.rs         front-matter between YAML text and JSON values
     src/frontmatter.rs  setting one key in an existing atom file (see below)
     src/process.rs      running a program (drill, grader) with an optional time limit
@@ -265,6 +266,7 @@ Known places:
 | `study.rs`, `HIGHLIGHT`; [frontends.md](frontends.md) | ANSI colors show as text in the old Windows console | TODO in code and spec |
 | `drill.rs`, `programs`; [drills.md](drills.md) | "Executable" and `#!` scripts are Unix concepts | Handled: `which` decides, with the execute bit on Unix and `PATHEXT` on Windows. The Windows test drills (`.cmd`) have not been run yet |
 | `log.rs`, `append`; [log.md](log.md) | Atomic appends aren't guaranteed on Windows or network file systems: concurrent reviews could corrupt a line | **TODO in code and spec**: not solved yet; a lock file around each append is the likely fix |
+| `index.rs`, `connect`; [store.md](store.md) | SQLite's file locking is unreliable on network file systems (NFS, SMB) on every platform: concurrent updates could damage the index cache | **TODO in code and spec**: damage is usually detected and the cache rebuilt; keep stores on a local disk for now |
 | `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
 
 ## Testing
@@ -337,7 +339,9 @@ Current dependencies:
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
 | `saphyr` | `srl-core` | YAML 1.2 parsing and writing of front-matter |
 | `globset` | `srl-core` | `path:` globs in selectors |
-| `serde` (derive), `serde_json` (`preserve_order`) | both | The JSON formats; facets keep their file order |
+| `serde` (derive), `serde_json` (`preserve_order`, `float_roundtrip`) | both | The JSON formats; facets keep their file order, and numbers read back from the index cache are exactly the ones written |
+| `rusqlite` (`bundled`, `cache`) | `srl-core` | The index cache. `bundled` compiles SQLite in (a C compiler is needed to build), so no system library is required; `cache` reuses prepared statements |
+| `blake3` | `srl-core` | Hashing every file on every use for the index cache. Several times faster than SHA-256 on CPUs without SHA instructions |
 | `tempfile` | `srl`; tests of both crates | The temporary copy the editor works on; temporary store trees in tests |
 
 ## Linting and formatting
@@ -450,3 +454,24 @@ can replace steps 2 and 3, but steps 4 to 6 still apply.
   not implemented yet return an error that says so.
 - Unknown commands run `srl-NAME` from `PATH` (`external.rs`). Its exit codes
   0 and 1 pass through, and anything else becomes an error.
+
+## The index cache
+
+`index.rs` keeps `.cache/index.sqlite` (see [store.md](store.md), "The index
+cache"). It must never change a result, only skip work:
+
+- **One code path for both.** A cached atom goes through
+  `Content::from_fields` like a parsed one, and new log lines go through the
+  same `Replayer::apply` as a full replay. Don't add a second way to compute
+  anything the cache stores.
+- **Commands read through `Index`**, not `Atoms::load` or `Log::load`, where
+  speed matters. `Atoms::load`, `Log::load` and `History::replay` stay as the
+  reference that the cache is tested against, and as the fallback when the
+  cache can't be used.
+- **Bump `SCHEMA_VERSION`** whenever the tables, or what a stored value
+  means, change. The cache is also rebuilt when the crate version changes,
+  but during development that version stays the same.
+- **Tests compare with and without the cache**: `assert_same` in
+  `index.rs` after every kind of change to the files, and
+  `the_index_cache_never_changes_what_commands_print` in `tests/cli.rs`.
+  A new command or a new kind of change to the store gets a case there.

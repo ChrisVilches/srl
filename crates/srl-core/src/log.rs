@@ -2,7 +2,7 @@
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use jiff::Zoned;
 use jiff::civil::{Date, DateTime};
@@ -157,38 +157,39 @@ impl Log {
     /// skipped and reported in `problems`. Study days come from each event's
     /// own time and offset, and `schedule`'s `day_starts_at`.
     pub fn load(store: &Store, schedule: &Schedule) -> Result<Self> {
-        let dir = store.log_dir();
-        let mut files = match fs::read_dir(&dir) {
-            Ok(entries) => entries
-                .map(|entry| entry.map(|entry| entry.path()).map_err(Error::io(&dir)))
-                .collect::<Result<Vec<_>>>()?,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => Vec::new(),
-            Err(error) => return Err(Error::io(&dir)(error)),
+        let mut log = Self {
+            entries: Vec::new(),
+            problems: Vec::new(),
         };
-        files.retain(|file| {
-            file.extension()
-                .is_some_and(|extension| extension == "jsonl")
-        });
-        files.sort();
-        let mut entries = Vec::new();
-        let mut problems = Vec::new();
-        for file in files {
+        for file in files(store)? {
             let text = fs::read_to_string(&file).map_err(Error::io(&file))?;
-            for (index, line) in text.lines().enumerate() {
-                if line.trim().is_empty() {
-                    continue;
-                }
-                match parse_line(line, schedule) {
-                    Ok(entry) => entries.push(entry),
-                    Err(reason) => problems.push(Error::InvalidLogLine {
-                        file: file.clone(),
-                        line: index + 1,
-                        reason,
-                    }),
-                }
+            log.read(&file, &text, 0, schedule);
+        }
+        Ok(log)
+    }
+
+    /// Adds the events of `text`, which comes from `file` and starts after
+    /// line `lines_before`, and the lines that are not valid events.
+    pub(crate) fn read(
+        &mut self,
+        file: &Path,
+        text: &str,
+        lines_before: usize,
+        schedule: &Schedule,
+    ) {
+        for (index, line) in text.lines().enumerate() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            match parse_line(line, schedule) {
+                Ok(entry) => self.entries.push(entry),
+                Err(reason) => self.problems.push(Error::InvalidLogLine {
+                    file: file.to_path_buf(),
+                    line: lines_before + index + 1,
+                    reason,
+                }),
             }
         }
-        Ok(Self { entries, problems })
     }
 
     /// The events of the atoms in `ids`, in log order.
@@ -197,6 +198,24 @@ impl Log {
             .iter()
             .filter(move |entry| ids.contains(&entry.event.atom()))
     }
+}
+
+/// Every `log/*.jsonl` file, sorted by name (so by month).
+pub(crate) fn files(store: &Store) -> Result<Vec<PathBuf>> {
+    let dir = store.log_dir();
+    let mut files = match fs::read_dir(&dir) {
+        Ok(entries) => entries
+            .map(|entry| entry.map(|entry| entry.path()).map_err(Error::io(&dir)))
+            .collect::<Result<Vec<_>>>()?,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Vec::new(),
+        Err(error) => return Err(Error::io(&dir)(error)),
+    };
+    files.retain(|file| {
+        file.extension()
+            .is_some_and(|extension| extension == "jsonl")
+    });
+    files.sort();
+    Ok(files)
 }
 
 fn parse_line(line: &str, schedule: &Schedule) -> std::result::Result<Entry, String> {

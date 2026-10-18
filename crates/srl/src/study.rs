@@ -11,7 +11,7 @@ use std::io::{self, BufRead, IsTerminal, Write};
 
 use anyhow::{Context, bail};
 use srl_core::{
-    Atoms, By, Card, Config, Drills, GradeRequest, Grading, Id, Log, Memories, NextOptions,
+    Atoms, By, Card, Config, Drills, GradeRequest, Grading, Id, Index, Memories, NextOptions,
     ReviewRequest, Search, Selector, State, Status, Store,
 };
 
@@ -124,6 +124,7 @@ pub(crate) struct Io<'a> {
 /// What the loop needs for every card.
 struct Session<'a, 'b> {
     store: &'a Store,
+    index: &'a mut Index,
     config: &'a Config,
     search: &'a Search,
     io: &'a mut Io<'b>,
@@ -143,8 +144,10 @@ pub(crate) fn study(
     let search = commands::search()?;
     let (drills, problems) = Drills::find(store, &search);
     problems.iter().for_each(output::problem);
+    let mut index = Index::open(store);
     let mut session = Session {
         store,
+        index: &mut index,
         config: &config,
         search: &search,
         io,
@@ -153,17 +156,19 @@ pub(crate) fn study(
     let mut summary = Summary::default();
     let mut first = true;
     loop {
-        let atoms = Atoms::load(store)?;
-        let log = Log::load(store, &config.schedule)?;
+        let atoms = session.atoms()?;
+        let memories = session.index.memories(&config);
+        commands::report_cache(session.index);
+        let (memories, log_problems) = memories?;
         if first {
             // Later rounds read the same files; their problems were
             // reported once already.
             atoms.problems.iter().for_each(output::problem);
-            log.problems.iter().for_each(output::problem);
+            log_problems.iter().for_each(output::problem);
             first = false;
         }
         let today = config.schedule.study_day(commands::now()?.datetime());
-        let memories = Memories::replay(&log, &config, today)?;
+        let memories = Memories::new(memories, &config, today);
         let card = match &mut cards {
             Cards::Scheduled { selector, drill } => {
                 let options = NextOptions {
@@ -222,6 +227,14 @@ fn plural(count: usize, noun: &str) -> String {
 }
 
 impl Session<'_, '_> {
+    /// Every atom, through the index cache. Problems with the cache are
+    /// reported; those of the files are left to the caller.
+    fn atoms(&mut self) -> anyhow::Result<Atoms> {
+        let atoms = self.index.atoms();
+        commands::report_cache(self.index);
+        Ok(atoms?)
+    }
+
     /// Shows one card, takes the answer and the rating, and records it.
     fn card(&mut self, atoms: &Atoms, card: Card) -> anyhow::Result<Step> {
         let prompt = self.render(card.prompt());
@@ -255,7 +268,7 @@ impl Session<'_, '_> {
                 ("4", _) => 4,
                 ("q", _) => return Ok(Step::Quit),
                 ("s", _) => {
-                    let atoms = Atoms::load(self.store)?;
+                    let atoms = self.atoms()?;
                     let atom = atoms
                         .get(&id)
                         .with_context(|| format!("atom {id} is gone from the store"))?;
@@ -270,7 +283,7 @@ impl Session<'_, '_> {
                     return Ok(Step::Suspended);
                 }
                 ("e", _) => {
-                    let atoms = Atoms::load(self.store)?;
+                    let atoms = self.atoms()?;
                     if let Err(error) = (self.edit)(&atoms, &id) {
                         output::error(&error);
                     }
@@ -283,7 +296,7 @@ impl Session<'_, '_> {
             };
             // Read the atoms again: an edit changes the file the review's
             // hash is taken from.
-            let atoms = Atoms::load(self.store)?;
+            let atoms = self.atoms()?;
             let request = ReviewRequest::new(card, rating, response, By::Human)?;
             srl_core::review(
                 self.store,
@@ -489,7 +502,7 @@ mod tests {
     }
 
     fn events(store: &Store) -> Vec<Event> {
-        let log = Log::load(store, &Config::default().schedule).unwrap();
+        let log = srl_core::Log::load(store, &Config::default().schedule).unwrap();
         log.entries.into_iter().map(|entry| entry.event).collect()
     }
 

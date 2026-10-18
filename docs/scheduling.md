@@ -41,7 +41,7 @@ Consequences:
   for the whole history at once.
 - Replacing FSRS with another algorithm later only means replaying the same
   log differently.
-- The index cache stores the computed state for speed, and can always be
+- The index cache keeps the replayed memories for speed, and can always be
   rebuilt.
 
 ## Days, not minutes

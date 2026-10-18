@@ -23,6 +23,9 @@ const DRILLS: &str = "drills";
 /// The folder of prepared sessions.
 const SESSIONS: &str = "sessions";
 
+/// The folder of derived data, such as the index cache.
+const CACHE: &str = ".cache";
+
 /// The folders `srl init` creates.
 const FOLDERS: [&str; 2] = [ATOMS, LOG];
 
@@ -162,6 +165,11 @@ impl Store {
     /// The folder of the review log.
     pub fn log_dir(&self) -> PathBuf {
         self.root.join(LOG)
+    }
+
+    /// The folder of derived data, safe to delete.
+    pub fn cache_dir(&self) -> PathBuf {
+        self.root.join(CACHE)
     }
 
     /// The folder that holds the atom files.

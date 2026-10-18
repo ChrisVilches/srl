@@ -285,6 +285,33 @@ impl Atom {
     pub fn text(&self) -> &str {
         &self.text
     }
+
+    /// The front-matter fields without `id`, as the index cache keeps them.
+    pub(crate) fn fields(&self) -> Map<String, Value> {
+        let mut fields = self.content.fields(&self.id);
+        fields.remove("id");
+        fields
+    }
+
+    /// The atom of file `path` whose text is `text`, from its ID and the
+    /// [`fields`](Atom::fields) cached for that same text. Goes through the
+    /// same checks as [`Atom::parse`]. Errors are plain reasons.
+    pub(crate) fn from_fields(
+        path: String,
+        text: String,
+        id: Id,
+        fields: Map<String, Value>,
+    ) -> std::result::Result<Self, String> {
+        let (_, body) = split_front_matter(&text)
+            .ok_or_else(|| "the cached atom file has no front-matter".to_owned())?;
+        let content = Content::from_fields(fields, body.to_owned())?;
+        Ok(Self {
+            id,
+            path,
+            content,
+            text,
+        })
+    }
 }
 
 /// The ID, if the file has one, and the content of an atom file's text.
@@ -343,29 +370,32 @@ impl Atoms {
     /// or whose ID an earlier file (by path) already has, is skipped and
     /// reported in `problems`.
     pub fn load(store: &Store) -> Result<Self> {
-        let (atoms, problems) = store
+        let parsed = store
             .atom_paths()?
             .into_iter()
-            .map(|path| {
-                let file = store.atom_file(&path);
-                let text = fs::read_to_string(&file).map_err(Error::io(file))?;
-                Atom::parse(path, text)
-            })
-            .fold(
-                (Vec::new(), Vec::new()),
-                |(mut atoms, mut problems), parsed| {
-                    match parsed {
-                        Ok(atom) => atoms.push(atom),
-                        Err(error) => problems.push(error),
-                    }
-                    (atoms, problems)
-                },
-            );
+            .map(|path| read_atom_file(store, &path).and_then(|text| Atom::parse(path, text)))
+            .collect();
+        Ok(Self::from_parsed(parsed))
+    }
+
+    /// The atoms of the files read, in path order: the ones that parsed,
+    /// except those whose ID an earlier one already has, and the problems.
+    pub(crate) fn from_parsed(parsed: Vec<Result<Atom>>) -> Self {
+        let (atoms, problems) = parsed.into_iter().fold(
+            (Vec::new(), Vec::new()),
+            |(mut atoms, mut problems), parsed| {
+                match parsed {
+                    Ok(atom) => atoms.push(atom),
+                    Err(error) => problems.push(error),
+                }
+                (atoms, problems)
+            },
+        );
         let (atoms, duplicates) = unique(atoms);
-        Ok(Self {
+        Self {
             atoms,
             problems: problems.into_iter().chain(duplicates).collect(),
-        })
+        }
     }
 
     /// The atom with this ID.
@@ -398,6 +428,12 @@ impl Atoms {
             })
             .collect()
     }
+}
+
+/// The text of the atom file at `path` (relative to `atoms/`).
+pub(crate) fn read_atom_file(store: &Store, path: &str) -> Result<String> {
+    let file = store.atom_file(path);
+    fs::read_to_string(&file).map_err(Error::io(file))
 }
 
 /// One tag and how many atoms have it (see `srl tags`).
