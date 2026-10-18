@@ -7,7 +7,7 @@ use fsrs::{FSRS, MemoryState};
 use jiff::Span;
 use jiff::civil::Date;
 
-use crate::{Config, Error, Event, Id, Log, Result};
+use crate::{Config, Entry, Error, Event, Id, Log, Result};
 
 /// The longest interval, in days. FSRS keeps intervals far below this; the
 /// limit only makes the conversion from its `f32` exact.
@@ -30,7 +30,7 @@ pub struct Memory {
     pub due: Option<Date>,
     /// For each card ref used on this atom, where in the log it was last
     /// used. Kept across resets: it only decides which card comes next.
-    last_used: HashMap<String, usize>,
+    pub(crate) last_used: HashMap<String, usize>,
 }
 
 impl Memory {
@@ -64,62 +64,117 @@ pub struct Reviewed {
     pub was_new: bool,
 }
 
+/// What replaying the log gives, whatever the study day: every atom's
+/// memory and every review.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct History {
+    /// The memory of every atom the log mentions.
+    pub memories: HashMap<Id, Memory>,
+    /// Every review of the log, in log order.
+    pub reviews: Vec<Reviewed>,
+}
+
+impl History {
+    /// Replays the whole log, in log order, with the FSRS weights and
+    /// desired retention of `config`.
+    pub fn replay(log: &Log, config: &Config) -> Result<Self> {
+        let replayer = Replayer::new(config)?;
+        let mut history = Self::default();
+        for (position, entry) in log.entries.iter().enumerate() {
+            let memory = history
+                .memories
+                .entry(entry.event.atom().clone())
+                .or_default();
+            let (next, reviewed) = replayer.apply(memory, entry, position)?;
+            *memory = next;
+            history.reviews.extend(reviewed);
+        }
+        Ok(history)
+    }
+}
+
+/// Replays events one at a time, with the FSRS weights and desired
+/// retention of the configuration. Replaying the whole log and adding new
+/// events to a cached replay both go through `apply`, so they agree.
+pub(crate) struct Replayer {
+    fsrs: FSRS,
+    retention: f32,
+}
+
+impl Replayer {
+    pub(crate) fn new(config: &Config) -> Result<Self> {
+        let schedule = &config.schedule;
+        let fsrs =
+            FSRS::new(&weights(schedule.weights.as_deref())).map_err(|error| Error::Fsrs {
+                reason: format!("the weights are not valid ({error})"),
+            })?;
+        Ok(Self {
+            fsrs,
+            retention: to_f32(schedule.desired_retention),
+        })
+    }
+
+    /// The memory of an atom after `entry`, the event at `position` in the
+    /// log, and the review it records, if it is one.
+    pub(crate) fn apply(
+        &self,
+        memory: &Memory,
+        entry: &Entry,
+        position: usize,
+    ) -> Result<(Memory, Option<Reviewed>)> {
+        match &entry.event {
+            Event::Reset(_) => {
+                let memory = Memory {
+                    last_used: memory.last_used.clone(),
+                    ..Memory::default()
+                };
+                Ok((memory, None))
+            }
+            Event::Review(review) => {
+                let reviewed = Reviewed {
+                    atom: review.atom.clone(),
+                    day: entry.day,
+                    rating: review.rating,
+                    was_new: memory.reviews == 0,
+                };
+                let mut next = step(&self.fsrs, self.retention, memory, entry.day, review.rating)?;
+                if let Some(card) = &review.card {
+                    next.last_used.insert(card.reference.clone(), position);
+                }
+                Ok((next, Some(reviewed)))
+            }
+        }
+    }
+}
+
 /// Every atom's memory, on one study day.
 #[derive(Debug, Clone)]
 pub struct Memories {
     by_atom: HashMap<Id, Memory>,
-    reviews: Vec<Reviewed>,
     today: Date,
     mature_days: u32,
     leech_lapses: u32,
 }
 
 impl Memories {
-    /// Replays the whole log, in log order, with the FSRS weights and
-    /// desired retention of `config`.
-    pub fn replay(log: &Log, config: &Config, today: Date) -> Result<Self> {
-        let schedule = &config.schedule;
-        let fsrs =
-            FSRS::new(&weights(schedule.weights.as_deref())).map_err(|error| Error::Fsrs {
-                reason: format!("the weights are not valid ({error})"),
-            })?;
-        let retention = to_f32(schedule.desired_retention);
-        let mut by_atom = HashMap::<Id, Memory>::new();
-        let mut reviews = Vec::new();
-        for (position, entry) in log.entries.iter().enumerate() {
-            let memory = by_atom.entry(entry.event.atom().clone()).or_default();
-            *memory = match &entry.event {
-                Event::Reset(_) => Memory {
-                    last_used: std::mem::take(&mut memory.last_used),
-                    ..Memory::default()
-                },
-                Event::Review(review) => {
-                    reviews.push(Reviewed {
-                        atom: review.atom.clone(),
-                        day: entry.day,
-                        rating: review.rating,
-                        was_new: memory.reviews == 0,
-                    });
-                    let mut next = step(&fsrs, retention, memory, entry.day, review.rating)?;
-                    if let Some(card) = &review.card {
-                        next.last_used.insert(card.reference.clone(), position);
-                    }
-                    next
-                }
-            };
-        }
-        Ok(Self {
+    /// The memories of a replay, seen on study day `today`.
+    pub fn new(by_atom: HashMap<Id, Memory>, config: &Config, today: Date) -> Self {
+        Self {
             by_atom,
-            reviews,
             today,
-            mature_days: schedule.mature_days,
-            leech_lapses: schedule.leech_lapses,
-        })
+            mature_days: config.schedule.mature_days,
+            leech_lapses: config.schedule.leech_lapses,
+        }
     }
 
-    /// Every review of the log, in log order.
-    pub fn reviews(&self) -> &[Reviewed] {
-        &self.reviews
+    /// Replays the whole log (see [`History::replay`]) and keeps the
+    /// memories.
+    pub fn replay(log: &Log, config: &Config, today: Date) -> Result<Self> {
+        Ok(Self::new(
+            History::replay(log, config)?.memories,
+            config,
+            today,
+        ))
     }
 
     /// The memory of atom `id`; an atom the log never mentions is new.

@@ -40,7 +40,7 @@ pub use grade::{GradeRequest, Graded, grade};
 pub use log::{By, CardUsed, Entry, Event, Log, Reset, Review};
 pub use next::{NextOptions, next};
 pub use review::{ReviewRequest, reset, review, review_ids};
-pub use schedule::{Memories, Memory, Reviewed, State};
+pub use schedule::{History, Memories, Memory, Reviewed, State};
 pub use selector::Selector;
 pub use session::{SessionInfo, list_sessions, load_session, put_session, remove_session};
 pub use stats::{StateCounts, Stats, stats};

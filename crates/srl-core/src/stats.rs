@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use jiff::Span;
 use serde::Serialize;
 
-use crate::{Atom, Memories, State};
+use crate::{Atom, Memories, Reviewed, State};
 
 /// How many study days, today included, retention looks back.
 const RETENTION_DAYS: i64 = 30;
@@ -38,8 +38,9 @@ pub struct StateCounts {
     pub leech: usize,
 }
 
-/// The statistics of `atoms`, from their memories.
-pub fn stats(atoms: &[&Atom], memories: &Memories) -> Stats {
+/// The statistics of `atoms`, from their memories and every review of the
+/// log.
+pub fn stats(atoms: &[&Atom], memories: &Memories, reviews: &[Reviewed]) -> Stats {
     let states = atoms.iter().fold(StateCounts::default(), |counts, atom| {
         let id = atom.id();
         let counts = StateCounts {
@@ -70,8 +71,7 @@ pub fn stats(atoms: &[&Atom], memories: &Memories) -> Stats {
     let first_day = today
         .checked_sub(Span::new().days(RETENTION_DAYS - 1))
         .unwrap_or(today);
-    let reviews = memories
-        .reviews()
+    let reviews = reviews
         .iter()
         .filter(|review| ids.contains(&review.atom))
         .collect::<Vec<_>>();
@@ -106,7 +106,7 @@ mod tests {
     use jiff::civil::{Date, date};
 
     use super::*;
-    use crate::{By, Config, Entry, Event, Id, Log, Review};
+    use crate::{By, Config, Entry, Event, History, Id, Log, Review};
 
     fn atom(id: &str) -> Atom {
         Atom::parse("a.md".to_owned(), format!("---\nid: {id}\ntitle: x\n---\n")).unwrap()
@@ -145,10 +145,12 @@ mod tests {
             entries,
             problems: Vec::new(),
         };
-        let memories = Memories::replay(&log, &Config::default(), today).unwrap();
+        let config = Config::default();
+        let history = History::replay(&log, &config).unwrap();
+        let memories = Memories::new(history.memories, &config, today);
         let atoms = [atom("aaaaa1"), atom("aaaaa2"), atom("aaaaa3")];
         let refs = atoms.iter().collect::<Vec<_>>();
-        let stats = stats(&refs, &memories);
+        let stats = stats(&refs, &memories, &history.reviews);
         assert_eq!(stats.atoms, 3);
         assert_eq!(stats.states.new, 1);
         assert_eq!(stats.states.young, 2);
@@ -165,7 +167,7 @@ mod tests {
         };
         let memories = Memories::replay(&log, &Config::default(), date(2026, 10, 26)).unwrap();
         let atom = atom("aaaaa1");
-        let stats = stats(&[&atom], &memories);
+        let stats = stats(&[&atom], &memories, &[]);
         assert_eq!(stats.retention, None);
         assert_eq!(stats.states.new, 1);
     }

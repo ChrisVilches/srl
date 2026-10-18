@@ -11,8 +11,8 @@ use anyhow::{Context, bail};
 use jiff::Zoned;
 use jiff::civil::Date;
 use srl_core::{
-    Atom, Atoms, Config, Content, Drills, Error, Flags, GradeRequest, Id, Log, Lookup, Memories,
-    NextOptions, ReviewRequest, Search, Selector, Status, Store,
+    Atom, Atoms, Config, Content, Drills, Error, Flags, GradeRequest, History, Id, Log, Lookup,
+    Memories, NextOptions, ReviewRequest, Reviewed, Search, Selector, Status, Store,
 };
 
 use crate::args::{AddArgs, By, Cli, Command, ReviewArgs, SessionCommand};
@@ -170,7 +170,7 @@ fn stats(store: &Store, terms: &[String], json: bool) -> anyhow::Result<Outcome>
     let atoms = load(store)?;
     let scheduling = scheduling(store)?;
     let selected = atoms.select(&selector, Some(&scheduling.memories));
-    let stats = srl_core::stats(&selected, &scheduling.memories);
+    let stats = srl_core::stats(&selected, &scheduling.memories, &scheduling.reviews);
     if json {
         output::json_lines(&[&stats])?;
     } else {
@@ -381,6 +381,7 @@ struct Scheduling {
     now: Zoned,
     log: Log,
     memories: Memories,
+    reviews: Vec<Reviewed>,
 }
 
 /// Reads the configuration and the log, reports the log lines that were
@@ -391,12 +392,14 @@ fn scheduling(store: &Store) -> anyhow::Result<Scheduling> {
     let log = Log::load(store, &config.schedule)?;
     log.problems.iter().for_each(output::problem);
     let today = config.schedule.study_day(now.datetime());
-    let memories = Memories::replay(&log, &config, today)?;
+    let history = History::replay(&log, &config)?;
+    let memories = Memories::new(history.memories, &config, today);
     Ok(Scheduling {
         config,
         now,
         log,
         memories,
+        reviews: history.reviews,
     })
 }
 
