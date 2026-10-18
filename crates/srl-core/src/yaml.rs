@@ -185,8 +185,8 @@ mod tests {
     #[test]
     fn yaml_1_1_booleans_stay_strings() {
         assert_eq!(
-            parse("cue: no\na: yes\nb: on\nc: off\nd: true\n"),
-            json!({"cue": "no", "a": "yes", "b": "on", "c": "off", "d": true})
+            parse("title: no\na: yes\nb: on\nc: off\nd: true\n"),
+            json!({"title": "no", "a": "yes", "b": "on", "c": "off", "d": true})
         );
     }
 
@@ -219,7 +219,7 @@ mod tests {
     #[test]
     fn rendered_values_parse_back_the_same() {
         let value = json!({
-            "cue": "no",
+            "title": "no",
             "answer": "まぐろ — tuna",
             "tags": ["japanese/grammar", "a, b", "[x]"],
             "n": 3,

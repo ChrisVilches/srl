@@ -210,19 +210,19 @@ pub(crate) struct AddArgs {
     #[arg(long)]
     pub(crate) draft: bool,
     /// Read JSONL from standard input, one atom per line.
-    #[arg(long, conflicts_with = "cue")]
+    #[arg(long, conflicts_with = "title")]
     pub(crate) stdin: bool,
-    /// The cue of a new atom.
+    /// The title of a new atom.
     #[arg(long, value_name = "C")]
-    pub(crate) cue: Option<String>,
+    pub(crate) title: Option<String>,
     /// The answer of the new atom.
-    #[arg(long, value_name = "A", requires = "cue")]
+    #[arg(long, value_name = "A", requires = "title")]
     pub(crate) answer: Option<String>,
     /// A tag of the new atom (repeatable).
-    #[arg(long = "tag", value_name = "T", requires = "cue")]
+    #[arg(long = "tag", value_name = "T", requires = "title")]
     pub(crate) tags: Vec<String>,
     /// Where the new atom came from.
-    #[arg(long, value_name = "S", requires = "cue")]
+    #[arg(long, value_name = "S", requires = "title")]
     pub(crate) source: Option<String>,
     #[command(flatten)]
     pub(crate) dry_run: DryRun,

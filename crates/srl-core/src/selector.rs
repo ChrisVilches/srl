@@ -246,25 +246,25 @@ mod tests {
             atom(
                 "aaaaa1",
                 "japanese/grammar/wo.md",
-                "cue: 〜をものともせず\ntags: [japanese/grammar, jlpt/n1]",
+                "title: 〜をものともせず\ntags: [japanese/grammar, jlpt/n1]",
                 "Undeterred by (adversity).\n",
             ),
             atom(
                 "aaaaa2",
                 "japanese/n5.md",
-                "cue: です\ntags: [japanese/grammar, jlpt/n5]",
+                "title: です\ntags: [japanese/grammar, jlpt/n5]",
                 "",
             ),
             atom(
                 "aaaaa3",
                 "kanji/food/maguro.md",
-                "cue: 鮪\ntags: [kanji/food]\nstatus: draft",
+                "title: 鮪\ntags: [kanji/food]\nstatus: draft",
                 "Tuna.\n",
             ),
             atom(
                 "aaaaa4",
                 "rust/ownership/move.md",
-                "cue: Move semantics\ntags: [rust/ownership, rust]\nstatus: suspended",
+                "title: Move semantics\ntags: [rust/ownership, rust]\nstatus: suspended",
                 "Ownership MOVES on assignment.\n",
             ),
         ]

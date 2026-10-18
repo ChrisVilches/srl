@@ -71,7 +71,7 @@ Input:
 ```json
 {"id": "v81k3z",
  "path": "atoms/japanese/verbs/taberu.md",
- "frontmatter": {"id": "v81k3z", "cue": "食べる", "conj": {"verb": "食べる", "class": "ichidan", "forms": ["te", "past"]}},
+ "frontmatter": {"id": "v81k3z", "title": "食べる", "conj": {"verb": "食べる", "class": "ichidan", "forms": ["te", "past"]}},
  "body": "…",
  "day": "2026-10-26"}
 ```
@@ -144,7 +144,7 @@ described here. The error says what is wrong.
 
 Runs for every atom. One card:
 
-- prompt: the `cue`;
+- prompt: the `title`;
 - answer: `answer` if present, otherwise the body (and then no explanation);
 - grading: `self`.
 
@@ -154,7 +154,7 @@ Facet: `reverse: true`. One card, the other way round:
 
 - prompt: `answer` if present, otherwise the body (and then no
   explanation);
-- answer: the `cue`;
+- answer: the `title`;
 - grading: `self`.
 
 `reverse: false` gives no card. An atom with neither an `answer` nor a body
@@ -226,9 +226,9 @@ One multiple-choice card:
 
 - prompt: `Which one matches?`, a blank line, and this atom's `answer` (or
   body, and then no explanation);
-- choices: the `cue` of this atom and of the first three atoms listed, in an
+- choices: the `title` of this atom and of the first three atoms listed, in an
   order seeded by atom ID and day;
-- grading: `choice`, with `accept: [[this atom's cue]]`;
+- grading: `choice`, with `accept: [[this atom's title]]`;
 - ref: `confusable`.
 
 An empty list gives no card. An ID that no atom has, the atom's own ID, or an

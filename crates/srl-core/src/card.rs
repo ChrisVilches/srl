@@ -308,7 +308,7 @@ mod tests {
             atoms: vec![
                 Atom::parse(
                     "a.md".to_owned(),
-                    "---\nid: a7f3k2\ncue: x\n---\nThe body.\n".to_owned(),
+                    "---\nid: a7f3k2\ntitle: x\n---\nThe body.\n".to_owned(),
                 )
                 .unwrap(),
             ],

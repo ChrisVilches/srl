@@ -76,7 +76,7 @@ document, listed at the end.
 | Term | Meaning |
 |---|---|
 | **Store** | A directory holding one `srl` database: atoms, log, config, caches. |
-| **Atom** | One thing you can know or not know. Has an ID, a cue, optional tags, optional facets, and a free prose body. It is the only thing with a memory state. |
+| **Atom** | One thing you can know or not know. Has an ID, a title, optional tags, optional facets, and a free prose body. It is the only thing with a memory state. |
 | **Facet** | A named block of structured data in an atom's front-matter, such as `cloze:` or `cards:`. It describes one way the atom can be drilled. |
 | **Drill** | A program that reads one facet of an atom and outputs cards. A drill and its facet share a name. |
 | **Card** | One ready-to-show question in a fixed format. Cards are produced on demand and are not stored (except in sessions). |
@@ -88,7 +88,7 @@ document, listed at the end.
 
 ## The life of a review
 
-1. You write an atom, by hand or with `srl add`. It has a cue, tags, perhaps a
+1. You write an atom, by hand or with `srl add`. It has a title, tags, perhaps a
    `cloze:` facet with example sentences, and a prose explanation.
 2. `srl next tag:jlpt/n1` replays the log through FSRS, finds the most overdue
    atom matching the selector, and asks every applicable drill for cards. It

@@ -294,7 +294,7 @@ SQLite, Unicode normalization, FSRS, temporary directories in tests.
 
 **Write it yourself** when the code fits in a screen and has no tricky edge
 cases. Examples: joining selector terms, finding the store directory,
-building a file name from a cue, mapping outcomes to exit codes. Running the
+building a file name from a title, mapping outcomes to exit codes. Running the
 binary in integration tests needs no crate either, because
 `std::process::Command` is enough.
 
@@ -375,7 +375,7 @@ files are edited by hand, so `srl` must never do that.
 
 Only a few commands change front-matter that already exists: `srl check
 --fix` (adds `id`), `srl accept`, `srl suspend` and `srl unsuspend` (set
-`status`). All of them set one top-level scalar key. Commands that write new files (`srl add --cue`,
+`status`). All of them set one top-level scalar key. Commands that write new files (`srl add --title`,
 `srl add --stdin`, `srl new`) can serialize normally. `srl edit` takes the
 whole file from the user and only parses it.
 
@@ -402,7 +402,7 @@ So:
    keys (`"status": draft`), trailing comments and non-ASCII text around the
    edited line.
 6. **The parser must follow YAML 1.2**, so that `no`, `yes`, `on` and `off`
-   stay strings. Under YAML 1.1 rules an atom with `cue: no` would silently
+   stay strings. Under YAML 1.1 rules an atom with `title: no` would silently
    become `false`. Test this explicitly.
 
 The YAML crate is `saphyr`: it follows YAML 1.2 and rejects duplicate keys.

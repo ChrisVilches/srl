@@ -11,13 +11,13 @@ use serde_json::Value;
 use crate::atom::Content;
 use crate::{Atom, Atoms, Error, Id, Result, Status, Store, random, yaml};
 
-/// The most characters of a cue that go into a file name.
+/// The most characters of a title that go into a file name.
 const SLUG_LEN: usize = 60;
 
-/// The fields of `srl add --cue C [--answer A] [--tag T]… [--source S]`.
+/// The fields of `srl add --title C [--answer A] [--tag T]… [--source S]`.
 #[derive(Debug, Clone, Default)]
 pub struct Flags {
-    pub cue: String,
+    pub title: String,
     pub answer: Option<String>,
     pub tags: Vec<String>,
     pub source: Option<String>,
@@ -32,10 +32,10 @@ pub struct Added {
 }
 
 impl Content {
-    /// The content of `srl add --cue …`.
+    /// The content of `srl add --title …`.
     pub fn from_flags(flags: Flags) -> Result<Self> {
         let fields = [
-            ("cue", Some(Value::from(flags.cue))),
+            ("title", Some(Value::from(flags.title))),
             ("answer", flags.answer.map(Value::from)),
             ("tags", Some(Value::from(flags.tags))),
             ("source", flags.source.map(Value::from)),
@@ -136,7 +136,7 @@ pub(crate) fn random_ids(seed: u64) -> impl Iterator<Item = Id> {
 }
 
 /// The path of a new atom, relative to `atoms/`: a folder made from the first
-/// tag, and a file name made from the cue. If the cue gives no name, the name
+/// tag, and a file name made from the title. If the title gives no name, the name
 /// is the ID; if the name is `taken`, the ID is added to it.
 ///
 // TODO(platform): Windows limits paths to 260 characters unless long paths
@@ -156,7 +156,7 @@ fn place(content: &Content, id: &Id, taken: impl Fn(&str) -> bool) -> String {
                 .collect::<String>()
         })
         .unwrap_or_default();
-    let name = slug(content.cue());
+    let name = slug(content.title());
     let plain = if name.is_empty() {
         format!("{folder}{id}.md")
     } else {
@@ -298,7 +298,7 @@ mod tests {
     #[test]
     fn files_go_in_the_folder_of_the_first_tag() {
         let content =
-            content(json!({"cue": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"]}));
+            content(json!({"title": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"]}));
         let id = Id::parse("a7f3k2").unwrap();
         assert_eq!(
             place(&content, &id, |_| false),
@@ -308,16 +308,16 @@ mod tests {
 
     #[test]
     fn tags_cannot_leave_the_atoms_folder() {
-        let content = content(json!({"cue": "x", "tags": ["../../etc", "/abs"]}));
+        let content = content(json!({"title": "x", "tags": ["../../etc", "/abs"]}));
         let id = Id::parse("a7f3k2").unwrap();
         assert_eq!(place(&content, &id, |_| false), "etc/x.md");
     }
 
     #[test]
-    fn a_cue_without_letters_is_named_after_the_id() {
+    fn a_title_without_letters_is_named_after_the_id() {
         let id = Id::parse("a7f3k2").unwrap();
         assert_eq!(
-            place(&content(json!({"cue": "〜"})), &id, |_| false),
+            place(&content(json!({"title": "〜"})), &id, |_| false),
             "a7f3k2.md"
         );
     }
@@ -327,7 +327,10 @@ mod tests {
         let (_tmp, store) = store();
         let added = add_all(
             &store,
-            vec![content(json!({"cue": "鮪"})), content(json!({"cue": "鮪"}))],
+            vec![
+                content(json!({"title": "鮪"})),
+                content(json!({"title": "鮪"})),
+            ],
         );
         assert_eq!(added[0].path, "鮪.md");
         assert_eq!(added[1].path, format!("鮪-{}.md", added[1].id));
@@ -336,7 +339,7 @@ mod tests {
     #[test]
     fn added_atoms_read_back_with_their_content() {
         let (_tmp, store) = store();
-        let line = r#"{"cue": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"], "source": "Tobira ch.3",
+        let line = r#"{"title": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"], "source": "Tobira ch.3",
                        "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred by (adversity)."}"#;
         let added = add_all(&store, vec![Content::from_json_line(line).unwrap()]);
         let atoms = Atoms::load(&store).unwrap();
@@ -346,7 +349,7 @@ mod tests {
         assert_eq!(
             serde_json::to_value(atom).unwrap(),
             json!({"id": added[0].id, "path": "japanese/grammar/をものともせず.md",
-                   "cue": "〜をものともせず", "answer": null, "tags": ["japanese/grammar", "jlpt/n1"],
+                   "title": "〜をものともせず", "answer": null, "tags": ["japanese/grammar", "jlpt/n1"],
                    "status": "active", "source": "Tobira ch.3",
                    "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"],
                    "body": "Undeterred by (adversity).\n"})
@@ -360,7 +363,7 @@ mod tests {
         let added = add(
             &store,
             &atoms,
-            vec![content(json!({"cue": "x"}))],
+            vec![content(json!({"title": "x"}))],
             true,
             0,
             false,
@@ -376,8 +379,8 @@ mod tests {
     #[test]
     fn ids_already_in_use_are_skipped() {
         let (_tmp, store) = store();
-        let first = add_all(&store, vec![content(json!({"cue": "a"}))]);
-        let second = add_all(&store, vec![content(json!({"cue": "b"}))]);
+        let first = add_all(&store, vec![content(json!({"title": "a"}))]);
+        let second = add_all(&store, vec![content(json!({"title": "b"}))]);
         assert_ne!(first[0].id, second[0].id);
     }
 
@@ -388,7 +391,7 @@ mod tests {
         let added = add(
             &store,
             &atoms,
-            vec![content(json!({"cue": "x"}))],
+            vec![content(json!({"title": "x"}))],
             false,
             0,
             true,
@@ -401,12 +404,12 @@ mod tests {
     #[test]
     fn json_lines_with_an_id_or_bad_fields_are_refused() {
         for line in [
-            r#"{"id": "a7f3k2", "cue": "x"}"#,
-            r#"{"cue": ""}"#,
+            r#"{"id": "a7f3k2", "title": "x"}"#,
+            r#"{"title": ""}"#,
             r#"{"answer": "x"}"#,
-            r#"{"cue": "x", "body": 3}"#,
-            r#"{"cue": "x", "path": "y"}"#,
-            r#"["cue"]"#,
+            r#"{"title": "x", "body": 3}"#,
+            r#"{"title": "x", "path": "y"}"#,
+            r#"["title"]"#,
             "not json",
         ] {
             assert!(Content::from_json_line(line).is_err(), "accepted {line}");
@@ -415,13 +418,13 @@ mod tests {
 
     #[test]
     fn one_bad_line_rejects_all_and_names_the_line() {
-        let text = "{\"cue\": \"a\"}\n\n{\"cue\": 1}\n";
+        let text = "{\"title\": \"a\"}\n\n{\"title\": 1}\n";
         assert!(matches!(
             Content::from_json_lines(text),
             Err(Error::InvalidLine { line: 3, .. })
         ));
         assert_eq!(
-            Content::from_json_lines("{\"cue\": \"a\"}\n\n")
+            Content::from_json_lines("{\"title\": \"a\"}\n\n")
                 .unwrap()
                 .len(),
             1
@@ -430,7 +433,7 @@ mod tests {
 
     #[test]
     fn body_without_final_newline_still_reads_back() {
-        let content = Content::from_json_line(r#"{"cue": "x", "body": "no newline"}"#).unwrap();
+        let content = Content::from_json_line(r#"{"title": "x", "body": "no newline"}"#).unwrap();
         let id = Id::parse("a7f3k2").unwrap();
         assert!(render(&content, &id).is_ok());
     }

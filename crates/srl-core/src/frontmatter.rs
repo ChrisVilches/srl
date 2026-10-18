@@ -238,16 +238,16 @@ mod tests {
     #[test]
     fn an_existing_value_is_replaced() {
         assert_eq!(
-            set_status("---\nid: a7f3k2\nstatus: draft\ncue: x\n---\nbody\n"),
-            "---\nid: a7f3k2\nstatus: active\ncue: x\n---\nbody\n"
+            set_status("---\nid: a7f3k2\nstatus: draft\ntitle: x\n---\nbody\n"),
+            "---\nid: a7f3k2\nstatus: active\ntitle: x\n---\nbody\n"
         );
     }
 
     #[test]
     fn a_missing_key_goes_after_the_opening_fence() {
         assert_eq!(
-            set("---\ncue: x\n---\nbody\n", "id", "a7f3k2").unwrap(),
-            "---\nid: a7f3k2\ncue: x\n---\nbody\n"
+            set("---\ntitle: x\n---\nbody\n", "id", "a7f3k2").unwrap(),
+            "---\nid: a7f3k2\ntitle: x\n---\nbody\n"
         );
     }
 
@@ -262,88 +262,88 @@ mod tests {
     #[test]
     fn crlf_line_endings_are_kept() {
         assert_eq!(
-            set_status("---\r\ncue: x\r\nstatus: draft\r\n---\r\nbody\r\n"),
-            "---\r\ncue: x\r\nstatus: active\r\n---\r\nbody\r\n"
+            set_status("---\r\ntitle: x\r\nstatus: draft\r\n---\r\nbody\r\n"),
+            "---\r\ntitle: x\r\nstatus: active\r\n---\r\nbody\r\n"
         );
         assert_eq!(
-            set("---\r\ncue: x\r\n---\r\n", "id", "a7f3k2").unwrap(),
-            "---\r\nid: a7f3k2\r\ncue: x\r\n---\r\n"
+            set("---\r\ntitle: x\r\n---\r\n", "id", "a7f3k2").unwrap(),
+            "---\r\nid: a7f3k2\r\ntitle: x\r\n---\r\n"
         );
     }
 
     #[test]
     fn a_bom_is_kept() {
         assert_eq!(
-            set("\u{feff}---\ncue: x\n---\n", "id", "a7f3k2").unwrap(),
-            "\u{feff}---\nid: a7f3k2\ncue: x\n---\n"
+            set("\u{feff}---\ntitle: x\n---\n", "id", "a7f3k2").unwrap(),
+            "\u{feff}---\nid: a7f3k2\ntitle: x\n---\n"
         );
     }
 
     #[test]
     fn no_trailing_newline_is_kept() {
         assert_eq!(
-            set_status("---\nstatus: draft\ncue: x\n---"),
-            "---\nstatus: active\ncue: x\n---"
+            set_status("---\nstatus: draft\ntitle: x\n---"),
+            "---\nstatus: active\ntitle: x\n---"
         );
         assert_eq!(
-            set_status("---\ncue: x\n---\nbody"),
-            "---\nstatus: active\ncue: x\n---\nbody"
+            set_status("---\ntitle: x\n---\nbody"),
+            "---\nstatus: active\ntitle: x\n---\nbody"
         );
     }
 
     #[test]
     fn trailing_comments_are_kept() {
         assert_eq!(
-            set_status("---\ncue: x\nstatus: draft   # from the agent\n---\n"),
-            "---\ncue: x\nstatus: active   # from the agent\n---\n"
+            set_status("---\ntitle: x\nstatus: draft   # from the agent\n---\n"),
+            "---\ntitle: x\nstatus: active   # from the agent\n---\n"
         );
         assert_eq!(
-            set_status("---\ncue: x\nstatus: \"dr#ft\" # c\n---\n"),
-            "---\ncue: x\nstatus: active # c\n---\n"
+            set_status("---\ntitle: x\nstatus: \"dr#ft\" # c\n---\n"),
+            "---\ntitle: x\nstatus: active # c\n---\n"
         );
         assert_eq!(
-            set_status("---\ncue: x\nstatus: 'it''s' # c\n---\n"),
-            "---\ncue: x\nstatus: active # c\n---\n"
+            set_status("---\ntitle: x\nstatus: 'it''s' # c\n---\n"),
+            "---\ntitle: x\nstatus: active # c\n---\n"
         );
     }
 
     #[test]
     fn an_empty_value_is_filled() {
         assert_eq!(
-            set_status("---\ncue: x\nstatus:\n---\n"),
-            "---\ncue: x\nstatus: active\n---\n"
+            set_status("---\ntitle: x\nstatus:\n---\n"),
+            "---\ntitle: x\nstatus: active\n---\n"
         );
         assert_eq!(
-            set_status("---\ncue: x\nstatus:  # none yet\n---\n"),
-            "---\ncue: x\nstatus: active # none yet\n---\n"
+            set_status("---\ntitle: x\nstatus:  # none yet\n---\n"),
+            "---\ntitle: x\nstatus: active # none yet\n---\n"
         );
     }
 
     #[test]
     fn quoted_keys_are_found() {
         assert_eq!(
-            set_status("---\ncue: x\n\"status\": draft\n---\n"),
-            "---\ncue: x\n\"status\": active\n---\n"
+            set_status("---\ntitle: x\n\"status\": draft\n---\n"),
+            "---\ntitle: x\n\"status\": active\n---\n"
         );
         assert_eq!(
-            set_status("---\ncue: x\n'status': draft\n---\n"),
-            "---\ncue: x\n'status': active\n---\n"
+            set_status("---\ntitle: x\n'status': draft\n---\n"),
+            "---\ntitle: x\n'status': active\n---\n"
         );
     }
 
     #[test]
     fn non_ascii_text_around_the_line_is_untouched() {
-        let text = "---\ncue: 〜をものともせず # 文法\nstatus: draft\ncloze:\n  - 嵐を{{ものともせず}}、漁師たちは海へ出た。\n---\n漁師たちは海へ出た。\n";
+        let text = "---\ntitle: 〜をものともせず # 文法\nstatus: draft\ncloze:\n  - 嵐を{{ものともせず}}、漁師たちは海へ出た。\n---\n漁師たちは海へ出た。\n";
         assert_eq!(set_status(text), text.replace("draft", "active"));
     }
 
     #[test]
     fn values_that_look_like_other_types_stay_text() {
         assert_eq!(
-            set_status("---\ncue: no\nstatus: draft\n---\n"),
-            "---\ncue: no\nstatus: active\n---\n"
+            set_status("---\ntitle: no\nstatus: draft\n---\n"),
+            "---\ntitle: no\nstatus: active\n---\n"
         );
-        let text = set("---\ncue: x\n---\n", "id", "123456").unwrap();
+        let text = set("---\ntitle: x\n---\n", "id", "123456").unwrap();
         let fields = yaml::parse_mapping(atom::split_front_matter(&text).unwrap().0).unwrap();
         assert_eq!(fields.get("id"), Some(&Value::from("123456")));
     }
@@ -351,8 +351,8 @@ mod tests {
     #[test]
     fn nested_keys_of_the_same_name_are_ignored() {
         assert_eq!(
-            set_status("---\ncue: x\ncards:\n  - q: a\n    status: b\nstatus: draft\n---\n"),
-            "---\ncue: x\ncards:\n  - q: a\n    status: b\nstatus: active\n---\n"
+            set_status("---\ntitle: x\ncards:\n  - q: a\n    status: b\nstatus: draft\n---\n"),
+            "---\ntitle: x\ncards:\n  - q: a\n    status: b\nstatus: active\n---\n"
         );
     }
 
@@ -360,15 +360,15 @@ mod tests {
     fn unsafe_front_matter_is_refused() {
         for text in [
             "no front-matter\n",
-            "---\n{cue: x, status: draft}\n---\n",
-            "---\ncue: x\nstatus: |\n  draft\n---\n",
-            "---\ncue: x\nstatus: >\n  draft\n---\n",
-            "---\ncue: x\nstatus:\n  draft\n---\n",
-            "---\ncue: x\nstatus: dr\n  aft\n---\n",
-            "---\ncue: x\nstatus: \"draft\n  \"\n---\n",
-            "---\ncue: x\nstatus: [draft]\n---\n",
-            "---\ncue: x\nstatus: draft\nstatus: draft\n---\n",
-            "---\ncue: [x\n---\n",
+            "---\n{title: x, status: draft}\n---\n",
+            "---\ntitle: x\nstatus: |\n  draft\n---\n",
+            "---\ntitle: x\nstatus: >\n  draft\n---\n",
+            "---\ntitle: x\nstatus:\n  draft\n---\n",
+            "---\ntitle: x\nstatus: dr\n  aft\n---\n",
+            "---\ntitle: x\nstatus: \"draft\n  \"\n---\n",
+            "---\ntitle: x\nstatus: [draft]\n---\n",
+            "---\ntitle: x\nstatus: draft\nstatus: draft\n---\n",
+            "---\ntitle: [x\n---\n",
         ] {
             assert!(set(text, "status", "active").is_err(), "accepted:\n{text}");
         }

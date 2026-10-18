@@ -22,21 +22,21 @@ The smallest useful atom:
 ```markdown
 ---
 id: a7f3k2
-cue: 〜をものともせず
+title: 〜をものともせず
 tags: [japanese/grammar, jlpt/n1]
 ---
 Undeterred by (adversity), braving. Admiring tone; not used about oneself.
 ```
 
 That atom can already be studied without any LLM: the built-in `reveal` drill
-shows the cue, then the body, and you rate yourself.
+shows the title, then the body, and you rate yourself.
 
 ## Front-matter fields
 
 | Field | Required | Meaning |
 |---|---|---|
 | `id` | yes | Stable identity. Six characters `[a-z0-9]`, assigned by `srl`. Must be unique in the store. |
-| `cue` | yes | What the atom is about, as a short Markdown string. The default question. |
+| `title` | yes | What the atom is about, as a short Markdown string. The default question. |
 | `answer` | no | A short answer. If present, `reveal` shows it instead of the whole body. |
 | `tags` | no | List of tags. A `/` makes them hierarchical: `japanese/grammar`. Tags are case-sensitive. |
 | `status` | no | `active` (default), `draft` or `suspended`. |
@@ -74,7 +74,7 @@ The body is the knowledge itself, written for people. It is used:
 - for text search (`srl find "…"`);
 - as context for agents and LLM drills.
 
-The body can be empty. An atom made only of a cue and facets is complete.
+The body can be empty. An atom made only of a title and facets is complete.
 
 ## Identity and editing
 
@@ -116,7 +116,7 @@ export from another app):
 
 ```sh
 srl new                                       # open $EDITOR with a template
-srl add --cue "鮪" --answer "tuna (まぐろ)" --tag kanji/food
+srl add --title "鮪" --answer "tuna (まぐろ)" --tag kanji/food
 some-producer | srl add --stdin               # JSONL: one atom per line
 ```
 
@@ -128,13 +128,13 @@ On `--stdin`, each line is a JSON object with the front-matter fields
 (without `id`) and an optional `body` string:
 
 ```json
-{"cue": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"], "source": "Tobira ch.3",
+{"title": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"], "source": "Tobira ch.3",
  "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred by (adversity)…"}
 ```
 
 Fields that are absent or `null` get their defaults. A `body` that does not
 end with a newline gets one. Lines are checked before anything is written: if
-any line is invalid (not a JSON object, no `cue`, an `id`, a reserved name,
+any line is invalid (not a JSON object, no `title`, an `id`, a reserved name,
 `tags` that is not a list of text, an unknown `status`), `srl add` reports the
 first such line and adds nothing. Blank lines are ignored.
 
@@ -143,7 +143,7 @@ per line. With `--dry-run` it prints each ID with the file it would write, and
 writes nothing.
 
 New files are placed under `atoms/`, in a folder taken from the first tag, and
-named after the cue (`atoms/japanese/grammar/をものともせず.md`). You can move
+named after the title (`atoms/japanese/grammar/をものともせず.md`). You can move
 them afterwards. The names follow one rule:
 
 - A **name** is made from text by lowercasing it, keeping letters and digits
@@ -157,7 +157,7 @@ them afterwards. The names follow one rule:
   systems that ignore case.
 - The **folder** is the first tag, with each part between `/` turned into a
   name. Without tags, the file goes directly in `atoms/`.
-- The **file** is the cue's name plus `.md`. If the cue gives an empty name,
+- The **file** is the title's name plus `.md`. If the title gives an empty name,
   the file is `ID.md`; if the file already exists, it is `NAME-ID.md`.
 
 New files are written with the fields in the order of the table above and
@@ -177,7 +177,7 @@ same shape as a line of `srl add --stdin`, plus `id` and `path`:
 
 ```json
 {"id": "a7f3k2", "path": "japanese/grammar/をものともせず.md",
- "cue": "〜をものともせず", "answer": null, "tags": ["japanese/grammar", "jlpt/n1"],
+ "title": "〜をものともせず", "answer": null, "tags": ["japanese/grammar", "jlpt/n1"],
  "status": "active", "source": "Tobira ch.3",
  "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred by (adversity)…\n"}
 ```
@@ -195,7 +195,7 @@ be facets.
 ## Reading atoms
 
 Every command that reads atoms reads every file under `atoms/`. A file that
-is not a valid atom (no front-matter, invalid YAML, no `id`, no `cue`, a field
+is not a valid atom (no front-matter, invalid YAML, no `id`, no `title`, a field
 of the wrong type) is skipped, and reported on standard error with the reason.
 So is a file whose `id` an earlier file (by path) already has. The command
 carries on with the other atoms.
@@ -206,7 +206,7 @@ carries on with the other atoms.
 reports:
 
 - missing or duplicate IDs (`srl check --fix` assigns IDs to atoms without one);
-- missing `cue`;
+- missing `title`;
 - invalid YAML or unknown `status` values;
 - facets with no installed drill, or whose name can't be a drill name;
 - drills that fail, write invalid cards, or write no cards at all, for any
@@ -230,7 +230,7 @@ A vocabulary atom with no body:
 ```markdown
 ---
 id: k3m9q1
-cue: 鮪
+title: 鮪
 answer: まぐろ — tuna
 tags: [kanji/food]
 reverse: true
@@ -242,7 +242,7 @@ A concept with hand-written cards:
 ```markdown
 ---
 id: r5t2w8
-cue: Move semantics in Rust
+title: Move semantics in Rust
 answer: Assigning a non-Copy value moves ownership; the source becomes invalid.
 tags: [rust/ownership]
 confusable: [r5t2w9]

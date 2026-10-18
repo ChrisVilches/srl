@@ -103,15 +103,15 @@ fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
     let contents = if args.stdin {
         let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
         Content::from_json_lines(&text)?
-    } else if let Some(cue) = args.cue {
+    } else if let Some(title) = args.title {
         vec![Content::from_flags(Flags {
-            cue,
+            title,
             answer: args.answer,
             tags: args.tags,
             source: args.source,
         })?]
     } else {
-        bail!("nothing to add; give --cue or --stdin");
+        bail!("nothing to add; give --title or --stdin");
     };
     let seed = getrandom::u64().context("cannot get random numbers for new IDs")?;
     let dry_run = args.dry_run.dry_run;

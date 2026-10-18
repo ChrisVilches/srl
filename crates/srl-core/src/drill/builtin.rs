@@ -45,9 +45,9 @@ impl Builtin {
     /// The first line of the drill's help.
     pub(crate) fn summary(self) -> &'static str {
         match self {
-            Self::Reveal => "Shows the cue, then the answer or the body; you rate yourself.",
+            Self::Reveal => "Shows the title, then the answer or the body; you rate yourself.",
             Self::Reverse => {
-                "Asks the other way round: shows the answer or the body, you recall the cue."
+                "Asks the other way round: shows the answer or the body, you recall the title."
             }
             Self::Cloze => "Sentences with {{marked}} spans to fill in.",
             Self::Cards => "Hand-written questions and answers.",
@@ -99,7 +99,7 @@ fn reveal(atom: &Atom) -> RawCard {
     let (answer, is_body) = answer_or_body(atom);
     let card = RawCard::new(
         "reveal".to_owned(),
-        atom.content().cue().to_owned(),
+        atom.content().title().to_owned(),
         answer.to_owned(),
         "self",
     );
@@ -117,7 +117,7 @@ fn reverse(atom: &Atom, facet: &Value) -> Result<Vec<RawCard>, String> {
             let card = RawCard::new(
                 "reverse".to_owned(),
                 prompt.to_owned(),
-                atom.content().cue().to_owned(),
+                atom.content().title().to_owned(),
                 "self",
             );
             Ok(vec![if is_body { no_explanation(card) } else { card }])
@@ -333,23 +333,23 @@ fn confusable(
     if shown.trim().is_empty() {
         return Err("`confusable` needs an `answer` or a body to ask about".to_owned());
     }
-    let cue = atom.content().cue().to_owned();
-    let choices = std::iter::once(cue.clone())
+    let title = atom.content().title().to_owned();
+    let choices = std::iter::once(title.clone())
         .chain(
             others
                 .iter()
                 .take(MAX_CONFUSABLE)
-                .map(|other| other.content().cue().to_owned()),
+                .map(|other| other.content().title().to_owned()),
         )
         .collect::<Vec<_>>();
     let seed = random::seed(&format!("{}:{day}", atom.id()));
     let card = RawCard {
-        accept: Some(vec![vec![cue.clone()]]),
+        accept: Some(vec![vec![title.clone()]]),
         choices: Some(random::shuffle(choices, seed)),
         ..RawCard::new(
             "confusable".to_owned(),
             format!("Which one matches?\n\n{shown}"),
-            cue,
+            title,
             "choice",
         )
     };
@@ -400,7 +400,7 @@ mod tests {
     fn reveal_shows_the_answer_and_explains_with_the_body() {
         let cards = run(
             Builtin::Reveal,
-            "---\nid: k3m9q1\ncue: 鮪\nanswer: tuna\n---\nA fish.\n",
+            "---\nid: k3m9q1\ntitle: 鮪\nanswer: tuna\n---\nA fish.\n",
         )
         .unwrap();
         assert_eq!(cards.len(), 1);
@@ -411,7 +411,11 @@ mod tests {
 
     #[test]
     fn reveal_without_an_answer_shows_the_body_and_no_explanation() {
-        let cards = run(Builtin::Reveal, "---\nid: k3m9q1\ncue: 鮪\n---\nA fish.\n").unwrap();
+        let cards = run(
+            Builtin::Reveal,
+            "---\nid: k3m9q1\ntitle: 鮪\n---\nA fish.\n",
+        )
+        .unwrap();
         assert_eq!(cards[0].answer.as_deref(), Some("A fish.\n"));
         assert_eq!(cards[0].explanation.as_deref(), Some(""));
     }
@@ -420,7 +424,7 @@ mod tests {
     fn reverse_asks_the_other_way_round() {
         let cards = run(
             Builtin::Reverse,
-            "---\nid: k3m9q1\ncue: 鮪\nanswer: tuna\nreverse: true\n---\n",
+            "---\nid: k3m9q1\ntitle: 鮪\nanswer: tuna\nreverse: true\n---\n",
         )
         .unwrap();
         assert_eq!(cards[0].prompt.as_deref(), Some("tuna"));
@@ -428,7 +432,7 @@ mod tests {
         assert!(
             run(
                 Builtin::Reverse,
-                "---\nid: k3m9q1\ncue: 鮪\nreverse: false\n---\n"
+                "---\nid: k3m9q1\ntitle: 鮪\nreverse: false\n---\n"
             )
             .unwrap()
             .is_empty()
@@ -436,14 +440,14 @@ mod tests {
         assert!(
             run(
                 Builtin::Reverse,
-                "---\nid: k3m9q1\ncue: 鮪\nreverse: true\n---\n"
+                "---\nid: k3m9q1\ntitle: 鮪\nreverse: true\n---\n"
             )
             .is_err()
         );
         assert!(
             run(
                 Builtin::Reverse,
-                "---\nid: k3m9q1\ncue: 鮪\nanswer: x\nreverse: yes\n---\n"
+                "---\nid: k3m9q1\ntitle: 鮪\nanswer: x\nreverse: yes\n---\n"
             )
             .is_err()
         );
@@ -453,7 +457,7 @@ mod tests {
     fn cloze_makes_one_card_per_group_per_sentence() {
         let cards = run(
             Builtin::Cloze,
-            "---\nid: a7f3k2\ncue: x\ncloze:\n  - 嵐を{{ものともせず}}、漁師たちは海へ出た。\n  - '{{1::周囲の反対}}を{{1::ものともせず}}、{{2::彼女}}は起業した。'\n---\n",
+            "---\nid: a7f3k2\ntitle: x\ncloze:\n  - 嵐を{{ものともせず}}、漁師たちは海へ出た。\n  - '{{1::周囲の反対}}を{{1::ものともせず}}、{{2::彼女}}は起業した。'\n---\n",
         )
         .unwrap();
         let refs = cards
@@ -541,12 +545,12 @@ mod tests {
     }
 
     #[test]
-    fn confusable_offers_the_cues_in_an_order_fixed_for_the_day() {
+    fn confusable_offers_the_titles_in_an_order_fixed_for_the_day() {
         let this =
-            atom("---\nid: aaaaa1\ncue: 鮪\nanswer: tuna\nconfusable: [aaaaa2, aaaaa3]\n---\n");
+            atom("---\nid: aaaaa1\ntitle: 鮪\nanswer: tuna\nconfusable: [aaaaa2, aaaaa3]\n---\n");
         let others = [
-            atom("---\nid: aaaaa2\ncue: 鯖\n---\n"),
-            atom("---\nid: aaaaa3\ncue: 鮭\n---\n"),
+            atom("---\nid: aaaaa2\ntitle: 鯖\n---\n"),
+            atom("---\nid: aaaaa3\ntitle: 鮭\n---\n"),
         ];
         let atoms = store(std::iter::once(this.clone()).chain(others).collect());
         let cards = Builtin::Confusable.cards(&this, &atoms, day()).unwrap();
@@ -565,7 +569,7 @@ mod tests {
     #[test]
     fn confusable_refuses_unknown_atoms_and_itself() {
         for facet in ["[zzzzzz]", "[aaaaa1]", "aaaaa2"] {
-            let text = format!("---\nid: aaaaa1\ncue: x\nanswer: y\nconfusable: {facet}\n---\n");
+            let text = format!("---\nid: aaaaa1\ntitle: x\nanswer: y\nconfusable: {facet}\n---\n");
             assert!(run(Builtin::Confusable, &text).is_err(), "accepted {facet}");
         }
     }

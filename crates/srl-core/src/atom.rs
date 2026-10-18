@@ -101,7 +101,7 @@ impl Status {
 /// format of one line of `srl add --stdin`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Content {
-    cue: String,
+    title: String,
     answer: Option<String>,
     tags: Vec<String>,
     status: Status,
@@ -122,7 +122,7 @@ impl Content {
         body: String,
     ) -> std::result::Result<Self, String> {
         let (known, facets): (Map<_, _>, Map<_, _>) = fields.into_iter().partition(|(key, _)| {
-            ["cue", "answer", "tags", "status", "source"].contains(&key.as_str())
+            ["title", "answer", "tags", "status", "source"].contains(&key.as_str())
         });
         if let Some(key) = facets.keys().find(|key| RESERVED.contains(&key.as_str())) {
             return Err(format!("`{key}` is a reserved name and cannot be a facet"));
@@ -130,9 +130,9 @@ impl Content {
         if facets.contains_key("id") {
             return Err("`id` cannot be given here".to_owned());
         }
-        let cue = optional_string(&known, "cue")?
-            .filter(|cue| !cue.trim().is_empty())
-            .ok_or_else(|| "it has no `cue`".to_owned())?;
+        let title = optional_string(&known, "title")?
+            .filter(|title| !title.trim().is_empty())
+            .ok_or_else(|| "it has no `title`".to_owned())?;
         let status = optional_string(&known, "status")?
             .map(|text| {
                 Status::parse(&text).ok_or_else(|| {
@@ -142,7 +142,7 @@ impl Content {
             .transpose()?
             .unwrap_or_default();
         Ok(Self {
-            cue,
+            title,
             answer: optional_string(&known, "answer")?,
             tags: tags(&known)?,
             status,
@@ -152,8 +152,8 @@ impl Content {
         })
     }
 
-    pub fn cue(&self) -> &str {
-        &self.cue
+    pub fn title(&self) -> &str {
+        &self.title
     }
 
     pub fn answer(&self) -> Option<&str> {
@@ -186,7 +186,7 @@ impl Content {
     pub(crate) fn fields(&self, id: &Id) -> Map<String, Value> {
         let fixed = [
             ("id", Some(Value::from(id.as_str()))),
-            ("cue", Some(Value::from(self.cue.as_str()))),
+            ("title", Some(Value::from(self.title.as_str()))),
             ("answer", self.answer.as_deref().map(Value::from)),
             (
                 "tags",
@@ -431,11 +431,11 @@ mod tests {
     #[test]
     fn the_smallest_atom_parses() {
         let atom = atom(
-            "---\nid: a7f3k2\ncue: 〜をものともせず\ntags: [japanese/grammar, jlpt/n1]\n---\nUndeterred by (adversity).\n",
+            "---\nid: a7f3k2\ntitle: 〜をものともせず\ntags: [japanese/grammar, jlpt/n1]\n---\nUndeterred by (adversity).\n",
         )
         .unwrap();
         assert_eq!(atom.id().as_str(), "a7f3k2");
-        assert_eq!(atom.content().cue(), "〜をものともせず");
+        assert_eq!(atom.content().title(), "〜をものともせず");
         assert_eq!(atom.content().tags(), ["japanese/grammar", "jlpt/n1"]);
         assert_eq!(atom.content().status(), Status::Active);
         assert_eq!(atom.content().body(), "Undeterred by (adversity).\n");
@@ -443,35 +443,35 @@ mod tests {
 
     #[test]
     fn bom_and_crlf_front_matter_parse() {
-        let atom = atom("\u{feff}---\r\nid: a7f3k2\r\ncue: x\r\n---\r\nbody\r\n").unwrap();
-        assert_eq!(atom.content().cue(), "x");
+        let atom = atom("\u{feff}---\r\nid: a7f3k2\r\ntitle: x\r\n---\r\nbody\r\n").unwrap();
+        assert_eq!(atom.content().title(), "x");
         assert_eq!(atom.content().body(), "body\r\n");
     }
 
     #[test]
     fn closing_fence_without_newline_ends_the_front_matter() {
-        let atom = atom("---\nid: a7f3k2\ncue: x\n---").unwrap();
+        let atom = atom("---\nid: a7f3k2\ntitle: x\n---").unwrap();
         assert_eq!(atom.content().body(), "");
     }
 
     #[test]
-    fn cue_no_stays_a_string() {
+    fn title_no_stays_a_string() {
         assert_eq!(
-            atom("---\nid: a7f3k2\ncue: no\n---\n")
+            atom("---\nid: a7f3k2\ntitle: no\n---\n")
                 .unwrap()
                 .content()
-                .cue(),
+                .title(),
             "no"
         );
     }
 
     #[test]
     fn other_keys_are_facets_in_file_order() {
-        let atom = atom("---\nid: a7f3k2\ncue: x\nreverse: true\ncloze: [a]\n---\n").unwrap();
+        let atom = atom("---\nid: a7f3k2\ntitle: x\nreverse: true\ncloze: [a]\n---\n").unwrap();
         let json = serde_json::to_value(&atom).unwrap();
         assert_eq!(
             json,
-            json!({"id": "a7f3k2", "path": "a.md", "cue": "x", "answer": null, "tags": [],
+            json!({"id": "a7f3k2", "path": "a.md", "title": "x", "answer": null, "tags": [],
                    "status": "active", "source": null, "reverse": true, "cloze": ["a"], "body": ""})
         );
     }
@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn missing_id_is_reported_as_such() {
         assert!(matches!(
-            atom("---\ncue: x\n---\n"),
+            atom("---\ntitle: x\n---\n"),
             Err(Error::MissingId { .. })
         ));
     }
@@ -499,13 +499,13 @@ mod tests {
     #[test]
     fn invalid_fields_are_reported() {
         for text in [
-            "---\nid: A7F3K2\ncue: x\n---\n",
+            "---\nid: A7F3K2\ntitle: x\n---\n",
             "---\nid: a7f3k2\n---\n",
-            "---\nid: a7f3k2\ncue: 1984\n---\n",
-            "---\nid: a7f3k2\ncue: x\nstatus: paused\n---\n",
-            "---\nid: a7f3k2\ncue: x\ntags: a\n---\n",
-            "---\nid: a7f3k2\ncue: x\nbody: y\n---\n",
-            "---\nid: a7f3k2\ncue: x\ncue: y\n---\n",
+            "---\nid: a7f3k2\ntitle: 1984\n---\n",
+            "---\nid: a7f3k2\ntitle: x\nstatus: paused\n---\n",
+            "---\nid: a7f3k2\ntitle: x\ntags: a\n---\n",
+            "---\nid: a7f3k2\ntitle: x\nbody: y\n---\n",
+            "---\nid: a7f3k2\ntitle: x\ntitle: y\n---\n",
         ] {
             assert!(
                 matches!(atom(text), Err(Error::InvalidAtom { .. })),
@@ -518,9 +518,9 @@ mod tests {
     fn tags_are_counted_once_per_atom_and_sorted() {
         let atoms = Atoms {
             atoms: vec![
-                atom("---\nid: aaaaa1\ncue: x\ntags: [b, a, b]\n---\n").unwrap(),
-                atom("---\nid: aaaaa2\ncue: y\ntags: [b/c]\n---\n").unwrap(),
-                atom("---\nid: aaaaa3\ncue: z\ntags: [b]\n---\n").unwrap(),
+                atom("---\nid: aaaaa1\ntitle: x\ntags: [b, a, b]\n---\n").unwrap(),
+                atom("---\nid: aaaaa2\ntitle: y\ntags: [b/c]\n---\n").unwrap(),
+                atom("---\nid: aaaaa3\ntitle: z\ntags: [b]\n---\n").unwrap(),
             ],
             problems: Vec::new(),
         };
@@ -553,7 +553,7 @@ mod tests {
     #[test]
     fn fields_leave_out_defaults() {
         let content = Content::from_fields(
-            json!({"cue": "鮪", "answer": "tuna", "reverse": true})
+            json!({"title": "鮪", "answer": "tuna", "reverse": true})
                 .as_object()
                 .unwrap()
                 .clone(),
@@ -563,7 +563,7 @@ mod tests {
         let id = Id::parse("k3m9q1").unwrap();
         assert_eq!(
             Value::Object(content.fields(&id)),
-            json!({"id": "k3m9q1", "cue": "鮪", "answer": "tuna", "reverse": true})
+            json!({"id": "k3m9q1", "title": "鮪", "answer": "tuna", "reverse": true})
         );
     }
 }

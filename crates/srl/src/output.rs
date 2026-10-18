@@ -36,16 +36,16 @@ pub(crate) fn added(added: &[srl_core::Added], dry_run: bool) {
     }
 }
 
-/// Prints one line per atom: ID, cue and tags, separated by two spaces.
+/// Prints one line per atom: ID, title and tags, separated by two spaces.
 pub(crate) fn atom_lines(atoms: &[&srl_core::Atom]) {
     for atom in atoms {
         let content = atom.content();
-        let cue = content
-            .cue()
+        let title = content
+            .title()
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        let line = format!("{}  {cue}  {}", atom.id(), content.tags().join(" "));
+        let line = format!("{}  {title}  {}", atom.id(), content.tags().join(" "));
         println!("{}", line.trim_end());
     }
 }

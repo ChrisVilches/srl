@@ -84,7 +84,7 @@ That is allowed, never required, and still goes through `srl next`,
 A question in the shell prompt, rated later:
 
 ```sh
-# in .zshrc: show one due cue before each prompt, if any
+# in .zshrc: show one due card before each prompt, if any
 precmd() { srl next --json 2>/dev/null | jq -r '"srl: " + .prompt' }
 ```
 

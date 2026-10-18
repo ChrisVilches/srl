@@ -62,7 +62,7 @@ fn with_status(atom: &Atom, status: Status) -> Result<String> {
 
 /// Replaces the file of atom `id` with `text`, which must be a valid atom
 /// with the same `id`. The file keeps its path, whatever its new tags and
-/// cue. With `dry_run`, the text is only checked.
+/// title. With `dry_run`, the text is only checked.
 pub fn replace(store: &Store, atoms: &Atoms, id: &Id, text: &str, dry_run: bool) -> Result<()> {
     let atom = atoms
         .get(id)
@@ -123,9 +123,9 @@ mod tests {
     }
 
     const DRAFT: &str =
-        "---\nid: aaaaa1\ncue: a  # first\nstatus: draft # by an agent\ntags: [x]\n---\nbody\n";
-    const ACTIVE: &str = "---\nid: aaaaa2\ncue: b\ntags: [x]\n---\n";
-    const SUSPENDED: &str = "---\nid: aaaaa3\ncue: c\nstatus: suspended\n---\n";
+        "---\nid: aaaaa1\ntitle: a  # first\nstatus: draft # by an agent\ntags: [x]\n---\nbody\n";
+    const ACTIVE: &str = "---\nid: aaaaa2\ntitle: b\ntags: [x]\n---\n";
+    const SUSPENDED: &str = "---\nid: aaaaa3\ntitle: c\nstatus: suspended\n---\n";
 
     fn three() -> (TempDir, Store) {
         store(&[("a.md", DRAFT), ("b.md", ACTIVE), ("c.md", SUSPENDED)])
@@ -161,7 +161,7 @@ mod tests {
         assert_eq!(changed, [id("aaaaa2")]);
         assert_eq!(
             file(&store, "b.md"),
-            "---\nstatus: suspended\nid: aaaaa2\ncue: b\ntags: [x]\n---\n"
+            "---\nstatus: suspended\nid: aaaaa2\ntitle: b\ntags: [x]\n---\n"
         );
     }
 
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn one_file_that_cannot_be_edited_changes_nothing() {
-        let multi_line = "---\nid: aaaaa4\ncue: d\nstatus: >-\n  draft\n---\n";
+        let multi_line = "---\nid: aaaaa4\ntitle: d\nstatus: >-\n  draft\n---\n";
         let (_tmp, store) = store(&[("a.md", DRAFT), ("d.md", multi_line)]);
         let atoms = Atoms::load(&store).unwrap();
         let all = Selector::parse("").unwrap();
@@ -198,7 +198,7 @@ mod tests {
     fn replace_keeps_the_path_and_takes_the_text_as_is() {
         let (_tmp, store) = three();
         let atoms = Atoms::load(&store).unwrap();
-        let text = "---\nid: aaaaa2\ncue: b, rewritten\ntags: [elsewhere]\n---\r\nnew body";
+        let text = "---\nid: aaaaa2\ntitle: b, rewritten\ntags: [elsewhere]\n---\r\nnew body";
         replace(&store, &atoms, &id("aaaaa2"), text, false).unwrap();
         assert_eq!(file(&store, "b.md"), text);
     }
@@ -208,8 +208,8 @@ mod tests {
         let (_tmp, store) = three();
         let atoms = Atoms::load(&store).unwrap();
         for text in [
-            "---\nid: zzzzzz\ncue: b\n---\n",
-            "---\ncue: b\n---\n",
+            "---\nid: zzzzzz\ntitle: b\n---\n",
+            "---\ntitle: b\n---\n",
             "---\nid: aaaaa2\n---\n",
             "no front-matter\n",
         ] {
@@ -232,7 +232,7 @@ mod tests {
             replace(&store, &atoms, &id("zzzzzz"), ACTIVE, false),
             Err(Error::UnknownId { .. })
         ));
-        let text = ACTIVE.replace("cue: b", "cue: B");
+        let text = ACTIVE.replace("title: b", "title: B");
         replace(&store, &atoms, &id("aaaaa2"), &text, true).unwrap();
         assert_eq!(file(&store, "b.md"), ACTIVE);
     }

@@ -83,7 +83,7 @@ its standard output:
 
 ```json
 {"card": {…}, "response": ["鰻の値段をものともせず、毎週食べに行く。"],
- "atom": {"id": "a7f3k2", "cue": "〜をものともせず", "answer": null, "body": "…"}}
+ "atom": {"id": "a7f3k2", "title": "〜をものともせず", "answer": null, "body": "…"}}
 ```
 
 ```json

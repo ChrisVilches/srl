@@ -129,7 +129,7 @@ fn added_atoms_can_be_shown() {
         "add",
         "--dir",
         dir(&tmp),
-        "--cue",
+        "--title",
         "鮪",
         "--answer",
         "まぐろ — tuna",
@@ -155,7 +155,7 @@ fn added_atoms_can_be_shown() {
 #[test]
 fn shown_json_can_be_added_again() {
     let tmp = store();
-    let line = r#"{"cue": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"], "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred.\n"}"#;
+    let line = r#"{"title": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"], "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"], "body": "Undeterred.\n"}"#;
     let added = srl_with_input(&["add", "--stdin", "--dir", dir(&tmp)], line);
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
     let id = stdout(&added).trim().to_owned();
@@ -183,7 +183,7 @@ fn one_bad_stdin_line_adds_nothing() {
     let tmp = store();
     let output = srl_with_input(
         &["add", "--stdin", "--dir", dir(&tmp)],
-        "{\"cue\": \"fine\"}\n{\"cue\": \"bad\", \"status\": \"paused\"}\n",
+        "{\"title\": \"fine\"}\n{\"title\": \"bad\", \"status\": \"paused\"}\n",
     );
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("line 2"));
@@ -198,7 +198,7 @@ fn one_bad_stdin_line_adds_nothing() {
 #[test]
 fn add_dry_run_writes_nothing() {
     let tmp = store();
-    let output = srl(&["add", "--dry-run", "--dir", dir(&tmp), "--cue", "x"]);
+    let output = srl(&["add", "--dry-run", "--dir", dir(&tmp), "--title", "x"]);
     assert_eq!(output.status.code(), Some(0));
     assert!(stdout(&output).contains("atoms/x.md"));
     assert!(
@@ -212,19 +212,19 @@ fn add_dry_run_writes_nothing() {
 #[test]
 fn show_prints_what_it_finds_and_fails_on_unknown_ids() {
     let tmp = store();
-    let id = stdout(&srl(&["add", "--dir", dir(&tmp), "--cue", "x"]))
+    let id = stdout(&srl(&["add", "--dir", dir(&tmp), "--title", "x"]))
         .trim()
         .to_owned();
     let output = srl(&["show", "--dir", dir(&tmp), &id, "zzzzzz"]);
     assert_eq!(output.status.code(), Some(2));
-    assert!(stdout(&output).contains("cue: x"));
+    assert!(stdout(&output).contains("title: x"));
     assert!(stderr(&output).contains("zzzzzz"));
 }
 
 #[test]
 fn broken_atom_files_are_reported_and_skipped() {
     let tmp = store();
-    let id = stdout(&srl(&["add", "--dir", dir(&tmp), "--cue", "x"]))
+    let id = stdout(&srl(&["add", "--dir", dir(&tmp), "--title", "x"]))
         .trim()
         .to_owned();
     fs::write(
@@ -234,7 +234,7 @@ fn broken_atom_files_are_reported_and_skipped() {
     .unwrap();
     let output = srl(&["show", "--dir", dir(&tmp), &id]);
     assert_eq!(output.status.code(), Some(0));
-    assert!(stdout(&output).contains("cue: x"));
+    assert!(stdout(&output).contains("title: x"));
     assert!(stderr(&output).contains("atoms/broken.md"));
 }
 
@@ -242,8 +242,8 @@ fn broken_atom_files_are_reported_and_skipped() {
 fn japanese() -> TempDir {
     let tmp = store();
     let lines = [
-        r#"{"cue": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"]}"#,
-        r#"{"cue": "です", "tags": ["japanese/grammar", "jlpt/n5"]}"#,
+        r#"{"title": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"]}"#,
+        r#"{"title": "です", "tags": ["japanese/grammar", "jlpt/n5"]}"#,
     ];
     let added = srl_with_input(&["add", "--stdin", "--dir", dir(&tmp)], &lines.join("\n"));
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
@@ -252,7 +252,7 @@ fn japanese() -> TempDir {
         "--draft",
         "--dir",
         dir(&tmp),
-        "--cue",
+        "--title",
         "鮪",
         "--tag",
         "kanji/food",
@@ -339,11 +339,11 @@ fn drafts_move_through_accept_suspend_and_unsuspend() {
     let fish = "a7f3k2";
     let stored = tmp.path().join("atoms").join("fish.md");
     let text = format!(
-        "---\r\nid: {fish}\r\ncue: 鮪  # the fish\r\nstatus: draft # check it\r\ntags: [kanji/food]\r\n---\r\nまぐろ\r\n"
+        "---\r\nid: {fish}\r\ntitle: 鮪  # the fish\r\nstatus: draft # check it\r\ntags: [kanji/food]\r\n---\r\nまぐろ\r\n"
     );
     fs::write(&stored, &text).unwrap();
     let added = srl(&[
-        "add", "--draft", "--dir", d, "--cue", "です", "--tag", "jlpt/n5",
+        "add", "--draft", "--dir", d, "--title", "です", "--tag", "jlpt/n5",
     ]);
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
     let desu = stdout(&added).trim().to_owned();
@@ -379,10 +379,10 @@ fn drafts_move_through_accept_suspend_and_unsuspend() {
 fn edit_stdin_replaces_the_file_in_place() {
     let tmp = store();
     let d = dir(&tmp);
-    let id = stdout(&srl(&["add", "--dir", d, "--cue", "x", "--tag", "old"]))
+    let id = stdout(&srl(&["add", "--dir", d, "--title", "x", "--tag", "old"]))
         .trim()
         .to_owned();
-    let text = format!("---\nid: {id}\ncue: x, better\ntags: [new]\n---\nAn explanation.\n");
+    let text = format!("---\nid: {id}\ntitle: x, better\ntags: [new]\n---\nAn explanation.\n");
     let output = srl_with_input(&["edit", &id, "--stdin", "--dir", d], &text);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert!(output.stdout.is_empty());
@@ -501,7 +501,7 @@ fn cards_runs_every_drill_that_applies_and_drops_invalid_cards() {
         ],
     );
     let d = dir(&tmp);
-    let line = r#"{"cue": "taberu", "answer": "to eat", "conj": {"verb": "taberu"}, "cloze": ["I {{eat}} bread."], "body": "A verb."}"#;
+    let line = r#"{"title": "taberu", "answer": "to eat", "conj": {"verb": "taberu"}, "cloze": ["I {{eat}} bread."], "body": "A verb."}"#;
     let id = stdout(&srl_with_input(&["add", "--stdin", "--dir", d], line))
         .trim()
         .to_owned();
@@ -542,7 +542,7 @@ fn a_drill_that_takes_too_long_is_skipped_and_reported() {
     let d = dir(&tmp);
     let id = stdout(&srl_with_input(
         &["add", "--stdin", "--dir", d],
-        r#"{"cue": "x", "slow": 1}"#,
+        r#"{"title": "x", "slow": 1}"#,
     ))
     .trim()
     .to_owned();
@@ -565,7 +565,7 @@ fn check_reports_problems_and_fix_assigns_missing_ids() {
     assert!(clean.stdout.is_empty() && clean.stderr.is_empty());
 
     let hand = tmp.path().join("atoms").join("hand.md");
-    fs::write(&hand, "---\ncue: written by hand  # a comment\n---\n").unwrap();
+    fs::write(&hand, "---\ntitle: written by hand  # a comment\n---\n").unwrap();
     let missing = srl(&["check", "--dir", d]);
     assert_eq!(missing.status.code(), Some(2));
     assert!(stderr(&missing).contains("srl check --fix"));
@@ -579,12 +579,12 @@ fn check_reports_problems_and_fix_assigns_missing_ids() {
     let id = stdout(&fixed).split("  ").next().unwrap().to_owned();
     assert_eq!(
         fs::read_to_string(&hand).unwrap(),
-        format!("---\nid: {id}\ncue: written by hand  # a comment\n---\n")
+        format!("---\nid: {id}\ntitle: written by hand  # a comment\n---\n")
     );
 
     srl_with_input(
         &["add", "--stdin", "--dir", d],
-        r#"{"cue": "y", "conj": {"verb": "x"}}"#,
+        r#"{"title": "y", "conj": {"verb": "x"}}"#,
     );
     let no_drill = srl(&["check", "--dir", d]);
     assert_eq!(no_drill.status.code(), Some(2));

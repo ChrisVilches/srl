@@ -42,12 +42,12 @@ agents all use the same commands. There is no separate API.
 | Command | Does |
 |---|---|
 | `srl new [--draft]` | Write a new atom in `$EDITOR`. |
-| `srl add [--draft] --cue C [--answer A] [--tag T]… [--source S]` | Add an atom from flags. |
+| `srl add [--draft] --title C [--answer A] [--tag T]… [--source S]` | Add an atom from flags. |
 | `srl add [--draft] --stdin` | Add atoms from JSONL (see [atoms.md](atoms.md)). Prints the new IDs. |
 | `srl edit ID` | Edit an atom in `$EDITOR`. |
-| `srl edit ID --stdin` | Replace an atom's file with standard input, exactly as given. It must be a valid atom with the same `id`. The file keeps its path, even if the tags or cue change. Prints nothing. `--dry-run` only checks the text. |
+| `srl edit ID --stdin` | Replace an atom's file with standard input, exactly as given. It must be a valid atom with the same `id`. The file keeps its path, even if the tags or title change. Prints nothing. `--dry-run` only checks the text. |
 | `srl show ID… [--json]` | Print atoms: each file as it is, or JSON (see [atoms.md](atoms.md)). Unknown IDs are reported, and make the exit code 2. |
-| `srl find [SELECTOR] [--json]` | List matching atoms, ordered by path: one line each with ID, cue and tags, separated by two spaces; or the atom JSON of [atoms.md](atoms.md). Exit 1 if none matches. |
+| `srl find [SELECTOR] [--json]` | List matching atoms, ordered by path: one line each with ID, title and tags, separated by two spaces; or the atom JSON of [atoms.md](atoms.md). Exit 1 if none matches. |
 | `srl tags [--json]` | List every tag in use, sorted, with the number of atoms that have it (any status): `COUNT  TAG` per line, or `{"tag": T, "count": N}` per line. Exit 1 if there are none. |
 | `srl drafts [SELECTOR] [--json]` | List drafts: the same as `srl find SELECTOR status:draft`. |
 | `srl accept SELECTOR` | Make matching drafts active. |
