@@ -132,14 +132,14 @@ pub fn add(
     Ok(prepared.into_iter().map(|(added, _)| added).collect())
 }
 
-/// An endless sequence of IDs made from `seed`, with the splitmix64
-/// generator.
+/// The IDs made from `seed`, with the splitmix64 generator. Endless, unless
+/// an ID can't be made, which ends it (and then `add` reports an error).
 fn random_ids(seed: u64) -> impl Iterator<Item = Id> {
     std::iter::successors(Some(seed), |state| {
         Some(state.wrapping_add(0x9E37_79B9_7F4A_7C15))
     })
     .skip(1)
-    .map(|state| {
+    .map_while(|state| {
         let mixed = (state ^ (state >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
         let mixed = (mixed ^ (mixed >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
         Id::from_number(mixed ^ (mixed >> 31))

@@ -78,6 +78,18 @@ cargo install --path crates/srl --locked
 A change is finished when all four pass. If one fails, fix it before going
 on. Don't skip it, and don't silence a lint to get past it.
 
+### Before a release
+
+A release contains no panics. `todo!` is allowed while developing, so the
+normal lint run lets it through; before a release, this must also pass:
+
+```sh
+cargo clippy --workspace -- -D warnings -D clippy::todo
+```
+
+It checks only the code that ships (no `--all-targets`, so tests may still
+panic).
+
 ## Writing code
 
 ### Immutable by default
@@ -145,9 +157,19 @@ types, so that the compiler checks them:
 - `srl` uses `anyhow::Result`, adds context where a message would be unclear
   without it (`.context("cannot read the current directory")`), and turns
   errors into exit code 2 in one place (`main.rs`).
-- Outside tests, never `unwrap`, `expect`, `panic!`, `todo!` or
-  `unimplemented!`. If a case truly can't happen, model it so the type can't
-  express it. If you can't, return an error.
+- **Don't panic: return the error and handle it.** Every failure becomes an
+  `Err` that travels up to the CLI, which reports it to the user on standard
+  error with what to do about it. Outside tests, never write `unwrap`,
+  `expect`, `panic!`, `unreachable!` or `unimplemented!`, and never index or
+  slice in a way that can panic (`v[i]`, `&s[a..b]`): use `get`,
+  `split_at_checked`, `strip_prefix` and similar, which return an `Option`.
+  If a case truly can't happen, model it so the type can't express it. If you
+  can't, return an error (or `None` that the caller turns into one).
+- **The one exception is `todo!("…")`**, for code that isn't written yet. It
+  marks work in progress during development, says what is missing, and must
+  be gone before a release (see "Before a release"). A whole command that
+  isn't written yet doesn't panic either: it returns an error saying so,
+  because users run it.
 - `main` returns `ExitCode`. Never call `std::process::exit`.
 
 ### Style
@@ -228,7 +250,7 @@ Write tests for every module that has logic, which is nearly all of
   `nearest_parent_with_config_is_found`, `rating_must_be_between_1_and_4`. A
   failing test name should say which rule broke.
 - **When fixing a bug, first write a test that fails because of it.**
-- `unwrap`, `expect` and `panic!` are allowed in tests (see `clippy.toml`).
+- `unwrap`, `expect`, `panic!` and indexing are allowed in tests (see `clippy.toml`).
   In helper functions outside a `#[test]` function, add
   `#[expect(clippy::unwrap_used, reason = "…")]`.
 
@@ -295,7 +317,7 @@ ordinary idiomatic Rust alone:
 | `unreachable_pub`, `missing_debug_implementations`, `rust_2018_idioms`, `unused_qualifications` | Keep visibility tight and code idiomatic. |
 | clippy `pedantic` | Catches many small quality issues. |
 | …except `module_name_repetitions`, `must_use_candidate`, `missing_errors_doc`, `missing_panics_doc` | They add noise and little value in this codebase. |
-| `unwrap_used`, `expect_used`, `panic`, `todo`, `unimplemented`, `dbg_macro` | No crashes or leftovers outside tests. |
+| `unwrap_used`, `expect_used`, `panic`, `unreachable`, `unimplemented`, `indexing_slicing`, `string_slice`, `dbg_macro` | No panics or leftovers outside tests (see "Errors"). `todo` is left off so that `todo!` can mark unwritten code during development; "Before a release" checks it. |
 | `let_underscore_must_use`, `map_err_ignore`, `unused_result_ok` | Errors are never discarded (fail loudly). |
 | `print_stdout`, `print_stderr` | Only `output.rs` prints, with an `#[expect]`. |
 | `exit` | Exit codes come from `main`'s return value. |
@@ -306,7 +328,7 @@ ordinary idiomatic Rust alone:
 
 These are deliberately **not** enabled: `implicit_return` (tail expressions
 are fine), `missing_docs_in_private_items`, `arithmetic_side_effects`,
-`indexing_slicing`, `pattern_type_mismatch`, and the rest of the
+`pattern_type_mismatch`, and the rest of the
 `restriction` group, which conflicts with itself and with normal Rust.
 
 Silencing a lint is an exception, not a way around a failing check. When it

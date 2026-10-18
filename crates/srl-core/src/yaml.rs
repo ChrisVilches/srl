@@ -225,7 +225,7 @@ mod tests {
             "flag": false,
         });
         let Value::Object(map) = &value else {
-            unreachable!()
+            panic!("the test value is an object")
         };
         let text = render_mapping(map, &["tags"]).unwrap();
         assert_eq!(parse(&text), value, "rendered as:\n{text}");
