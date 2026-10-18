@@ -24,3 +24,6 @@ which.workspace = true
 [lints]
 workspace = true
 
+
+[target.'cfg(windows)'.dependencies]
+anstyle-query.workspace = true

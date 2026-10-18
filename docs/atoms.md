@@ -159,16 +159,25 @@ them afterwards. The names follow one rule:
   name. Without tags, the file goes directly in `atoms/`.
 - The **file** is the title's name plus `.md`. If the title gives an empty name,
   the file is `ID.md`; if the file already exists, it is `NAME-ID.md`.
+- **The full path of a new file is at most 259 characters**, counted in
+  UTF-16 units as Windows counts them (its limit is 260 including a final
+  NUL, unless long paths are enabled). The name is cut short to fit, on
+  every platform, so that the rule is the same everywhere. If not even
+  `ID.md` fits next to the folder of the first tag, the atom isn't added
+  and the error says to move the store to a shorter path or shorten the
+  tag.
 
 New files are written with the fields in the order of the table above and
 `tags` on one line (`tags: [a, b]`), then the facets, then the body. An
 existing file is never overwritten. They are UTF-8 with `\n` line endings on
 every platform.
 
-> **TODO (platform):** Windows limits paths to 260 characters unless long
-> paths are enabled. A store deep in the file system with a long first tag
-> can exceed it, and then `srl add` fails. Decide whether to cap the whole
-> path.
+> **TODO (platform):** not run on Windows yet. `srl` itself can read and
+> write longer paths there (Rust's standard library uses Windows' long path
+> form), so the limit is for other programs: Explorer, many editors, git
+> without `core.longpaths`. Files that already exist, or that you move or
+> rename, are not checked; decide whether `srl check` should report paths
+> over the limit.
 
 ## Atoms as JSON
 

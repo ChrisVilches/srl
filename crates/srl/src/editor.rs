@@ -11,6 +11,8 @@ use anyhow::{Context, bail};
 use srl_core::{Added, Atoms, Content, Error, Id, Store};
 use tempfile::NamedTempFile;
 
+use crate::output;
+
 /// The file `srl new` opens: front-matter to fill in, and an empty body.
 pub(crate) const TEMPLATE: &str = "---
 # The title is required; everything else is optional. Write the knowledge
@@ -117,7 +119,16 @@ fn edit_copy(
     }
     let edited = fs::read_to_string(&path)
         .with_context(|| format!("cannot read the edited file {}", path.display()))?;
-    Ok((edited != text).then_some((edited, copy)))
+    if edited == text {
+        // Also what an editor that returns at once looks like, so say so
+        // rather than doing nothing without a word.
+        output::note(
+            "the file came back from the editor unchanged, so nothing changed; if you did \
+             edit it, the editor returned before you saved (`code` needs `--wait`, for example)",
+        );
+        return Ok(None);
+    }
+    Ok(Some((edited, copy)))
 }
 
 /// Keeps `copy`, which holds an edit that could not be used, and says
@@ -131,35 +142,69 @@ fn kept(copy: NamedTempFile, error: &str) -> anyhow::Error {
     }
 }
 
-/// The editor: `VISUAL`, else `EDITOR`, split at spaces into a program,
-/// found on `PATH`, and its arguments (`code --wait`).
+/// The editor when neither `VISUAL` nor `EDITOR` is set, like git's.
 ///
-// TODO(platform): `EDITOR` and `VISUAL` are usually set on Unix but rarely
-// on Windows, where this fails and says to set `EDITOR`. Decide whether to
-// fall back to a platform default there (such as `notepad`). Values are
-// split at spaces on every platform, so an editor whose path contains a
-// space can't be named with its arguments (see docs/cli.md).
+// TODO(platform): Notepad is the one editor every Windows has, but this
+// hasn't been run on Windows. Windows 11's Notepad may open the file in a
+// tab of a Notepad window that is already open and return at once; `srl`
+// then sees the file unchanged and says so (see `edit_copy`), so no edit is
+// lost silently, but the edit can't be made that way. If that happens,
+// decide on another default. See docs/cli.md, "Editing in the editor".
+#[cfg(windows)]
+const DEFAULT_EDITOR: &str = "notepad";
+
+/// The editor when neither `VISUAL` nor `EDITOR` is set, like git's.
+#[cfg(not(windows))]
+const DEFAULT_EDITOR: &str = "vi";
+
+/// The editor: `VISUAL`, else `EDITOR`, else [`DEFAULT_EDITOR`], as a
+/// program found on `PATH` (or given as a path) and its arguments (see
+/// [`split`]).
 fn editor() -> anyhow::Result<(PathBuf, Vec<String>)> {
-    let set = ["VISUAL", "EDITOR"]
-        .iter()
-        .find_map(|name| match env::var(name) {
-            Ok(value) if value.trim().is_empty() => None,
-            Ok(value) => Some(Ok(value)),
-            Err(env::VarError::NotPresent) => None,
-            Err(env::VarError::NotUnicode(_)) => Some(Err(anyhow::anyhow!(
-                "{name} is not valid Unicode; set it again"
-            ))),
-        });
-    let value = set.context(
-        "no editor is set; set the EDITOR environment variable (for example EDITOR=vim)",
-    )??;
-    let mut words = value.split_whitespace().map(str::to_owned);
-    let name = words
-        .next()
-        .context("the editor variable is empty; set EDITOR")?;
+    let value = chosen(["VISUAL", "EDITOR"].map(|name| (name, env::var(name))))?;
+    let (name, args) = split(&value)?;
     let program =
         which::which(&name).with_context(|| format!("the editor `{name}` is not on PATH"))?;
-    Ok((program, words.collect()))
+    Ok((program, args))
+}
+
+/// The first of the variables that is set and not empty, else
+/// [`DEFAULT_EDITOR`]. A variable that is not valid Unicode is an error.
+fn chosen<const N: usize>(
+    variables: [(&str, Result<String, env::VarError>); N],
+) -> anyhow::Result<String> {
+    for (name, value) in variables {
+        match value {
+            Ok(value) if value.trim().is_empty() => {}
+            Ok(value) => return Ok(value),
+            Err(env::VarError::NotPresent) => {}
+            Err(env::VarError::NotUnicode(_)) => {
+                bail!("{name} is not valid Unicode; set it again")
+            }
+        }
+    }
+    Ok(DEFAULT_EDITOR.to_owned())
+}
+
+/// Splits an editor setting into a program and its arguments: at spaces,
+/// except that a setting starting with `"` names the program up to the
+/// next `"`, so that a path with spaces can come with arguments
+/// (`"C:\Program Files\Microsoft VS Code\bin\code.cmd" --wait`).
+fn split(value: &str) -> anyhow::Result<(String, Vec<String>)> {
+    let value = value.trim();
+    let (name, rest) = match value.strip_prefix('"') {
+        Some(quoted) => quoted.split_once('"').with_context(|| {
+            format!(
+                "the editor setting `{value}` has a `\"` that is never closed; fix VISUAL or EDITOR"
+            )
+        })?,
+        None => value.split_once(char::is_whitespace).unwrap_or((value, "")),
+    };
+    if name.is_empty() {
+        bail!("the editor setting `{value}` names no program; fix VISUAL or EDITOR");
+    }
+    let args = rest.split_whitespace().map(str::to_owned).collect();
+    Ok((name.to_owned(), args))
 }
 
 #[cfg(test)]
@@ -315,5 +360,53 @@ mod tests {
         assert!(fs::read_to_string(kept).unwrap().contains("Body."));
         fs::remove_file(kept).unwrap();
         assert_eq!(Atoms::load(&store).unwrap().atoms.len(), 1);
+    }
+
+    fn words(program: &str, args: &[&str]) -> (String, Vec<String>) {
+        (
+            program.to_owned(),
+            args.iter().map(|arg| (*arg).to_owned()).collect(),
+        )
+    }
+
+    #[test]
+    fn an_editor_setting_is_split_at_spaces() {
+        assert_eq!(split("vim").unwrap(), words("vim", &[]));
+        assert_eq!(split(" code  --wait ").unwrap(), words("code", &["--wait"]));
+    }
+
+    #[test]
+    fn a_quoted_program_may_contain_spaces() {
+        assert_eq!(
+            split(r#""C:\Program Files\Microsoft VS Code\bin\code.cmd" --wait"#).unwrap(),
+            words(
+                r"C:\Program Files\Microsoft VS Code\bin\code.cmd",
+                &["--wait"]
+            )
+        );
+        assert_eq!(
+            split(r#""/opt/my editor/ed""#).unwrap(),
+            words("/opt/my editor/ed", &[])
+        );
+        assert!(split(r#""/opt/my editor/ed --wait"#).is_err());
+        assert!(split(r#""" --wait"#).is_err());
+    }
+
+    #[test]
+    fn visual_comes_before_editor_and_the_platform_default_comes_last() {
+        let unset = || Err(env::VarError::NotPresent);
+        let set = |value: &str| Ok(value.to_owned());
+        assert_eq!(
+            chosen([("VISUAL", set("vim")), ("EDITOR", set("nano"))]).unwrap(),
+            "vim"
+        );
+        assert_eq!(
+            chosen([("VISUAL", set("  ")), ("EDITOR", set("nano"))]).unwrap(),
+            "nano"
+        );
+        assert_eq!(
+            chosen([("VISUAL", unset()), ("EDITOR", unset())]).unwrap(),
+            DEFAULT_EDITOR
+        );
     }
 }

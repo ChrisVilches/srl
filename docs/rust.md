@@ -11,6 +11,7 @@ on the code, people and agents alike.
 Cargo.toml              workspace: members, shared dependencies, lint policy
 clippy.toml             clippy settings (test exceptions)
 rustfmt.toml            formatter settings
+scripts/check-windows.sh  lints the Windows build from Linux or macOS (see "Platform independence")
 crates/
   srl-core/             the core, as a library
     src/lib.rs          the public API: re-exports only
@@ -257,15 +258,24 @@ When something can't be platform-independent yet, mark it in both places:
    the code.
 
 `grep -rn 'TODO(platform)\|TODO (platform)' crates docs` lists them all.
+
+Code behind `cfg(windows)` isn't compiled on Linux or macOS, so it can
+break unnoticed. `scripts/check-windows.sh` runs clippy for a Windows
+target from Linux or macOS (it needs `rustup`; the C compiler for SQLite is
+replaced by a stub, since nothing is linked). Run it after changing such
+code, including the Windows helpers in tests. It shows that the code
+compiles and passes the lints, not that it works: that still needs a
+Windows machine.
+
 Known places:
 
 | Where | What differs | Status |
 |---|---|---|
 | `store.rs`, `markdown_files` | macOS (HFS+) may list file names in Unicode NFD, so paths could sort and match differently | TODO in code |
-| `add.rs`, `place`; [atoms.md](atoms.md) | Windows' 260-character path limit | TODO in code and spec |
-| `editor.rs`, `editor`; [cli.md](cli.md) | `EDITOR`/`VISUAL` are rarely set on Windows | TODO in code and spec: fails and says to set `EDITOR`; a platform default is undecided |
-| `study.rs`, `HIGHLIGHT`; [frontends.md](frontends.md) | ANSI colors show as text in the old Windows console | TODO in code and spec |
-| `drill.rs`, `programs`; [drills.md](drills.md) | "Executable" and `#!` scripts are Unix concepts | Handled: `which` decides, with the execute bit on Unix and `PATHEXT` on Windows. The Windows test drills (`.cmd`) have not been run yet |
+| `add.rs`, `path_room`; [atoms.md](atoms.md) | Windows' 260-character path limit | Handled: new paths are cut to 259 UTF-16 units on every platform. **TODO in code and spec**: not run on Windows; existing files over the limit aren't checked |
+| `editor.rs`, `DEFAULT_EDITOR`; [cli.md](cli.md) | `EDITOR`/`VISUAL` are rarely set on Windows, and editor paths there often contain spaces | Handled: the default is `notepad` on Windows and `vi` elsewhere, and a quoted program may contain spaces. **TODO in code and spec**: not run on Windows; Windows 11's Notepad may return at once (then `srl` reports the file unchanged) |
+| `study.rs`, `colors_work`; [frontends.md](frontends.md) | ANSI colors show as text in the old Windows console | Handled: virtual terminal mode is turned on (with `anstyle-query`), else highlights are printed raw and the reason reported. **TODO in code and spec**: not run on Windows |
+| `drill.rs`, `programs`; [drills.md](drills.md) | "Executable" and `#!` scripts are Unix concepts | Handled: `which` decides, with the execute bit on Unix and `PATHEXT` on Windows. The Windows test drills (`.cmd`) compile (`scripts/check-windows.sh`) but have not been run yet |
 | `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
 | `index.rs`, `connect`; [store.md](store.md) | SQLite's file locking is unreliable on network file systems (NFS, SMB) on every platform: concurrent updates could damage the index cache | **TODO in code and spec**: damage is usually detected and the cache rebuilt; keep stores on a local disk for now |
 | `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
@@ -332,6 +342,7 @@ Current dependencies:
 | `getrandom` | `srl` | The random seed for new atom IDs (the core derives IDs from it) |
 | `dirs` | `srl` | The platform's data directory, for the default store |
 | `which` | both | Finding `srl-NAME` and drill programs, with `PATHEXT` on Windows |
+| `anstyle-query` | `srl`, on Windows only | Turning on ANSI colors in Windows consoles, without `unsafe` code of our own. Already part of the build through `clap` |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
 | `toml` | `srl-core` | Parsing `srl.toml` |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |

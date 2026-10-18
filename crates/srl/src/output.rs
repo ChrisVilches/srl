@@ -208,3 +208,9 @@ pub(crate) fn problem(error: &srl_core::Error) {
 pub(crate) fn error(error: &anyhow::Error) {
     eprintln!("srl: {error:#}");
 }
+
+/// Prints a message about something the person should know, on standard
+/// error.
+pub(crate) fn note(message: &str) {
+    eprintln!("srl: {message}");
+}

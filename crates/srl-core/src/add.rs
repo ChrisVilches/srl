@@ -4,12 +4,17 @@
 use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::path::Path;
+use std::path::{self, Path, PathBuf};
 
 use serde_json::Value;
 
 use crate::atom::{self, Content};
 use crate::{Atom, Atoms, Error, Id, Result, Status, Store, random, yaml};
+
+/// The longest full path of a new atom file, in UTF-16 units: Windows' limit
+/// of 260 without long paths, less the terminating NUL (see `docs/atoms.md`,
+/// "Creating atoms").
+const MAX_PATH: usize = 259;
 
 /// The most characters of a title that go into a file name.
 const SLUG_LEN: usize = 60;
@@ -113,6 +118,7 @@ pub fn add(
         .collect::<HashSet<_>>();
     let mut used_paths = store.atom_paths()?.into_iter().collect::<HashSet<_>>();
     let mut ids = random_ids(seed);
+    let room = path_room(store)?;
     let prepared = contents
         .into_iter()
         .map(|content| {
@@ -126,9 +132,13 @@ pub fn add(
                 .find(|id| !used_ids.contains(id))
                 .expect("the sequence of IDs should be endless");
             used_ids.insert(id.clone());
-            let path = place(&content, &id, |path| {
+            let path = place(&content, &id, room.units, |path| {
                 used_paths.contains(path) || store.atom_file(path).exists()
-            });
+            })
+            .ok_or_else(|| Error::PathTooLong {
+                dir: room.dir.clone(),
+                limit: MAX_PATH,
+            })?;
             used_paths.insert(path.clone());
             let text = render(&content, &id)?;
             Ok((Added { id, path }, text))
@@ -149,14 +159,10 @@ pub(crate) fn random_ids(seed: u64) -> impl Iterator<Item = Id> {
 
 /// The path of a new atom, relative to `atoms/`: a folder made from the first
 /// tag, and a file name made from the title. If the title gives no name, the name
-/// is the ID; if the name is `taken`, the ID is added to it.
-///
-// TODO(platform): Windows limits paths to 260 characters unless long paths
-// are enabled. Names are at most `SLUG_LEN` characters, but a store deep in
-// the file system with a long first tag can still exceed it, and then
-// writing fails with an error. Decide whether to cap the whole path (see
-// docs/rust.md, "Platform independence").
-fn place(content: &Content, id: &Id, taken: impl Fn(&str) -> bool) -> String {
+/// is the ID; if the name is `taken`, the ID is added to it. The name is
+/// shortened so that the path has at most `room` UTF-16 units; `None` if
+/// even the ID doesn't fit.
+fn place(content: &Content, id: &Id, room: usize, taken: impl Fn(&str) -> bool) -> Option<String> {
     let folder = content
         .tags()
         .first()
@@ -168,19 +174,79 @@ fn place(content: &Content, id: &Id, taken: impl Fn(&str) -> bool) -> String {
                 .collect::<String>()
         })
         .unwrap_or_default();
-    let name = slug(content.title());
+    let room = room.checked_sub(units(&folder) + units(".md"))?;
+    let id = id.as_str();
+    if room < units(id) {
+        return None;
+    }
+    let name = shorten(&slug(content.title()), room);
     let plain = if name.is_empty() {
         format!("{folder}{id}.md")
     } else {
         format!("{folder}{name}.md")
     };
-    if taken(&plain) {
-        format!("{folder}{name}-{id}.md")
+    if !taken(&plain) {
+        return Some(plain);
+    }
+    let name = shorten(&name, room.saturating_sub(units(id) + units("-")));
+    if name.is_empty() {
+        Some(format!("{folder}{id}.md"))
     } else {
-        plain
+        Some(format!("{folder}{name}-{id}.md"))
     }
 }
 
+/// The length of `text` in UTF-16 units, as Windows counts path lengths.
+fn units(text: &str) -> usize {
+    text.encode_utf16().count()
+}
+
+/// `name` cut to at most `room` UTF-16 units, without a trailing `-`, and
+/// still not a Windows device name.
+fn shorten(name: &str, room: usize) -> String {
+    let cut = |room: usize| {
+        name.chars()
+            .scan(0, |used, character| {
+                *used += character.len_utf16();
+                (*used <= room).then_some(character)
+            })
+            .collect::<String>()
+            .trim_end_matches('-')
+            .to_owned()
+    };
+    let short = cut(room);
+    if is_device_name(&short) {
+        format!("{}_", cut(room.saturating_sub(1)))
+    } else {
+        short
+    }
+}
+
+/// How many UTF-16 units the path of a new atom, relative to `atoms/`, may
+/// have, so that its full path stays within [`MAX_PATH`].
+///
+// TODO(platform): Not run on Windows yet. `srl` itself copes with longer
+// paths there (Rust's standard library uses the long path form), so the
+// limit is for other programs. Existing files over the limit are not
+// checked. See docs/atoms.md, "Creating atoms".
+fn path_room(store: &Store) -> Result<PathRoom> {
+    let dir = path::absolute(store.atoms_dir()).map_err(Error::io(store.atoms_dir()))?;
+    // Lossy only for counting: a part that isn't valid Unicode becomes one
+    // replacement character. Such names only occur on Unix, where the limit
+    // doesn't apply anyway.
+    let used = units(&dir.to_string_lossy()) + 1;
+    Ok(PathRoom {
+        units: MAX_PATH.saturating_sub(used),
+        dir,
+    })
+}
+
+/// The room for new paths in a store's `atoms/` folder.
+struct PathRoom {
+    units: usize,
+    /// The absolute path of `atoms/`.
+    dir: PathBuf,
+}
 /// A file name from text: lowercase, letters and digits of any script kept,
 /// every other run of characters turned into one `-`, at most `SLUG_LEN`
 /// characters. A name that Windows reserves for a device gets a `_`, so that
@@ -313,7 +379,7 @@ mod tests {
             content(json!({"title": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"]}));
         let id = Id::parse("a7f3k2").unwrap();
         assert_eq!(
-            place(&content, &id, |_| false),
+            place(&content, &id, MAX_PATH, |_| false).unwrap(),
             "japanese/grammar/をものともせず.md"
         );
     }
@@ -322,14 +388,17 @@ mod tests {
     fn tags_cannot_leave_the_atoms_folder() {
         let content = content(json!({"title": "x", "tags": ["../../etc", "/abs"]}));
         let id = Id::parse("a7f3k2").unwrap();
-        assert_eq!(place(&content, &id, |_| false), "etc/x.md");
+        assert_eq!(
+            place(&content, &id, MAX_PATH, |_| false).unwrap(),
+            "etc/x.md"
+        );
     }
 
     #[test]
     fn a_title_without_letters_is_named_after_the_id() {
         let id = Id::parse("a7f3k2").unwrap();
         assert_eq!(
-            place(&content(json!({"title": "〜"})), &id, |_| false),
+            place(&content(json!({"title": "〜"})), &id, MAX_PATH, |_| false).unwrap(),
             "a7f3k2.md"
         );
     }
@@ -465,5 +534,65 @@ mod tests {
         ] {
             assert!(Content::from_file_text(text).is_err(), "accepted:\n{text}");
         }
+    }
+
+    #[test]
+    fn names_are_shortened_to_keep_the_full_path_within_the_limit() {
+        let id = Id::parse("a7f3k2").unwrap();
+        let content = content(json!({"title": "abcdef-ghijkl", "tags": ["fish"]}));
+        // "fish/" and ".md" take 8 units.
+        assert_eq!(
+            place(&content, &id, 21, |_| false).unwrap(),
+            "fish/abcdef-ghijkl.md"
+        );
+        assert_eq!(
+            place(&content, &id, 15, |_| false).unwrap(),
+            "fish/abcdef.md"
+        );
+        assert_eq!(
+            place(&content, &id, 14, |_| false).unwrap(),
+            "fish/abcdef.md"
+        );
+        // Taken: the name makes room for `-ID`.
+        assert_eq!(
+            place(&content, &id, 21, |path| path == "fish/abcdef-ghijkl.md").unwrap(),
+            "fish/abcdef-a7f3k2.md"
+        );
+        assert_eq!(
+            place(&content, &id, 15, |path| path == "fish/abcdef.md").unwrap(),
+            "fish/a7f3k2.md"
+        );
+        // Not even the ID fits.
+        assert!(place(&content, &id, 13, |_| false).is_none());
+    }
+
+    #[test]
+    fn shortening_counts_utf16_units_and_avoids_device_names() {
+        // 𩸽 is two UTF-16 units.
+        assert_eq!(shorten("𩸽𩸽", 3), "𩸽");
+        assert_eq!(shorten("con-x", 3), "co_");
+        assert_eq!(shorten("ab-cd", 3), "ab");
+    }
+
+    #[test]
+    fn a_store_too_deep_for_any_name_refuses_to_add() {
+        let (tmp, _) = store();
+        let deep = (0..30).fold(tmp.path().to_path_buf(), |dir, _| dir.join("deep-folder"));
+        Store::init(&deep, false).unwrap();
+        let store = Store::open(&Lookup {
+            dir: Some(deep),
+            ..Lookup::default()
+        })
+        .unwrap();
+        let error = add(
+            &store,
+            &Atoms::load(&store).unwrap(),
+            vec![content(json!({"title": "x"}))],
+            false,
+            0,
+            false,
+        )
+        .unwrap_err();
+        assert!(matches!(error, Error::PathTooLong { .. }), "{error}");
     }
 }

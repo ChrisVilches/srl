@@ -438,7 +438,8 @@ fn drill_program(dir: &Path, name: &str, help: &str, seconds: u32, lines: &[&str
         lines
             .iter()
             .map(|line| format!("echo {line}\r\n"))
-            .collect()
+            .collect::<Vec<_>>()
+            .concat()
     };
     let script = format!(
         "@echo off\r\nif \"%~1\"==\"--help\" (\r\n  echo {help}\r\n  exit /b 0\r\n)\r\nfindstr \"^\" > \"%~dpn0.input\"\r\n{rest}"

@@ -70,10 +70,14 @@ Highlighted text (`==…==`) is bold yellow when standard output is a terminal
 and `NO_COLOR` is not set, and raw otherwise. Other Markdown is printed as
 it is.
 
-> **TODO (platform):** The color uses ANSI escape codes. They work in
-> terminals on Linux and macOS and in Windows Terminal, but the old Windows
-> console (conhost) shows them as text unless its virtual terminal mode is
-> on. Decide whether `srl` turns that mode on, or prints raw `==…==` there.
+On Windows, `srl study` turns on the console's virtual terminal mode, which
+makes it show the color codes; the old console (conhost) needs this,
+Windows Terminal has it on already. If that fails (Windows before 10, or
+standard error redirected to a file, since the mode is set for both
+streams), highlights are printed raw and the reason is reported on standard
+error.
+
+> **TODO (platform):** not run on Windows yet.
 
 `srl study --session NAME` is the same frontend reading cards from a session
 file instead of `srl next` (see [cli.md](cli.md), "Sessions"). `--drill` and a selector can't be given with it.

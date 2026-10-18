@@ -69,15 +69,22 @@ reports it and changes nothing.
 
 `srl edit ID`, `srl new` and `e` in `srl study` open the editor:
 
-- The editor is `VISUAL` if it is set and not empty, else `EDITOR`. If
-  neither is set, the command fails and says to set `EDITOR`.
+- The editor is `VISUAL` if it is set and not empty, else `EDITOR`, else
+  the platform's default, as in git: `notepad` on Windows, `vi` everywhere
+  else.
 - The value is split at spaces into a program and its arguments
-  (`code --wait`), with no quoting. The program is found on `PATH`, or given
-  as a path. The file to edit comes last.
+  (`code --wait`). A value that starts with `"` names the program up to the
+  next `"`, so a path with spaces can have arguments too
+  (`"C:\Program Files\Microsoft VS Code\bin\code.cmd" --wait`). There is no
+  other quoting. The program is found on `PATH`, or given as a path. The
+  file to edit comes last.
 - The editor works on a temporary copy of the atom file. When it exits with
   status 0, the copy is checked like `srl edit ID --stdin` (a valid atom,
-  the same `id`) and replaces the atom file. An unchanged copy changes
-  nothing. An editor that exits with another status changes nothing.
+  the same `id`) and replaces the atom file. An editor that exits with
+  another status changes nothing.
+- An unchanged copy changes nothing, and `srl` says so on standard error.
+  An editor that returns at once, before you save (such as `code` without
+  `--wait`), ends up here, so such an edit is never lost without a word.
 - A copy that is not a valid atom changes nothing either, and is kept: the
   error says where, so the edit isn't lost.
 - `--dry-run` only works with `--stdin`.
@@ -102,11 +109,12 @@ that is not a valid atom adds nothing and is kept, as above. With
 `--dry-run`, `srl new` prints the ID and the file it would write, like
 `srl add --dry-run`.
 
-> **TODO (platform):** `EDITOR` and `VISUAL` are usually set on Unix but
-> rarely on Windows, where `srl edit ID` then fails and says to set `EDITOR`.
-> Decide whether to fall back to a platform default there (such as
-> `notepad`). Values are split at spaces on every platform, so an editor
-> whose path contains a space can't be given arguments.
+> **TODO (platform):** not run on Windows yet. Notepad, the default there,
+> is the one editor every Windows has, but Windows 11's Notepad may open the
+> file in a tab of a Notepad window that is already open and return at
+> once. `srl` then reports the file unchanged, so nothing is lost, but the
+> edit can't be made that way; set `EDITOR` to an editor that waits. If
+> this turns out to happen, choose another default.
 
 ### Studying
 

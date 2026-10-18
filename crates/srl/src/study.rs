@@ -18,13 +18,7 @@ use srl_core::{
 use crate::{Outcome, commands, editor, output};
 
 /// The start and end of highlighted text (`==…==`) in a terminal: bold
-/// yellow.
-///
-// TODO(platform): ANSI escape codes work in terminals on Linux, macOS and
-// in Windows Terminal, but not in the old Windows console (conhost) unless
-// its virtual terminal mode is turned on. There the codes would show up as
-// text. Decide whether to enable that mode, or to print the raw `==…==`
-// (see docs/frontends.md).
+/// yellow. Only used where [`colors_work`].
 const HIGHLIGHT: (&str, &str) = ("\x1b[1;33m", "\x1b[0m");
 
 /// What a study session did, for the summary at the end.
@@ -97,7 +91,7 @@ fn in_terminal(store: &Store, cards: Cards<'_>) -> anyhow::Result<Outcome> {
             "`srl study` needs a terminal; in scripts and pipes, use `srl next`, `srl grade` and `srl review`"
         );
     }
-    let color = io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none();
+    let color = io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none() && colors_work();
     let mut input = io::stdin().lock();
     let mut out = io::stdout().lock();
     let mut edit = |atoms: &Atoms, id: &Id| editor::edit(store, atoms, id).map(|_| ());
@@ -112,6 +106,34 @@ fn in_terminal(store: &Store, cards: Cards<'_>) -> anyhow::Result<Outcome> {
         &mut edit,
     )?;
     Ok(Outcome::Done)
+}
+
+/// Whether the terminal shows ANSI colors. Windows consoles only do once
+/// their virtual terminal mode is on, so it is turned on here; where that
+/// fails (an old Windows, or standard error going to a file, which the mode
+/// is also set for), highlights are printed raw, and the reason is
+/// reported.
+///
+// TODO(platform): Not run on Windows yet. Windows Terminal has the mode on
+// already; the old console (conhost) on Windows 10 and later should accept
+// it. See docs/frontends.md.
+#[cfg(windows)]
+fn colors_work() -> bool {
+    match anstyle_query::windows::enable_virtual_terminal_processing() {
+        Ok(()) => true,
+        Err(error) => {
+            output::note(&format!(
+                "this console can't show colors ({error}); highlights are shown as ==…=="
+            ));
+            false
+        }
+    }
+}
+
+/// Whether the terminal shows ANSI colors: terminals on Unix do.
+#[cfg(not(windows))]
+fn colors_work() -> bool {
+    true
 }
 
 /// Where a session reads and writes, and whether it may use color.

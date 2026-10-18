@@ -61,6 +61,14 @@ pub enum Error {
     #[error("cannot add the atom: {reason}")]
     InvalidNewAtom { reason: String },
 
+    #[error(
+        "cannot add the atom: the folder {} and the folder of its first tag are so long that no \
+         file name fits within {limit} characters, the most Windows allows; move the store to \
+         a shorter path, or give the atom a shorter first tag",
+        dir.display()
+    )]
+    PathTooLong { dir: PathBuf, limit: usize },
+
     #[error("line {line} of standard input is not a valid atom: {reason}; nothing was added")]
     InvalidLine { line: usize, reason: String },
 
