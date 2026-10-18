@@ -829,3 +829,62 @@ fn interactive_commands_refuse_without_a_terminal() {
     assert!(stderr(&edit).contains("--stdin"), "{}", stderr(&edit));
     assert_eq!(srl(&["log", "--dir", d]).status.code(), Some(1));
 }
+
+#[test]
+fn sessions_are_saved_listed_and_removed() {
+    let (tmp, tuna, mackerel) = fish();
+    let d = dir(&tmp);
+    let card = |id: &str, prompt: &str| {
+        serde_json::json!({"atoms": [id], "drill": "agent", "ref": format!("agent:{prompt}"),
+            "prompt": prompt, "answer": "a", "grading": "self"})
+        .to_string()
+    };
+    let cards = [card(&mackerel, "one"), card(&tuna, "two")].join("\n");
+    let put = srl_with_input(&["session", "put", "n1-food", "--dir", d], &cards);
+    assert_eq!(put.status.code(), Some(0), "{}", stderr(&put));
+    assert!(put.stdout.is_empty());
+    assert_eq!(
+        stdout(&srl(&["session", "list", "--dir", d])),
+        "n1-food  2\n"
+    );
+    assert_eq!(
+        json_lines(&srl(&["session", "list", "--json", "--dir", d])),
+        [serde_json::json!({"name": "n1-food", "cards": 2})]
+    );
+
+    let bad = format!("{cards}\n{}", card("zzzzzz", "three"));
+    let refused = srl_with_input(&["session", "put", "other", "--dir", d], &bad);
+    assert_eq!(refused.status.code(), Some(2));
+    assert!(stderr(&refused).contains("line 3"), "{}", stderr(&refused));
+    let badly_named = srl_with_input(&["session", "put", "../x", "--dir", d], &cards);
+    assert_eq!(badly_named.status.code(), Some(2));
+
+    let study = srl_with_input(&["study", "--session", "n1-food", "--dir", d], "\n3\n");
+    assert_eq!(study.status.code(), Some(2));
+    assert!(stderr(&study).contains("terminal"), "{}", stderr(&study));
+
+    let dry = srl(&["session", "rm", "n1-food", "--dry-run", "--dir", d]);
+    assert_eq!(dry.status.code(), Some(0));
+    assert!(srl(&["session", "list", "--dir", d]).status.success());
+    assert_eq!(
+        srl(&["session", "rm", "n1-food", "--dir", d]).status.code(),
+        Some(0)
+    );
+    assert_eq!(srl(&["session", "list", "--dir", d]).status.code(), Some(1));
+    assert_eq!(
+        srl(&["session", "rm", "n1-food", "--dir", d]).status.code(),
+        Some(2)
+    );
+}
+
+#[test]
+fn new_refuses_without_a_terminal() {
+    let tmp = store();
+    let output = srl_with_input(&["new", "--dir", dir(&tmp)], "");
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("srl add --stdin"),
+        "{}",
+        stderr(&output)
+    );
+}

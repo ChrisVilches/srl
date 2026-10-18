@@ -20,6 +20,9 @@ const LOG: &str = "log";
 /// The folder of the store's own drills.
 const DRILLS: &str = "drills";
 
+/// The folder of prepared sessions.
+const SESSIONS: &str = "sessions";
+
 /// The folders `srl init` creates.
 const FOLDERS: [&str; 2] = [ATOMS, LOG];
 
@@ -144,6 +147,16 @@ impl Store {
     /// The folder of drills that belong to this store. It may not exist.
     pub fn drills_dir(&self) -> PathBuf {
         self.root.join(DRILLS)
+    }
+
+    /// The folder of sessions. It may not exist.
+    pub fn sessions_dir(&self) -> PathBuf {
+        self.root.join(SESSIONS)
+    }
+
+    /// The file of session `name`.
+    pub fn session_file(&self, name: &str) -> PathBuf {
+        self.sessions_dir().join(format!("{name}.jsonl"))
     }
 
     /// The folder of the review log.

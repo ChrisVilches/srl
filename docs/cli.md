@@ -41,7 +41,7 @@ agents all use the same commands. There is no separate API.
 
 | Command | Does |
 |---|---|
-| `srl new [--draft]` | Write a new atom in `$EDITOR`. |
+| `srl new [--draft]` | Write a new atom in the editor, starting from a template (see "Editing in the editor" below). Prints the new ID, like `srl add`; exit 1 if the template came back unchanged. |
 | `srl add [--draft] --title TITLE [--answer ANSWER] [--tag TAG]… [--source SOURCE]` | Add an atom from flags. |
 | `srl add [--draft] --stdin` | Add atoms from JSONL (see [atoms.md](atoms.md)). Prints the new IDs. |
 | `srl edit ID` | Edit an atom in the editor (see "Editing in the editor" below). Prints nothing. |
@@ -82,6 +82,26 @@ reports it and changes nothing.
   error says where, so the edit isn't lost.
 - `--dry-run` only works with `--stdin`.
 
+`srl new` opens this template:
+
+```markdown
+---
+# The title is required; everything else is optional. Write the knowledge
+# itself below the second `---`. Lines starting with # are comments.
+title:
+answer:
+tags: []
+---
+```
+
+When the editor exits, the result must be a valid atom without an `id`. It
+is added like a line of `srl add --stdin`: it gets an ID, a file named after
+its title, and is written in the standard layout, so comments are not kept.
+`--draft` makes it a draft. An unchanged template adds nothing. A result
+that is not a valid atom adds nothing and is kept, as above. With
+`--dry-run`, `srl new` prints the ID and the file it would write, like
+`srl add --dry-run`.
+
 > **TODO (platform):** `EDITOR` and `VISUAL` are usually set on Unix but
 > rarely on Windows, where `srl edit ID` then fails and says to set `EDITOR`.
 > Decide whether to fall back to a platform default there (such as
@@ -93,7 +113,7 @@ reports it and changes nothing.
 | Command | Does |
 |---|---|
 | `srl study [SELECTOR] [--drill NAME]` | The built-in terminal frontend (see [frontends.md](frontends.md)). Adds `status:active`, like `srl next`. |
-| `srl study --session NAME` | Study a prepared session with the same frontend (see below). |
+| `srl study --session NAME` | Study a prepared session with the same frontend (see "Sessions" below). |
 | `srl next [SELECTOR] [--drill NAME] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`. Exit 1 if there is none. Failing drills are reported but don't change the exit code, so a study loop keeps going. |
 | `srl cards ID [--json]` | Print every card of an atom, from every applicable drill (see below). Failing drills and invalid cards are reported, and make the exit code 2. |
 | `srl grade` | Grade an answer: card and response as JSON on stdin; prints the result as JSON (see [grading.md](grading.md)). Exits 0 even when it falls back to self-grading. |
@@ -132,8 +152,9 @@ cloze:0:1  exact
 
 | Command | Does |
 |---|---|
-| `srl session put NAME` | Save a list of cards (JSONL from stdin) as a session. Cards are validated. |
-| `srl session list` / `srl session rm NAME` | Manage sessions. |
+| `srl session put NAME` | Save a list of cards (JSONL from stdin) as a session, replacing one of that name. Prints nothing. |
+| `srl session list [--json]` | List sessions, sorted: `NAME  CARDS` per line, or `{"name": N, "cards": C}`. Exit 1 if there are none. |
+| `srl session rm NAME` | Remove a session. A session that doesn't exist is an error. |
 
 ### Drills
 
@@ -181,8 +202,18 @@ where `retention` is a number from 0 to 1, or `null`.
 A session is a prepared list of cards in `sessions/NAME.jsonl`, usually written
 by an agent ("15 questions on N1 grammar using food vocabulary") or a script.
 
+- A session name is made of lowercase letters `a`–`z`, digits, `-` and `_`,
+  like a drill name, because it becomes a file name.
+- `srl session put NAME` reads one card per line, in the format of
+  [cards.md](cards.md); blank lines are ignored. Every card is checked
+  first (rule 4 of [cards.md](cards.md)), against the atoms of the store:
+  if any line is not a valid card, or there are none, it reports the first
+  bad line and saves nothing. It writes the cards back in the card format,
+  every field present, one per line.
 - `srl study --session NAME` shows the cards in file order, each once,
-  regardless of whether their atoms are due.
+  regardless of whether their atoms are due or what status they have. The
+  cards are checked again when the session starts: a card that is no longer
+  valid, for example because its atom was deleted, is reported and skipped.
 - Reviews are recorded normally and update the atoms' schedules.
 - A session can be studied again; it is just a file.
 

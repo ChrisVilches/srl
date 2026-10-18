@@ -76,8 +76,11 @@ pub(crate) enum Command {
     Reindex,
     /// Write a new atom in $EDITOR.
     New {
+        /// Add the atom as a draft.
         #[arg(long)]
         draft: bool,
+        #[command(flatten)]
+        dry_run: DryRun,
     },
     /// Add atoms from flags or JSONL on standard input.
     Add(AddArgs),
@@ -145,7 +148,7 @@ pub(crate) enum Command {
         #[arg(long, value_name = "NAME")]
         drill: Option<String>,
         /// Study a prepared session instead of due atoms.
-        #[arg(long, value_name = "NAME", conflicts_with = "terms")]
+        #[arg(long, value_name = "NAME", conflicts_with_all = ["terms", "drill"])]
         session: Option<String>,
     },
     /// Print the next card. Exits with 1 if there is none.

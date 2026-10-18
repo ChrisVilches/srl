@@ -164,6 +164,13 @@ pub(crate) fn stats(report: &srl_core::Stats) {
     }
 }
 
+/// Prints one line per session: its name and number of cards.
+pub(crate) fn sessions(sessions: &[srl_core::SessionInfo]) {
+    for session in sessions {
+        println!("{}  {}", session.name, session.cards);
+    }
+}
+
 /// Prints one line per atom that got an ID: the ID and its file.
 pub(crate) fn fixed(fixed: &[srl_core::Fixed]) {
     for atom in fixed {

@@ -8,7 +8,7 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::atom::Content;
+use crate::atom::{self, Content};
 use crate::{Atom, Atoms, Error, Id, Result, Status, Store, random, yaml};
 
 /// The most characters of a title that go into a file name.
@@ -44,6 +44,18 @@ impl Content {
         .filter_map(|(key, value)| value.map(|value| (key.to_owned(), value)))
         .collect();
         Self::from_fields(fields, String::new()).map_err(|reason| Error::InvalidNewAtom { reason })
+    }
+
+    /// The content of a new atom written as a whole file, as `srl new` gets
+    /// it from the editor: front-matter without `id`, and a body.
+    pub fn from_file_text(text: &str) -> Result<Self> {
+        let invalid = |reason: String| Error::InvalidNewAtom { reason };
+        match atom::read(text).map_err(invalid)? {
+            (None, content) => Ok(content),
+            (Some(_), _) => Err(invalid(
+                "it has an `id`; leave it out, and `srl` assigns one".to_owned(),
+            )),
+        }
     }
 
     /// The contents given to `srl add --stdin`: one JSON object per line.
@@ -436,5 +448,22 @@ mod tests {
         let content = Content::from_json_line(r#"{"title": "x", "body": "no newline"}"#).unwrap();
         let id = Id::parse("a7f3k2").unwrap();
         assert!(render(&content, &id).is_ok());
+    }
+
+    #[test]
+    fn a_whole_file_without_an_id_is_new_content() {
+        let content = Content::from_file_text(
+            "---\n# a comment\ntitle: 鮪\nanswer:\ntags: []\n---\nA fish.\n",
+        )
+        .unwrap();
+        assert_eq!(content.title(), "鮪");
+        assert_eq!(content.body(), "A fish.\n");
+        for text in [
+            "---\nid: a7f3k2\ntitle: x\n---\n",
+            "---\ntitle:\n---\n",
+            "no front-matter\n",
+        ] {
+            assert!(Content::from_file_text(text).is_err(), "accepted:\n{text}");
+        }
     }
 }

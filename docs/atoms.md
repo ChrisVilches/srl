@@ -115,7 +115,7 @@ original source was (your notes, an article, a PDF, an LLM's own knowledge, an
 export from another app):
 
 ```sh
-srl new                                       # open $EDITOR with a template
+srl new                                       # open the editor with a template
 srl add --title "鮪" --answer "tuna (まぐろ)" --tag kanji/food
 some-producer | srl add --stdin               # JSONL: one atom per line
 ```

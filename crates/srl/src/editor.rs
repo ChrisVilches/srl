@@ -1,5 +1,5 @@
-//! Editing an atom in the person's editor: `srl edit ID`, and `e` in
-//! `srl study` (see `docs/cli.md`, "Editing in `$EDITOR`").
+//! Editing in the person's editor: `srl edit ID`, `srl new`, and `e` in
+//! `srl study` (see `docs/cli.md`, "Editing in the editor").
 
 use std::env;
 use std::fs;
@@ -8,7 +8,18 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, bail};
-use srl_core::{Atoms, Error, Id, Store};
+use srl_core::{Added, Atoms, Content, Error, Id, Store};
+use tempfile::NamedTempFile;
+
+/// The file `srl new` opens: front-matter to fill in, and an empty body.
+pub(crate) const TEMPLATE: &str = "---
+# The title is required; everything else is optional. Write the knowledge
+# itself below the second `---`. Lines starting with # are comments.
+title:
+answer:
+tags: []
+---
+";
 
 /// What an edit did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,13 +49,63 @@ fn edit_with(
     let atom = atoms
         .get(id)
         .ok_or_else(|| Error::UnknownId { id: id.clone() })?;
+    let Some((text, copy)) = edit_copy(&format!("srl-{id}-"), atom.text(), program, args)? else {
+        return Ok(Edited::Unchanged);
+    };
+    match srl_core::replace(store, atoms, id, &text, false) {
+        Ok(()) => Ok(Edited::Changed),
+        Err(error) => Err(kept(copy, &error.to_string())),
+    }
+}
+
+/// `srl new`: opens [`TEMPLATE`] in the editor and adds the result as a new
+/// atom (a draft with `draft`), like `srl add`. Returns the atom, or `None`
+/// if the template came back unchanged. A result that is not a valid atom
+/// is kept in its temporary file, and the error says where.
+pub(crate) fn new(store: &Store, draft: bool, dry_run: bool) -> anyhow::Result<Option<Added>> {
+    let (program, args) = editor()?;
+    let seed = getrandom::u64().context("cannot get random numbers for new IDs")?;
+    new_with(store, draft, dry_run, seed, &program, &args)
+}
+
+/// Like [`new`], with the seed for the ID and the editor given.
+fn new_with(
+    store: &Store,
+    draft: bool,
+    dry_run: bool,
+    seed: u64,
+    program: &Path,
+    args: &[String],
+) -> anyhow::Result<Option<Added>> {
+    let Some((text, copy)) = edit_copy("srl-new-", TEMPLATE, program, args)? else {
+        return Ok(None);
+    };
+    let added = Content::from_file_text(&text).and_then(|content| {
+        let atoms = Atoms::load(store)?;
+        srl_core::add(store, &atoms, vec![content], draft, seed, dry_run)
+    });
+    match added {
+        Ok(added) => Ok(added.into_iter().next()),
+        Err(error) => Err(kept(copy, &error.to_string())),
+    }
+}
+
+/// Writes `text` to a temporary file, opens it in the editor, and returns
+/// what the editor left there, with the file. `None` if the text came back
+/// unchanged. Fails if the editor fails.
+fn edit_copy(
+    prefix: &str,
+    text: &str,
+    program: &Path,
+    args: &[String],
+) -> anyhow::Result<Option<(String, NamedTempFile)>> {
     let mut copy = tempfile::Builder::new()
-        .prefix(&format!("srl-{id}-"))
+        .prefix(prefix)
         .suffix(".md")
         .tempfile()
-        .context("cannot create a temporary file to edit the atom in")?;
-    copy.write_all(atom.text().as_bytes())
-        .context("cannot write the atom to a temporary file")?;
+        .context("cannot create a temporary file to edit in")?;
+    copy.write_all(text.as_bytes())
+        .context("cannot write the temporary file to edit")?;
     let path = copy.path().to_path_buf();
     let status = Command::new(program)
         .args(args)
@@ -54,19 +115,20 @@ fn edit_with(
     if !status.success() {
         bail!("the editor exited with {status}; nothing was changed");
     }
-    let text = fs::read_to_string(&path)
+    let edited = fs::read_to_string(&path)
         .with_context(|| format!("cannot read the edited file {}", path.display()))?;
-    if text == atom.text() {
-        return Ok(Edited::Unchanged);
+    Ok((edited != text).then_some((edited, copy)))
+}
+
+/// Keeps `copy`, which holds an edit that could not be used, and says
+/// where it is, after `error`.
+fn kept(copy: NamedTempFile, error: &str) -> anyhow::Error {
+    match copy.keep() {
+        Ok((_, path)) => anyhow::anyhow!("{error}; your edit is kept in {}", path.display()),
+        Err(keep_error) => {
+            anyhow::anyhow!("{error}; and your edit could not be kept ({keep_error})")
+        }
     }
-    if let Err(error) = srl_core::replace(store, atoms, id, &text, false) {
-        let kept = copy
-            .keep()
-            .context("cannot keep the temporary file with your edit")?
-            .1;
-        bail!("{error}; your edit is kept in {}", kept.display());
-    }
-    Ok(Edited::Changed)
 }
 
 /// The editor: `VISUAL`, else `EDITOR`, split at spaces into a program,
@@ -208,5 +270,50 @@ mod tests {
         let atoms = Atoms::load(&store).unwrap();
         assert!(edit_with(&store, &atoms, &id, &program, &[]).is_err());
         assert_eq!(file(&store), before);
+    }
+
+    #[test]
+    fn new_adds_what_the_editor_wrote() {
+        let (tmp, store, _) = store();
+        let program = editor_program(
+            tmp.path(),
+            r#"printf -- '---\ntitle: tuna\ntags: [fish]\n---\nA fish.\n' > "$1""#,
+            "(echo ---& echo title: tuna& echo tags: [fish]& echo ---& echo A fish.)> %1",
+        );
+        let added = new_with(&store, true, false, 7, &program, &[])
+            .unwrap()
+            .unwrap();
+        assert_eq!(added.path, "fish/tuna.md");
+        let atoms = Atoms::load(&store).unwrap();
+        let atom = atoms.get(&added.id).unwrap();
+        assert_eq!(atom.content().title(), "tuna");
+        assert_eq!(atom.content().status(), srl_core::Status::Draft);
+    }
+
+    #[test]
+    fn new_with_the_template_unchanged_adds_nothing() {
+        let (tmp, store, _) = store();
+        let program = editor_program(tmp.path(), "true", "exit /b 0");
+        assert!(
+            new_with(&store, false, false, 7, &program, &[])
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(Atoms::load(&store).unwrap().atoms.len(), 1);
+    }
+
+    #[test]
+    fn new_keeps_an_invalid_atom_and_adds_nothing() {
+        let (tmp, store, _) = store();
+        // The template's empty title is no title.
+        let program = editor_program(tmp.path(), r#"echo 'Body.' >> "$1""#, "echo Body.>> %1");
+        let error = new_with(&store, false, false, 7, &program, &[])
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("title"), "{error}");
+        let kept = error.rsplit("kept in ").next().unwrap();
+        assert!(fs::read_to_string(kept).unwrap().contains("Body."));
+        fs::remove_file(kept).unwrap();
+        assert_eq!(Atoms::load(&store).unwrap().atoms.len(), 1);
     }
 }

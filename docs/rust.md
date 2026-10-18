@@ -31,6 +31,7 @@ crates/
     src/schedule.rs       scheduling.md: replaying the log through FSRS, states
     src/next.rs           scheduling.md, "Choosing the next card"
     src/selector.rs       selectors.md
+    src/session.rs        cli.md, "Sessions"
     src/yaml.rs         front-matter between YAML text and JSON values
     src/frontmatter.rs  setting one key in an existing atom file (see below)
     src/process.rs      running a program (drill, grader) with an optional time limit

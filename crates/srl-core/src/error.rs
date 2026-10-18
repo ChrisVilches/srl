@@ -137,6 +137,29 @@ pub enum Error {
     #[error("there is no drill `{name}`; `srl drills` lists the drills")]
     UnknownDrill { name: String },
 
+    #[error(
+        "`{name}` can't name a session: use lowercase letters, digits, - and _ (as in n1-food)"
+    )]
+    InvalidSessionName { name: String },
+
+    #[error("line {line} of standard input is not a valid card: {reason}; nothing was saved")]
+    InvalidSessionLine { line: usize, reason: String },
+
+    #[error("there are no cards for session `{name}` on standard input; nothing was saved")]
+    EmptySession { name: String },
+
+    #[error("there is no session `{name}`; `srl session list` lists the sessions")]
+    UnknownSession { name: String },
+
+    #[error(
+        "skipped line {line} of session `{name}`: {reason}; save the session again with `srl session put`"
+    )]
+    InvalidSessionCard {
+        name: String,
+        line: usize,
+        reason: String,
+    },
+
     #[error("cannot change atoms/{path}: {reason}; nothing was changed")]
     CannotEdit { path: String, reason: String },
 

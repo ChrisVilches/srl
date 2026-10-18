@@ -36,7 +36,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Tags { json } => return tags(&store()?, json.json),
         Command::Check { fix, dry_run } => return check(&store()?, fix, dry_run.dry_run),
         Command::Reindex => "reindex",
-        Command::New { .. } => "new",
+        Command::New { draft, dry_run } => return new(&store()?, draft, dry_run.dry_run),
         Command::Edit { id, stdin, dry_run } => {
             return match (stdin, dry_run.dry_run) {
                 (true, dry_run) => edit_stdin(&store()?, &id, dry_run),
@@ -64,8 +64,9 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             session: None,
         } => return study::run(&store()?, &selector.terms, drill.as_deref()),
         Command::Study {
-            session: Some(_), ..
-        } => "study --session",
+            session: Some(name),
+            ..
+        } => return study::run_session(&store()?, &name),
         Command::Next {
             selector,
             drill,
@@ -77,11 +78,18 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Reset { selector, dry_run } => {
             return reset(&store()?, &selector.terms, dry_run.dry_run);
         }
-        Command::Session { action } => match action {
-            SessionCommand::Put { .. } => "session put",
-            SessionCommand::List { .. } => "session list",
-            SessionCommand::Rm { .. } => "session rm",
-        },
+        Command::Session { action } => {
+            return match action {
+                SessionCommand::Put { name, dry_run } => {
+                    session_put(&store()?, &name, dry_run.dry_run)
+                }
+                SessionCommand::List { json } => session_list(&store()?, json.json),
+                SessionCommand::Rm { name, dry_run } => {
+                    srl_core::remove_session(&store()?, &name, dry_run.dry_run)?;
+                    Ok(Outcome::Done)
+                }
+            };
+        }
         Command::Drills { json } => return drills(&store()?, json.json),
         Command::Stats { selector, json } => return stats(&store()?, &selector.terms, json.json),
         Command::Log { selector, json } => return log(&store()?, &selector.terms, json.json),
@@ -107,6 +115,41 @@ fn change_status(
     let changed = srl_core::change_status(store, &selected, from, to, dry_run)?;
     output::ids(&changed);
     Ok(found_anything(!changed.is_empty()))
+}
+
+/// `srl new`: writes a new atom in the editor and prints its ID (with
+/// `--dry-run`, its ID and file). Exit 1 if the template came back
+/// unchanged.
+fn new(store: &Store, draft: bool, dry_run: bool) -> anyhow::Result<Outcome> {
+    if !io::stdin().is_terminal() {
+        bail!("`srl new` needs a terminal; in scripts and pipes, use `srl add --stdin`");
+    }
+    match editor::new(store, draft, dry_run)? {
+        Some(added) => {
+            output::added(&[added], dry_run);
+            Ok(Outcome::Done)
+        }
+        None => Ok(Outcome::Nothing),
+    }
+}
+
+/// `srl session put NAME`: saves the cards on standard input as a session.
+fn session_put(store: &Store, name: &str, dry_run: bool) -> anyhow::Result<Outcome> {
+    let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
+    srl_core::put_session(store, &load(store)?, name, &text, dry_run)?;
+    Ok(Outcome::Done)
+}
+
+/// `srl session list`: every session with its number of cards. Exit 1 if
+/// there are none.
+fn session_list(store: &Store, json: bool) -> anyhow::Result<Outcome> {
+    let sessions = srl_core::list_sessions(store)?;
+    if json {
+        output::json_lines(&sessions)?;
+    } else {
+        output::sessions(&sessions);
+    }
+    Ok(found_anything(!sessions.is_empty()))
 }
 
 /// `srl edit ID`: edits the atom in the editor. Refuses without a terminal,

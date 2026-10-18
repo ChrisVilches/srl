@@ -76,7 +76,7 @@ it is.
 > on. Decide whether `srl` turns that mode on, or prints raw `==…==` there.
 
 `srl study --session NAME` is the same frontend reading cards from a session
-file instead of `srl next`. It is not implemented yet, like sessions.
+file instead of `srl next` (see [cli.md](cli.md), "Sessions"). `--drill` and a selector can't be given with it.
 
 ## A web viewer
 

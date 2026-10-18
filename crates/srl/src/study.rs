@@ -58,23 +58,52 @@ enum Step {
     Quit,
 }
 
+/// Where the cards of a study session come from.
+pub(crate) enum Cards<'a> {
+    /// `srl next`'s choice, card after card: due atoms, then new ones.
+    Scheduled {
+        selector: &'a Selector,
+        drill: Option<&'a str>,
+    },
+    /// A prepared session, in file order, each card once.
+    Prepared(std::vec::IntoIter<Card>),
+}
+
 /// `srl study [SELECTOR] [--drill NAME]`: refuses without a terminal, then
 /// studies until nothing is left or you quit.
 pub(crate) fn run(store: &Store, terms: &[String], drill: Option<&str>) -> anyhow::Result<Outcome> {
+    let selector = Selector::parse(&terms.join(" "))?;
+    in_terminal(
+        store,
+        Cards::Scheduled {
+            selector: &selector,
+            drill,
+        },
+    )
+}
+
+/// `srl study --session NAME`: the cards of the session, in file order. A
+/// card that is no longer valid is reported and skipped.
+pub(crate) fn run_session(store: &Store, name: &str) -> anyhow::Result<Outcome> {
+    let atoms = Atoms::load(store)?;
+    let (cards, problems) = srl_core::load_session(store, &atoms, name)?;
+    problems.iter().for_each(output::problem);
+    in_terminal(store, Cards::Prepared(cards.into_iter()))
+}
+
+fn in_terminal(store: &Store, cards: Cards<'_>) -> anyhow::Result<Outcome> {
     if !io::stdin().is_terminal() {
         bail!(
             "`srl study` needs a terminal; in scripts and pipes, use `srl next`, `srl grade` and `srl review`"
         );
     }
     let color = io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none();
-    let selector = Selector::parse(&terms.join(" "))?;
     let mut input = io::stdin().lock();
     let mut out = io::stdout().lock();
     let mut edit = |atoms: &Atoms, id: &Id| editor::edit(store, atoms, id).map(|_| ());
     study(
         store,
-        &selector,
-        drill,
+        cards,
         &mut Io {
             input: &mut input,
             out: &mut out,
@@ -101,13 +130,12 @@ struct Session<'a, 'b> {
     edit: &'a mut dyn FnMut(&Atoms, &Id) -> anyhow::Result<()>,
 }
 
-/// Studies the atoms that match `selector` until nothing is left or you
-/// quit, then prints a summary. Atoms and the log are read again before
-/// every card, so edits and other frontends' reviews count at once.
+/// Studies `cards` until there are no more or you quit, then prints a
+/// summary. Atoms and the log are read again before every card, so edits
+/// and other frontends' reviews count at once.
 pub(crate) fn study(
     store: &Store,
-    selector: &Selector,
-    drill: Option<&str>,
+    mut cards: Cards<'_>,
     io: &mut Io<'_>,
     edit: &mut dyn FnMut(&Atoms, &Id) -> anyhow::Result<()>,
 ) -> anyhow::Result<Summary> {
@@ -136,20 +164,26 @@ pub(crate) fn study(
         }
         let today = config.schedule.study_day(commands::now()?.datetime());
         let memories = Memories::replay(&log, &config, today)?;
-        let options = NextOptions {
-            drill,
-            day: today,
-            timeout: config.drills.timeout(),
+        let card = match &mut cards {
+            Cards::Scheduled { selector, drill } => {
+                let options = NextOptions {
+                    drill: *drill,
+                    day: today,
+                    timeout: config.drills.timeout(),
+                };
+                let (card, problems) = srl_core::next(
+                    &atoms,
+                    &memories,
+                    &drills,
+                    Selector::clone(selector),
+                    &config,
+                    options,
+                )?;
+                problems.iter().for_each(output::problem);
+                card
+            }
+            Cards::Prepared(list) => list.next(),
         };
-        let (card, problems) = srl_core::next(
-            &atoms,
-            &memories,
-            &drills,
-            selector.clone(),
-            &config,
-            options,
-        )?;
-        problems.iter().for_each(output::problem);
         let Some(card) = card else {
             break;
         };
@@ -411,14 +445,28 @@ mod tests {
         (tmp, store)
     }
 
-    /// Runs a session with `typed` as the input; returns the summary, what
-    /// was written, and how many times the editor was opened.
+    /// Studies the scheduled cards for `selector` with `typed` as the input;
+    /// returns the summary, what was written, and how many times the editor
+    /// was opened.
     fn run(
         store: &Store,
         selector: &str,
         drill: Option<&str>,
         typed: &str,
     ) -> (Summary, String, usize) {
+        let selector = Selector::parse(selector).unwrap();
+        drive(
+            store,
+            Cards::Scheduled {
+                selector: &selector,
+                drill,
+            },
+            typed,
+        )
+    }
+
+    /// Studies `cards` with `typed` as the input, as [`run`] does.
+    fn drive(store: &Store, cards: Cards<'_>, typed: &str) -> (Summary, String, usize) {
         let mut input = Cursor::new(typed.as_bytes().to_vec());
         let mut out = Vec::new();
         let mut edits = 0;
@@ -428,8 +476,7 @@ mod tests {
         };
         let summary = study(
             store,
-            &Selector::parse(selector).unwrap(),
-            drill,
+            cards,
             &mut Io {
                 input: &mut input,
                 out: &mut out,
@@ -534,6 +581,45 @@ mod tests {
         let atoms = Atoms::load(&store).unwrap();
         assert_eq!(atoms.atoms[0].content().status(), Status::Suspended);
         assert!(matches!(&events(&store)[..], [Event::Review(review)] if review.rating == 4));
+    }
+
+    #[test]
+    fn a_session_shows_its_cards_in_order_whether_due_or_not() {
+        let (_tmp, store) = store(&[r#"{"title": "鮪"}"#, r#"{"title": "鯖"}"#]);
+        let atoms = Atoms::load(&store).unwrap();
+        let ids = atoms
+            .atoms
+            .iter()
+            .map(|atom| atom.id().to_string())
+            .collect::<Vec<_>>();
+        let card = |id: &str, prompt: &str| {
+            format!(
+                r#"{{"atoms": ["{id}"], "drill": "agent", "ref": "agent:{prompt}", "prompt": "{prompt}", "answer": "a", "grading": "self"}}"#
+            )
+        };
+        // The second atom first, and the first one twice.
+        let text = [
+            card(&ids[1], "one"),
+            card(&ids[0], "two"),
+            card(&ids[0], "three"),
+        ]
+        .join("\n");
+        srl_core::put_session(&store, &atoms, "mixed", &text, false).unwrap();
+        let (cards, problems) = srl_core::load_session(&store, &atoms, "mixed").unwrap();
+        assert!(problems.is_empty());
+        let (summary, out, _) = drive(
+            &store,
+            Cards::Prepared(cards.into_iter()),
+            "\n3\n\n3\n\n1\n",
+        );
+        let one = out.find("\none\n").unwrap();
+        let two = out.find("\ntwo\n").unwrap();
+        let three = out.find("\nthree\n").unwrap();
+        assert!(one < two && two < three, "{out}");
+        assert_eq!(summary.reviews, 3);
+        assert_eq!(summary.new, 2);
+        assert_eq!(summary.again, 1);
+        assert_eq!(events(&store).len(), 3);
     }
 
     #[test]
