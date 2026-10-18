@@ -19,6 +19,7 @@ crates/
                           store.md: finding, creating and listing a store
     src/atom.rs           atoms.md: the atom file, IDs, status, reading atoms
     src/add.rs            atoms.md, "Creating atoms"
+    src/edit.rs           atoms.md, "Status" and "Identity and editing"
     src/selector.rs       selectors.md
     src/yaml.rs         front-matter between YAML text and JSON values
     src/frontmatter.rs  setting one key in an existing atom file (see below)

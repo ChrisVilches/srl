@@ -239,28 +239,16 @@ impl Atom {
     /// Parses the file at `path` (relative to `atoms/`, with `/` between
     /// folders) whose text is `text`.
     pub fn parse(path: String, text: String) -> Result<Self> {
-        let invalid = |reason: String| Error::InvalidAtom {
-            path: path.clone(),
-            reason,
-        };
-        let (front, body) = split_front_matter(&text).ok_or_else(|| {
-            invalid("it does not start with front-matter between `---` lines".to_owned())
-        })?;
-        let mut fields = yaml::parse_mapping(front).map_err(invalid)?;
-        let id = match fields.remove("id") {
-            Some(Value::String(id)) => {
-                Id::parse(&id).map_err(|error| invalid(error.to_string()))?
-            }
-            Some(other) => return Err(invalid(format!("its `id` is {other}, which is not an ID"))),
-            None => return Err(Error::MissingId { path }),
-        };
-        let content = Content::from_fields(fields, body.to_owned()).map_err(invalid)?;
-        Ok(Self {
-            id,
-            path,
-            content,
-            text,
-        })
+        match read(&text) {
+            Ok((Some(id), content)) => Ok(Self {
+                id,
+                path,
+                content,
+                text,
+            }),
+            Ok((None, _)) => Err(Error::MissingId { path }),
+            Err(reason) => Err(Error::InvalidAtom { path, reason }),
+        }
     }
 
     pub fn id(&self) -> &Id {
@@ -280,6 +268,22 @@ impl Atom {
     pub fn text(&self) -> &str {
         &self.text
     }
+}
+
+/// The ID, if the file has one, and the content of an atom file's text.
+///
+/// Errors are plain reasons, to be put into a sentence by the caller.
+pub(crate) fn read(text: &str) -> std::result::Result<(Option<Id>, Content), String> {
+    let (front, body) = split_front_matter(text)
+        .ok_or_else(|| "it does not start with front-matter between `---` lines".to_owned())?;
+    let mut fields = yaml::parse_mapping(front)?;
+    let id = match fields.remove("id") {
+        Some(Value::String(id)) => Some(Id::parse(&id).map_err(|error| error.to_string())?),
+        Some(other) => return Err(format!("its `id` is {other}, which is not an ID")),
+        None => None,
+    };
+    let content = Content::from_fields(fields, body.to_owned())?;
+    Ok((id, content))
 }
 
 /// Splits an atom file into its front-matter and body. The front-matter sits

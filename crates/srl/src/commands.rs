@@ -33,10 +33,24 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Check { .. } => "check",
         Command::Reindex => "reindex",
         Command::New { .. } => "new",
-        Command::Edit { .. } => "edit",
-        Command::Accept { .. } => "accept",
-        Command::Suspend { .. } => "suspend",
-        Command::Unsuspend { .. } => "unsuspend",
+        Command::Edit { id, stdin, dry_run } => {
+            if stdin {
+                return edit_stdin(&store()?, &id, dry_run.dry_run);
+            }
+            "edit ID (without --stdin)"
+        }
+        Command::Accept { selector, dry_run } => {
+            let change = (Status::Draft, Status::Active);
+            return change_status(&store()?, &selector.terms, change, dry_run.dry_run);
+        }
+        Command::Suspend { selector, dry_run } => {
+            let change = (Status::Active, Status::Suspended);
+            return change_status(&store()?, &selector.terms, change, dry_run.dry_run);
+        }
+        Command::Unsuspend { selector, dry_run } => {
+            let change = (Status::Suspended, Status::Active);
+            return change_status(&store()?, &selector.terms, change, dry_run.dry_run);
+        }
         Command::Study { .. } => "study",
         Command::Next { .. } => "next",
         Command::Cards { .. } => "cards",
@@ -56,6 +70,29 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         "`srl {name}` is not implemented yet (store: {})",
         store()?.root().display()
     )
+}
+
+/// `srl accept`, `srl suspend` and `srl unsuspend`: moves the matching atoms
+/// from one status to another, and prints the IDs of those that changed (or
+/// would, with `--dry-run`).
+fn change_status(
+    store: &Store,
+    terms: &[String],
+    (from, to): (Status, Status),
+    dry_run: bool,
+) -> anyhow::Result<Outcome> {
+    let selector = Selector::parse(&terms.join(" "))?;
+    let changed = srl_core::change_status(store, &load(store)?, &selector, from, to, dry_run)?;
+    output::ids(&changed);
+    Ok(found_anything(!changed.is_empty()))
+}
+
+/// `srl edit ID --stdin`: replaces the atom's file with standard input.
+fn edit_stdin(store: &Store, id: &str, dry_run: bool) -> anyhow::Result<Outcome> {
+    let id = Id::parse(id)?;
+    let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
+    srl_core::replace(store, &load(store)?, &id, &text, dry_run)?;
+    Ok(Outcome::Done)
 }
 
 /// `srl add`: from flags, JSON lines or Markdown files. Prints the new IDs, or with

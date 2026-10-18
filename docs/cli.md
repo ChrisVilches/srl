@@ -46,13 +46,25 @@ agents all use the same commands. There is no separate API.
 | `srl add [--draft] FILE…` | Add atoms from Markdown files. |
 | `srl add [--draft] --stdin` | Add atoms from JSONL (see [atoms.md](atoms.md)). Prints the new IDs. |
 | `srl edit ID` | Edit an atom in `$EDITOR`. |
-| `srl edit ID --stdin` | Replace an atom's file with standard input. The `id` must not change. |
+| `srl edit ID --stdin` | Replace an atom's file with standard input, exactly as given. It must be a valid atom with the same `id`. The file keeps its path, even if the tags or cue change. Prints nothing. `--dry-run` only checks the text. |
 | `srl show ID… [--json]` | Print atoms: each file as it is, or JSON (see [atoms.md](atoms.md)). Unknown IDs are reported, and make the exit code 2. |
 | `srl find [SELECTOR] [--json]` | List matching atoms, ordered by path: one line each with ID, cue and tags, separated by two spaces; or the atom JSON of [atoms.md](atoms.md). Exit 1 if none matches. |
 | `srl tags [--json]` | List every tag in use, sorted, with the number of atoms that have it (any status): `COUNT  TAG` per line, or `{"tag": T, "count": N}` per line. Exit 1 if there are none. |
 | `srl drafts [SELECTOR] [--json]` | List drafts: the same as `srl find SELECTOR status:draft`. |
 | `srl accept SELECTOR` | Make matching drafts active. |
-| `srl suspend SELECTOR` / `srl unsuspend SELECTOR` | Change status between `active` and `suspended`. |
+| `srl suspend SELECTOR` | Make matching active atoms suspended. |
+| `srl unsuspend SELECTOR` | Make matching suspended atoms active. |
+
+`srl accept`, `srl suspend` and `srl unsuspend` apply the selector exactly as
+written. They change only the matching atoms that have the status they
+start from, and leave the rest alone: `srl suspend tag:x` doesn't touch
+drafts. Each prints the IDs it changed, one per line, ordered by path, and
+exits with 1 if it changed none. With `--dry-run` it prints the IDs it would
+change. Only the `status` line of each file changes: its value is replaced,
+or, if the file has none, a line is added right after the opening `---`.
+Every file is checked before the first one is written. If any can't be
+changed safely (see [rust.md](rust.md), "Front-matter editing"), the command
+reports it and changes nothing.
 
 > **TODO (platform):** `srl new` and `srl edit ID` open `$EDITOR`, which is
 > usually set on Unix but rarely on Windows. Decide what happens when it is

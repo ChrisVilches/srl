@@ -371,3 +371,103 @@ fn one_bad_file_adds_nothing() {
             .is_none()
     );
 }
+
+/// The IDs printed by a command, one per line.
+fn ids(output: &Output) -> Vec<String> {
+    stdout(output).lines().map(str::to_owned).collect()
+}
+
+#[test]
+fn drafts_move_through_accept_suspend_and_unsuspend() {
+    let tmp = store();
+    let a = tmp.path().join("a.md");
+    let b = tmp.path().join("b.md");
+    let a_text = "---\r\ncue: 鮪  # the fish\r\ntags: [kanji/food]\r\n---\r\nまぐろ\r\n";
+    fs::write(&a, a_text).unwrap();
+    fs::write(&b, "---\ncue: です\ntags: [jlpt/n5]\n---\n").unwrap();
+    let d = dir(&tmp);
+    let added = srl(&[
+        "add",
+        "--draft",
+        "--dir",
+        d,
+        a.to_str().unwrap(),
+        b.to_str().unwrap(),
+    ]);
+    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+    let [fish, desu] = ids(&added).try_into().unwrap();
+    assert_eq!(ids(&srl(&["drafts", "--dir", d])).len(), 2);
+
+    let dry = srl(&["accept", "tag:kanji", "--dry-run", "--dir", d]);
+    assert_eq!(ids(&dry), [fish.as_str()]);
+    assert_eq!(ids(&srl(&["drafts", "--dir", d])).len(), 2);
+
+    let accepted = srl(&["accept", "tag:kanji", "--dir", d]);
+    assert_eq!(accepted.status.code(), Some(0), "{}", stderr(&accepted));
+    assert_eq!(ids(&accepted), [fish.as_str()]);
+    let again = srl(&["accept", "tag:kanji", "--dir", d]);
+    assert_eq!(again.status.code(), Some(1));
+    assert!(again.stdout.is_empty());
+
+    let suspended = srl(&["suspend", "--dir", d]);
+    assert_eq!(ids(&suspended), [fish.as_str()]);
+    let found = srl(&["find", "status:suspended", "--dir", d]);
+    assert!(stdout(&found).starts_with(&fish));
+    assert_eq!(
+        ids(&srl(&["unsuspend", "-tag:jlpt", "--dir", d])),
+        [fish.as_str()]
+    );
+    assert_eq!(srl(&["unsuspend", "--dir", d]).status.code(), Some(1));
+
+    let stored = tmp
+        .path()
+        .join("atoms")
+        .join("kanji")
+        .join("food")
+        .join("鮪.md");
+    assert_eq!(
+        fs::read_to_string(stored).unwrap(),
+        format!(
+            "---\r\nid: {fish}\r\nstatus: active\r\n{}",
+            a_text.strip_prefix("---\r\n").unwrap()
+        )
+    );
+    let drafts = srl(&["drafts", "--dir", d]);
+    assert!(stdout(&drafts).starts_with(&desu));
+}
+
+#[test]
+fn edit_stdin_replaces_the_file_in_place() {
+    let tmp = store();
+    let d = dir(&tmp);
+    let id = stdout(&srl(&["add", "--dir", d, "--cue", "x", "--tag", "old"]))
+        .trim()
+        .to_owned();
+    let text = format!("---\nid: {id}\ncue: x, better\ntags: [new]\n---\nAn explanation.\n");
+    let output = srl_with_input(&["edit", &id, "--stdin", "--dir", d], &text);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tmp.path().join("atoms").join("old").join("x.md")).unwrap(),
+        text
+    );
+    assert_eq!(stdout(&srl(&["show", &id, "--dir", d])), text);
+
+    let renamed = text.replace(&format!("id: {id}"), "id: zzzzzz");
+    let refused = srl_with_input(&["edit", &id, "--stdin", "--dir", d], &renamed);
+    assert_eq!(refused.status.code(), Some(2));
+    assert!(stderr(&refused).contains(&format!("keep `id: {id}`")));
+
+    let unknown = srl_with_input(&["edit", "zzzzzz", "--stdin", "--dir", d], &renamed);
+    assert_eq!(unknown.status.code(), Some(2));
+
+    let dry = srl_with_input(
+        &["edit", &id, "--stdin", "--dry-run", "--dir", d],
+        "---\n---\n",
+    );
+    assert_eq!(dry.status.code(), Some(2));
+    let fine = text.replace("better", "best");
+    let dry = srl_with_input(&["edit", &id, "--stdin", "--dry-run", "--dir", d], &fine);
+    assert_eq!(dry.status.code(), Some(0));
+    assert_eq!(stdout(&srl(&["show", &id, "--dir", d])), text);
+}

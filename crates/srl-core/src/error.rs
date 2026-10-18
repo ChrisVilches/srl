@@ -66,6 +66,12 @@ pub enum Error {
 
     #[error("cannot add {}: {reason}; nothing was added", file.display())]
     InvalidFile { file: PathBuf, reason: String },
+
+    #[error("cannot change atoms/{path}: {reason}; nothing was changed")]
+    CannotEdit { path: String, reason: String },
+
+    #[error("the new text of atom {id} is not valid: {reason}; nothing was changed")]
+    InvalidEdit { id: crate::Id, reason: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

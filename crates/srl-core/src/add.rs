@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::atom::{Content, split_front_matter};
+use crate::atom::{self, Content};
 use crate::{Atom, Atoms, Error, Id, Result, Status, Store, frontmatter, yaml};
 
 /// The most characters of a cue that go into a file name.
@@ -49,21 +49,16 @@ impl NewAtom {
             file: file.clone(),
             reason,
         };
-        let (front, body) = split_front_matter(&text).ok_or_else(|| {
-            invalid("it does not start with front-matter between `---` lines".to_owned())
-        })?;
-        let fields = yaml::parse_mapping(front).map_err(invalid)?;
-        if fields.contains_key("id") {
-            return Err(invalid(
+        match atom::read(&text).map_err(invalid)? {
+            (None, content) => Ok(Self {
+                content,
+                file: Some((file, text)),
+            }),
+            (Some(_), _) => Err(invalid(
                 "it already has an `id`; remove the `id` line, and `srl add` assigns a new one"
                     .to_owned(),
-            ));
+            )),
         }
-        let content = Content::from_fields(fields, body.to_owned()).map_err(invalid)?;
-        Ok(Self {
-            content,
-            file: Some((file, text)),
-        })
     }
 }
 

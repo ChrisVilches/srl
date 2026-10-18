@@ -82,7 +82,7 @@ The body can be empty. An atom made only of a cue and facets is complete.
 - **Content can be changed at any time without consequences.** Fix a typo,
   rewrite the answer, add examples: the memory state stays as it is. Use your
   editor, `srl edit ID` (opens `$EDITOR`), or `srl edit ID --stdin` (replaces
-  the whole file).
+  the whole file, which stays where it is; see [cli.md](cli.md)).
 - **Starting over is explicit.** `srl reset ID` clears the memory state, so the
   atom becomes new again. It never happens automatically.
 
@@ -92,7 +92,7 @@ The body can be empty. An atom made only of a cue and facets is complete.
 |---|---|---|
 | `active` | yes | Normal atom. |
 | `draft` | no | Proposed, waiting for you. Listed by `srl drafts`. `srl accept SELECTOR` makes matching drafts active. |
-| `suspended` | no | Kept but not studied. |
+| `suspended` | no | Kept but not studied. `srl suspend SELECTOR` and `srl unsuspend SELECTOR` move atoms between `active` and `suspended`. |
 
 Drafts exist so that atoms written by agents or imports never enter your study
 queue without your approval. `srl add --draft` creates drafts; accepting many

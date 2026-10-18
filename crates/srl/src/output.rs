@@ -17,6 +17,13 @@ pub(crate) fn paths(paths: &[PathBuf]) {
     }
 }
 
+/// Prints one ID per line.
+pub(crate) fn ids(ids: &[srl_core::Id]) {
+    for id in ids {
+        println!("{id}");
+    }
+}
+
 /// Prints the IDs of added atoms, one per line. With `dry_run`, also prints
 /// the file each would be written to.
 pub(crate) fn added(added: &[srl_core::Added], dry_run: bool) {

@@ -27,7 +27,7 @@ my-store/
 | Path | Source of truth? | Written by |
 |---|---|---|
 | `srl.toml` | yes | you |
-| `atoms/` | yes | `srl add`, `srl new`, `srl edit`, `srl accept`, or any editor |
+| `atoms/` | yes | `srl add`, `srl new`, `srl edit`, `srl accept`, `srl suspend`, `srl unsuspend`, or any editor |
 | `log/` | yes | `srl review`, `srl reset` only. Never edit by hand. |
 | `drills/` | yes | you |
 | `sessions/` | yes, but disposable in practice | `srl session put` |

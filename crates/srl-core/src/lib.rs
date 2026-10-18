@@ -8,6 +8,7 @@
 
 mod add;
 mod atom;
+mod edit;
 mod error;
 mod frontmatter;
 mod selector;
@@ -16,6 +17,7 @@ mod yaml;
 
 pub use add::{Added, Flags, NewAtom, add};
 pub use atom::{Atom, Atoms, Content, Id, Status, TagCount};
+pub use edit::{change_status, replace};
 pub use error::{Error, Result};
 pub use selector::Selector;
 pub use store::{Lookup, Store};
