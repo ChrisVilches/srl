@@ -213,16 +213,16 @@ pub(crate) struct AddArgs {
     #[arg(long, conflicts_with = "title")]
     pub(crate) stdin: bool,
     /// The title of a new atom.
-    #[arg(long, value_name = "C")]
+    #[arg(long, value_name = "TITLE")]
     pub(crate) title: Option<String>,
     /// The answer of the new atom.
-    #[arg(long, value_name = "A", requires = "title")]
+    #[arg(long, value_name = "ANSWER", requires = "title")]
     pub(crate) answer: Option<String>,
     /// A tag of the new atom (repeatable).
-    #[arg(long = "tag", value_name = "T", requires = "title")]
+    #[arg(long = "tag", value_name = "TAG", requires = "title")]
     pub(crate) tags: Vec<String>,
     /// Where the new atom came from.
-    #[arg(long, value_name = "S", requires = "title")]
+    #[arg(long, value_name = "SOURCE", requires = "title")]
     pub(crate) source: Option<String>,
     #[command(flatten)]
     pub(crate) dry_run: DryRun,

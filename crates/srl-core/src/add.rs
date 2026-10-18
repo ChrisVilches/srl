@@ -14,7 +14,7 @@ use crate::{Atom, Atoms, Error, Id, Result, Status, Store, random, yaml};
 /// The most characters of a title that go into a file name.
 const SLUG_LEN: usize = 60;
 
-/// The fields of `srl add --title C [--answer A] [--tag T]… [--source S]`.
+/// The fields of `srl add --title TITLE [--answer ANSWER] [--tag TAG]… [--source SOURCE]`.
 #[derive(Debug, Clone, Default)]
 pub struct Flags {
     pub title: String,
