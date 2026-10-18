@@ -227,3 +227,91 @@ fn broken_atom_files_are_reported_and_skipped() {
     assert!(stdout(&output).contains("cue: x"));
     assert!(stderr(&output).contains("atoms/broken.md"));
 }
+
+/// A store with three atoms: N1 grammar, N5 grammar and a draft food kanji.
+fn japanese() -> TempDir {
+    let tmp = store();
+    let lines = [
+        r#"{"cue": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"]}"#,
+        r#"{"cue": "です", "tags": ["japanese/grammar", "jlpt/n5"]}"#,
+    ];
+    let added = srl_with_input(&["add", "--stdin", "--dir", dir(&tmp)], &lines.join("\n"));
+    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+    let draft = srl(&[
+        "add",
+        "--draft",
+        "--dir",
+        dir(&tmp),
+        "--cue",
+        "鮪",
+        "--tag",
+        "kanji/food",
+    ]);
+    assert_eq!(draft.status.code(), Some(0), "{}", stderr(&draft));
+    tmp
+}
+
+#[test]
+fn find_takes_negated_terms_and_lists_atoms() {
+    let tmp = japanese();
+    let output = srl(&["find", "tag:japanese", "-tag:jlpt/n5", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let stdout = stdout(&output);
+    assert_eq!(stdout.lines().count(), 1);
+    assert!(stdout.contains("〜をものともせず  japanese/grammar jlpt/n1"));
+}
+
+#[test]
+fn find_exits_1_when_nothing_matches() {
+    let tmp = japanese();
+    let output = srl(&["find", "tag:nothing", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn find_json_prints_one_atom_per_line() {
+    let tmp = japanese();
+    let output = srl(&["find", "--json", "--dir", dir(&tmp)]);
+    let lines = stdout(&output)
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(lines.len(), 3);
+    assert!(lines.iter().all(|atom| atom["id"].is_string()));
+}
+
+#[test]
+fn bad_selectors_exit_with_2_and_explain() {
+    let tmp = japanese();
+    let output = srl(&["find", "tga:x", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("tga:"));
+}
+
+#[test]
+fn inbox_lists_only_drafts() {
+    let tmp = japanese();
+    let output = srl(&["inbox", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = stdout(&output);
+    assert_eq!(stdout.lines().count(), 1);
+    assert!(stdout.contains("鮪"));
+    let none = srl(&["inbox", "tag:japanese", "--dir", dir(&tmp)]);
+    assert_eq!(none.status.code(), Some(1));
+}
+
+#[test]
+fn tags_counts_every_tag() {
+    let tmp = japanese();
+    let output = srl(&["tags", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        stdout(&output),
+        "2  japanese/grammar\n1  jlpt/n1\n1  jlpt/n5\n1  kanji/food\n"
+    );
+    let json = srl(&["tags", "--json", "--dir", dir(&tmp)]);
+    assert!(stdout(&json).starts_with("{\"tag\":\"japanese/grammar\",\"count\":2}\n"));
+    let empty = store();
+    assert_eq!(srl(&["tags", "--dir", dir(&empty)]).status.code(), Some(1));
+}

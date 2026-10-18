@@ -55,6 +55,9 @@ pub enum Error {
     #[error("no atom has the ID {id}; list atoms with `srl find`")]
     UnknownId { id: crate::Id },
 
+    #[error("invalid selector term `{term}`: {reason}")]
+    BadSelector { term: String, reason: String },
+
     #[error("cannot add the atom: {reason}")]
     InvalidNewAtom { reason: String },
 

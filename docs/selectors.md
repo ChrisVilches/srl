@@ -19,11 +19,26 @@ mean the same.
 | Term | Matches |
 |---|---|
 | `tag:a` | Atoms with tag `a` or any tag under it (`tag:japanese` matches `japanese/grammar`) |
-| `path:GLOB` | Atoms whose file path, relative to `atoms/`, matches the glob (`path:japanese/*`) |
+| `path:GLOB` | Atoms whose file path, relative to `atoms/`, matches the glob. `*` matches within one folder, `**` across folders: `path:japanese/*` is the files directly in `japanese/`, `path:japanese/**` everything below it. |
 | `id:ID` | The atom with that ID |
 | `status:S` | Atoms with status `active`, `draft` or `suspended` |
 | `state:S` | Atoms in a scheduling state: `new`, `due`, `young`, `mature`, `leech` (see [scheduling.md](scheduling.md)) |
 | `word` or `"some words"` | Atoms whose file contains the text, case-insensitively, anywhere: front-matter or body |
+
+Keys and text are told apart by one rule: a term that starts with lowercase
+letters `a`–`z` and a colon is a `key:value` term, and anything else is text.
+A key that is not in the table above is an error, so a typo such as `tga:x`
+fails instead of silently searching for the text `tga:x`. To search for text
+like that, put it in double quotes: `"std::move"`.
+
+Double quotes make a term of everything up to the next `"`, spaces included,
+and it is always text. `-` before the opening quote negates it. Quotes must be
+closed, and followed by a space or the end. Your shell removes one level of
+quotes, so from the command line write `srl find '"some words"'`. Without the
+inner quotes, `srl find "some words"` is two terms, `some` and `words`.
+
+A value can't be empty (`tag:` or `tag:a,,b`), and `id:` and `status:` values
+must be valid IDs and statuses.
 
 Three combining rules, and nothing else:
 

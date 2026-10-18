@@ -42,9 +42,9 @@ agents all use the same commands. There is no separate API.
 | `srl edit ID` | Edit an atom in `$EDITOR`. |
 | `srl edit ID --stdin` | Replace an atom's file with standard input. The `id` must not change. |
 | `srl show ID… [--json]` | Print atoms: each file as it is, or JSON (see [atoms.md](atoms.md)). Unknown IDs are reported, and make the exit code 2. |
-| `srl find [SELECTOR] [--json]` | List matching atoms. |
-| `srl tags [--json]` | List every tag in use, with counts. |
-| `srl inbox [SELECTOR] [--json]` | List drafts. |
+| `srl find [SELECTOR] [--json]` | List matching atoms, ordered by path: one line each with ID, cue and tags, separated by two spaces; or the atom JSON of [atoms.md](atoms.md). Exit 1 if none matches. |
+| `srl tags [--json]` | List every tag in use, sorted, with the number of atoms that have it (any status): `COUNT  TAG` per line, or `{"tag": T, "count": N}` per line. Exit 1 if there are none. |
+| `srl inbox [SELECTOR] [--json]` | List drafts: the same as `srl find SELECTOR status:draft`. |
 | `srl accept SELECTOR` | Make matching drafts active. |
 | `srl suspend SELECTOR` / `srl unsuspend SELECTOR` | Change status between `active` and `suspended`. |
 

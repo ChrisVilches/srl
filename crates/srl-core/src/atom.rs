@@ -1,6 +1,6 @@
 //! Atoms: the file format, identity and status (see `docs/atoms.md`).
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use std::fs;
 
@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 
 use crate::store::Store;
-use crate::{Error, Result, yaml};
+use crate::{Error, Result, Selector, yaml};
 
 /// The number of characters in an ID.
 const ID_LEN: usize = 6;
@@ -347,6 +347,38 @@ impl Atoms {
     pub fn get(&self, id: &Id) -> Option<&Atom> {
         self.atoms.iter().find(|atom| atom.id() == id)
     }
+
+    /// The atoms that match `selector`, ordered by path.
+    pub fn select(&self, selector: &Selector) -> Vec<&Atom> {
+        self.atoms
+            .iter()
+            .filter(|atom| selector.matches(atom))
+            .collect()
+    }
+
+    /// Every tag in use, sorted, with the number of atoms that have it.
+    pub fn tags(&self) -> Vec<TagCount> {
+        self.atoms
+            .iter()
+            .flat_map(|atom| atom.content().tags().iter().collect::<BTreeSet<_>>())
+            .fold(BTreeMap::<&String, usize>::new(), |mut counts, tag| {
+                *counts.entry(tag).or_default() += 1;
+                counts
+            })
+            .into_iter()
+            .map(|(tag, count)| TagCount {
+                tag: tag.clone(),
+                count,
+            })
+            .collect()
+    }
+}
+
+/// One tag and how many atoms have it (see `srl tags`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct TagCount {
+    pub tag: String,
+    pub count: usize,
 }
 
 /// Keeps the first atom of each ID, and reports the others.
@@ -463,6 +495,31 @@ mod tests {
                 "accepted:\n{text}"
             );
         }
+    }
+
+    #[test]
+    fn tags_are_counted_once_per_atom_and_sorted() {
+        let atoms = Atoms {
+            atoms: vec![
+                atom("---\nid: aaaaa1\ncue: x\ntags: [b, a, b]\n---\n").unwrap(),
+                atom("---\nid: aaaaa2\ncue: y\ntags: [b/c]\n---\n").unwrap(),
+                atom("---\nid: aaaaa3\ncue: z\ntags: [b]\n---\n").unwrap(),
+            ],
+            problems: Vec::new(),
+        };
+        let counts = atoms
+            .tags()
+            .into_iter()
+            .map(|count| (count.tag, count.count))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            counts,
+            [
+                ("a".to_owned(), 1),
+                ("b".to_owned(), 2),
+                ("b/c".to_owned(), 1)
+            ]
+        );
     }
 
     #[test]

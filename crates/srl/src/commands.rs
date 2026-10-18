@@ -8,7 +8,7 @@ use std::io;
 use std::path::PathBuf;
 
 use anyhow::{Context, bail};
-use srl_core::{Atoms, Content, Error, Flags, Id, Lookup, Store};
+use srl_core::{Atoms, Content, Error, Flags, Id, Lookup, Selector, Status, Store};
 
 use crate::args::{AddArgs, Cli, Command, SessionCommand};
 use crate::{Outcome, external, output};
@@ -20,13 +20,19 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Init { dir, dry_run } => return init(cli.dir, dir, dry_run.dry_run),
         Command::Show { ids, json } => return show(&store()?, &ids, json.json),
         Command::Add(args) => return add(&store()?, args),
+        Command::Find { selector, json } => {
+            let selector = Selector::parse(&selector.terms.join(" "))?;
+            return find(&store()?, &selector, json.json);
+        }
+        Command::Inbox { selector, json } => {
+            let selector = Selector::parse(&selector.terms.join(" "))?.and_status(Status::Draft);
+            return find(&store()?, &selector, json.json);
+        }
+        Command::Tags { json } => return tags(&store()?, json.json),
         Command::Check { .. } => "check",
         Command::Reindex => "reindex",
         Command::New { .. } => "new",
         Command::Edit { .. } => "edit",
-        Command::Find { .. } => "find",
-        Command::Tags { .. } => "tags",
-        Command::Inbox { .. } => "inbox",
         Command::Accept { .. } => "accept",
         Command::Suspend { .. } => "suspend",
         Command::Unsuspend { .. } => "unsuspend",
@@ -75,6 +81,38 @@ fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
     let added = srl_core::add(store, &load(store)?, contents, args.draft, seed, dry_run)?;
     output::added(&added, dry_run);
     Ok(Outcome::Done)
+}
+
+/// `srl find` and `srl inbox`: lists the matching atoms.
+fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
+    let atoms = load(store)?;
+    let found = atoms.select(selector);
+    if json {
+        output::json_lines(&found)?;
+    } else {
+        output::atom_lines(&found);
+    }
+    Ok(found_anything(!found.is_empty()))
+}
+
+/// `srl tags`: every tag in use, with counts.
+fn tags(store: &Store, json: bool) -> anyhow::Result<Outcome> {
+    let counts = load(store)?.tags();
+    if json {
+        output::json_lines(&counts)?;
+    } else {
+        output::tag_counts(&counts);
+    }
+    Ok(found_anything(!counts.is_empty()))
+}
+
+/// Exit code 0 if something was found, 1 if not (like `grep`).
+fn found_anything(found: bool) -> Outcome {
+    if found {
+        Outcome::Done
+    } else {
+        Outcome::Nothing
+    }
 }
 
 /// Reads every atom and reports the files that were skipped.

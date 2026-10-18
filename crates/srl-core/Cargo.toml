@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+globset.workspace = true
 saphyr.workspace = true
 serde.workspace = true
 serde_json.workspace = true

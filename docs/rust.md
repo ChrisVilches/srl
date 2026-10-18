@@ -19,6 +19,7 @@ crates/
                           store.md: finding, creating and listing a store
     src/atom.rs           atoms.md: the atom file, IDs, status, reading atoms
     src/add.rs            atoms.md, "Creating atoms"
+    src/selector.rs       selectors.md
     src/yaml.rs         front-matter between YAML text and JSON values
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
@@ -231,6 +232,7 @@ Current dependencies:
 | `getrandom` | `srl` | The random seed for new atom IDs (the core derives IDs from it) |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
 | `saphyr` | `srl-core` | YAML 1.2 parsing and writing of front-matter |
+| `globset` | `srl-core` | `path:` globs in selectors |
 | `serde` (derive), `serde_json` (`preserve_order`) | both | The JSON formats; facets keep their file order |
 | `tempfile` | tests of both crates | Temporary store trees |
 

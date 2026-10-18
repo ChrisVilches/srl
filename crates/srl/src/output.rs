@@ -29,6 +29,32 @@ pub(crate) fn added(added: &[srl_core::Added], dry_run: bool) {
     }
 }
 
+/// Prints one line per atom: ID, cue and tags, separated by two spaces.
+pub(crate) fn atom_lines(atoms: &[&srl_core::Atom]) {
+    for atom in atoms {
+        let content = atom.content();
+        let cue = content
+            .cue()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let line = format!("{}  {cue}  {}", atom.id(), content.tags().join(" "));
+        println!("{}", line.trim_end());
+    }
+}
+
+/// Prints one line per tag: the count, right-aligned, and the tag.
+pub(crate) fn tag_counts(counts: &[srl_core::TagCount]) {
+    let width = counts
+        .iter()
+        .map(|count| count.count.to_string().len())
+        .max()
+        .unwrap_or(0);
+    for count in counts {
+        println!("{:>width$}  {}", count.count, count.tag);
+    }
+}
+
 /// Prints whole files, separated by blank lines.
 pub(crate) fn files<'a>(texts: impl Iterator<Item = &'a str>) {
     for (index, text) in texts.enumerate() {
