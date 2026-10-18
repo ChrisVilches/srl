@@ -96,7 +96,9 @@ The command can be anything: a script with regular expressions, a call to an
 LLM, a program that asks a friend. `srl` neither knows nor cares. If no
 command is configured, or the command fails, `srl grade` returns
 `{"correct": null, "suggested_rating": null, "feedback": null, "fallback":
-"self"}` and the frontend falls back to self-grading.
+"self"}` and the frontend falls back to self-grading. A failing command is
+also reported on standard error, so a broken grader is never mistaken for
+one that isn't configured.
 
 ## Ratings
 

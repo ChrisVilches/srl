@@ -123,6 +123,17 @@ types, so that the compiler checks them:
 
 ### Errors
 
+- **Fail loudly** (see [overview.md](overview.md), principle 6). Never
+  discard an error. Don't write `let _ = …` on a `Result`, don't turn an
+  error into a default with `.ok()`, `.unwrap_or_default()` or
+  `.unwrap_or(…)`, don't drop the cause with `.map_err(|_| …)`, and don't
+  leave an `Err(_) => {}` arm empty. Propagate errors with `?`. Where the
+  specification says to carry on after a failure (a drill that fails, an
+  invalid card), return the failure next to the results so the CLI can
+  report it on standard error. Never skip it without a word.
+- Turning a missing value into a default is fine when the specification
+  says so, as with an absent `srl.toml` key. Turning a *failure* into a
+  default is not.
 - `srl-core` has one `Error` enum (with `thiserror`) and a `Result<T>` alias.
   Each variant's message is one plain sentence that says what to do about it,
   because the CLI prints it as is (see [cli.md](cli.md)).
@@ -233,12 +244,13 @@ ordinary idiomatic Rust alone:
 | clippy `pedantic` | Catches many small quality issues. |
 | …except `module_name_repetitions`, `must_use_candidate`, `missing_errors_doc`, `missing_panics_doc` | They add noise and little value in this codebase. |
 | `unwrap_used`, `expect_used`, `panic`, `todo`, `unimplemented`, `dbg_macro` | No crashes or leftovers outside tests. |
+| `let_underscore_must_use`, `map_err_ignore`, `unused_result_ok` | Errors are never discarded (fail loudly). |
 | `print_stdout`, `print_stderr` | Only `output.rs` prints, with an `#[expect]`. |
 | `exit` | Exit codes come from `main`'s return value. |
 | `wildcard_enum_match_arm` | Matches on enums list every variant. |
 | `allow_attributes`, `allow_attributes_without_reason` | Use `#[expect(lint, reason = "…")]`. It explains itself and warns when it is no longer needed. |
 | `mod_module_files` | Modules are `name.rs`, never `name/mod.rs`. |
-| `clone_on_ref_ptr`, `str_to_string`, `if_then_some_else_none`, `let_underscore_must_use`, `rest_pat_in_fully_bound_structs`, `verbose_file_reads`, `undocumented_unsafe_blocks` | Small idioms that make code clearer. |
+| `clone_on_ref_ptr`, `str_to_string`, `if_then_some_else_none`, `rest_pat_in_fully_bound_structs`, `verbose_file_reads`, `undocumented_unsafe_blocks` | Small idioms that make code clearer. |
 
 These are deliberately **not** enabled: `implicit_return` (tail expressions
 are fine), `missing_docs_in_private_items`, `arithmetic_side_effects`,

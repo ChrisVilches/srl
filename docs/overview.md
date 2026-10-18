@@ -47,6 +47,11 @@ document, listed at the end.
    adaptive policies, no hidden state.
 5. **Small fixed contracts, everything else pluggable.** A handful of formats
    are rigid so that the programs around them can vary freely.
+6. **Fail loudly.** No error is swallowed. Every failure is reported on
+   standard error, saying what to do about it. Where `srl` can carry on
+   without the part that failed (a broken drill, an invalid card), it does,
+   and still reports the failure. It never quietly substitutes a guess or a
+   default for something that went wrong.
 
 ## The pieces
 
