@@ -46,6 +46,13 @@ without changing the core. They are recorded here so they are not lost.
 - **Code exercises graded by tests.** A drill writes an exercise; the grader
   runs it in a sandbox.
 
+## Stores
+
+- **Export and import between stores.** Move or copy atoms from one store to
+  another together with their review history, so that their memory state
+  comes along. It needs rules for ID clashes and for merging logs. Copying
+  a file into `atoms/` by hand moves only the content.
+
 ## Analysis
 
 - **Compare paradigms on yourself.** Every review records its drill, so you can

@@ -325,53 +325,6 @@ fn tags_counts_every_tag() {
     assert_eq!(srl(&["tags", "--dir", dir(&empty)]).status.code(), Some(1));
 }
 
-#[test]
-fn added_files_are_copied_with_an_id_and_left_alone() {
-    let tmp = store();
-    let source = tmp.path().join("notes.md");
-    let text = "---\ncue: 鮪  # the fish\ntags: [kanji/food]\n---\nまぐろ\n";
-    fs::write(&source, text).unwrap();
-    let output = srl(&["add", "--dir", dir(&tmp), source.to_str().unwrap()]);
-    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-    let id = stdout(&output).trim().to_owned();
-    assert_eq!(fs::read_to_string(&source).unwrap(), text);
-    let copied = tmp
-        .path()
-        .join("atoms")
-        .join("kanji")
-        .join("food")
-        .join("鮪.md");
-    assert_eq!(
-        fs::read_to_string(copied).unwrap(),
-        format!("---\nid: {id}\n{}", text.strip_prefix("---\n").unwrap())
-    );
-}
-
-#[test]
-fn one_bad_file_adds_nothing() {
-    let tmp = store();
-    let good = tmp.path().join("good.md");
-    let bad = tmp.path().join("bad.md");
-    fs::write(&good, "---\ncue: fine\n---\n").unwrap();
-    fs::write(&bad, "---\nid: a7f3k2\ncue: has an id\n---\n").unwrap();
-    let output = srl(&[
-        "add",
-        "--dir",
-        dir(&tmp),
-        good.to_str().unwrap(),
-        bad.to_str().unwrap(),
-    ]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(stderr(&output).contains("bad.md"));
-    assert!(stderr(&output).contains("`id`"));
-    assert!(
-        fs::read_dir(tmp.path().join("atoms"))
-            .unwrap()
-            .next()
-            .is_none()
-    );
-}
-
 /// The IDs printed by a command, one per line.
 fn ids(output: &Output) -> Vec<String> {
     stdout(output).lines().map(str::to_owned).collect()
@@ -380,57 +333,42 @@ fn ids(output: &Output) -> Vec<String> {
 #[test]
 fn drafts_move_through_accept_suspend_and_unsuspend() {
     let tmp = store();
-    let a = tmp.path().join("a.md");
-    let b = tmp.path().join("b.md");
-    let a_text = "---\r\ncue: 鮪  # the fish\r\ntags: [kanji/food]\r\n---\r\nまぐろ\r\n";
-    fs::write(&a, a_text).unwrap();
-    fs::write(&b, "---\ncue: です\ntags: [jlpt/n5]\n---\n").unwrap();
     let d = dir(&tmp);
+    // A file written by hand, straight into atoms/, with a comment and CRLF.
+    let fish = "a7f3k2";
+    let stored = tmp.path().join("atoms").join("fish.md");
+    let text = format!(
+        "---\r\nid: {fish}\r\ncue: 鮪  # the fish\r\nstatus: draft # check it\r\ntags: [kanji/food]\r\n---\r\nまぐろ\r\n"
+    );
+    fs::write(&stored, &text).unwrap();
     let added = srl(&[
-        "add",
-        "--draft",
-        "--dir",
-        d,
-        a.to_str().unwrap(),
-        b.to_str().unwrap(),
+        "add", "--draft", "--dir", d, "--cue", "です", "--tag", "jlpt/n5",
     ]);
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
-    let [fish, desu] = ids(&added).try_into().unwrap();
+    let desu = stdout(&added).trim().to_owned();
     assert_eq!(ids(&srl(&["drafts", "--dir", d])).len(), 2);
 
     let dry = srl(&["accept", "tag:kanji", "--dry-run", "--dir", d]);
-    assert_eq!(ids(&dry), [fish.as_str()]);
+    assert_eq!(ids(&dry), [fish]);
     assert_eq!(ids(&srl(&["drafts", "--dir", d])).len(), 2);
 
     let accepted = srl(&["accept", "tag:kanji", "--dir", d]);
     assert_eq!(accepted.status.code(), Some(0), "{}", stderr(&accepted));
-    assert_eq!(ids(&accepted), [fish.as_str()]);
+    assert_eq!(ids(&accepted), [fish]);
     let again = srl(&["accept", "tag:kanji", "--dir", d]);
     assert_eq!(again.status.code(), Some(1));
     assert!(again.stdout.is_empty());
 
     let suspended = srl(&["suspend", "--dir", d]);
-    assert_eq!(ids(&suspended), [fish.as_str()]);
+    assert_eq!(ids(&suspended), [fish]);
     let found = srl(&["find", "status:suspended", "--dir", d]);
-    assert!(stdout(&found).starts_with(&fish));
-    assert_eq!(
-        ids(&srl(&["unsuspend", "-tag:jlpt", "--dir", d])),
-        [fish.as_str()]
-    );
+    assert!(stdout(&found).starts_with(fish));
+    assert_eq!(ids(&srl(&["unsuspend", "-tag:jlpt", "--dir", d])), [fish]);
     assert_eq!(srl(&["unsuspend", "--dir", d]).status.code(), Some(1));
 
-    let stored = tmp
-        .path()
-        .join("atoms")
-        .join("kanji")
-        .join("food")
-        .join("鮪.md");
     assert_eq!(
         fs::read_to_string(stored).unwrap(),
-        format!(
-            "---\r\nid: {fish}\r\nstatus: active\r\n{}",
-            a_text.strip_prefix("---\r\n").unwrap()
-        )
+        text.replace("status: draft", "status: active")
     );
     let drafts = srl(&["drafts", "--dir", d]);
     assert!(stdout(&drafts).starts_with(&desu));

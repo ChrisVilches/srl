@@ -117,9 +117,12 @@ export from another app):
 ```sh
 srl new                                       # open $EDITOR with a template
 srl add --cue "鮪" --answer "tuna (まぐろ)" --tag kanji/food
-srl add path/to/atom.md                       # copy a file in, assigning an ID
 some-producer | srl add --stdin               # JSONL: one atom per line
 ```
+
+An atom file you wrote yourself needs no command: put it anywhere under
+`atoms/` (with `cp`, your editor, …). If it has no `id`, `srl check --fix`
+assigns one. Until then, commands skip it and say so.
 
 On `--stdin`, each line is a JSON object with the front-matter fields
 (without `id`) and an optional `body` string:
@@ -135,18 +138,7 @@ any line is invalid (not a JSON object, no `cue`, an `id`, a reserved name,
 `tags` that is not a list of text, an unknown `status`), `srl add` reports the
 first such line and adds nothing. Blank lines are ignored.
 
-`srl add FILE…` copies Markdown files in. Each file must be an atom without
-an `id`: front-matter with a `cue`, valid fields, and no `id` line. The copy
-is the file as it is, byte for byte (comments, layout, line endings and body
-included), with one line `id: …` added right after the opening `---`. The
-source files are left untouched. Files are checked before anything is
-written: if any file can't be read or is not such an atom, `srl add` reports
-it and adds nothing. A file that already has an `id` is refused. Remove the
-`id` line and `srl add` assigns a new one.
-
-Add `--draft` to any form to create drafts. On a copied file, it sets
-`status: draft`, replacing the value of an existing `status` line or adding
-the line after `id`. `srl add` prints the new IDs, one
+Add `--draft` to any form to create drafts. `srl add` prints the new IDs, one
 per line. With `--dry-run` it prints each ID with the file it would write, and
 writes nothing.
 
@@ -168,11 +160,10 @@ them afterwards. The names follow one rule:
 - The **file** is the cue's name plus `.md`. If the cue gives an empty name,
   the file is `ID.md`; if the file already exists, it is `NAME-ID.md`.
 
-Files made from flags or JSON lines are written with the fields in the order
-of the table above and `tags` on one line (`tags: [a, b]`), then the facets,
-then the body. They are UTF-8 with `\n` line endings on every platform.
-Copied files keep their own text, as described above. An existing file is
-never overwritten.
+New files are written with the fields in the order of the table above and
+`tags` on one line (`tags: [a, b]`), then the facets, then the body. An
+existing file is never overwritten. They are UTF-8 with `\n` line endings on
+every platform.
 
 > **TODO (platform):** Windows limits paths to 260 characters unless long
 > paths are enabled. A store deep in the file system with a long first tag

@@ -97,7 +97,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{Lookup, NewAtom, add};
+    use crate::Lookup;
 
     /// A store with the given atom files, and its atoms.
     fn store(files: &[(&str, &str)]) -> (TempDir, Store) {
@@ -235,30 +235,5 @@ mod tests {
         let text = ACTIVE.replace("cue: b", "cue: B");
         replace(&store, &atoms, &id("aaaaa2"), &text, true).unwrap();
         assert_eq!(file(&store, "b.md"), ACTIVE);
-    }
-
-    #[test]
-    fn copied_drafts_can_be_accepted() {
-        let (_tmp, store) = store(&[]);
-        let new = NewAtom::from_file("in.md".into(), "---\ncue: x # c\n---\n".to_owned()).unwrap();
-        let added = add(
-            &store,
-            &Atoms::load(&store).unwrap(),
-            vec![new],
-            true,
-            0,
-            false,
-        )
-        .unwrap();
-        let atoms = Atoms::load(&store).unwrap();
-        let all = Selector::parse("").unwrap();
-        change_status(&store, &atoms, &all, Status::Draft, Status::Active, false).unwrap();
-        assert_eq!(
-            file(&store, &added[0].path),
-            format!(
-                "---\nid: {}\nstatus: active\ncue: x # c\n---\n",
-                added[0].id
-            )
-        );
     }
 }

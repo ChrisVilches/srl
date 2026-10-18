@@ -15,7 +15,7 @@ mod selector;
 mod store;
 mod yaml;
 
-pub use add::{Added, Flags, NewAtom, add};
+pub use add::{Added, Flags, add};
 pub use atom::{Atom, Atoms, Content, Id, Status, TagCount};
 pub use edit::{change_status, replace};
 pub use error::{Error, Result};

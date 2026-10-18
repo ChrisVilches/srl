@@ -43,7 +43,6 @@ agents all use the same commands. There is no separate API.
 |---|---|
 | `srl new [--draft]` | Write a new atom in `$EDITOR`. |
 | `srl add [--draft] --cue C [--answer A] [--tag T]… [--source S]` | Add an atom from flags. |
-| `srl add [--draft] FILE…` | Add atoms from Markdown files. |
 | `srl add [--draft] --stdin` | Add atoms from JSONL (see [atoms.md](atoms.md)). Prints the new IDs. |
 | `srl edit ID` | Edit an atom in `$EDITOR`. |
 | `srl edit ID --stdin` | Replace an atom's file with standard input, exactly as given. It must be a valid atom with the same `id`. The file keeps its path, even if the tags or cue change. Prints nothing. `--dry-run` only checks the text. |

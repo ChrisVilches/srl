@@ -64,9 +64,6 @@ pub enum Error {
     #[error("line {line} of standard input is not a valid atom: {reason}; nothing was added")]
     InvalidLine { line: usize, reason: String },
 
-    #[error("cannot add {}: {reason}; nothing was added", file.display())]
-    InvalidFile { file: PathBuf, reason: String },
-
     #[error("cannot change atoms/{path}: {reason}; nothing was changed")]
     CannotEdit { path: String, reason: String },
 

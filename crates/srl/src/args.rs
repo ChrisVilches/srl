@@ -79,7 +79,7 @@ pub(crate) enum Command {
         #[arg(long)]
         draft: bool,
     },
-    /// Add atoms from flags, Markdown files or JSONL on standard input.
+    /// Add atoms from flags or JSONL on standard input.
     Add(AddArgs),
     /// Edit an atom in $EDITOR, or replace it with standard input.
     Edit {
@@ -210,10 +210,10 @@ pub(crate) struct AddArgs {
     #[arg(long)]
     pub(crate) draft: bool,
     /// Read JSONL from standard input, one atom per line.
-    #[arg(long, conflicts_with_all = ["cue", "files"])]
+    #[arg(long, conflicts_with = "cue")]
     pub(crate) stdin: bool,
     /// The cue of a new atom.
-    #[arg(long, value_name = "C", conflicts_with = "files")]
+    #[arg(long, value_name = "C")]
     pub(crate) cue: Option<String>,
     /// The answer of the new atom.
     #[arg(long, value_name = "A", requires = "cue")]
@@ -224,9 +224,6 @@ pub(crate) struct AddArgs {
     /// Where the new atom came from.
     #[arg(long, value_name = "S", requires = "cue")]
     pub(crate) source: Option<String>,
-    /// Markdown files to add as atoms.
-    #[arg(value_name = "FILE")]
-    pub(crate) files: Vec<PathBuf>,
     #[command(flatten)]
     pub(crate) dry_run: DryRun,
 }

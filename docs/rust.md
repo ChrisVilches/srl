@@ -362,8 +362,7 @@ files are edited by hand, so `srl` must never do that.
 
 Only a few commands change front-matter that already exists: `srl check
 --fix` (adds `id`), `srl accept`, `srl suspend` and `srl unsuspend` (set
-`status`), and `srl add FILE…` (may add `id` and `status`). All of them set
-one top-level scalar key. Commands that write new files (`srl add --cue`,
+`status`). All of them set one top-level scalar key. Commands that write new files (`srl add --cue`,
 `srl add --stdin`, `srl new`) can serialize normally. `srl edit` takes the
 whole file from the user and only parses it.
 
