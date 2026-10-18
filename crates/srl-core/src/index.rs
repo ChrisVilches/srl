@@ -1116,4 +1116,45 @@ mod tests {
         assert!(only_appended(&partial, &[file("a", "1")]));
         assert!(!only_appended(&partial, &[file("a", "1\n")]));
     }
+
+    #[test]
+    fn processes_can_share_the_cache_while_the_log_grows() {
+        let (_tmp, store) = store();
+        write(&store, "atoms/one.md", &atom("aaaaa1", "one"));
+        write(&store, "atoms/two.md", &atom("aaaaa2", "two"));
+        let event = |atom: &str| {
+            let line = review("2026-09-01T10:00:00+09:00", atom, 3, "cloze:0:1");
+            serde_json::from_str::<crate::Event>(&line).unwrap()
+        };
+        let writers = ["aaaaa1", "aaaaa2"].map(|atom| {
+            let store = store.clone();
+            let event = event(atom);
+            std::thread::spawn(move || {
+                for _ in 0..40 {
+                    log::append(&store, std::slice::from_ref(&event)).unwrap();
+                }
+            })
+        });
+        let readers = (0..4)
+            .map(|_| {
+                let store = store.clone();
+                std::thread::spawn(move || {
+                    for _ in 0..20 {
+                        let mut index = Index::open(&store);
+                        index.atoms().unwrap();
+                        let (_, problems) = index.memories(&Config::default()).unwrap();
+                        assert!(problems.is_empty(), "{problems:?}");
+                        assert!(index.problems().is_empty(), "{:?}", index.problems());
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        for thread in writers.into_iter().chain(readers) {
+            thread.join().unwrap();
+        }
+        let mut index = Index::open(&store);
+        assert_same(&mut index, &store);
+        let (memories, _) = index.memories(&Config::default()).unwrap();
+        assert_eq!(memories[&Id::parse("aaaaa1").unwrap()].reviews, 40);
+    }
 }

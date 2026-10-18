@@ -16,6 +16,7 @@ my-store/
     japanese/grammar/wo-mono-tomo-sezu.md
   log/                   review events, one JSONL file per month
     2026-10.jsonl
+    .lock                held while an event is appended (see log.md)
   drills/                drills that belong to this store (optional)
     srl-drill-conj
   sessions/              prepared lists of cards to study (optional)
@@ -140,5 +141,6 @@ The store is designed to work well with git:
 
 - Atom edits show as ordinary line diffs.
 - The log is append-only, so it almost never conflicts on merge.
-- Add `.cache/` to `.gitignore`. Whether to track `sessions/` is up to you;
+- `.cache/` ignores itself (it holds its own `.gitignore`). Add `log/.lock`
+  to the store's `.gitignore`. Whether to track `sessions/` is up to you;
   sessions can be recreated.

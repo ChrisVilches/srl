@@ -66,8 +66,9 @@ command-line arguments into calls to `srl-core` and prints the results.
   real process environment. Two exceptions come with running programs
   (drills and the external grader): `which` reads `PATHEXT` itself on
   Windows, and a drill's time limit is measured with the monotonic clock
-  (`Instant`). Neither decides anything the specification describes in terms
-  of time or environment.
+  (`Instant`). The wait for the log's lock in `log.rs` uses `Instant` too.
+  None of them decides anything the specification describes in terms of
+  time or environment.
 - **`srl-core` never prints.** It returns values and errors. Turning them
   into text or JSON is the CLI's job.
 - **`srl` contains no domain logic.** If a command needs a decision about
@@ -265,7 +266,7 @@ Known places:
 | `editor.rs`, `editor`; [cli.md](cli.md) | `EDITOR`/`VISUAL` are rarely set on Windows | TODO in code and spec: fails and says to set `EDITOR`; a platform default is undecided |
 | `study.rs`, `HIGHLIGHT`; [frontends.md](frontends.md) | ANSI colors show as text in the old Windows console | TODO in code and spec |
 | `drill.rs`, `programs`; [drills.md](drills.md) | "Executable" and `#!` scripts are Unix concepts | Handled: `which` decides, with the execute bit on Unix and `PATHEXT` on Windows. The Windows test drills (`.cmd`) have not been run yet |
-| `log.rs`, `append`; [log.md](log.md) | Atomic appends aren't guaranteed on Windows or network file systems: concurrent reviews could corrupt a line | **TODO in code and spec**: not solved yet; a lock file around each append is the likely fix |
+| `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
 | `index.rs`, `connect`; [store.md](store.md) | SQLite's file locking is unreliable on network file systems (NFS, SMB) on every platform: concurrent updates could damage the index cache | **TODO in code and spec**: damage is usually detected and the cache rebuilt; keep stores on a local disk for now |
 | `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
 

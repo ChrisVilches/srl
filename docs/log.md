@@ -11,29 +11,28 @@ computed from it.
   `srl reset` write to the log; never edit it by hand.
 - Each event is written as a single line in one append, so several frontends
   can record reviews at the same time without corrupting the file.
+- **Every append holds the log's lock.** `srl review` and `srl reset` take
+  an exclusive lock on the empty file `log/.lock` (created on first use)
+  for the whole append, through the operating system's file locking, the
+  same on every platform. Another `srl` that wants to append waits for it,
+  for at most 5 seconds, and then fails without recording anything. The
+  operating system releases the lock when a process ends, so a crash never
+  leaves the log locked. Reading the log doesn't take the lock.
 - An event goes into the file of the month of its own time `t` (its local
   date, with its offset).
 
-> **TODO (platform): concurrent appends are only safe on local Linux and
-> macOS file systems.**
->
-> `srl` writes each event with one `write` call to a file opened in append
-> mode. On local Linux and macOS file systems the kernel makes such a write
-> atomic with respect to other appends, so two frontends recording reviews at
-> the same moment can't mix their lines.
->
-> **Windows does not guarantee this, and neither do network file systems
-> (NFS, SMB) on any platform.** There, two `srl review` runs at the same time
-> could interleave their bytes into one corrupt line. Every later command
-> would report that line and skip it, so both reviews would be lost from the
-> schedule. A single person studying in one terminal never triggers this;
-> two frontends, or a frontend and an agent, writing at the same moment can.
->
-> Not solved yet. The likely fix is a lock file (for example `log/.lock`,
-> created with `create_new` and removed after the append) around every
-> append, on every platform, so that the rule is the same everywhere. The
-> code that appends (`append` in `crates/srl-core/src/log.rs`) carries the
-> same TODO.
+A command that reads the log while an event is being written may, on some
+platforms, see only part of that event's line. It reports that line as
+skipped, like any invalid line; the next command reads the whole line.
+
+> **TODO (platform): locks on network file systems.** On NFS and SMB the
+> lock depends on the server: NFS needs its lock service, and some servers
+> don't support locks at all. Where locking fails, `srl review` fails with
+> that error instead of writing unlocked. Where a server accepts locks but
+> doesn't share them between machines, two machines recording reviews at the
+> same moment could still mix their lines into one corrupt line. Keep the
+> store on a local disk to be safe. The code that appends (`lock` in
+> `crates/srl-core/src/log.rs`) carries the same TODO.
 
 Reading the log, a line that is not a valid event (not JSON, a field
 missing or of the wrong type, an unknown field, a rating outside 1–4, a time

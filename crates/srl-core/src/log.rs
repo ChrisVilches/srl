@@ -1,8 +1,10 @@
 //! The review log: reading and appending events (see `docs/log.md`).
 
-use std::fs::{self, OpenOptions};
+use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use jiff::Zoned;
 use jiff::civil::{Date, DateTime};
@@ -11,6 +13,15 @@ use sha2::{Digest, Sha256};
 
 use crate::config::Schedule;
 use crate::{Atom, Error, Grading, Id, Result, Store};
+
+/// The lock file that every append holds (see `docs/log.md`, "Files").
+const LOCK_FILE: &str = ".lock";
+
+/// How long an append waits for another `srl` to finish its own.
+const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// How often a waiting append tries the lock again.
+const LOCK_RETRY: Duration = Duration::from_millis(20);
 
 /// The number of hex characters of an atom file's SHA-256 in `hash`.
 const HASH_LEN: usize = 12;
@@ -229,22 +240,12 @@ fn parse_line(line: &str, schedule: &Schedule) -> std::result::Result<Entry, Str
 }
 
 /// Appends `events` to the log, each to the file of its month
-/// (`log/YYYY-MM.jsonl`), each as one line written in one call.
-///
-// TODO(platform): Each event is one `write` to a file opened in append mode.
-// On local Linux and macOS file systems the kernel makes such a write atomic
-// with respect to other appends, so two frontends recording reviews at the
-// same time can't interleave their lines. Windows gives no such guarantee,
-// and neither do network file systems (NFS, SMB) anywhere: there, two
-// concurrent `srl review` runs could mix their bytes into one corrupt line,
-// which every later command would report and skip, losing both reviews.
-// The likely fix is a lock file (for example `log/.lock`, created with
-// `create_new` and removed after the append) around every append, on every
-// platform. See docs/log.md, "Files", and docs/rust.md, "Platform
-// independence".
+/// (`log/YYYY-MM.jsonl`), each as one line written in one call, while
+/// holding the log's lock (see `docs/log.md`, "Files").
 pub(crate) fn append(store: &Store, events: &[Event]) -> Result<()> {
     let dir = store.log_dir();
     fs::create_dir_all(&dir).map_err(Error::io(&dir))?;
+    let _lock = lock(&dir, LOCK_TIMEOUT)?;
     for event in events {
         let local = event
             .local()
@@ -259,6 +260,41 @@ pub(crate) fn append(store: &Store, events: &[Event]) -> Result<()> {
         append_line(&file, &line)?;
     }
     Ok(())
+}
+
+/// Takes the exclusive lock on `log/.lock` in `dir`, waiting at most
+/// `timeout` for another `srl` to release it. The lock is held until the
+/// returned file is dropped, and the operating system releases it if the
+/// process dies, so a crash never leaves the log locked.
+///
+// TODO(platform): On network file systems the lock depends on the server:
+// NFS needs its lock service, and some servers don't support locks at all.
+// Where locking fails, the append fails with that error rather than going
+// ahead unlocked. Where a server accepts locks but doesn't share them
+// between machines, two machines appending at once could still mix their
+// lines. See docs/log.md, "Files", and docs/rust.md, "Platform
+// independence".
+fn lock(dir: &Path, timeout: Duration) -> Result<File> {
+    let path = dir.join(LOCK_FILE);
+    let file = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&path)
+        .map_err(Error::io(&path))?;
+    let deadline = Instant::now() + timeout;
+    loop {
+        match file.try_lock() {
+            Ok(()) => return Ok(file),
+            Err(TryLockError::WouldBlock) if Instant::now() < deadline => {
+                thread::sleep(LOCK_RETRY);
+            }
+            Err(TryLockError::WouldBlock) => {
+                return Err(Error::LogLocked { path, timeout });
+            }
+            Err(TryLockError::Error(error)) => return Err(Error::io(&path)(error)),
+        }
+    }
 }
 
 fn append_line(file: &Path, line: &str) -> Result<()> {
@@ -364,5 +400,54 @@ mod tests {
         let log = Log::load(&store, &Schedule::default()).unwrap();
         assert_eq!(log.entries.len(), 1);
         assert_eq!(log.problems.len(), bad.len(), "{:?}", log.problems);
+    }
+
+    #[test]
+    fn concurrent_appends_never_mix_their_lines() {
+        let (_tmp, store) = store();
+        let threads = (0..8)
+            .map(|_| {
+                let store = store.clone();
+                thread::spawn(move || {
+                    for _ in 0..50 {
+                        append(&store, &[review("2026-10-26T09:12:31+09:00", 3)]).unwrap();
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        for thread in threads {
+            thread.join().unwrap();
+        }
+        let log = Log::load(&store, &Schedule::default()).unwrap();
+        assert!(log.problems.is_empty(), "{:?}", log.problems);
+        assert_eq!(log.entries.len(), 400);
+    }
+
+    #[test]
+    fn an_append_waits_for_the_lock_and_gives_up_after_the_timeout() {
+        let (_tmp, store) = store();
+        let dir = store.log_dir();
+        let held = lock(&dir, LOCK_TIMEOUT).unwrap();
+        let error = lock(&dir, Duration::from_millis(100)).unwrap_err();
+        assert!(matches!(error, Error::LogLocked { .. }), "{error}");
+        assert!(error.to_string().contains("nothing was recorded"));
+        let waiting = {
+            let store = store.clone();
+            thread::spawn(move || append(&store, &[review("2026-10-26T09:12:31+09:00", 3)]))
+        };
+        thread::sleep(Duration::from_millis(200));
+        assert!(!store.log_dir().join("2026-10.jsonl").exists());
+        drop(held);
+        waiting.join().unwrap().unwrap();
+        let log = Log::load(&store, &Schedule::default()).unwrap();
+        assert_eq!(log.entries.len(), 1);
+    }
+
+    #[test]
+    fn the_lock_file_is_not_read_as_part_of_the_log() {
+        let (_tmp, store) = store();
+        append(&store, &[review("2026-10-26T09:12:31+09:00", 3)]).unwrap();
+        assert!(store.log_dir().join(".lock").is_file());
+        assert_eq!(files(&store).unwrap().len(), 1);
     }
 }

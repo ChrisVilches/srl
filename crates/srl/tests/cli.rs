@@ -965,3 +965,45 @@ fn the_index_cache_never_changes_what_commands_print() {
     assert_eq!(stdout(&next), cached[3].0);
     assert_eq!(srl(&["reindex", "--dir", d]).status.code(), Some(2));
 }
+
+#[test]
+fn concurrent_srl_processes_share_the_log_and_the_cache() {
+    let (tmp, tuna, mackerel) = fish();
+    let d = dir(&tmp);
+    let spawn = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_srl"))
+            .args(args)
+            .args(["--dir", d])
+            .env_remove("SRL_DIR")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap()
+    };
+    let children = (0..10)
+        .flat_map(|round| {
+            let atom = if round % 2 == 0 { &tuna } else { &mackerel };
+            [
+                spawn(&["review", atom, "--rating", "3"]),
+                spawn(&["next", "--json"]),
+                spawn(&["stats", "--json"]),
+            ]
+        })
+        .collect::<Vec<_>>();
+    for child in children {
+        let output = child.wait_with_output().unwrap();
+        // `srl next` exits 1 once both atoms have been reviewed.
+        assert!(
+            matches!(output.status.code(), Some(0 | 1)),
+            "{}",
+            stderr(&output)
+        );
+        assert_eq!(stderr(&output), "");
+    }
+    assert!(tmp.path().join("log").join(".lock").is_file());
+    let events = json_lines(&srl(&["log", "--json", "--dir", d]));
+    assert_eq!(events.len(), 10);
+    let cached = snapshot(d);
+    fs::remove_dir_all(tmp.path().join(".cache")).unwrap();
+    assert_eq!(snapshot(d), cached);
+}

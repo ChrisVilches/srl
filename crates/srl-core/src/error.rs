@@ -116,6 +116,17 @@ pub enum Error {
         reason: String,
     },
 
+    #[error(
+        "another srl has been writing the log for over {} seconds ({} is locked), so nothing was \
+         recorded; try again, and if it keeps happening, look for a stuck srl process",
+        timeout.as_secs(),
+        path.display()
+    )]
+    LogLocked {
+        path: PathBuf,
+        timeout: std::time::Duration,
+    },
+
     #[error("cannot write the event: {reason}; nothing more was written")]
     InvalidEvent { reason: String },
 
