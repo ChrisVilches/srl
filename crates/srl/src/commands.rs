@@ -4,7 +4,7 @@
 //! `output`. Commands that are not written yet fail with a clear message.
 
 use std::env;
-use std::io;
+use std::io::{self, IsTerminal};
 use std::path::PathBuf;
 
 use anyhow::{Context, bail};
@@ -16,7 +16,7 @@ use srl_core::{
 };
 
 use crate::args::{AddArgs, By, Cli, Command, ReviewArgs, SessionCommand};
-use crate::{Outcome, external, output};
+use crate::{Outcome, editor, external, output, study};
 
 pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
     let store = || -> anyhow::Result<Store> { Ok(Store::open(&lookup(cli.dir.clone())?)?) };
@@ -38,10 +38,13 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Reindex => "reindex",
         Command::New { .. } => "new",
         Command::Edit { id, stdin, dry_run } => {
-            if stdin {
-                return edit_stdin(&store()?, &id, dry_run.dry_run);
-            }
-            "edit ID (without --stdin)"
+            return match (stdin, dry_run.dry_run) {
+                (true, dry_run) => edit_stdin(&store()?, &id, dry_run),
+                (false, false) => edit_in_editor(&store()?, &id),
+                (false, true) => {
+                    bail!("--dry-run only works with --stdin; `srl edit ID` opens the editor")
+                }
+            };
         }
         Command::Accept { selector, dry_run } => {
             let change = (Status::Draft, Status::Active);
@@ -55,7 +58,14 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             let change = (Status::Suspended, Status::Active);
             return change_status(&store()?, &selector.terms, change, dry_run.dry_run);
         }
-        Command::Study { .. } => "study",
+        Command::Study {
+            selector,
+            drill,
+            session: None,
+        } => return study::run(&store()?, &selector.terms, drill.as_deref()),
+        Command::Study {
+            session: Some(_), ..
+        } => "study --session",
         Command::Next {
             selector,
             drill,
@@ -73,7 +83,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             SessionCommand::Rm { .. } => "session rm",
         },
         Command::Drills { json } => return drills(&store()?, json.json),
-        Command::Stats { .. } => "stats",
+        Command::Stats { selector, json } => return stats(&store()?, &selector.terms, json.json),
         Command::Log { selector, json } => return log(&store()?, &selector.terms, json.json),
     };
     bail!(
@@ -97,6 +107,33 @@ fn change_status(
     let changed = srl_core::change_status(store, &selected, from, to, dry_run)?;
     output::ids(&changed);
     Ok(found_anything(!changed.is_empty()))
+}
+
+/// `srl edit ID`: edits the atom in the editor. Refuses without a terminal,
+/// like every interactive command.
+fn edit_in_editor(store: &Store, id: &str) -> anyhow::Result<Outcome> {
+    let id = Id::parse(id)?;
+    if !io::stdin().is_terminal() {
+        bail!("`srl edit ID` needs a terminal; in scripts and pipes, use `srl edit ID --stdin`");
+    }
+    editor::edit(store, &load(store)?, &id)?;
+    Ok(Outcome::Done)
+}
+
+/// `srl stats`: atoms per state, reviews today and recent retention, for
+/// the matching atoms. Exit 1 if no atom matches.
+fn stats(store: &Store, terms: &[String], json: bool) -> anyhow::Result<Outcome> {
+    let selector = Selector::parse(&terms.join(" "))?;
+    let atoms = load(store)?;
+    let scheduling = scheduling(store)?;
+    let selected = atoms.select(&selector, Some(&scheduling.memories));
+    let stats = srl_core::stats(&selected, &scheduling.memories);
+    if json {
+        output::json_lines(&[&stats])?;
+    } else {
+        output::stats(&stats);
+    }
+    Ok(found_anything(!selected.is_empty()))
 }
 
 /// `srl edit ID --stdin`: replaces the atom's file with standard input.
@@ -271,7 +308,7 @@ fn find_drills(store: &Store) -> anyhow::Result<(Drills, Vec<Error>)> {
 
 /// Where to look for programs: the folders of `PATH`, and the current
 /// directory for relative ones.
-fn search() -> anyhow::Result<Search> {
+pub(crate) fn search() -> anyhow::Result<Search> {
     Ok(Search {
         path: env::var_os("PATH")
             .map(|path| env::split_paths(&path).collect())
@@ -287,7 +324,7 @@ fn today(config: &Config) -> anyhow::Result<Date> {
 
 /// The local time. Fails if the system's time zone can't be found, rather
 /// than guessing UTC.
-fn now() -> anyhow::Result<Zoned> {
+pub(crate) fn now() -> anyhow::Result<Zoned> {
     let zone = jiff::tz::TimeZone::try_system().context(
         "cannot find the system's time zone, which decides the study day; set the TZ environment variable",
     )?;

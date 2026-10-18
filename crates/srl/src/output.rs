@@ -138,6 +138,32 @@ pub(crate) fn events(events: &[&srl_core::Event]) {
     }
 }
 
+/// Prints statistics, one `NAME  VALUE` line each. Retention is a
+/// percentage with the number of reviews it comes from, or `-` without
+/// reviews.
+pub(crate) fn stats(report: &srl_core::Stats) {
+    let states = &report.states;
+    for (name, value) in [
+        ("atoms", report.atoms),
+        ("new", states.new),
+        ("due", states.due),
+        ("young", states.young),
+        ("mature", states.mature),
+        ("leech", states.leech),
+        ("reviews today", report.reviews_today),
+    ] {
+        println!("{name}  {value}");
+    }
+    match report.retention {
+        Some(retention) => println!(
+            "retention  {:.1}% of {} reviews in 30 days",
+            retention * 100.0,
+            report.retention_reviews
+        ),
+        None => println!("retention  -"),
+    }
+}
+
 /// Prints one line per atom that got an ID: the ID and its file.
 pub(crate) fn fixed(fixed: &[srl_core::Fixed]) {
     for atom in fixed {

@@ -53,10 +53,22 @@ pub enum State {
     Mature,
 }
 
+/// One review of the log, as replay saw it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reviewed {
+    pub atom: Id,
+    /// The review's study day.
+    pub day: Date,
+    pub rating: u8,
+    /// Whether the atom had no review since its last reset before this one.
+    pub was_new: bool,
+}
+
 /// Every atom's memory, on one study day.
 #[derive(Debug, Clone)]
 pub struct Memories {
     by_atom: HashMap<Id, Memory>,
+    reviews: Vec<Reviewed>,
     today: Date,
     mature_days: u32,
     leech_lapses: u32,
@@ -73,6 +85,7 @@ impl Memories {
             })?;
         let retention = to_f32(schedule.desired_retention);
         let mut by_atom = HashMap::<Id, Memory>::new();
+        let mut reviews = Vec::new();
         for (position, entry) in log.entries.iter().enumerate() {
             let memory = by_atom.entry(entry.event.atom().clone()).or_default();
             *memory = match &entry.event {
@@ -81,6 +94,12 @@ impl Memories {
                     ..Memory::default()
                 },
                 Event::Review(review) => {
+                    reviews.push(Reviewed {
+                        atom: review.atom.clone(),
+                        day: entry.day,
+                        rating: review.rating,
+                        was_new: memory.reviews == 0,
+                    });
                     let mut next = step(&fsrs, retention, memory, entry.day, review.rating)?;
                     if let Some(card) = &review.card {
                         next.last_used.insert(card.reference.clone(), position);
@@ -91,10 +110,16 @@ impl Memories {
         }
         Ok(Self {
             by_atom,
+            reviews,
             today,
             mature_days: schedule.mature_days,
             leech_lapses: schedule.leech_lapses,
         })
+    }
+
+    /// Every review of the log, in log order.
+    pub fn reviews(&self) -> &[Reviewed] {
+        &self.reviews
     }
 
     /// The memory of atom `id`; an atom the log never mentions is new.

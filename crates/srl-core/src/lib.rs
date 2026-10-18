@@ -23,6 +23,7 @@ mod random;
 mod review;
 mod schedule;
 mod selector;
+mod stats;
 mod store;
 mod yaml;
 
@@ -38,6 +39,7 @@ pub use grade::{GradeRequest, Graded, grade};
 pub use log::{By, CardUsed, Entry, Event, Log, Reset, Review};
 pub use next::{NextOptions, next};
 pub use review::{ReviewRequest, reset, review, review_ids};
-pub use schedule::{Memories, Memory, State};
+pub use schedule::{Memories, Memory, Reviewed, State};
 pub use selector::Selector;
+pub use stats::{StateCounts, Stats, stats};
 pub use store::{Lookup, Store};

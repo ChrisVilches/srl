@@ -36,24 +36,29 @@ impl GradeRequest {
             .map_err(|error| invalid(format!("it is not a grading request ({error})")))?;
         let card = Card::from_value(raw.card, atoms)
             .map_err(|reason| invalid(format!("the card: {reason}")))?;
+        Self::new(card, raw.response)
+    }
+
+    /// The answer `response` to a card that is already checked. The
+    /// response must fit the card, as for [`GradeRequest::parse`].
+    pub fn new(card: Card, response: Vec<String>) -> Result<Self> {
         let wanted = match card.grading() {
             Grading::SelfRated => None,
             Grading::Exact { accept } => Some(accept.len()),
             Grading::Choice { .. } | Grading::Cmd => Some(1),
         };
         if let Some(wanted) = wanted
-            && raw.response.len() != wanted
+            && response.len() != wanted
         {
-            return Err(invalid(format!(
-                "a `{}` card needs {wanted} response strings, but there are {}",
-                card.grading().name(),
-                raw.response.len()
-            )));
+            return Err(Error::InvalidGradeRequest {
+                reason: format!(
+                    "a `{}` card needs {wanted} response strings, but there are {}",
+                    card.grading().name(),
+                    response.len()
+                ),
+            });
         }
-        Ok(Self {
-            card,
-            response: raw.response,
-        })
+        Ok(Self { card, response })
     }
 }
 

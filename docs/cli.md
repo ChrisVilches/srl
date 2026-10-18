@@ -44,7 +44,7 @@ agents all use the same commands. There is no separate API.
 | `srl new [--draft]` | Write a new atom in `$EDITOR`. |
 | `srl add [--draft] --title TITLE [--answer ANSWER] [--tag TAG]… [--source SOURCE]` | Add an atom from flags. |
 | `srl add [--draft] --stdin` | Add atoms from JSONL (see [atoms.md](atoms.md)). Prints the new IDs. |
-| `srl edit ID` | Edit an atom in `$EDITOR`. |
+| `srl edit ID` | Edit an atom in the editor (see "Editing in the editor" below). Prints nothing. |
 | `srl edit ID --stdin` | Replace an atom's file with standard input, exactly as given. It must be a valid atom with the same `id`. The file keeps its path, even if the tags or title change. Prints nothing. `--dry-run` only checks the text. |
 | `srl show ID… [--json]` | Print atoms: each file as it is, or JSON (see [atoms.md](atoms.md)). Unknown IDs are reported, and make the exit code 2. |
 | `srl find [SELECTOR] [--json]` | List matching atoms, ordered by path: one line each with ID, title and tags, separated by two spaces; or the atom JSON of [atoms.md](atoms.md). Exit 1 if none matches. |
@@ -65,17 +65,34 @@ Every file is checked before the first one is written. If any can't be
 changed safely (see [rust.md](rust.md), "Front-matter editing"), the command
 reports it and changes nothing.
 
-> **TODO (platform):** `srl new` and `srl edit ID` open `$EDITOR`, which is
-> usually set on Unix but rarely on Windows. Decide what happens when it is
-> not set (an error that says to set it, or `VISUAL`, or a platform default
-> such as `notepad`), and how `$EDITOR` values with arguments
-> (`code --wait`) are split on each platform.
+### Editing in the editor
+
+`srl edit ID`, `srl new` and `e` in `srl study` open the editor:
+
+- The editor is `VISUAL` if it is set and not empty, else `EDITOR`. If
+  neither is set, the command fails and says to set `EDITOR`.
+- The value is split at spaces into a program and its arguments
+  (`code --wait`), with no quoting. The program is found on `PATH`, or given
+  as a path. The file to edit comes last.
+- The editor works on a temporary copy of the atom file. When it exits with
+  status 0, the copy is checked like `srl edit ID --stdin` (a valid atom,
+  the same `id`) and replaces the atom file. An unchanged copy changes
+  nothing. An editor that exits with another status changes nothing.
+- A copy that is not a valid atom changes nothing either, and is kept: the
+  error says where, so the edit isn't lost.
+- `--dry-run` only works with `--stdin`.
+
+> **TODO (platform):** `EDITOR` and `VISUAL` are usually set on Unix but
+> rarely on Windows, where `srl edit ID` then fails and says to set `EDITOR`.
+> Decide whether to fall back to a platform default there (such as
+> `notepad`). Values are split at spaces on every platform, so an editor
+> whose path contains a space can't be given arguments.
 
 ### Studying
 
 | Command | Does |
 |---|---|
-| `srl study [SELECTOR]` | The built-in terminal frontend (see [frontends.md](frontends.md)). |
+| `srl study [SELECTOR] [--drill NAME]` | The built-in terminal frontend (see [frontends.md](frontends.md)). Adds `status:active`, like `srl next`. |
 | `srl study --session NAME` | Study a prepared session with the same frontend (see below). |
 | `srl next [SELECTOR] [--drill NAME] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`. Exit 1 if there is none. Failing drills are reported but don't change the exit code, so a study loop keeps going. |
 | `srl cards ID [--json]` | Print every card of an atom, from every applicable drill (see below). Failing drills and invalid cards are reported, and make the exit code 2. |
@@ -128,8 +145,36 @@ cloze:0:1  exact
 
 | Command | Does |
 |---|---|
-| `srl stats [SELECTOR] [--json]` | Atoms per state, reviews today, retention over the last 30 days (share of non-Again ratings on atoms that were not new). |
+| `srl stats [SELECTOR] [--json]` | Atoms per state, reviews today, retention over the last 30 days (share of non-Again ratings on atoms that were not new), for the matching atoms (see below). Exit 1 if none matches. |
 | `srl log [SELECTOR] [--json]` | Print the log events of matching atoms, in log order: one line each with the time, the atom, and `reset`, or `review`, the rating, the card's ref (`-` without a card) and who reviewed, separated by two spaces; or with `--json`, the events as stored. Exit 1 if there are none. |
+
+`srl stats` applies the selector as written, so it counts drafts and
+suspended atoms too unless the selector says otherwise. It prints one
+`NAME  VALUE` line each:
+
+```
+atoms  120
+new  30
+due  12
+young  41
+mature  37
+leech  2
+reviews today  25
+retention  88.5% of 400 reviews in 30 days
+```
+
+- `new`, `due`, `young` and `mature` add up to `atoms`. `leech` overlaps
+  them (see [scheduling.md](scheduling.md), "States").
+- `reviews today` counts the reviews of the matching atoms on today's study
+  day.
+- `retention` looks at the last 30 study days, today included. It counts
+  the reviews of matching atoms that were not new at the time, and gives
+  the share that were not Again. Without such reviews it is `-`.
+
+With `--json` it prints one object:
+`{"atoms": N, "states": {"new": N, "due": N, "young": N, "mature": N,
+"leech": N}, "reviews_today": N, "retention": R, "retention_reviews": N}`,
+where `retention` is a number from 0 to 1, or `null`.
 
 ## Sessions
 

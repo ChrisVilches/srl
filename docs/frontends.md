@@ -43,13 +43,40 @@ Card text is Markdown with `==highlight==` (see [cards.md](cards.md)).
 
 `srl study [SELECTOR] [--drill NAME]` runs the loop above in the terminal until
 nothing is left, then prints a short summary (reviews done, new atoms
-introduced, Again count).
+introduced, Again count): `5 cards reviewed, 2 atoms new, 1 Again.` It reads
+atoms and the log again before every card, so edits and reviews from other
+frontends count at once. Like every interactive command, it refuses to run
+when standard input is not a terminal.
 
-Keys: Enter to reveal or submit, `1`–`4` to rate (Enter accepts the suggested
-rating), `e` to open the atom in `$EDITOR`, `s` to suspend it, `q` to quit.
+Input is read a line at a time: type, then Enter.
+
+- A `self` card: Enter shows the answer; `q` quits.
+- An `exact` card: one line per blank, asked as `[1]`, `[2]`, …
+- A `choice` card: the choices are numbered; type the number of one.
+- A `cmd` card: one line.
+- The rating: `1`–`4`. Enter alone takes the suggested rating, if there is
+  one (there is none for `self` cards and fallbacks). `e` opens the atom in
+  the editor (see [cli.md](cli.md), "Editing in the editor") and asks for
+  the rating again. `s` suspends the atom without recording a review. `q`
+  quits without recording this card.
+- The end of input (Ctrl-D, or Ctrl-Z then Enter on Windows) quits at any
+  point, without recording the card on screen.
+
+Answers can be any text, including `q`, so commands are only read where no
+answer is expected: before showing a `self` card's answer, and at the
+rating.
+
+Highlighted text (`==…==`) is bold yellow when standard output is a terminal
+and `NO_COLOR` is not set, and raw otherwise. Other Markdown is printed as
+it is.
+
+> **TODO (platform):** The color uses ANSI escape codes. They work in
+> terminals on Linux and macOS and in Windows Terminal, but the old Windows
+> console (conhost) shows them as text unless its virtual terminal mode is
+> on. Decide whether `srl` turns that mode on, or prints raw `==…==` there.
 
 `srl study --session NAME` is the same frontend reading cards from a session
-file instead of `srl next`.
+file instead of `srl next`. It is not implemented yet, like sessions.
 
 ## A web viewer
 

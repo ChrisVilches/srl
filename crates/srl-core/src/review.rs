@@ -41,12 +41,17 @@ impl ReviewRequest {
             .map_err(|error| invalid(format!("it is not a review ({error})")))?;
         let card = Card::from_value(raw.card, atoms)
             .map_err(|reason| invalid(format!("the card: {reason}")))?;
-        check_rating(raw.rating).map_err(invalid)?;
+        Self::new(card, raw.rating, raw.response, raw.by.unwrap_or(By::Human))
+    }
+
+    /// A review of a card that is already checked. The rating must be 1–4.
+    pub fn new(card: Card, rating: u8, response: Option<Vec<String>>, by: By) -> Result<Self> {
+        check_rating(rating).map_err(|reason| Error::InvalidReview { reason })?;
         Ok(Self {
             card,
-            rating: raw.rating,
-            response: raw.response,
-            by: raw.by.unwrap_or(By::Human),
+            rating,
+            response,
+            by,
         })
     }
 }

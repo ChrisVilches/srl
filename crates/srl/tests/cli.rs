@@ -87,7 +87,7 @@ fn dir(tmp: &TempDir) -> &str {
 #[test]
 fn unwritten_commands_say_so_on_stderr() {
     let tmp = store();
-    let output = srl(&["stats", "-tag:a", "--dir", dir(&tmp)]);
+    let output = srl(&["reindex", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("not implemented yet"));
@@ -790,4 +790,42 @@ fn cmd_cards_are_graded_by_the_configured_grader() {
     let input = serde_json::from_str::<serde_json::Value>(&input).unwrap();
     assert_eq!(input["atom"]["title"], "x");
     assert_eq!(input["response"][0], "My sentence.");
+}
+
+#[test]
+fn stats_counts_states_reviews_and_retention() {
+    let (tmp, tuna, _mackerel) = fish();
+    let d = dir(&tmp);
+    srl(&["review", &tuna, "--rating", "3", "--dir", d]);
+    let output = srl(&["stats", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        stdout(&output),
+        "atoms  2\nnew  1\ndue  0\nyoung  1\nmature  0\nleech  0\nreviews today  1\nretention  -\n"
+    );
+    let json = json_lines(&srl(&["stats", "state:young", "--json", "--dir", d]));
+    assert_eq!(
+        json,
+        [
+            serde_json::json!({"atoms": 1, "states": {"new": 0, "due": 0, "young": 1, "mature": 0, "leech": 0},
+            "reviews_today": 1, "retention": null, "retention_reviews": 0})
+        ]
+    );
+    assert_eq!(
+        srl(&["stats", "tag:none", "--dir", d]).status.code(),
+        Some(1)
+    );
+}
+
+#[test]
+fn interactive_commands_refuse_without_a_terminal() {
+    let (tmp, tuna, _mackerel) = fish();
+    let d = dir(&tmp);
+    let study = srl_with_input(&["study", "--dir", d], "\n3\n");
+    assert_eq!(study.status.code(), Some(2));
+    assert!(stderr(&study).contains("srl next"), "{}", stderr(&study));
+    let edit = srl_with_input(&["edit", &tuna, "--dir", d], "");
+    assert_eq!(edit.status.code(), Some(2));
+    assert!(stderr(&edit).contains("--stdin"), "{}", stderr(&edit));
+    assert_eq!(srl(&["log", "--dir", d]).status.code(), Some(1));
 }

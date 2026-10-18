@@ -40,8 +40,10 @@ crates/
     src/args.rs         clap definitions, no logic
     src/argv.rs         lets selector terms start with `-`
     src/commands.rs     one function per command: gather inputs, call the core, print
+    src/editor.rs       opening the editor (`srl edit ID`, `e` in `srl study`)
     src/external.rs     `srl NAME` runs `srl-NAME`
     src/output.rs       the only module that prints
+    src/study.rs        `srl study`, the terminal frontend: writes to the writer it is given
     tests/cli.rs        tests that run the real binary
 ```
 
@@ -258,7 +260,8 @@ Known places:
 |---|---|---|
 | `store.rs`, `markdown_files` | macOS (HFS+) may list file names in Unicode NFD, so paths could sort and match differently | TODO in code |
 | `add.rs`, `place`; [atoms.md](atoms.md) | Windows' 260-character path limit | TODO in code and spec |
-| [cli.md](cli.md), `srl new` / `srl edit` | `$EDITOR` is rarely set on Windows | TODO in spec (not implemented yet) |
+| `editor.rs`, `editor`; [cli.md](cli.md) | `EDITOR`/`VISUAL` are rarely set on Windows | TODO in code and spec: fails and says to set `EDITOR`; a platform default is undecided |
+| `study.rs`, `HIGHLIGHT`; [frontends.md](frontends.md) | ANSI colors show as text in the old Windows console | TODO in code and spec |
 | `drill.rs`, `programs`; [drills.md](drills.md) | "Executable" and `#!` scripts are Unix concepts | Handled: `which` decides, with the execute bit on Unix and `PATHEXT` on Windows. The Windows test drills (`.cmd`) have not been run yet |
 | `log.rs`, `append`; [log.md](log.md) | Atomic appends aren't guaranteed on Windows or network file systems: concurrent reviews could corrupt a line | **TODO in code and spec**: not solved yet; a lock file around each append is the likely fix |
 | `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
@@ -334,7 +337,7 @@ Current dependencies:
 | `saphyr` | `srl-core` | YAML 1.2 parsing and writing of front-matter |
 | `globset` | `srl-core` | `path:` globs in selectors |
 | `serde` (derive), `serde_json` (`preserve_order`) | both | The JSON formats; facets keep their file order |
-| `tempfile` | tests of both crates | Temporary store trees |
+| `tempfile` | `srl`; tests of both crates | The temporary copy the editor works on; temporary store trees in tests |
 
 ## Linting and formatting
 
@@ -354,7 +357,7 @@ ordinary idiomatic Rust alone:
 | …except `module_name_repetitions`, `must_use_candidate`, `missing_errors_doc`, `missing_panics_doc` | They add noise and little value in this codebase. |
 | `unwrap_used`, `panic`, `unreachable`, `unimplemented`, `indexing_slicing`, `string_slice`, `dbg_macro` | No unexplained panics or leftovers outside tests: a panic that can't be avoided is an `expect` with a message (see "Errors"). `todo` is left off so that `todo!` can mark unwritten code during development; "Before a release" checks it. |
 | `let_underscore_must_use`, `map_err_ignore`, `unused_result_ok` | Errors are never discarded (fail loudly). |
-| `print_stdout`, `print_stderr` | Only `output.rs` prints, with an `#[expect]`. |
+| `print_stdout`, `print_stderr` | Only `output.rs` prints, with an `#[expect]`. `study.rs`, the interactive frontend, writes with `write!` to the writer it is given (the terminal), so that tests can drive it; its problems still go through `output`. |
 | `exit` | Exit codes come from `main`'s return value. |
 | `wildcard_enum_match_arm` | Matches on enums list every variant. |
 | `allow_attributes`, `allow_attributes_without_reason` | Use `#[expect(lint, reason = "…")]`. It explains itself and warns when it is no longer needed. |
