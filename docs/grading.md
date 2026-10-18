@@ -33,7 +33,9 @@ echo '{"card": {…}, "response": ["周囲の反対", "ものともせず"]}' | 
 ```
 
 - `response` is always a list of strings: one per blank for `exact`, one for
-  `choice` (the chosen text), one for `cmd`.
+  `choice` (the chosen text), one for `cmd`. A response with another number
+  of strings is an error. For `self` cards it may hold anything, and is not
+  looked at.
 - `correct` has one entry per blank.
 - `feedback` is Markdown or `null`.
 - For `self` cards, `srl grade` returns `{"correct": null, "suggested_rating":
@@ -91,6 +93,16 @@ its standard output:
 ```
 
 `srl grade` returns the command's `rating` as `suggested_rating`.
+
+- `cmd` is a program and its arguments, separated by spaces (there is no
+  quoting). The program is found like any other on `PATH`, or given as a
+  path.
+- `atom` is the first atom of the card's `atoms`.
+- The command has no time limit: a grader that calls an LLM may take a
+  while.
+- Its answer must be one JSON object with `correct` (one boolean per
+  response string), `rating` (1–4) and `feedback` (Markdown or `null`), and
+  nothing else. Anything else counts as a failure.
 
 The command can be anything: a script with regular expressions, a call to an
 LLM, a program that asks a friend. `srl` neither knows nor cares. If no

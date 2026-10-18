@@ -2,7 +2,7 @@
 
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 
-use crate::{Atom, Error, Id, Result, Status};
+use crate::{Atom, Error, Id, Memories, Result, State, Status};
 
 /// The keys of `key:value` terms.
 const KEYS: &str = "tag, path, id, status, state";
@@ -26,8 +26,37 @@ enum Filter {
     Path(GlobSet),
     Id(Vec<Id>),
     Status(Vec<Status>),
+    State(Vec<StateTerm>),
     /// Lowercased.
     Text(String),
+}
+
+/// A value of `state:`: one of the four exclusive states, or `leech`, which
+/// overlaps them (see `docs/scheduling.md`, "States").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StateTerm {
+    State(State),
+    Leech,
+}
+
+impl StateTerm {
+    fn parse(text: &str) -> Option<Self> {
+        match text {
+            "new" => Some(Self::State(State::New)),
+            "due" => Some(Self::State(State::Due)),
+            "young" => Some(Self::State(State::Young)),
+            "mature" => Some(Self::State(State::Mature)),
+            "leech" => Some(Self::Leech),
+            _ => None,
+        }
+    }
+
+    fn matches(self, id: &Id, memories: &Memories) -> bool {
+        match self {
+            Self::State(state) => memories.state(id) == state,
+            Self::Leech => memories.is_leech(id),
+        }
+    }
 }
 
 impl Selector {
@@ -54,15 +83,25 @@ impl Selector {
         }
     }
 
-    pub fn matches(&self, atom: &Atom) -> bool {
+    /// Whether the selector has `state:` terms, which need the memories of
+    /// the atoms, and so the log.
+    pub fn needs_memories(&self) -> bool {
         self.terms
             .iter()
-            .all(|term| term.filter.matches(atom) != term.negated)
+            .any(|term| matches!(term.filter, Filter::State(_)))
+    }
+
+    /// Whether `atom` matches. `memories` must be given if the selector
+    /// [needs them](Self::needs_memories).
+    pub fn matches(&self, atom: &Atom, memories: Option<&Memories>) -> bool {
+        self.terms
+            .iter()
+            .all(|term| term.filter.matches(atom, memories) != term.negated)
     }
 }
 
 impl Filter {
-    fn matches(&self, atom: &Atom) -> bool {
+    fn matches(&self, atom: &Atom, memories: Option<&Memories>) -> bool {
         match self {
             Self::Tag(wanted) => atom.content().tags().iter().any(|tag| {
                 wanted.iter().any(|want| {
@@ -75,6 +114,13 @@ impl Filter {
             Self::Path(globs) => globs.is_match(atom.path()),
             Self::Id(ids) => ids.contains(atom.id()),
             Self::Status(statuses) => statuses.contains(&atom.content().status()),
+            Self::State(states) => {
+                let memories =
+                    memories.expect("memories should be given for a selector with `state:` terms");
+                states
+                    .iter()
+                    .any(|state| state.matches(atom.id(), memories))
+            }
             Self::Text(text) => atom.text().to_lowercase().contains(text.as_str()),
         }
     }
@@ -139,10 +185,15 @@ fn keyed(key: &str, values: &str) -> std::result::Result<Filter, String> {
             })
             .collect::<std::result::Result<_, _>>()
             .map(Filter::Status),
-        "state" => Err(
-            "`state:` needs the review log, which is not implemented yet; leave it out for now"
-                .to_owned(),
-        ),
+        "state" => values
+            .into_iter()
+            .map(|value| {
+                StateTerm::parse(value).ok_or_else(|| {
+                    format!("`{value}` is not a state; use new, due, young, mature or leech")
+                })
+            })
+            .collect::<std::result::Result<_, _>>()
+            .map(Filter::State),
         _ => Err(format!(
             "`{key}:` is not a key; use one of {KEYS}, or put the term in double quotes to search for the text"
         )),
@@ -236,7 +287,7 @@ mod tests {
         let selector = Selector::parse(selector).unwrap();
         atoms()
             .iter()
-            .filter(|atom| selector.matches(atom))
+            .filter(|atom| selector.matches(atom, None))
             .map(|atom| atom.id().to_string())
             .collect()
     }
@@ -336,7 +387,7 @@ mod tests {
             .and_status(Status::Draft);
         let picked = atoms()
             .iter()
-            .filter(|atom| selector.matches(atom))
+            .filter(|atom| selector.matches(atom, None))
             .map(|atom| atom.id().to_string())
             .collect::<Vec<_>>();
         assert_eq!(picked, ["aaaaa3"]);
@@ -355,7 +406,7 @@ mod tests {
             "tag:a,,b",
             "status:paused",
             "id:XYZ",
-            "state:new",
+            "state:old",
             "path:[",
             "-",
             "\"\"",

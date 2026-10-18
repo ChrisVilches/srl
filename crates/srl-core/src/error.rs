@@ -105,6 +105,38 @@ pub enum Error {
     #[error("drill `{drill}` writes no cards for atom {id}; check the facet (see `srl drills`)")]
     NoCards { drill: String, id: crate::Id },
 
+    #[error(
+        "skipped line {line} of {}: {reason}; the log must not be edited by hand, \
+         so restore the line from a backup or version control",
+        file.display()
+    )]
+    InvalidLogLine {
+        file: PathBuf,
+        line: usize,
+        reason: String,
+    },
+
+    #[error("cannot write the event: {reason}; nothing more was written")]
+    InvalidEvent { reason: String },
+
+    #[error("the review on standard input is not valid: {reason}; nothing was recorded")]
+    InvalidReview { reason: String },
+
+    #[error("the grading request on standard input is not valid: {reason}")]
+    InvalidGradeRequest { reason: String },
+
+    #[error(
+        "the grader `{command}` failed: {reason}; falling back to self-grading \
+         (fix the grader, or `[grading] cmd` in srl.toml)"
+    )]
+    GraderFailed { command: String, reason: String },
+
+    #[error("cannot schedule with FSRS: {reason}; check `[schedule]` in srl.toml")]
+    Fsrs { reason: String },
+
+    #[error("there is no drill `{name}`; `srl drills` lists the drills")]
+    UnknownDrill { name: String },
+
     #[error("cannot change atoms/{path}: {reason}; nothing was changed")]
     CannotEdit { path: String, reason: String },
 

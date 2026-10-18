@@ -69,7 +69,7 @@ day_starts_at = 4            # hour (local time) when a new study day begins
 new_per_day = 10             # new atoms introduced per day, across all selectors
 leech_lapses = 8             # an atom with this many lapses is a leech
 mature_days = 21             # an atom with at least this stability (days) is mature
-# weights = [...]            # custom FSRS weights; default weights if absent
+# weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
 
 [grading]
 cmd = ""                     # external grader for `cmd` cards; empty means fall back to self-grading

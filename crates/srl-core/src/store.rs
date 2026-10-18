@@ -14,11 +14,14 @@ const DEFAULT_STORE: &str = "srl";
 /// The folder of atom files.
 const ATOMS: &str = "atoms";
 
+/// The folder of the review log.
+const LOG: &str = "log";
+
 /// The folder of the store's own drills.
 const DRILLS: &str = "drills";
 
 /// The folders `srl init` creates.
-const FOLDERS: [&str; 2] = [ATOMS, "log"];
+const FOLDERS: [&str; 2] = [ATOMS, LOG];
 
 /// The `srl.toml` that `srl init` writes: every key at its default, commented
 /// out (see `docs/store.md`, "Configuration").
@@ -30,7 +33,7 @@ pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is opt
 # new_per_day = 10           # new atoms introduced per day, across all selectors
 # leech_lapses = 8           # an atom with this many lapses is a leech
 # mature_days = 21           # an atom with at least this stability (days) is mature
-# weights = [...]            # custom FSRS weights; default weights if absent
+# weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
 
 [grading]
 # cmd = ""                   # external grader for `cmd` cards; empty means fall back to self-grading
@@ -141,6 +144,11 @@ impl Store {
     /// The folder of drills that belong to this store. It may not exist.
     pub fn drills_dir(&self) -> PathBuf {
         self.root.join(DRILLS)
+    }
+
+    /// The folder of the review log.
+    pub fn log_dir(&self) -> PathBuf {
+        self.root.join(LOG)
     }
 
     /// The folder that holds the atom files.

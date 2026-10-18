@@ -11,12 +11,34 @@ computed from it.
   `srl reset` write to the log; never edit it by hand.
 - Each event is written as a single line in one append, so several frontends
   can record reviews at the same time without corrupting the file.
+- An event goes into the file of the month of its own time `t` (its local
+  date, with its offset).
 
-> **TODO (platform):** "One append can't be interleaved with another" holds
-> for files opened in append mode on Linux and macOS local file systems, but
-> isn't guaranteed on Windows or on network file systems. Before `srl review`
-> is written, decide how to make concurrent appends safe everywhere (for
-> example a lock file around each append).
+> **TODO (platform): concurrent appends are only safe on local Linux and
+> macOS file systems.**
+>
+> `srl` writes each event with one `write` call to a file opened in append
+> mode. On local Linux and macOS file systems the kernel makes such a write
+> atomic with respect to other appends, so two frontends recording reviews at
+> the same moment can't mix their lines.
+>
+> **Windows does not guarantee this, and neither do network file systems
+> (NFS, SMB) on any platform.** There, two `srl review` runs at the same time
+> could interleave their bytes into one corrupt line. Every later command
+> would report that line and skip it, so both reviews would be lost from the
+> schedule. A single person studying in one terminal never triggers this;
+> two frontends, or a frontend and an agent, writing at the same moment can.
+>
+> Not solved yet. The likely fix is a lock file (for example `log/.lock`,
+> created with `create_new` and removed after the append) around every
+> append, on every platform, so that the rule is the same everywhere. The
+> code that appends (`append` in `crates/srl-core/src/log.rs`) carries the
+> same TODO.
+
+Reading the log, a line that is not a valid event (not JSON, a field
+missing or of the wrong type, an unknown field, a rating outside 1–4, a time
+without an offset) is skipped and reported on standard error, with its file
+and line number. Every command carries on with the other events.
 
 ## Events
 
@@ -37,14 +59,16 @@ computed from it.
 | Field | Meaning |
 |---|---|
 | `type` | `review` |
-| `t` | Time of the review, ISO 8601 with offset. |
+| `t` | Time of the review, ISO 8601 to the second, with the local offset. |
 | `atom` | The atom's ID. A card about several atoms produces one event per atom. |
 | `rating` | 1–4, as stored (after the `choice` rule). |
 | `card` | Which card was used: drill, ref and grading mode. `null` when reviewed without a card (`srl review ID --rating N`). |
-| `response` | What you answered, if anything. |
+| `response` | What you answered, as given to `srl review --stdin`; `null` if nothing was given, and always `null` without a card. |
 | `by` | `human` or `agent`: who ran the review. |
-| `grader` | `self`, `exact`, `choice`, or `cmd:<command>`: what judged the answer. |
+| `grader` | What judged the answer: the card's grading mode (`self`, `exact`, `choice`), `cmd:<command>` for a `cmd` card with `[grading] cmd` set, and `self` for a `cmd` card without it or for a review without a card. |
 | `hash` | The first 12 hex characters of the SHA-256 of the atom file at review time. |
+
+Every field is always written, with `null` where it doesn't apply.
 
 `hash` is never used by `srl`. It exists so that you can later ask questions
 like "did my retention change after I rewrote this atom?".

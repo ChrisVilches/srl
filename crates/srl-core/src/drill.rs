@@ -2,7 +2,6 @@
 //! (see `docs/drills.md`).
 
 mod builtin;
-mod process;
 
 use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsStr;
@@ -15,7 +14,7 @@ use jiff::civil::Date;
 use serde::Serialize;
 
 use crate::card::{DrillDefaults, RawCard};
-use crate::{Atom, Atoms, Card, Error, Result, Store, atom, yaml};
+use crate::{Atom, Atoms, Card, Error, Result, Store, atom, process, yaml};
 
 pub(crate) use builtin::Builtin;
 
@@ -59,12 +58,13 @@ impl Drill {
         match &self.source {
             Source::Builtin(builtin) => Ok(builtin.summary().to_owned()),
             Source::Program(path) => {
-                let help = process::run(path, &["--help"], b"", timeout).map_err(|reason| {
-                    Error::DrillHelp {
-                        drill: self.name.clone(),
-                        reason,
-                    }
-                })?;
+                let help =
+                    process::run(path, &["--help"], b"", Some(timeout)).map_err(|reason| {
+                        Error::DrillHelp {
+                            drill: self.name.clone(),
+                            reason,
+                        }
+                    })?;
                 Ok(help
                     .lines()
                     .map(|line| line.trim_start_matches('#').trim())
@@ -92,7 +92,7 @@ impl Drill {
                 .collect()),
             Source::Program(path) => {
                 let input = input(atom, run.day)?;
-                let output = process::run(path, &[], input.as_bytes(), run.timeout)?;
+                let output = process::run(path, &[], input.as_bytes(), Some(run.timeout))?;
                 Ok(output
                     .lines()
                     .enumerate()
@@ -236,6 +236,19 @@ impl Drills {
         day: Date,
         timeout: Duration,
     ) -> Vec<DrillCards> {
+        self.cards_of(atom, atoms, day, timeout, None)
+    }
+
+    /// Like [`Drills::cards`], but with `only`, runs only the drill of that
+    /// name, if it applies.
+    pub fn cards_of(
+        &self,
+        atom: &Atom,
+        atoms: &Atoms,
+        day: Date,
+        timeout: Duration,
+        only: Option<&str>,
+    ) -> Vec<DrillCards> {
         let run = Run {
             atoms,
             day,
@@ -244,6 +257,7 @@ impl Drills {
         self.applicable(atom)
             .0
             .into_iter()
+            .filter(|drill| only.is_none_or(|name| drill.name() == name))
             .map(|drill| drill_cards(drill, atom, &run))
             .collect()
     }
@@ -251,7 +265,7 @@ impl Drills {
 
 /// Where a drill's cards go in the pool: the fixed order first, then the
 /// other drills by name.
-fn pool_position(name: &str) -> (usize, String) {
+pub(crate) fn pool_position(name: &str) -> (usize, String) {
     let fixed = ORDER.iter().position(|known| *known == name);
     (fixed.unwrap_or(ORDER.len()), name.to_owned())
 }

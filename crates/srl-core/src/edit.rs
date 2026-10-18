@@ -7,24 +7,23 @@
 use std::fs;
 
 use crate::atom;
-use crate::{Atom, Atoms, Error, Id, Result, Selector, Status, Store, frontmatter};
+use crate::{Atom, Atoms, Error, Id, Result, Status, Store, frontmatter};
 
-/// Sets the status of every atom that matches `selector` and has status
-/// `from` to `to`, and returns their IDs, ordered by path. Matching atoms
-/// with another status are left alone. With `dry_run`, nothing is written.
+/// Sets the status of every atom of `selected` that has status `from` to
+/// `to`, and returns their IDs, in the order given. Atoms with another
+/// status are left alone. With `dry_run`, nothing is written.
 ///
 /// Only the `status` line of each file changes (see `frontmatter`).
 pub fn change_status(
     store: &Store,
-    atoms: &Atoms,
-    selector: &Selector,
+    selected: &[&Atom],
     from: Status,
     to: Status,
     dry_run: bool,
 ) -> Result<Vec<Id>> {
-    let prepared = atoms
-        .select(selector)
-        .into_iter()
+    let prepared = selected
+        .iter()
+        .copied()
         .filter(|atom| atom.content().status() == from)
         .map(|atom| with_status(atom, to).map(|text| (atom, text)))
         .collect::<Result<Vec<_>>>()?;
@@ -97,7 +96,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::Lookup;
+    use crate::{Lookup, Selector};
 
     /// A store with the given atom files, and its atoms.
     fn store(files: &[(&str, &str)]) -> (TempDir, Store) {
@@ -136,8 +135,14 @@ mod tests {
         let (_tmp, store) = three();
         let atoms = Atoms::load(&store).unwrap();
         let all = Selector::parse("").unwrap();
-        let changed =
-            change_status(&store, &atoms, &all, Status::Draft, Status::Active, false).unwrap();
+        let changed = change_status(
+            &store,
+            &atoms.select(&all, None),
+            Status::Draft,
+            Status::Active,
+            false,
+        )
+        .unwrap();
         assert_eq!(changed, [id("aaaaa1")]);
         assert_eq!(file(&store, "a.md"), DRAFT.replace("draft", "active"));
         assert_eq!(file(&store, "b.md"), ACTIVE);
@@ -151,8 +156,7 @@ mod tests {
         let selector = Selector::parse("tag:x").unwrap();
         let changed = change_status(
             &store,
-            &atoms,
-            &selector,
+            &atoms.select(&selector, None),
             Status::Active,
             Status::Suspended,
             false,
@@ -172,8 +176,7 @@ mod tests {
         let all = Selector::parse("").unwrap();
         let changed = change_status(
             &store,
-            &atoms,
-            &all,
+            &atoms.select(&all, None),
             Status::Suspended,
             Status::Active,
             true,
@@ -189,7 +192,13 @@ mod tests {
         let (_tmp, store) = store(&[("a.md", DRAFT), ("d.md", multi_line)]);
         let atoms = Atoms::load(&store).unwrap();
         let all = Selector::parse("").unwrap();
-        let result = change_status(&store, &atoms, &all, Status::Draft, Status::Active, false);
+        let result = change_status(
+            &store,
+            &atoms.select(&all, None),
+            Status::Draft,
+            Status::Active,
+            false,
+        );
         assert!(matches!(result, Err(Error::CannotEdit { .. })));
         assert_eq!(file(&store, "a.md"), DRAFT);
     }

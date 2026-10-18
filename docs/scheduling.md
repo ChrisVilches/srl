@@ -11,6 +11,30 @@ review, due day) is never stored as truth. It is computed by replaying the
 atom's review events from the log, in order, from the last `reset` event
 onwards.
 
+### Replay
+
+The implementation is the `fsrs` crate of the FSRS authors (FSRS-6). Every
+command that needs memory states replays the whole log, one rule per step:
+
+- Events are replayed in **log order**: files by name (so by month), lines
+  in order. Their times are not sorted.
+- Each review's **study day** comes from its own time `t`, with the offset
+  written in it (see "Days, not minutes").
+- **Days elapsed** is the review's study day minus the previous review's,
+  and 0 for the first review. A review dated before the previous one, which
+  can happen only out of log order, counts as 0 days.
+- FSRS gives the new stability and difficulty for the rating, and an
+  interval. The interval is **rounded to whole days, and at least 1**. The
+  atom is due on the review's study day plus the interval.
+- A **lapse** is an Again (1) on an atom that already had a review since its
+  last reset.
+- A `reset` event clears everything except which cards were used, which
+  only decides the card rotation (see below).
+
+Weights in `srl.toml` are given to FSRS as they are. It takes 21 (FSRS-6),
+or 19 or 17 from older versions, and fills in the rest. Any other count is an
+error.
+
 Consequences:
 
 - Changing `desired_retention` or the FSRS weights in `srl.toml` takes effect
@@ -49,7 +73,12 @@ the study day fail and say so, rather than assume UTC.
    order `reveal`, `reverse`, `cloze`, `cards`, `confusable`, then
    other drills alphabetically, then by `ref`. `--drill NAME` restricts the
    pool to one drill.
-4. If no atom qualifies, `srl next` prints nothing and exits with status 1.
+4. **An atom with no card is skipped**, and the next atom is tried. This
+   happens with `--drill NAME` on an atom that drill doesn't apply to, or
+   when every drill of the atom fails.
+5. If no atom qualifies, `srl next` prints nothing and exits with status 1.
+
+`--drill NAME` must name a drill that exists (see `srl drills`).
 
 ### The new-atom limit
 
@@ -71,8 +100,9 @@ atom, all with the same rating**. There is no partial credit.
 
 ## Reset
 
-`srl reset SELECTOR` appends a `reset` event for each matching atom. From then
-on, replay starts empty: the atom is new again. Earlier events stay in the log
+`srl reset SELECTOR` appends a `reset` event for each matching atom that is
+not new. A new atom has nothing to reset, so it gets no event. From then on,
+replay starts empty: the atom is new again. Earlier events stay in the log
 for analysis.
 
 Editing an atom's content never resets it.

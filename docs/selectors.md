@@ -22,7 +22,7 @@ mean the same.
 | `path:GLOB` | Atoms whose file path, relative to `atoms/`, matches the glob. `*` matches within one folder, `**` across folders: `path:japanese/*` is the files directly in `japanese/`, `path:japanese/**` everything below it. |
 | `id:ID` | The atom with that ID |
 | `status:S` | Atoms with status `active`, `draft` or `suspended` |
-| `state:S` | Atoms in a scheduling state: `new`, `due`, `young`, `mature`, `leech` (see [scheduling.md](scheduling.md)) |
+| `state:S` | Atoms in a scheduling state: `new`, `due`, `young`, `mature`, `leech` (see [scheduling.md](scheduling.md)). States come from replaying the log, so a selector with `state:` needs the configuration and the local time zone. |
 | `word` or `"some words"` | Atoms whose file contains the text, case-insensitively, anywhere: front-matter or body |
 
 Keys and text are told apart by one rule: a term that starts with lowercase

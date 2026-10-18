@@ -87,7 +87,7 @@ fn dir(tmp: &TempDir) -> &str {
 #[test]
 fn unwritten_commands_say_so_on_stderr() {
     let tmp = store();
-    let output = srl(&["next", "-tag:a", "--dir", dir(&tmp)]);
+    let output = srl(&["stats", "-tag:a", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("not implemented yet"));
@@ -411,14 +411,14 @@ fn edit_stdin_replaces_the_file_in_place() {
     assert_eq!(stdout(&srl(&["show", &id, "--dir", d])), text);
 }
 
-/// Writes a drill program `srl-drill-NAME` into `dir`. With `--help` it
+/// Writes a drill program `srl-drill-NAME` into `dir` and returns its path. With `--help` it
 /// prints `help`. Otherwise it saves its input as `srl-drill-NAME.input` next
 /// to itself, then sleeps for `seconds` if that is above 0, and prints
 /// `lines` if not. Lines must not hold characters that `cmd.exe` treats
 /// specially (`& | < > ^ %`).
 #[cfg(unix)]
 #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
-fn drill_program(dir: &Path, name: &str, help: &str, seconds: u32, lines: &[&str]) {
+fn drill_program(dir: &Path, name: &str, help: &str, seconds: u32, lines: &[&str]) -> PathBuf {
     use std::os::unix::fs::PermissionsExt;
     let quote = |text: &str| format!("'{}'", text.replace('\'', r"'\''"));
     // `exec`, so that killing the drill kills the sleep, and nothing is left
@@ -436,11 +436,12 @@ fn drill_program(dir: &Path, name: &str, help: &str, seconds: u32, lines: &[&str
     let path = dir.join(format!("srl-drill-{name}"));
     fs::write(&path, script).unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    path
 }
 
 #[cfg(windows)]
 #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
-fn drill_program(dir: &Path, name: &str, help: &str, seconds: u32, lines: &[&str]) {
+fn drill_program(dir: &Path, name: &str, help: &str, seconds: u32, lines: &[&str]) -> PathBuf {
     let rest = if seconds > 0 {
         format!("ping -n {} 127.0.0.1 > nul 2> nul\r\n", seconds + 1)
     } else {
@@ -452,7 +453,9 @@ fn drill_program(dir: &Path, name: &str, help: &str, seconds: u32, lines: &[&str
     let script = format!(
         "@echo off\r\nif \"%~1\"==\"--help\" (\r\n  echo {help}\r\n  exit /b 0\r\n)\r\nfindstr \"^\" > \"%~dpn0.input\"\r\n{rest}"
     );
-    fs::write(dir.join(format!("srl-drill-{name}.cmd")), script).unwrap();
+    let path = dir.join(format!("srl-drill-{name}.cmd"));
+    fs::write(&path, script).unwrap();
+    path
 }
 
 /// A store with a `drills/` folder, and that folder.
@@ -589,4 +592,202 @@ fn check_reports_problems_and_fix_assigns_missing_ids() {
     let no_drill = srl(&["check", "--dir", d]);
     assert_eq!(no_drill.status.code(), Some(2));
     assert!(stderr(&no_drill).contains("no drill `conj`"));
+}
+
+/// The JSON values printed by a command, one per line.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn json_lines(output: &Output) -> Vec<serde_json::Value> {
+    stdout(output)
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect()
+}
+
+/// Runs `srl next --json` and returns the card.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn next_card(d: &str, extra: &[&str]) -> serde_json::Value {
+    let args = [&["next", "--json", "--dir", d][..], extra].concat();
+    let output = srl(&args);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    json_lines(&output).into_iter().next().unwrap()
+}
+
+/// Records `rating` for `card` with `srl review --stdin`.
+fn record(d: &str, card: &serde_json::Value, rating: u8) {
+    let request = serde_json::json!({"card": card, "rating": rating, "response": []});
+    let output = srl_with_input(&["review", "--stdin", "--dir", d], &request.to_string());
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(output.stdout.is_empty());
+}
+
+/// A store with two atoms, `鮪` (with a cloze sentence) and `鯖`, and
+/// their IDs.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn fish() -> (TempDir, String, String) {
+    let tmp = store();
+    let lines = [
+        r#"{"title": "鮪", "answer": "tuna", "tags": ["kanji"], "cloze": ["{{鮪}}は魚です。"]}"#,
+        r#"{"title": "鯖", "answer": "mackerel", "tags": ["kanji"]}"#,
+    ];
+    let added = srl_with_input(&["add", "--stdin", "--dir", dir(&tmp)], &lines.join("\n"));
+    let [tuna, mackerel] = ids(&added).try_into().unwrap();
+    (tmp, tuna, mackerel)
+}
+
+#[test]
+fn the_study_loop_records_reviews_and_schedules_atoms() {
+    let (tmp, tuna, mackerel) = fish();
+    let d = dir(&tmp);
+    assert_eq!(ids(&srl(&["find", "state:new", "--dir", d])).len(), 2);
+
+    // A new atom comes first, by path, with the first card in drill order.
+    let card = next_card(d, &[]);
+    assert_eq!(card["atoms"][0], tuna.as_str());
+    assert_eq!(card["ref"], "reveal");
+
+    // The cloze card is graded by comparing the answer.
+    let cloze = next_card(d, &["--drill", "cloze"]);
+    let request = serde_json::json!({"card": cloze, "response": ["鮪"]});
+    let graded = srl_with_input(&["grade", "--dir", d], &request.to_string());
+    assert_eq!(
+        json_lines(&graded),
+        [serde_json::json!({"correct": [true], "suggested_rating": 3, "feedback": null})]
+    );
+
+    record(d, &card, 3);
+    // Rated today, so it is not next again; the other new atom is.
+    let card = next_card(d, &[]);
+    assert_eq!(card["atoms"][0], mackerel.as_str());
+    let by_id = srl(&[
+        "review", &mackerel, "--rating", "1", "--by", "agent", "--dir", d,
+    ]);
+    assert_eq!(by_id.status.code(), Some(0), "{}", stderr(&by_id));
+
+    // Nothing is left today.
+    let none = srl(&["next", "--dir", d]);
+    assert_eq!(none.status.code(), Some(1));
+    assert!(none.stdout.is_empty());
+    assert_eq!(
+        srl(&["find", "state:new", "--dir", d]).status.code(),
+        Some(1)
+    );
+    assert_eq!(ids(&srl(&["find", "state:young", "--dir", d])).len(), 2);
+
+    let log = srl(&["log", "--dir", d]);
+    let lines = stdout(&log);
+    let lines = lines.lines().collect::<Vec<_>>();
+    assert_eq!(lines.len(), 2, "{lines:?}");
+    assert!(lines[0].ends_with(&format!("  {tuna}  review  3  reveal  human")));
+    assert!(lines[1].ends_with(&format!("  {mackerel}  review  1  -  agent")));
+    let only_tuna = format!("id:{tuna}");
+    let events = json_lines(&srl(&["log", &only_tuna, "--json", "--dir", d]));
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["card"]["ref"], "reveal");
+    assert_eq!(events[0]["hash"].as_str().unwrap().len(), 12);
+
+    // A reset makes reviewed atoms new again; then there is nothing to reset.
+    let reset = srl(&["reset", "--dir", d]);
+    assert_eq!(ids(&reset), [tuna.clone(), mackerel.clone()]);
+    assert_eq!(srl(&["reset", "--dir", d]).status.code(), Some(1));
+    assert_eq!(ids(&srl(&["find", "state:new", "--dir", d])).len(), 2);
+    assert_eq!(next_card(d, &[])["atoms"][0], tuna.as_str());
+}
+
+#[test]
+fn the_new_atom_limit_holds_back_new_atoms() {
+    let (tmp, _tuna, _mackerel) = fish();
+    let d = dir(&tmp);
+    fs::write(tmp.path().join("srl.toml"), "[schedule]\nnew_per_day = 1\n").unwrap();
+    let card = next_card(d, &[]);
+    record(d, &card, 3);
+    assert_eq!(srl(&["next", "--dir", d]).status.code(), Some(1));
+    assert_eq!(ids(&srl(&["find", "state:new", "--dir", d])).len(), 1);
+}
+
+#[test]
+fn dry_runs_print_events_and_write_nothing() {
+    let (tmp, tuna, _mackerel) = fish();
+    let d = dir(&tmp);
+    let dry = srl(&["review", &tuna, "--rating", "2", "--dry-run", "--dir", d]);
+    assert_eq!(dry.status.code(), Some(0), "{}", stderr(&dry));
+    assert_eq!(json_lines(&dry)[0]["rating"], 2);
+    assert_eq!(srl(&["log", "--dir", d]).status.code(), Some(1));
+    srl(&["review", &tuna, "--rating", "2", "--dir", d]);
+    let reset = srl(&["reset", "--dry-run", "--dir", d]);
+    assert_eq!(ids(&reset), [tuna.as_str()]);
+    assert_eq!(ids(&srl(&["find", "state:new", "--dir", d])).len(), 1);
+}
+
+#[test]
+fn bad_reviews_record_nothing() {
+    let (tmp, tuna, _mackerel) = fish();
+    let d = dir(&tmp);
+    let unknown = srl(&["review", "zzzzzz", "--rating", "3", "--dir", d]);
+    assert_eq!(unknown.status.code(), Some(2));
+    let card = next_card(d, &[]);
+    let bad = serde_json::json!({"card": card, "rating": 7});
+    let output = srl_with_input(&["review", "--stdin", "--dir", d], &bad.to_string());
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("rating"), "{}", stderr(&output));
+    let both = srl(&["review", &tuna, "--rating", "3", "--stdin", "--dir", d]);
+    assert_eq!(both.status.code(), Some(2));
+    assert_eq!(srl(&["log", "--dir", d]).status.code(), Some(1));
+}
+
+#[test]
+fn a_broken_log_line_is_reported_and_skipped() {
+    let (tmp, tuna, _mackerel) = fish();
+    let d = dir(&tmp);
+    srl(&["review", &tuna, "--rating", "3", "--dir", d]);
+    let file = fs::read_dir(tmp.path().join("log"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let text = fs::read_to_string(&file).unwrap();
+    fs::write(&file, format!("{text}not an event\n")).unwrap();
+    let output = srl(&["log", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(stdout(&output).lines().count(), 1);
+    assert!(stderr(&output).contains("line 2"), "{}", stderr(&output));
+}
+
+#[test]
+fn cmd_cards_are_graded_by_the_configured_grader() {
+    let (tmp, drills) = store_with_drills();
+    let d = dir(&tmp);
+    let id = stdout(&srl(&["add", "--title", "x", "--dir", d]))
+        .trim()
+        .to_owned();
+    let card = serde_json::json!({"atoms": [id], "drill": "llm", "ref": "llm:1", "prompt": "Use it in a sentence.",
+        "answer": "Any sentence.", "grading": "cmd"});
+    let request = serde_json::json!({"card": card, "response": ["My sentence."]});
+
+    let fallback = srl_with_input(&["grade", "--dir", d], &request.to_string());
+    assert_eq!(fallback.status.code(), Some(0), "{}", stderr(&fallback));
+    assert_eq!(json_lines(&fallback)[0]["fallback"], "self");
+
+    let program = drill_program(
+        &drills,
+        "grader",
+        "A grader",
+        0,
+        &[r#"{"correct": [true], "rating": 4, "feedback": "Natural."}"#],
+    );
+    let config = format!(
+        "[grading]\ncmd = {}\n",
+        serde_json::json!(program.to_str().unwrap())
+    );
+    fs::write(tmp.path().join("srl.toml"), config).unwrap();
+    let graded = srl_with_input(&["grade", "--dir", d], &request.to_string());
+    assert_eq!(graded.status.code(), Some(0), "{}", stderr(&graded));
+    assert_eq!(
+        json_lines(&graded),
+        [serde_json::json!({"correct": [true], "suggested_rating": 4, "feedback": "Natural."})]
+    );
+    let input = fs::read_to_string(drills.join("srl-drill-grader.input")).unwrap();
+    let input = serde_json::from_str::<serde_json::Value>(&input).unwrap();
+    assert_eq!(input["atom"]["title"], "x");
+    assert_eq!(input["response"][0], "My sentence.");
 }

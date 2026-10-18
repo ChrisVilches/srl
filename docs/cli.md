@@ -77,12 +77,18 @@ reports it and changes nothing.
 |---|---|
 | `srl study [SELECTOR]` | The built-in terminal frontend (see [frontends.md](frontends.md)). |
 | `srl study --session NAME` | Study a prepared session with the same frontend (see below). |
-| `srl next [SELECTOR] [--drill NAME] [--json]` | Print the next card. Exit 1 if there is none. |
+| `srl next [SELECTOR] [--drill NAME] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`. Exit 1 if there is none. Failing drills are reported but don't change the exit code, so a study loop keeps going. |
 | `srl cards ID [--json]` | Print every card of an atom, from every applicable drill (see below). Failing drills and invalid cards are reported, and make the exit code 2. |
-| `srl grade` | Grade an answer: card and response as JSON on stdin (see [grading.md](grading.md)). |
-| `srl review --stdin` | Record a review: `{"card": …, "rating": N, "response": […], "by": "human"}`. |
-| `srl review ID… --rating N [--by agent]` | Record a review without a card. |
-| `srl reset SELECTOR` | Make matching atoms new again. |
+| `srl grade` | Grade an answer: card and response as JSON on stdin; prints the result as JSON (see [grading.md](grading.md)). Exits 0 even when it falls back to self-grading. |
+| `srl review --stdin` | Record a review: `{"card": …, "rating": N, "response": […], "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
+| `srl review ID… --rating N [--by agent]` | Record a review without a card. Every ID must be an atom of the store. Prints nothing. |
+| `srl reset SELECTOR` | Make matching atoms new again. Only atoms that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
+
+The card given to `srl grade` and `srl review --stdin` is checked like any
+card (see [cards.md](cards.md), rule 4), and every atom it names must exist.
+With `--dry-run`, `srl review` prints the events it would write, one JSON
+line each, and `srl reset` prints the IDs it would reset; neither writes to
+the log.
 
 `srl cards ID` orders the cards by drill, in the fixed drill order of
 [scheduling.md](scheduling.md) (`reveal`, `reverse`, `cloze`, `cards`,
@@ -123,7 +129,7 @@ cloze:0:1  exact
 | Command | Does |
 |---|---|
 | `srl stats [SELECTOR] [--json]` | Atoms per state, reviews today, retention over the last 30 days (share of non-Again ratings on atoms that were not new). |
-| `srl log [SELECTOR] [--json]` | Print the log events of matching atoms. |
+| `srl log [SELECTOR] [--json]` | Print the log events of matching atoms, in log order: one line each with the time, the atom, and `reset`, or `review`, the rating, the card's ref (`-` without a card) and who reviewed, separated by two spaces; or with `--json`, the events as stored. Exit 1 if there are none. |
 
 ## Sessions
 

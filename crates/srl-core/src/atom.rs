@@ -4,11 +4,11 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use std::fs;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::store::Store;
-use crate::{Error, Result, Selector, yaml};
+use crate::{Error, Memories, Result, Selector, yaml};
 
 /// The number of characters in an ID.
 const ID_LEN: usize = 6;
@@ -21,9 +21,17 @@ const ID_CHARS: &[u8; 36] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 const RESERVED: [&str; 2] = ["body", "path"];
 
 /// An atom's stable identity: six characters `[a-z0-9]`.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-#[serde(transparent)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String")]
 pub struct Id(String);
+
+impl TryFrom<String> for Id {
+    type Error = Error;
+
+    fn try_from(text: String) -> Result<Self> {
+        Self::parse(&text)
+    }
+}
 
 impl Id {
     pub fn parse(text: &str) -> Result<Self> {
@@ -365,11 +373,12 @@ impl Atoms {
         self.atoms.iter().find(|atom| atom.id() == id)
     }
 
-    /// The atoms that match `selector`, ordered by path.
-    pub fn select(&self, selector: &Selector) -> Vec<&Atom> {
+    /// The atoms that match `selector`, ordered by path. `memories` must be
+    /// given if the selector [needs them](Selector::needs_memories).
+    pub fn select(&self, selector: &Selector, memories: Option<&Memories>) -> Vec<&Atom> {
         self.atoms
             .iter()
-            .filter(|atom| selector.matches(atom))
+            .filter(|atom| selector.matches(atom, memories))
             .collect()
     }
 

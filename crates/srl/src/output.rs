@@ -113,6 +113,31 @@ pub(crate) fn cards(cards: &[srl_core::Card]) {
     }
 }
 
+/// Prints one line per log event, fields separated by two spaces: the time,
+/// the atom, and `reset`, or `review`, the rating, the card's ref (`-`
+/// without a card) and who reviewed.
+pub(crate) fn events(events: &[&srl_core::Event]) {
+    for event in events {
+        match event {
+            srl_core::Event::Review(review) => {
+                let reference = review
+                    .card
+                    .as_ref()
+                    .map_or("-", |card| card.reference.as_str());
+                let by = match review.by {
+                    srl_core::By::Human => "human",
+                    srl_core::By::Agent => "agent",
+                };
+                println!(
+                    "{}  {}  review  {}  {reference}  {by}",
+                    review.t, review.atom, review.rating
+                );
+            }
+            srl_core::Event::Reset(reset) => println!("{}  {}  reset", reset.t, reset.atom),
+        }
+    }
+}
+
 /// Prints one line per atom that got an ID: the ID and its file.
 pub(crate) fn fixed(fixed: &[srl_core::Fixed]) {
     for atom in fixed {

@@ -127,6 +127,14 @@ impl Card {
         Self::check(filled, known)
     }
 
+    /// A whole card in the card format, as frontends send it back to
+    /// `srl grade` and `srl review`, checked. Errors are plain reasons.
+    pub(crate) fn from_value(value: serde_json::Value, known: &Atoms) -> Result<Self, String> {
+        let raw = serde_json::from_value::<RawCard>(value)
+            .map_err(|error| format!("it is not a card ({error})"))?;
+        Self::check(raw, known)
+    }
+
     /// Checks a card against the rules of `docs/cards.md`. Errors are plain
     /// reasons.
     fn check(raw: RawCard, known: &Atoms) -> Result<Self, String> {

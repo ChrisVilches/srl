@@ -8,12 +8,14 @@ use std::io;
 use std::path::PathBuf;
 
 use anyhow::{Context, bail};
+use jiff::Zoned;
 use jiff::civil::Date;
 use srl_core::{
-    Atoms, Config, Content, Drills, Error, Flags, Id, Lookup, Search, Selector, Status, Store,
+    Atom, Atoms, Config, Content, Drills, Error, Flags, GradeRequest, Id, Log, Lookup, Memories,
+    NextOptions, ReviewRequest, Search, Selector, Status, Store,
 };
 
-use crate::args::{AddArgs, Cli, Command, SessionCommand};
+use crate::args::{AddArgs, By, Cli, Command, ReviewArgs, SessionCommand};
 use crate::{Outcome, external, output};
 
 pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
@@ -54,11 +56,17 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             return change_status(&store()?, &selector.terms, change, dry_run.dry_run);
         }
         Command::Study { .. } => "study",
-        Command::Next { .. } => "next",
+        Command::Next {
+            selector,
+            drill,
+            json,
+        } => return next(&store()?, &selector.terms, drill.as_deref(), json.json),
         Command::Cards { id, json } => return cards(&store()?, &id, json.json),
-        Command::Grade => "grade",
-        Command::Review(_) => "review",
-        Command::Reset { .. } => "reset",
+        Command::Grade => return grade(&store()?),
+        Command::Review(args) => return review(&store()?, &args),
+        Command::Reset { selector, dry_run } => {
+            return reset(&store()?, &selector.terms, dry_run.dry_run);
+        }
         Command::Session { action } => match action {
             SessionCommand::Put { .. } => "session put",
             SessionCommand::List { .. } => "session list",
@@ -66,7 +74,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         },
         Command::Drills { json } => return drills(&store()?, json.json),
         Command::Stats { .. } => "stats",
-        Command::Log { .. } => "log",
+        Command::Log { selector, json } => return log(&store()?, &selector.terms, json.json),
     };
     bail!(
         "`srl {name}` is not implemented yet (store: {})",
@@ -84,7 +92,9 @@ fn change_status(
     dry_run: bool,
 ) -> anyhow::Result<Outcome> {
     let selector = Selector::parse(&terms.join(" "))?;
-    let changed = srl_core::change_status(store, &load(store)?, &selector, from, to, dry_run)?;
+    let atoms = load(store)?;
+    let selected = select(store, &atoms, &selector)?;
+    let changed = srl_core::change_status(store, &selected, from, to, dry_run)?;
     output::ids(&changed);
     Ok(found_anything(!changed.is_empty()))
 }
@@ -123,7 +133,7 @@ fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
 /// `srl find` and `srl drafts`: lists the matching atoms.
 fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
     let atoms = load(store)?;
-    let found = atoms.select(selector);
+    let found = select(store, &atoms, selector)?;
     if json {
         output::json_lines(&found)?;
     } else {
@@ -256,23 +266,198 @@ fn check(store: &Store, fix: bool, dry_run: bool) -> anyhow::Result<Outcome> {
 
 /// Finds every drill, looking in the store and on `PATH`.
 fn find_drills(store: &Store) -> anyhow::Result<(Drills, Vec<Error>)> {
-    let search = Search {
+    Ok(Drills::find(store, &search()?))
+}
+
+/// Where to look for programs: the folders of `PATH`, and the current
+/// directory for relative ones.
+fn search() -> anyhow::Result<Search> {
+    Ok(Search {
         path: env::var_os("PATH")
             .map(|path| env::split_paths(&path).collect())
             .unwrap_or_default(),
         cwd: env::current_dir().context("cannot read the current directory")?,
-    };
-    Ok(Drills::find(store, &search))
+    })
 }
 
-/// Today's study day, from the local time. Fails if the system's time zone
-/// can't be found, rather than guessing UTC.
+/// Today's study day, from the local time.
 fn today(config: &Config) -> anyhow::Result<Date> {
+    Ok(config.schedule.study_day(now()?.datetime()))
+}
+
+/// The local time. Fails if the system's time zone can't be found, rather
+/// than guessing UTC.
+fn now() -> anyhow::Result<Zoned> {
     let zone = jiff::tz::TimeZone::try_system().context(
         "cannot find the system's time zone, which decides the study day; set the TZ environment variable",
     )?;
-    let now = jiff::Timestamp::now().to_zoned(zone);
-    Ok(config.schedule.study_day(now.datetime()))
+    Ok(jiff::Timestamp::now().to_zoned(zone))
+}
+
+/// What the commands about reviews need: the configuration, today's study
+/// day, the log, and every atom's memory replayed from it.
+struct Scheduling {
+    config: Config,
+    now: Zoned,
+    log: Log,
+    memories: Memories,
+}
+
+/// Reads the configuration and the log, reports the log lines that were
+/// skipped, and replays the log.
+fn scheduling(store: &Store) -> anyhow::Result<Scheduling> {
+    let config = Config::load(store)?;
+    let now = now()?;
+    let log = Log::load(store, &config.schedule)?;
+    log.problems.iter().for_each(output::problem);
+    let today = config.schedule.study_day(now.datetime());
+    let memories = Memories::replay(&log, &config, today)?;
+    Ok(Scheduling {
+        config,
+        now,
+        log,
+        memories,
+    })
+}
+
+/// The atoms that match `selector`, replaying the log only if the selector
+/// has `state:` terms.
+fn select<'a>(
+    store: &Store,
+    atoms: &'a Atoms,
+    selector: &Selector,
+) -> anyhow::Result<Vec<&'a Atom>> {
+    let memories = if selector.needs_memories() {
+        Some(scheduling(store)?.memories)
+    } else {
+        None
+    };
+    Ok(atoms.select(selector, memories.as_ref()))
+}
+
+/// `srl next`: the next card, if there is one. Problems with drills are
+/// reported, but don't change the exit code, so a study loop keeps going.
+fn next(
+    store: &Store,
+    terms: &[String],
+    drill: Option<&str>,
+    json: bool,
+) -> anyhow::Result<Outcome> {
+    let selector = Selector::parse(&terms.join(" "))?;
+    let atoms = load(store)?;
+    let scheduling = scheduling(store)?;
+    let (drills, search_problems) = find_drills(store)?;
+    search_problems.iter().for_each(output::problem);
+    let options = NextOptions {
+        drill,
+        day: scheduling.memories.today(),
+        timeout: scheduling.config.drills.timeout(),
+    };
+    let (card, problems) = srl_core::next(
+        &atoms,
+        &scheduling.memories,
+        &drills,
+        selector,
+        &scheduling.config,
+        options,
+    )?;
+    problems.iter().for_each(output::problem);
+    let Some(card) = card else {
+        return Ok(Outcome::Nothing);
+    };
+    if json {
+        output::json_lines(&[card])?;
+    } else {
+        output::cards(&[card]);
+    }
+    Ok(Outcome::Done)
+}
+
+/// `srl grade`: grades the card and response on standard input, and prints
+/// the result as JSON. A failing grader is reported, and the result says to
+/// fall back to self-grading.
+fn grade(store: &Store) -> anyhow::Result<Outcome> {
+    let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
+    let atoms = load(store)?;
+    let request = GradeRequest::parse(&text, &atoms)?;
+    let config = Config::load(store)?;
+    let (graded, problem) = srl_core::grade(&request, &atoms, &config.grading.cmd, &search()?);
+    problem.iter().for_each(output::problem);
+    output::json_lines(&[graded])?;
+    Ok(Outcome::Done)
+}
+
+/// `srl review`: records a review from standard input, or of atoms by ID.
+/// Prints nothing, or with `--dry-run` the events it would write.
+fn review(store: &Store, args: &ReviewArgs) -> anyhow::Result<Outcome> {
+    let atoms = load(store)?;
+    let now = now()?;
+    let dry_run = args.dry_run.dry_run;
+    let events = if args.stdin {
+        let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
+        let request = ReviewRequest::parse(&text, &atoms)?;
+        let config = Config::load(store)?;
+        srl_core::review(store, &atoms, &request, &config.grading.cmd, &now, dry_run)?
+    } else {
+        let ids = args
+            .ids
+            .iter()
+            .map(|id| Id::parse(id))
+            .collect::<srl_core::Result<Vec<_>>>()?;
+        let rating = args
+            .rating
+            .context("--rating is required when reviewing atoms by ID")?;
+        let by = match args.by {
+            By::Human => srl_core::By::Human,
+            By::Agent => srl_core::By::Agent,
+        };
+        srl_core::review_ids(store, &atoms, &ids, rating, by, &now, dry_run)?
+    };
+    if dry_run {
+        output::json_lines(&events)?;
+    }
+    Ok(Outcome::Done)
+}
+
+/// `srl reset`: makes the matching atoms that are not new new again, and
+/// prints their IDs.
+fn reset(store: &Store, terms: &[String], dry_run: bool) -> anyhow::Result<Outcome> {
+    let selector = Selector::parse(&terms.join(" "))?;
+    let atoms = load(store)?;
+    let scheduling = scheduling(store)?;
+    let selected = atoms.select(&selector, Some(&scheduling.memories));
+    let reset = srl_core::reset(
+        store,
+        &selected,
+        &scheduling.memories,
+        &scheduling.now,
+        dry_run,
+    )?;
+    output::ids(&reset);
+    Ok(found_anything(!reset.is_empty()))
+}
+
+/// `srl log`: the events of the matching atoms, in log order.
+fn log(store: &Store, terms: &[String], json: bool) -> anyhow::Result<Outcome> {
+    let selector = Selector::parse(&terms.join(" "))?;
+    let atoms = load(store)?;
+    let scheduling = scheduling(store)?;
+    let ids = atoms
+        .select(&selector, Some(&scheduling.memories))
+        .into_iter()
+        .map(Atom::id)
+        .collect::<Vec<_>>();
+    let events = scheduling
+        .log
+        .of(&ids)
+        .map(|entry| &entry.event)
+        .collect::<Vec<_>>();
+    if json {
+        output::json_lines(&events)?;
+    } else {
+        output::events(&events);
+    }
+    Ok(found_anything(!events.is_empty()))
 }
 
 /// Reports `problems` on standard error. The command failed if there were

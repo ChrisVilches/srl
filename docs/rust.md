@@ -25,10 +25,15 @@ crates/
     src/card.rs           cards.md
     src/drill.rs          drills.md: finding and running drills
     src/drill/builtin.rs  drills.md, "Built-in drills"
-    src/drill/process.rs  running a drill program with a time limit
+    src/grade.rs          grading.md
+    src/log.rs            log.md: reading and appending events
+    src/review.rs         log.md and scheduling.md: recording reviews and resets
+    src/schedule.rs       scheduling.md: replaying the log through FSRS, states
+    src/next.rs           scheduling.md, "Choosing the next card"
     src/selector.rs       selectors.md
     src/yaml.rs         front-matter between YAML text and JSON values
     src/frontmatter.rs  setting one key in an existing atom file (see below)
+    src/process.rs      running a program (drill, grader) with an optional time limit
     src/random.rs       reproducible random numbers (IDs, drill seeds)
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
@@ -51,12 +56,14 @@ command-line arguments into calls to `srl-core` and prints the results.
   compile-time guarantee rather than a convention.
 - **`srl-core` takes its inputs explicitly.** It does not read environment
   variables, the current directory, the clock or standard input on its own.
-  The CLI gathers them and passes them in (see `Lookup` in `store.rs`, and
-  `Search` and the study day in `drill.rs`). That keeps every rule testable
-  without a real process environment. Two exceptions come with running
-  drills: `which` reads `PATHEXT` itself on Windows, and the time limit on a
-  drill is measured with the monotonic clock (`Instant`). Neither decides
-  anything the specification describes in terms of time or environment.
+  The CLI gathers them and passes them in (see `Lookup` in `store.rs`,
+  `Search` and the study day in `drill.rs`, and the current time `now` that
+  `review.rs` stamps events with). That keeps every rule testable without a
+  real process environment. Two exceptions come with running programs
+  (drills and the external grader): `which` reads `PATHEXT` itself on
+  Windows, and a drill's time limit is measured with the monotonic clock
+  (`Instant`). Neither decides anything the specification describes in terms
+  of time or environment.
 - **`srl-core` never prints.** It returns values and errors. Turning them
   into text or JSON is the CLI's job.
 - **`srl` contains no domain logic.** If a command needs a decision about
@@ -253,7 +260,7 @@ Known places:
 | `add.rs`, `place`; [atoms.md](atoms.md) | Windows' 260-character path limit | TODO in code and spec |
 | [cli.md](cli.md), `srl new` / `srl edit` | `$EDITOR` is rarely set on Windows | TODO in spec (not implemented yet) |
 | `drill.rs`, `programs`; [drills.md](drills.md) | "Executable" and `#!` scripts are Unix concepts | Handled: `which` decides, with the execute bit on Unix and `PATHEXT` on Windows. The Windows test drills (`.cmd`) have not been run yet |
-| [log.md](log.md), appending events | Atomic appends aren't guaranteed on Windows or network file systems | TODO in spec (not implemented yet) |
+| `log.rs`, `append`; [log.md](log.md) | Atomic appends aren't guaranteed on Windows or network file systems: concurrent reviews could corrupt a line | **TODO in code and spec**: not solved yet; a lock file around each append is the likely fix |
 | `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
 
 ## Testing
@@ -320,6 +327,9 @@ Current dependencies:
 | `which` | both | Finding `srl-NAME` and drill programs, with `PATHEXT` on Windows |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
 | `toml` | `srl-core` | Parsing `srl.toml` |
+| `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |
+| `sha2` | `srl-core` | The `hash` of review events |
+| `unicode-normalization` | `srl-core` | NFKC in answer normalization |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
 | `saphyr` | `srl-core` | YAML 1.2 parsing and writing of front-matter |
 | `globset` | `srl-core` | `path:` globs in selectors |

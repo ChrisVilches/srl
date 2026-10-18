@@ -240,7 +240,7 @@ pub(crate) struct ReviewArgs {
     #[arg(long, value_parser = clap::value_parser!(u8).range(1..=4))]
     pub(crate) rating: Option<u8>,
     /// Who ran the review.
-    #[arg(long, value_enum, default_value_t = By::Human)]
+    #[arg(long, value_enum, default_value_t = By::Human, conflicts_with = "stdin")]
     pub(crate) by: By,
     #[command(flatten)]
     pub(crate) dry_run: DryRun,

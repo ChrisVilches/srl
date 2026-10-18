@@ -1,4 +1,5 @@
-//! Running a drill program with a time limit.
+//! Running a program (a drill, the external grader) with an optional time
+//! limit.
 
 use std::io::{self, Read, Write};
 use std::path::Path;
@@ -16,11 +17,11 @@ const POLL: Duration = Duration::from_millis(5);
 /// It fails if the program can't be started, takes longer than `timeout`
 /// (then it is killed), exits with a status other than 0, or writes output
 /// that is not UTF-8. Errors are plain reasons.
-pub(super) fn run(
+pub(crate) fn run(
     program: &Path,
     args: &[&str],
     input: &[u8],
-    timeout: Duration,
+    timeout: Option<Duration>,
 ) -> Result<String, String> {
     let mut child = Command::new(program)
         .args(args)
@@ -49,7 +50,7 @@ pub(super) fn run(
         let mut output = Vec::new();
         stdout.read_to_end(&mut output).map(|_| output)
     });
-    let deadline = Instant::now() + timeout;
+    let deadline = timeout.map(|timeout| Instant::now() + timeout);
     let status = loop {
         if let Some(status) = child
             .try_wait()
@@ -57,27 +58,26 @@ pub(super) fn run(
         {
             break status;
         }
-        if Instant::now() >= deadline {
+        if let Some((deadline, timeout)) = deadline.zip(timeout)
+            && Instant::now() >= deadline
+        {
             child
                 .kill()
                 .map_err(|error| format!("it took too long, and cannot be stopped ({error})"))?;
             child
                 .wait()
                 .map_err(|error| format!("it took too long, and cannot be waited for ({error})"))?;
-            return Err(format!(
-                "it took longer than {} seconds (`[drills] timeout_seconds` in srl.toml)",
-                timeout.as_secs()
-            ));
+            return Err(format!("it took longer than {} seconds", timeout.as_secs()));
         }
         thread::sleep(POLL);
     };
     writer
         .join()
-        .expect("the thread writing to a drill should not panic")
+        .expect("the thread writing to a program should not panic")
         .map_err(|error| format!("cannot write its input ({error})"))?;
     let output = reader
         .join()
-        .expect("the thread reading from a drill should not panic")
+        .expect("the thread reading from a program should not panic")
         .map_err(|error| format!("cannot read its output ({error})"))?;
     if !status.success() {
         return Err(match status.code() {
