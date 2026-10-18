@@ -1,0 +1,55 @@
+[workspace]
+resolver = "3"
+members = ["crates/srl", "crates/srl-core"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+
+[workspace.dependencies]
+srl-core = { path = "crates/srl-core" }
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+tempfile = "3.27.0"
+thiserror = "2.0.21"
+
+# Lint policy: see docs/rust.md, "Linting".
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unreachable_pub = "warn"
+missing_debug_implementations = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+# Groups
+pedantic = { level = "warn", priority = -1 }
+
+# Pedantic lints that cost more than they give in this codebase
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
+# Selected restriction lints
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+clone_on_ref_ptr = "warn"
+dbg_macro = "warn"
+exit = "warn"
+expect_used = "warn"
+if_then_some_else_none = "warn"
+let_underscore_must_use = "warn"
+mod_module_files = "warn"
+panic = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+str_to_string = "warn"
+todo = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unwrap_used = "warn"
+verbose_file_reads = "warn"
+wildcard_enum_match_arm = "warn"
