@@ -74,7 +74,7 @@ document, listed at the end.
 | **Atom** | One thing you can know or not know. Has an ID, a cue, optional tags, optional facets, and a free prose body. It is the only thing with a memory state. |
 | **Facet** | A named block of structured data in an atom's front-matter, such as `cloze:` or `cards:`. It describes one way the atom can be drilled. |
 | **Drill** | A program that reads one facet of an atom and outputs cards. A drill and its facet share a name. |
-| **Card** | One ready-to-show question in a fixed format. Cards are produced on demand and are not stored (except in caches). |
+| **Card** | One ready-to-show question in a fixed format. Cards are produced on demand and are not stored (except in sessions). |
 | **Grading** | How an answer is judged: `self`, `exact`, `choice` or `cmd`. |
 | **Frontend** | A program that shows cards to a person and records the results: the terminal `srl study`, a web viewer, a shell prompt. |
 | **Review event** | One line in the log: this atom was rated this way, at this time, through this card. |

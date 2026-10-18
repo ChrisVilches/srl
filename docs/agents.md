@@ -27,7 +27,7 @@ and JSON:
 2. **Reviews go through `srl review`.** An agent never writes to the log, and
    marks its reviews with `--by agent` (or `"by": "agent"`).
 3. **What an agent writes is either a draft, an edit you can see in the atom
-   file, or a disposable cache** (`generated/`, `sessions/`). Nothing it does is
+   file, or a session** (`sessions/`). Nothing it does is
    hidden.
 
 These rules are enforced by giving the agent only the tools it needs, not by
@@ -46,7 +46,7 @@ use. For example:
 | `srs_add` | `srl add --draft --stdin` (always draft) |
 | `srs_edit` | `srl edit ID --stdin` (only if you want agents to edit atoms) |
 | `srs_next`, `srs_grade`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
-| `srs_session_put`, `srs_generated_put` | Preparing sessions and caches |
+| `srs_session_put` | Preparing sessions |
 | `read_file` | Reading source material (notes, articles) |
 
 There is deliberately no `srs_accept` tool. Which tools a given run gets is a
@@ -110,11 +110,9 @@ questions, and propose a new draft atom for a misconception it found.
 
 ### Enrich: more variety, studied offline
 
-A batch job (for example nightly) gives due atoms more material:
-
-- more sentences in `cloze:`, more items in `cards:`, more `confusable:` links,
-  through `srl edit`;
-- or ready-made cards in `generated/`, through `srl generated put`.
+A batch job (for example nightly) gives due atoms more material through
+`srl edit`: more sentences in `cloze:`, more ready-made questions in `cards:`,
+more `confusable:` links.
 
 Studying then needs no LLM at all.
 

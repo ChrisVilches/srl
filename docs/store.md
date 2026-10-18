@@ -18,8 +18,6 @@ my-store/
     2026-10.jsonl
   drills/                drills that belong to this store (optional)
     srl-drill-conj
-  generated/             cached cards per atom, written by agents or scripts (disposable)
-    a7f3k2.jsonl
   sessions/              prepared lists of cards to play (optional)
     n1-food.jsonl
   .cache/                derived data, safe to delete
@@ -32,7 +30,6 @@ my-store/
 | `atoms/` | yes | `srl add`, `srl new`, `srl edit`, `srl accept`, or any editor |
 | `log/` | yes | `srl review`, `srl reset` only. Never edit by hand. |
 | `drills/` | yes | you |
-| `generated/` | no, disposable | `srl generated put` |
 | `sessions/` | yes, but disposable in practice | `srl session put` |
 | `.cache/` | no | `srl`, automatically |
 
@@ -87,5 +84,5 @@ The store is designed to work well with git:
 
 - Atom edits show as ordinary line diffs.
 - The log is append-only, so it almost never conflicts on merge.
-- Add `.cache/` to `.gitignore`. Whether to track `generated/` and `sessions/`
-  is up to you; both can be recreated.
+- Add `.cache/` to `.gitignore`. Whether to track `sessions/` is up to you;
+  sessions can be recreated.

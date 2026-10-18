@@ -14,9 +14,8 @@ conj: {verb: 食べる, …}            srl-drill-conj           {"prompt": "て
 
 1. **A drill is named after its facet.** The drill `conj` reads the facet
    `conj:`.
-2. **A drill runs for an atom only if the atom has its facet.** Two built-in
-   exceptions: `reveal` runs for every atom, and `generated` runs when the atom
-   has a cache file.
+2. **A drill runs for an atom only if the atom has its facet.** One built-in
+   exception: `reveal` runs for every atom.
 3. **All drills that apply to an atom run, and their cards go into one pool.**
    `srl next` picks one card from that pool (see
    [scheduling.md](scheduling.md)).
@@ -190,12 +189,6 @@ One multiple-choice card:
   order seeded by atom ID and day;
 - grading: `choice`, with `accept: [[this atom's cue]]`.
 
-### `generated`
-
-Runs when `generated/<id>.jsonl` exists. Returns the cards in that file
-unchanged. The file is written with `srl generated put ID` (usually by an agent
-or a batch script) and can be deleted at any time.
-
 ## Drills that use an LLM
 
 The core has no LLM drill, but there are two ways to bring LLM-made questions
@@ -208,7 +201,8 @@ into the system:
   the whole atom as context and asks an LLM for cards. Like any drill, it only
   runs on atoms with its facet, for example
   `llm: {focus: "application questions using food vocabulary"}`. It can call
-  the model live, or a batch job can fill `generated/` in advance.
+  the model live or keep its own cache of earlier answers; any caching belongs
+  to the drill program, not to `srl`.
 
 Either way, facets are never templates for the LLM. It either writes data in
 a facet's shape, or reads facets as knowledge and writes cards.

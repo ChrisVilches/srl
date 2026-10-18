@@ -43,7 +43,7 @@ the day it began.
 3. **One card for the chosen atom:** among the cards of every applicable
    drill, the one whose `ref` was used least recently for this atom according
    to the log. Cards never used come first. Ties are broken by the fixed drill
-   order `reveal`, `reverse`, `cloze`, `cards`, `confusable`, `generated`, then
+   order `reveal`, `reverse`, `cloze`, `cards`, `confusable`, then
    other drills alphabetically, then by `ref`. `--drill NAME` restricts the
    pool to one drill.
 4. If no atom qualifies, `srl next` prints nothing and exits with status 1.

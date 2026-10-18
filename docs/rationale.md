@@ -85,6 +85,18 @@ behaves the same every time, and is not tied to a model, a provider or an
 agent. LLMs still contribute through three clearly bounded routes: agents
 running the CLI, drills, and the external grader.
 
+## Why agent-made cards go into facets
+
+An agent that wants to add questions writes them into the atom's facets
+(`cards:`, `cloze:`, `confusable:`), or provides a drill. There is no separate
+card cache for agents. A cache would be a concept that exists only for agents,
+would break the rules that drills run only for their facet and that cards are
+not stored, and would hide content outside the atom file. Ready-made questions
+already have a home in the `cards:` facet, where you can see, edit and version
+them.
+
+Trade-off: atom files grow when an agent adds many questions.
+
 ## Why not tied to Obsidian
 
 A vault is one source of knowledge among many (articles, PDFs, LLM

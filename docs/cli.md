@@ -61,12 +61,10 @@ agents all use the same commands. There is no separate API.
 | `srl play NAME` | Study a prepared session (see below). |
 | `srl reset SELECTOR` | Make matching atoms new again. |
 
-### Caches and sessions
+### Sessions
 
 | Command | Does |
 |---|---|
-| `srl generated put ID` | Replace the cached cards of an atom with JSONL from stdin. Cards are validated. |
-| `srl generated clear [SELECTOR]` | Delete cached cards. |
 | `srl session put NAME` | Save a list of cards (JSONL from stdin) as a session. Cards are validated. |
 | `srl session list` / `srl session rm NAME` | Manage sessions. |
 
@@ -92,6 +90,12 @@ by an agent ("15 questions on N1 grammar using food vocabulary") or a script.
   whether their atoms are due.
 - Reviews are recorded normally and update the atoms' schedules.
 - A session can be played again; it is just a file.
+
+> **TODO:** Revisit sessions once they are implemented. Build real scripts
+> around `srl` (for example an agent preparing a session), look at how
+> sessions work in practice, and decide whether they belong in the core or
+> are better handled outside `srl`. Refactor this specification based on
+> that.
 
 ## The study loop, scripted
 

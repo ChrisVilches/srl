@@ -79,8 +79,7 @@ never affects scheduling, because scheduling belongs to the atom.
 | Source | Stored? |
 |---|---|
 | A drill run by `srl next` | No |
-| `generated/<id>.jsonl`, through the `generated` drill | Yes, as a disposable cache |
 | `sessions/<name>.jsonl`, played with `srl play` | Yes, as a prepared list |
 
-Cards in caches and sessions use exactly the same format, and are validated
-when written (`srl generated put`, `srl session put`).
+Cards in sessions use exactly the same format, and are validated when written
+(`srl session put`).
