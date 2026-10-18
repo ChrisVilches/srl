@@ -1,34 +1,37 @@
 # Selectors
 
-A **selector** picks a set of atoms. Every command that works on several atoms
-takes one, and it means the same thing everywhere: for a person typing, a
-script, or an agent.
+A **selector** picks a set of cards. Every command that works on several
+cards takes one, and it means the same thing everywhere: for a person
+typing, a script, or an agent.
 
 ```sh
-srl study tag:jlpt/n1,kanji/food
-srl find tag:rust -state:new
-srl accept status:draft tag:jlpt/n1
+srl study in:grammar,kanji
+srl find in:rust -state:new
+srl accept status:draft in:generated
 ```
 
 ## Syntax
 
 A selector is a list of **terms** separated by spaces. Command-line arguments
-are joined with spaces, so `srl find tag:a tag:b` and `srl find "tag:a tag:b"`
+are joined with spaces, so `srl find in:a in:b` and `srl find "in:a in:b"`
 mean the same.
 
 | Term | Matches |
 |---|---|
-| `tag:a` | Atoms with tag `a` or any tag under it (`tag:japanese` matches `japanese/grammar`) |
-| `path:GLOB` | Atoms whose file path, relative to `atoms/`, matches the glob. `*` matches within one folder, `**` across folders: `path:japanese/*` is the files directly in `japanese/`, `path:japanese/**` everything below it. Paths and globs are compared in Unicode NFC (see [store.md](store.md), "File names"). |
-| `id:ID` | The atom with that ID |
-| `status:S` | Atoms with status `active`, `draft` or `suspended` |
-| `state:S` | Atoms in a scheduling state: `new`, `due`, `young`, `mature`, `leech` (see [scheduling.md](scheduling.md)). States come from replaying the log, so a selector with `state:` needs the configuration and the local time zone. |
-| `word` or `"some words"` | Atoms whose file contains the text, case-insensitively, anywhere: front-matter or body |
+| `in:NAME` | Cards whose note has a folder named `NAME` anywhere in its path, or is itself named `NAME` (without `.md`). Names are compared ignoring case, in Unicode NFC: `in:grammar` matches `japanese/Grammar/wo.md` and `grammar.md`, but not `grammar-notes.md`. |
+| `path:GLOB` | Cards whose note's path, relative to the store's folder, matches the glob. `*` matches within one folder, `**` across folders: `path:japanese/*` is the notes directly in `japanese/`, `path:japanese/**` everything below it. Paths and globs are compared in Unicode NFC (see [store.md](store.md), "File names"). |
+| `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1-1` and `k3m9q1-2`. |
+| `status:S` | Cards with status `active`, `draft` or `suspended` (see [notes.md](notes.md), "Status") |
+| `state:S` | Cards in a scheduling state: `new`, `due`, `young`, `mature`, `leech` (see [scheduling.md](scheduling.md)). States come from replaying the log, so a selector with `state:` needs the configuration and the local time zone. |
+| `word` or `"some words"` | Cards whose item contains the text, case-insensitively, in any field |
+
+`in:` is a quick way to name a topic, taken from how you already arrange
+your notes: there are no tags to write.
 
 Keys and text are told apart by one rule: a term that starts with lowercase
 letters `a`–`z` and a colon is a `key:value` term, and anything else is text.
-A key that is not in the table above is an error, so a typo such as `tga:x`
-fails instead of silently searching for the text `tga:x`. To search for text
+A key that is not in the table above is an error, so a typo such as `ni:x`
+fails instead of silently searching for the text `ni:x`. To search for text
 like that, put it in double quotes: `"std::move"`.
 
 Double quotes make a term of everything up to the next `"`, spaces included,
@@ -40,21 +43,21 @@ example is for POSIX shells (sh, bash, zsh) and PowerShell 7.3 or later.
 In Windows PowerShell 5.1, write `srl find '\"some words\"'`; in `cmd.exe`,
 write `srl find "\"some words\""`.
 
-A value can't be empty (`tag:` or `tag:a,,b`), and `id:` and `status:` values
-must be valid IDs and statuses.
+A value can't be empty (`in:` or `in:a,,b`), and `id:`, `status:` and
+`state:` values must be valid IDs, statuses and states.
 
 Three combining rules, and nothing else:
 
 | Syntax | Meaning |
 |---|---|
-| `key:a,b` | Comma: **or**. `tag:a,b` is tag `a` or tag `b`. |
+| `key:a,b` | Comma: **or**. `in:a,b` is cards in `a` or in `b`. |
 | `term term` | Space: **and**. Both must match. |
-| `-term` | Minus: **not**. `-tag:a` excludes tag `a`. |
+| `-term` | Minus: **not**. `-in:a` excludes cards in `a`. |
 
 There is no grouping and no operator precedence. If you need something these
 rules can't express, run two commands.
 
-An empty selector matches every atom.
+An empty selector matches every card.
 
 ## Defaults per command
 
@@ -62,7 +65,7 @@ Some commands add a term of their own:
 
 | Command | Adds |
 |---|---|
-| `srl next`, `srl study` | `status:active` (drafts and suspended atoms are never studied) |
+| `srl next`, `srl study` | `status:active` (drafts and suspended cards are never studied) |
 | `srl drafts` | `status:draft` |
 
 Every other command applies the selector exactly as written.
@@ -70,13 +73,13 @@ Every other command applies the selector exactly as written.
 ## Examples
 
 ```sh
-srl next tag:jlpt/n1,kanji/food           # N1 grammar or food kanji
-srl find tag:japanese -tag:jlpt/n5        # all Japanese except N5
+srl next in:grammar,kanji                 # grammar or kanji notes
+srl find in:japanese -in:n5               # all Japanese except the n5 folder
 srl find state:leech --json               # every leech
 srl find "ものともせず"                    # text search
-srl reset path:rust/ownership/*           # start a folder over
-srl find tag:vocab state:mature           # what you know well
+srl reset path:rust/ownership.md          # start a note over
+srl find in:vocab state:mature            # what you know well
 ```
 
-Commands that print atoms follow `grep` exit codes: 0 if anything matched, 1 if
-nothing did, 2 on error.
+Commands that print cards follow `grep` exit codes: 0 if anything matched, 1
+if nothing did, 2 on error.

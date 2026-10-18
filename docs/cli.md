@@ -8,16 +8,21 @@ agents all use the same commands. There is no separate API.
 - **`--json` everywhere.** Every command that prints data can print JSON
   instead (JSONL for lists). The default output is for people.
 - **Never ask questions when standard input is not a terminal.** Interactive
-  commands (`srl study`, `srl new`, `srl edit ID`) refuse in a pipe; every
-  action has a non-interactive form.
+  commands (`srl study`, `srl edit ID`) refuse in a pipe; every action has a
+  non-interactive form.
 - **Standard output carries results only.** Errors and warnings go to standard
   error, as one plain message each, saying what to do about it.
 - **Exit codes:** 0 success (or something found), 1 nothing found or nothing
   left, 2 error.
+- **Errors in notes stop every command that reads items** (see
+  [notes.md](notes.md), "Errors"), except `srl id` for items without an ID,
+  and `srl lint`.
 - **`--dry-run`** on every command that writes: show what would change, change
   nothing.
 - **`--dir DIR`** on every command, to choose the store (see
   [store.md](store.md)).
+- **IDs** given to commands are card IDs or item IDs. An item ID stands for
+  every card of the item, as in the selector `id:`.
 - **Extension like git.** `srl NAME` runs `srl-NAME` from `PATH` if `NAME` is
   not a built-in command. Frontends and other tools plug in this way. `PATH`
   is searched the way the platform's shell searches it: on Windows,
@@ -34,40 +39,92 @@ agents all use the same commands. There is no separate API.
 | Command | Does |
 |---|---|
 | `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
-| `srl check [--fix]` | Validate atoms, drills and cards; report each problem on standard error and exit with 2 if there are any. `--fix` assigns missing IDs and prints them (see [atoms.md](atoms.md), "Validation"). |
-| `srl reindex` | Delete the index cache and build it again from the files (see [store.md](store.md), "The index cache"). Prints nothing; reports invalid atom files and log lines like other commands. |
+| `srl check` | Check the notes, the configuration and the log; report each problem on standard error and exit with 2 if there are any (see "Checking" below). |
+| `srl lint` | Look for text that was probably meant to be an item but isn't one (see "Checking" below). |
+| `srl id` | Give an ID to every item without one (see [notes.md](notes.md), "How srl writes to notes"). Prints `ID  PATH:LINE` per item; exit 1 if every item already had one. |
+| `srl reindex` | Delete the index cache and build it again from the files (see [store.md](store.md), "The index cache"). Prints nothing. |
 
-### Atoms
+### Items and cards
 
 | Command | Does |
 |---|---|
-| `srl new [--draft]` | Write a new atom in the editor, starting from a template (see "Editing in the editor" below). Prints the new ID, like `srl add`; exit 1 if the template came back unchanged. |
-| `srl add [--draft] --title TITLE [--tag TAG]… [--source SOURCE]` | Add an atom from flags. It has no facets, so no cards, until you add some. |
-| `srl add [--draft] --stdin` | Add atoms from JSONL (see [atoms.md](atoms.md)). Prints the new IDs. |
-| `srl edit ID` | Edit an atom in the editor (see "Editing in the editor" below). Prints nothing. |
-| `srl edit ID --stdin` | Replace an atom's file with standard input, exactly as given. It must be a valid atom with the same `id`. The file keeps its path, even if the tags or title change. Prints nothing. `--dry-run` only checks the text. |
-| `srl show ID… [--json]` | Print atoms: each file as it is, or JSON (see [atoms.md](atoms.md)). Unknown IDs are reported, and make the exit code 2. |
-| `srl find [SELECTOR] [--json]` | List matching atoms, ordered by path: one line each with ID, title and tags, separated by two spaces; or the atom JSON of [atoms.md](atoms.md). Exit 1 if none matches. |
-| `srl tags [--json]` | List every tag in use, sorted, with the number of atoms that have it (any status): `COUNT  TAG` per line, or `{"tag": T, "count": N}` per line. Exit 1 if there are none. |
+| `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by note path, line, then card ID): one line each with the card ID, `PATH:LINE` and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
+| `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
+| `srl cards ID… [--json]` | Print the cards of each ID (see below). |
+| `srl add NOTE [--draft] --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
+| `srl edit ID` | Open the note of the item in the editor (see "Editing in the editor" below). |
+| `srl edit ID --stdin` | Replace the item's lines in its note with standard input, which must be exactly one item with the same ID. The rest of the note is unchanged. Prints nothing. |
 | `srl drafts [SELECTOR] [--json]` | List drafts: the same as `srl find SELECTOR status:draft`. |
-| `srl accept SELECTOR` | Make matching drafts active. |
-| `srl suspend SELECTOR` | Make matching active atoms suspended. |
-| `srl unsuspend SELECTOR` | Make matching suspended atoms active. |
+| `srl accept SELECTOR` | Remove `draft` from the headers of the items of matching draft cards. |
+| `srl suspend SELECTOR` | Suspend matching active cards. |
+| `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
+| `srl move FROM TO` | Give the history of the orphan `FROM` to the card `TO` (see [scheduling.md](scheduling.md), "Moving history"). Prints nothing. |
 
-`srl accept`, `srl suspend` and `srl unsuspend` apply the selector exactly as
-written. They change only the matching atoms that have the status they
-start from, and leave the rest alone: `srl suspend tag:x` doesn't touch
-drafts. Each prints the IDs it changed, one per line, ordered by path, and
-exits with 1 if it changed none. With `--dry-run` it prints the IDs it would
-change. Only the `status` line of each file changes: its value is replaced,
-or, if the file has none, a line is added right after the opening `---`.
-Every file is checked before the first one is written. If any can't be
-changed safely (see [rust.md](rust.md), "Front-matter editing"), the command
-reports it and changes nothing.
+`srl find --json` prints one object per card:
+
+```json
+{"id": "k3m9q1-2", "item": "k3m9q1", "path": "japanese/grammar/wo-mono-tomo-sezu.md",
+ "line": 9, "status": "active", "state": "due", "due": "2026-10-24"}
+```
+
+`due` is the study day the card is due, or `null` for a new card. `srl show
+--json` prints items as described in [notes.md](notes.md), "Items as JSON".
+Without `--json`, `srl show` prints, for each item: a line `PATH:LINE`, the
+item's lines as written, and, if the context isn't empty, a line `---` and
+the context. Items are separated by blank lines. `--context` overrides
+`context` in the configuration.
+
+`srl cards` prints cards in the format of [cards.md](cards.md) with
+`--json`, one per line. Without it, each card is printed for people: a line
+with its ID, the prompt, a line `---`, and the answer. Cards are separated
+by blank lines:
+
+```
+k3m9q1-1
+==[...]==を==[...]==、彼女は起業した。
+---
+==周囲の反対==を==ものともせず==、彼女は起業した。
+
+Despite everyone's opposition, she started a company.
+```
+
+`srl accept`, `srl suspend` and `srl unsuspend` apply the selector exactly
+as written, and change only matching cards that have the status they start
+from: `srl suspend in:x` doesn't touch drafts. `srl accept` prints the item
+IDs it changed, the others the card IDs, one per line in the order they are
+written, and each exits with 1 if it changed nothing. `srl accept` changes
+notes (see [notes.md](notes.md), "How srl writes to notes"); the others
+only append to the log.
+
+### Adding items
+
+`srl add NOTE --stdin` reads one item per line, as JSON:
+
+```json
+{"Q": "Make a sentence with 〜をものともせず about a football team.", "A": "…", "see": "japanese/grammar/wo-mono-tomo-sezu.md"}
+```
+
+- **Uppercase keys are fields**, in the order given, with text values.
+  Multi-line text is written with continuation lines.
+- **Lowercase keys are header entries**: `kind`, `see` (text) and `draft`
+  (`true` or `false`). There is no `id`: every item gets a new one.
+- `--draft` makes every item a draft.
+- `NOTE` is a path relative to the store's folder, ending in `.md`, and must
+  be a note (see [notes.md](notes.md), "Which files are notes"). If it
+  doesn't exist, it is created, with its folders.
+- The items are appended to the end of the note, each after a blank line,
+  following the rules of [notes.md](notes.md), "How srl writes to notes".
+- Every line is checked before anything is written: if any line is not a
+  valid item (not a JSON object, an unknown key, a value of the wrong type,
+  fields the kind doesn't accept), `srl add` reports the first such line
+  and adds nothing. Blank lines are ignored.
+
+It prints the new item IDs, one per line. With `--dry-run` it prints the
+items it would write, as they would appear in the note, and writes nothing.
 
 ### Editing in the editor
 
-`srl edit ID`, `srl new` and `e` in `srl study` open the editor:
+`srl edit ID` and `e` in `srl study` open the item's note in the editor:
 
 - The editor is `VISUAL` if it is set and not empty, else `EDITOR`, else
   the platform's default, as in git: `notepad` on Windows, `vi` everywhere
@@ -77,60 +134,31 @@ reports it and changes nothing.
   next `"`, so a path with spaces can have arguments too
   (`"C:\Program Files\Microsoft VS Code\bin\code.cmd" --wait`). There is no
   other quoting. The program is found on `PATH`, or given as a path. The
-  file to edit comes last.
-- The editor works on a temporary copy of the atom file. When it exits with
-  status 0, the copy is checked like `srl edit ID --stdin` (a valid atom,
-  the same `id`) and replaces the atom file. An editor that exits with
-  another status changes nothing.
-- An unchanged copy changes nothing, and `srl` says so on standard error.
-  An editor that returns at once, before you save (such as `code` without
-  `--wait`), ends up here, so such an edit is never lost without a word.
-- A copy that is not a valid atom changes nothing either, and is kept: the
-  error says where, so the edit isn't lost.
-- `--dry-run` only works with `--stdin`.
+  note's file comes last.
+- The editor works on the note itself. A note is yours, so `srl` doesn't
+  check it when the editor exits; the next command that reads items reports
+  any error in it.
 
-`srl new` opens this template:
-
-```markdown
----
-# The title is required; everything else is optional. Questions come from
-# facets, for example:
-#   cards:
-#     - q: The question
-#       a: The answer
-# Write the knowledge itself below the second `---`; it is shown after the
-# answer of every card. Lines starting with # are comments.
-title:
-tags: []
----
-```
-
-When the editor exits, the result must be a valid atom without an `id`. It
-is added like a line of `srl add --stdin`: it gets an ID, a file named after
-its title, and is written in the standard layout, so comments are not kept.
-`--draft` makes it a draft. An unchanged template adds nothing. A result
-that is not a valid atom adds nothing and is kept, as above. With
-`--dry-run`, `srl new` prints the ID and the file it would write, like
-`srl add --dry-run`.
+> **TODO (design):** `srl edit` opens the note at its start. Editors take a
+> line number in different ways (`+LINE`, `FILE:LINE`, `--goto`), and how
+> to say which one yours uses is undecided (see
+> [overview.md](overview.md), "Open questions").
 
 > **TODO (platform):** not run on Windows yet. Notepad, the default there,
 > is the one editor every Windows has, but Windows 11's Notepad may open the
 > file in a tab of a Notepad window that is already open and return at
-> once. `srl` then reports the file unchanged, so nothing is lost, but the
-> edit can't be made that way; set `EDITOR` to an editor that waits. If
-> this turns out to happen, choose another default.
+> once. That is harmless here, since `srl` doesn't wait for the edit, but
+> `e` in `srl study` then asks for the rating before you have edited.
 
 ### Studying
 
 | Command | Does |
 |---|---|
-| `srl study [SELECTOR] [--drill NAME]` | The built-in terminal frontend (see [frontends.md](frontends.md)). Adds `status:active`, like `srl next`. |
-| `srl study --session NAME` | Study a prepared session with the same frontend (see "Sessions" below). |
-| `srl next [SELECTOR] [--drill NAME] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`. Exit 1 if there is none. Failing drills are reported but don't change the exit code, so a study loop keeps going. |
-| `srl cards ID [--json]` | Print every card of an atom, from every applicable drill (see below). Failing drills and invalid cards are reported, and make the exit code 2. |
-| `srl review --stdin` | Record a review: `{"card": …, "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
-| `srl review ID… --rating N [--by agent]` | Record a review without a card. Every ID must be an atom of the store. Prints nothing. |
-| `srl reset SELECTOR` | Make matching atoms new again. Only atoms that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
+| `srl study [SELECTOR]` | The built-in terminal frontend (see [frontends.md](frontends.md)). Adds `status:active`, like `srl next`. |
+| `srl next [SELECTOR] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`. Exit 1 if there is none. |
+| `srl review --stdin` | Record a review: `{"card": "k3m9q1-2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
+| `srl review ID… --rating N [--by agent]` | Record the same rating for each card. Prints nothing. |
+| `srl reset SELECTOR` | Make matching cards new again. Only cards that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
 
 The rating is always given by whoever records the review (see
 [scheduling.md](scheduling.md), "Ratings"); `srl` never judges an answer.
@@ -139,57 +167,24 @@ review wants to keep it, such as an answer typed to an agent (see
 [log.md](log.md)). `by` says who recorded the review, not how the rating
 was decided.
 
-The card given to `srl review --stdin` is checked like any card (see
-[cards.md](cards.md), rule 4), and every atom it names must exist.
-With `--dry-run`, `srl review` prints the events it would write, one JSON
-line each, and `srl reset` prints the IDs it would reset; neither writes to
-the log.
-
-`srl cards ID` orders the cards by drill name, and keeps each drill's own
-order. With `--json` it prints one card per line in the format of
-[cards.md](cards.md). Without it, each card is printed for people: a line
-with its `ref`, the prompt, a line `---`, and the answer. Cards are
-separated by blank lines:
-
-```
-cards:0
-What does 〜をものともせず mean?
----
-Undeterred by (adversity), braving.
-
-cloze:0:1
-嵐を==[1]==、漁師たちは海へ出た。
----
-嵐を==ものともせず==、漁師たちは海へ出た。
-```
-
-### Sessions
-
-| Command | Does |
-|---|---|
-| `srl session put NAME` | Save a list of cards (JSONL from stdin) as a session, replacing one of that name. Prints nothing. |
-| `srl session list [--json]` | List sessions, sorted: `NAME  CARDS` per line, or `{"name": N, "cards": C}`. Exit 1 if there are none. |
-| `srl session rm NAME` | Remove a session. A session that doesn't exist is an error. |
-
-### Drills
-
-| Command | Does |
-|---|---|
-| `srl drills [--json]` | List available drills, where they were found, and the first line of their help (see [drills.md](drills.md), "Finding drills"). |
+Every card given to `srl review` must be a card of the store; an item ID
+is not enough, because a review is about one card. With `--dry-run`,
+`srl review` prints the events it would write, one JSON line each, and
+`srl reset` prints the IDs it would reset; neither writes to the log.
 
 ### Analysis
 
 | Command | Does |
 |---|---|
-| `srl stats [SELECTOR] [--json]` | Atoms per state, reviews today, retention over the last 30 days (share of non-Again ratings on atoms that were not new), for the matching atoms (see below). Exit 1 if none matches. |
-| `srl log [SELECTOR] [--json]` | Print the log events of matching atoms, in log order: one line each with the time, the atom, and `reset`, or `review`, the rating, the card's ref (`-` without a card) and who reviewed, separated by two spaces; or with `--json`, the events as stored. Exit 1 if there are none. |
+| `srl stats [SELECTOR] [--json]` | Cards per state, reviews today, retention over the last 30 days (share of non-Again ratings on cards that were not new), for the matching cards (see below). Exit 1 if none matches. |
+| `srl log [SELECTOR] [--json]` | Print the log events of matching cards, in log order (see below); with `--json`, the events as stored. Exit 1 if there are none. |
 
 `srl stats` applies the selector as written, so it counts drafts and
-suspended atoms too unless the selector says otherwise. It prints one
+suspended cards too unless the selector says otherwise. It prints one
 `NAME  VALUE` line each:
 
 ```
-atoms  120
+cards  120
 new  30
 due  12
 young  41
@@ -199,54 +194,69 @@ reviews today  25
 retention  88.5% of 400 reviews in 30 days
 ```
 
-- `new`, `due`, `young` and `mature` add up to `atoms`. `leech` overlaps
+- `new`, `due`, `young` and `mature` add up to `cards`. `leech` overlaps
   them (see [scheduling.md](scheduling.md), "States").
-- `reviews today` counts the reviews of the matching atoms on today's study
+- `reviews today` counts the reviews of the matching cards on today's study
   day.
 - `retention` looks at the last 30 study days, today included. It counts
-  the reviews of matching atoms that were not new at the time, and gives
+  the reviews of matching cards that were not new at the time, and gives
   the share that were not Again. Without such reviews it is `-`.
 
 With `--json` it prints one object:
-`{"atoms": N, "states": {"new": N, "due": N, "young": N, "mature": N,
+`{"cards": N, "states": {"new": N, "due": N, "young": N, "mature": N,
 "leech": N}, "reviews_today": N, "retention": R, "retention_reviews": N}`,
 where `retention` is a number from 0 to 1, or `null`.
 
-## Sessions
+`srl log` prints one line per event, its fields separated by two spaces:
+the time, the card, and then `review`, the rating and who recorded it;
+`reset`; `suspend`; `unsuspend`; or `move` and the card the history came
+from. A `move` event belongs to the card it moved history to.
 
-A session is a prepared list of cards in `sessions/NAME.jsonl`, usually written
-by an agent ("15 questions on N1 grammar using food vocabulary") or a script.
+## Checking
 
-- A session name is made of lowercase letters `a`–`z`, digits, `-` and `_`,
-  like a drill name, because it becomes a file name.
-- `srl session put NAME` reads one card per line, in the format of
-  [cards.md](cards.md); blank lines are ignored. Every card is checked
-  first (rule 4 of [cards.md](cards.md)), against the atoms of the store:
-  if any line is not a valid card, or there are none, it reports the first
-  bad line and saves nothing. It writes the cards back in the card format,
-  every field present, one per line.
-- `srl study --session NAME` shows the cards in file order, each once,
-  regardless of whether their atoms are due or what status they have. The
-  cards are checked again when the session starts: a card that is no longer
-  valid, for example because its atom was deleted, is reported and skipped.
-- Reviews are recorded normally and update the atoms' schedules.
-- A session can be studied again; it is just a file.
+`srl check` reads every note, the configuration and the log, and reports:
 
-> **TODO (design):** Revisit sessions once they have been used in practice.
-> Build real scripts around `srl` (for example an agent preparing a
-> session), see how sessions work, and decide whether they belong in the
-> core or are better handled outside `srl`. Then rewrite this section to
-> match (see [overview.md](overview.md), "Open questions").
+- every error in notes (see [notes.md](notes.md), "Errors");
+- notes whose full path is longer than 259 characters, counted in UTF-16
+  units as Windows counts them, since some programs on Windows can't open
+  them;
+- an invalid configuration;
+- log lines that are not valid events;
+- orphans, with the `srl move` command that would keep their history when
+  there is an obvious one (see [scheduling.md](scheduling.md), "Moving
+  history").
+
+Each problem is reported on standard error, one per line. Orphans are
+notices: the exit code is 2 if there is any other problem, and 0 otherwise.
+
+> **TODO (platform):** not run on Windows yet. `srl` itself can read and
+> write longer paths there (Rust's standard library uses Windows' long path
+> form), so the limit is for other programs: Explorer, many editors, git
+> without `core.longpaths`.
+
+`srl lint` looks for mistakes `srl check` can't call errors, because only
+headers make items (see [notes.md](notes.md), "The item syntax"). It
+reports, as `PATH:LINE: message` on standard output:
+
+- lines outside items that look like fields of the `qa` kind: `Q:` or `A:`
+  at the start of a line, or after spaces, a list marker (`-`, `*`, `+`,
+  `1.`) or a quote marker (`>`);
+- header-like text that isn't at column 0, such as an indented
+  `<!-- srl -->`;
+- cloze deletions (`{{c1::…}}`) outside items.
+
+These are guesses, so `srl lint` never fails because of what it finds: it
+exits with 0 if it found something, and 1 if not.
 
 ## The study loop, scripted
 
 `srl study` is a convenience. The same loop can be written with the primitives:
 
 ```sh
-sel='tag:jlpt/n1,kanji/food'
+sel='in:grammar,kanji'
 while card=$(srl next "$sel" --json); do
-  # show the prompt, then the answer and `srl show` of the card's atoms,
+  # show the prompt, then the answer and the context from `srl show`,
   # ask for a rating, then record it:
-  jq -n --argjson card "$card" --argjson rating 3 '{card: $card, rating: $rating}' | srl review --stdin
+  jq -n --argjson card "$card" --argjson rating 3 '{card: $card.id, rating: $rating}' | srl review --stdin
 done
 ```

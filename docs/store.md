@@ -1,38 +1,36 @@
 # The store
 
-A **store** is a directory that holds one `srl` database. It is owned and
-managed by `srl`: commands create and update its files. Because every file is
-plain text, you can also read, search and edit them directly, and version the
-whole store with git.
+A **store** is a folder of Markdown notes that `srl` studies from: usually
+your study folder. What makes it a store is a `.srl/` folder in it, which
+holds everything that belongs to `srl`. Everything outside `.srl/` is yours.
 
 You can have several stores, for example one per language or one for work.
 
 ## Layout
 
 ```
-my-store/
-  srl.toml               configuration; its presence marks the directory as a store
-  atoms/                 one Markdown file per atom, in any subfolders
-    japanese/grammar/wo-mono-tomo-sezu.md
-  log/                   review events, one JSONL file per month
-    2026-10.jsonl
-    .lock                held while an event is appended (see log.md)
-  drills/                drills that belong to this store (optional)
-    srl-drill-conj
-  sessions/              prepared lists of cards to study (optional)
-    n1-food.jsonl
-  .cache/                derived data, safe to delete
-    index.sqlite
+study/
+  .srl/                    marks the folder as a store; everything srl owns
+    config.toml            configuration
+    log/                   review events, one JSONL file per month
+      2026-10.jsonl
+      .lock                held while an event is appended (see log.md)
+    cache/                 derived data, safe to delete
+      index.sqlite
+  japanese/grammar/wo-mono-tomo-sezu.md     your notes, in any folders
+  rust/ownership.md
 ```
 
 | Path | Source of truth? | Written by |
 |---|---|---|
-| `srl.toml` | yes | you |
-| `atoms/` | yes | `srl add`, `srl new`, `srl edit`, `srl accept`, `srl suspend`, `srl unsuspend`, or any editor |
-| `log/` | yes | `srl review`, `srl reset` only. Never edit by hand. |
-| `drills/` | yes | you |
-| `sessions/` | yes, but disposable in practice | `srl session put` |
-| `.cache/` | no | `srl`, automatically |
+| notes (`**/*.md`) | yes | you, any editor; `srl id`, `srl accept` and `srl add` (see [notes.md](notes.md), "How srl writes to notes") |
+| `.srl/config.toml` | yes | you |
+| `.srl/log/` | yes | `srl review`, `srl reset`, `srl move`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |
+| `.srl/cache/` | no | `srl`, automatically |
+
+Which files are notes is described in [notes.md](notes.md), "Which files
+are notes". Folders that start with `.` are never read for notes, so
+`.srl/` itself, `.git/` and similar folders are left alone.
 
 ## Finding the store
 
@@ -40,7 +38,8 @@ Every command looks for the store in this order and uses the first match:
 
 1. The `--dir DIR` flag.
 2. The `SRL_DIR` environment variable.
-3. The current directory or its nearest parent that contains `srl.toml`.
+3. The current directory or its nearest parent that contains a `.srl`
+   folder.
 4. The default store: a folder `srl` in the platform's directory for
    application data.
 
@@ -51,13 +50,13 @@ Every command looks for the store in this order and uses the first match:
 | Windows | `%APPDATA%\srl` (for example `C:\Users\NAME\AppData\Roaming\srl`) |
 
 Every command except `srl init` requires the store it finds to exist (to
-contain `srl.toml`), and fails otherwise.
+contain `.srl/config.toml`), and fails otherwise.
 
-`srl init [DIR]` creates a store with a default `srl.toml` (every key
-commented out) and empty `atoms/` and `log/` folders. Like `git init`, it
-creates the store in `DIR`, else in `--dir`, else in `SRL_DIR`, else in the
-current directory. The directory may already hold other files, but not
-`srl.toml`. `srl init` prints each path it creates.
+`srl init [DIR]` creates a store: `.srl/config.toml` (every key commented
+out) and an empty `.srl/log/`. Like `git init`, it creates the store in
+`DIR`, else in `--dir`, else in `SRL_DIR`, else in the current directory.
+The folder may already hold notes and other files, but not `.srl/`.
+`srl init` prints each path it creates, and changes nothing else.
 
 ## File names
 
@@ -66,56 +65,59 @@ character) and decomposed (NFD, `e` plus an accent). Most systems name files
 in NFC, but macOS often gives names in NFD, and a store copied between
 systems can hold both.
 
-- `srl` sorts atom paths, and matches them against `path:` globs, in NFC,
-  so the form of a file's name never changes which atoms a selector picks
-  or their order. A `path:` glob is read in NFC too.
+- `srl` sorts note paths, and matches them against `path:`, `in:` and
+  `exclude`, in NFC, so the form of a file's name never changes which cards
+  a selector picks or their order. Globs and `in:` values are read in NFC
+  too.
 - Paths are printed as they are on disk (in `--json` output and errors), so
   that they always name the file.
-- New files (`srl add`, `srl new`) get names in NFC.
+- A note created by `srl add` gets the path you give it, as given.
 
-> **TODO (design):** only file paths are compared in NFC. Tags and other
-> front-matter text are compared exactly as written, so `tag:café` doesn't
-> match a tag typed in decomposed form (see [overview.md](overview.md),
-> "Open questions").
-
-## Configuration: `srl.toml`
+## Configuration: `.srl/config.toml`
 
 Every key is optional. These are the defaults:
 
 ```toml
+[notes]
+exclude = []                 # globs of notes to ignore, relative to the store's folder
+
 [schedule]
 desired_retention = 0.9      # FSRS target probability of recall
 day_starts_at = 4            # hour (local time) when a new study day begins
-new_per_day = 10             # new atoms introduced per day, across all selectors
-leech_lapses = 8             # an atom with this many lapses is a leech
-mature_days = 21             # an atom with at least this stability (days) is mature
+new_per_day = 10             # new cards introduced per day, across all selectors
+leech_lapses = 8             # a card with this many lapses is a leech
+mature_days = 21             # a card with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
 
-[drills]
-timeout_seconds = 10         # a drill that takes longer is skipped
+[study]
+context = "prose"            # how context is shown: prose, full or none (see notes.md)
 ```
 
 A key or table that is not listed here is an error, so a typo such as
-`timeout = 3` fails instead of being ignored. So is a value of the wrong
-type or out of range: `desired_retention` must be between 0 and 1
-(exclusive), `day_starts_at` an hour from 0 to 23, and `timeout_seconds` at
-least 1. Commands that need the configuration fail with a message naming the
-problem.
+`new_per_dya = 3` fails instead of being ignored. So is a value of the
+wrong type or out of range: `desired_retention` must be between 0 and 1
+(exclusive), `day_starts_at` an hour from 0 to 23, and `context` one of the
+three modes. Commands that need the configuration fail with a message
+naming the problem.
+
+`exclude` globs match note paths: `*` matches within one folder, `**`
+across folders. `exclude = ["templates/**", "inbox.md"]` ignores every note
+under `templates/` and the note `inbox.md`.
 
 ## The index cache
 
-`.cache/index.sqlite` holds what is slow to compute from the files: each atom
-file's parsed front-matter, and the log replayed through FSRS (each atom's
-memory, every review, and the log lines that are not valid events). It is
-only ever an optimization: every command gives the same results with it,
-without it, or after it was deleted.
+`.srl/cache/index.sqlite` holds what is slow to compute from the files: each
+note's parsed items, and the log replayed through FSRS (each card's memory,
+every review, and the log lines that are not valid events). It is only ever
+an optimization: every command gives the same results with it, without it,
+or after it was deleted.
 
 - **Every file is still read on every use**, and compared with the cache by
   a hash of its content (BLAKE3). Modification times are never trusted. What
   the cache saves is parsing and replaying, not reading.
-- **Atoms:** an atom file whose content is cached reuses its parsed
-  front-matter; any other file is parsed again. Files that are not valid
-  atoms are not cached, so they are read and reported every time.
+- **Notes:** a note whose content is cached reuses its parsed items; any
+  other note is parsed again. Notes with errors are not cached, so they are
+  read and reported every time.
 - **The log:** new lines are replayed on top of the cached memories when
   every log file the cache has read still starts with exactly the bytes it
   read (ending with a newline, unless nothing was added to that file), and
@@ -133,7 +135,7 @@ without it, or after it was deleted.
   example a read-only store, or another `srl` holding it for more than 5
   seconds), this is reported on standard error and the command reads the
   files directly.
-- `.cache/` is created by the first command that needs it, with a
+- `.srl/cache/` is created by the first command that needs it, with a
   `.gitignore` that ignores everything in it.
 - Each update is one SQLite transaction, so several `srl` processes can
   share the cache.
@@ -141,9 +143,9 @@ without it, or after it was deleted.
   nothing.
 - `srl log` lists events, so it reads the log files directly; `srl check`
   checks the files, so it reads them directly too.
-- It can be queried directly for exploration (`sqlite3 .cache/index.sqlite`),
-  but its schema is not a stable contract. Scripts should use the CLI's
-  `--json` output instead.
+- It can be queried directly for exploration
+  (`sqlite3 .srl/cache/index.sqlite`), but its schema is not a stable
+  contract. Scripts should use the CLI's `--json` output instead.
 
 **TODO (platform):** SQLite's file locking is unreliable on network file
 systems (NFS, SMB), on every platform. Two `srl` processes updating the same
@@ -151,12 +153,13 @@ cache there could damage it; damage is usually detected and the cache
 rebuilt, but not always. Keep stores on a local disk, or decide whether to
 put the cache outside the store in that case.
 
-## Version control
+## Version control and syncing
 
-The store is designed to work well with git:
+The store works well with git or any file syncing tool:
 
-- Atom edits show as ordinary line diffs.
+- Item edits show as ordinary line diffs in your notes.
 - The log is append-only, so it almost never conflicts on merge.
-- `.cache/` ignores itself (it holds its own `.gitignore`). Add `log/.lock`
-  to the store's `.gitignore`. Whether to track `sessions/` is up to you;
-  sessions can be recreated.
+- `.srl/cache/` ignores itself (it holds its own `.gitignore`). Add
+  `.srl/log/.lock` to the store's `.gitignore`.
+- Some sync tools skip folders whose names start with `.`. Check that yours
+  syncs `.srl/`, or your review history stays on one device.

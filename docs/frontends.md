@@ -4,21 +4,21 @@ A **frontend** is a program that shows cards to a person and records the
 results. `srl` ships one, the terminal frontend `srl study`. Others are
 separate programs: a web viewer, a shell-prompt question, a script.
 
-Frontends understand the card format, and read an atom's body from
-`srl show`, and nothing else. They don't know about facets, drills or where
-a card came from, so any frontend can show any card,
-including cards from drills written after it.
+Frontends understand the card format, and read an item's context from
+`srl show`, and nothing else. They don't know about notes, kinds or cloze
+syntax, so any frontend can show any card.
 
 ## The frontend contract
 
 Every frontend runs the same loop:
 
-1. **Get a card:** `srl next SELECTOR --json` (or the next card of a session).
+1. **Get a card:** `srl next SELECTOR --json`.
 2. **Show the prompt**, and wait until the person wants to see the answer.
-3. **Show the answer**, then the body of each of the card's atoms, which
-   `srl show ID --json` gives.
+3. **Show the answer**, then the item's context, which
+   `srl show ID --json` gives as `context` (see [notes.md](notes.md),
+   "Context").
 4. **Get a rating** from 1 to 4.
-5. **Record it:** card and rating to `srl review --stdin`.
+5. **Record it:** the card ID and the rating to `srl review --stdin`.
 
 The person rates every card; nothing is judged automatically. A frontend may
 also collect an answer before step 3 and pass it as `response`, which is
@@ -29,7 +29,8 @@ frontend behaves the same.
 
 ## Rendering
 
-Card text is Markdown with `==highlight==` (see [cards.md](cards.md)).
+Card text and context are Markdown; card text may also hold `==highlight==`
+(see [cards.md](cards.md)).
 
 - How highlighted text looks is a frontend setting, never card content. The
   terminal frontend uses bold yellow; a web frontend uses CSS.
@@ -38,20 +39,20 @@ Card text is Markdown with `==highlight==` (see [cards.md](cards.md)).
 
 ## The terminal frontend: `srl study`
 
-`srl study [SELECTOR] [--drill NAME]` runs the loop above in the terminal until
-nothing is left, then prints a short summary (reviews done, new atoms
-introduced, Again count): `5 cards reviewed, 2 atoms new, 1 Again.` It reads
-atoms and the log again before every card, so edits and reviews from other
-frontends count at once. Like every interactive command, it refuses to run
-when standard input is not a terminal.
+`srl study [SELECTOR]` runs the loop above in the terminal until nothing is
+left, then prints a short summary (reviews done, new cards introduced,
+Again count): `5 cards reviewed, 2 new, 1 Again.` It reads the notes and
+the log again before every card, so edits and reviews from other frontends
+count at once. Like every interactive command, it refuses to run when
+standard input is not a terminal.
 
 Input is read a line at a time: type, then Enter.
 
-- The prompt: Enter shows the answer, followed by the body of each of the
-  card's atoms that has one; `q` quits.
-- The rating: `1`–`4`. `e` opens the atom in the editor (see
+- The prompt: Enter shows the answer, followed by the context if it isn't
+  empty, under a line `---`; `q` quits.
+- The rating: `1`–`4`. `e` opens the item's note in the editor (see
   [cli.md](cli.md), "Editing in the editor") and asks for the rating again.
-  `s` suspends the atom without recording a review. `q` quits without
+  `s` suspends the card without recording a review. `q` quits without
   recording this card. Anything else asks again.
 - The end of input (Ctrl-D, or Ctrl-Z then Enter on Windows) quits at any
   point, without recording the card on screen.
@@ -72,9 +73,6 @@ error.
 
 > **TODO (platform):** not run on Windows yet.
 
-`srl study --session NAME` is the same frontend reading cards from a session
-file instead of `srl next` (see [cli.md](cli.md), "Sessions"). `--drill` and a selector can't be given with it.
-
 ## A web viewer
 
 A web viewer is a frontend like any other, split in two:
@@ -83,7 +81,7 @@ A web viewer is a frontend like any other, split in two:
 browser (HTML/JS)                     srl-web (small local server)       srl
 ──────────────────                    ────────────────────────────       ───
 render Markdown + ==mark==   ◄─JSON─  GET  /next?sel=…    ──runs──►  srl next SEL --json
-buttons, CSS theme           ◄─JSON─  GET  /atom?id=…     ──runs──►  srl show ID --json
+buttons, CSS theme           ◄─JSON─  GET  /item?id=…     ──runs──►  srl show ID --json
                              ──JSON─► POST /review        ──runs──►  srl review --stdin
 ```
 
@@ -91,17 +89,9 @@ buttons, CSS theme           ◄─JSON─  GET  /atom?id=…     ──runs─�
   runs one CLI command and returns its JSON. It contains no SRS logic.
 - The browser renders Markdown with an ordinary library (for example
   markdown-it with a `==mark==` plugin) and styles it with CSS.
-- Drills never produce HTML.
 
 Because scheduling lives in the core, the web viewer and the terminal behave
 identically.
-
-## Specialized frontends
-
-Nothing stops a frontend from handling only some cards in a richer way, for
-example a kanji-drawing frontend that only studies `--drill writing` cards.
-That is allowed, never required, and still goes through `srl next` and
-`srl review`.
 
 ## Small examples
 
@@ -112,12 +102,12 @@ A question in the shell prompt, rated later:
 precmd() { srl next --json 2>/dev/null | jq -r '"srl: " + .prompt' }
 ```
 
-A frontend in a few lines of shell, without the bodies:
+A frontend in a few lines of shell, without the context:
 
 ```sh
 while card=$(srl next "$1" --json); do
   jq -r .prompt <<<"$card"; read -r _
   jq -r .answer <<<"$card"; read -r -p 'rating 1-4: ' r
-  jq -n --argjson card "$card" --argjson rating "$r" '{card: $card, rating: $rating}' | srl review --stdin
+  jq -n --argjson card "$card" --argjson rating "$r" '{card: $card.id, rating: $rating}' | srl review --stdin
 done
 ```

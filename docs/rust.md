@@ -17,25 +17,22 @@ crates/
     src/lib.rs          the public API: re-exports only
     src/error.rs        the core's Error type
     src/store.rs        one module per area of the specification:
-                          store.md: finding, creating and listing a store
-    src/atom.rs           atoms.md: the atom file, IDs, status, reading atoms
-    src/add.rs            atoms.md, "Creating atoms"
-    src/edit.rs           atoms.md, "Status" and "Identity and editing"
-    src/check.rs          atoms.md, "Validation"
+                          store.md: finding, creating and listing a store and its notes
+    src/note.rs           notes.md: reading notes into items, IDs, status
+    src/note/parse.rs     notes.md, "The item syntax": the line-by-line parser
+    src/context.rs        notes.md, "Context"
+    src/write.rs          notes.md, "How srl writes to notes" (see below)
+    src/check.rs          cli.md, "Checking": `srl check` and `srl lint`
     src/config.rs         store.md, "Configuration"; the study day
-    src/card.rs           cards.md
-    src/drill.rs          drills.md: finding and running drills
-    src/drill/builtin.rs  drills.md, "Built-in drills"
+    src/card.rs           cards.md: the card format and card IDs
+    src/kind.rs           cards.md, "Kinds": the `qa` kind
+    src/kind/cloze.rs     cards.md, "Cloze deletions"
     src/log.rs            log.md: reading and appending events
-    src/review.rs         log.md and scheduling.md: recording reviews and resets
+    src/review.rs         log.md and scheduling.md: recording reviews, resets, moves, suspensions
     src/schedule.rs       scheduling.md: replaying the log through FSRS, states
-    src/next.rs           scheduling.md, "Choosing the next card"
+    src/next.rs           scheduling.md, "Choosing the next card" and "Siblings"
     src/selector.rs       selectors.md
-    src/session.rs        cli.md, "Sessions"
-    src/index.rs          store.md, "The index cache": `.cache/index.sqlite`
-    src/yaml.rs         front-matter between YAML text and JSON values
-    src/frontmatter.rs  setting one key in an existing atom file (see below)
-    src/process.rs      running a drill program with a time limit
+    src/index.rs          store.md, "The index cache": `.srl/cache/index.sqlite`
     src/random.rs       reproducible random numbers for new IDs
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
@@ -51,7 +48,7 @@ crates/
 
 ### The core is a library, the CLI is a thin layer on top
 
-`srl-core` holds every rule from the specification: atoms, drills, cards,
+`srl-core` holds every rule from the specification: notes, items, cards,
 scheduling, the log, selectors and the store. `srl` turns
 command-line arguments into calls to `srl-core` and prints the results.
 
@@ -60,19 +57,16 @@ command-line arguments into calls to `srl-core` and prints the results.
   compile-time guarantee rather than a convention.
 - **`srl-core` takes its inputs explicitly.** It does not read environment
   variables, the current directory, the clock or standard input on its own.
-  The CLI gathers them and passes them in (see `Lookup` in `store.rs`,
-  `Search` and the study day in `drill.rs`, and the current time `now` that
-  `review.rs` stamps events with). That keeps every rule testable without a
-  real process environment. Two exceptions come with running drill
-  programs: `which` reads `PATHEXT` itself on
-  Windows, and a drill's time limit is measured with the monotonic clock
-  (`Instant`). The wait for the log's lock in `log.rs` uses `Instant` too.
-  None of them decides anything the specification describes in terms of
-  time or environment.
+  The CLI gathers them and passes them in (see `Lookup` in `store.rs`, the
+  study day, and the current time `now` that `review.rs` stamps events
+  with). That keeps every rule testable without a real process environment.
+  The one exception is the wait for the log's lock in `log.rs`, measured
+  with the monotonic clock (`Instant`); it decides nothing the
+  specification describes in terms of time.
 - **`srl-core` never prints.** It returns values and errors. Turning them
   into text or JSON is the CLI's job.
 - **`srl` contains no domain logic.** If a command needs a decision about
-  atoms, cards or schedules, that decision belongs in `srl-core`, with tests
+  items, cards or schedules, that decision belongs in `srl-core`, with tests
   there.
 
 Each specification document maps to one module of `srl-core` (`store.md` to
@@ -155,11 +149,11 @@ types, so that the compiler checks them:
   ratings, selector terms. A `match` on them lists every variant. Don't use a
   `_ =>` arm on our own enums (the `wildcard_enum_match_arm` lint flags it),
   so that adding a variant shows every place that must handle it.
-- **Parse, don't validate.** Input from outside (drill output, front-matter,
-  log lines, JSON on standard input) is parsed once, at the boundary, into
+- **Parse, don't validate.** Input from outside (notes, log lines,
+  JSON on standard input) is parsed once, at the boundary, into
   types that can only hold valid values. After that, code doesn't check again.
-  For example, a card from a drill is read as loose JSON and turned into a
-  `Card` whose fields are known to be valid.
+  For example, a note is read line by line and turned into `Item`s whose
+  headers and fields are known to be valid.
 - **serde derives are the formats.** A contract's struct, with its
   `#[derive(Serialize, Deserialize)]` and attributes, is the readable
   definition of that format in code.
@@ -171,11 +165,11 @@ types, so that the compiler checks them:
   error into a default with `.ok()`, `.unwrap_or_default()` or
   `.unwrap_or(…)`, don't drop the cause with `.map_err(|_| …)`, and don't
   leave an `Err(_) => {}` arm empty. Propagate errors with `?`. Where the
-  specification says to carry on after a failure (a drill that fails, an
-  invalid card), return the failure next to the results so the CLI can
+  specification says to carry on after a failure (an invalid log line,
+  every error in every note), return the failure next to the results so the CLI can
   report it on standard error. Never skip it without a word.
 - Turning a missing value into a default is fine when the specification
-  says so, as with an absent `srl.toml` key. Turning a *failure* into a
+  says so, as with an absent `config.toml` key. Turning a *failure* into a
   default is not.
 - `srl-core` has one `Error` enum (with `thiserror`) and a `Result<T>` alias.
   Each variant's message is one plain sentence that says what to do about it,
@@ -184,7 +178,7 @@ types, so that the compiler checks them:
   without it (`.context("cannot read the current directory")`), and turns
   errors into exit code 2 in one place (`main.rs`).
 - **Errors that can be recovered from, or that the user should hear about,
-  are returned.** Bad input, missing files, invalid atoms, failing drills:
+  are returned.** Bad input, missing files, errors in notes, invalid log lines:
   every one becomes an `Err` that travels up to the CLI, which reports it on
   standard error with what to do about it. This is nearly every error.
 - **Where recovering makes no sense, use `expect("…")` with a good
@@ -233,18 +227,16 @@ types, so that the compiler checks them:
 depend on the platform, and flag every place that does.
 
 - **Paths:** build them with `Path::join`, never by gluing strings with `/`
-  or `\`. Atom paths are `String`s with `/` between folders, because they are
-  part of the formats (JSON output, `path:` selectors); turn them into file
-  paths only with `Store::atom_file`.
+  or `\`. Note paths are `String`s with `/` between folders, because they are
+  part of the formats (JSON output, `path:` selectors, `see:`); turn them
+  into file paths only with `Store::note_file`.
 - **Platform locations** come from a crate, never from hard-coded paths such
   as `~/.local/share`: the default store uses `dirs::data_dir()`.
 - **Finding programs** uses `which`, which follows `PATHEXT` on Windows.
   Running a bare name with `std::process::Command` only finds `.exe` there.
-- **File names `srl` creates** must be valid everywhere: no characters any
-  platform forbids, no Windows device names, lowercase (see
-  [atoms.md](atoms.md), "Creating atoms").
-- **Text files** are written as UTF-8 with `\n`, and read with either `\n` or
-  `\r\n`.
+- **Text files** `srl` creates are written as UTF-8 with `\n`, and read
+  with either `\n` or `\r\n`. A note `srl` changes keeps its own line
+  endings (see "Note editing").
 - **Tests** must not assume a platform either: build paths with `join`, and
   don't rely on Unix-only tools.
 
@@ -272,12 +264,12 @@ Known places:
 
 | Where | What differs | Status |
 |---|---|---|
-| `store.rs`, `atom_paths`, `nfc`; [store.md](store.md) | macOS often lists file names in Unicode NFD, so paths could sort and match differently | Handled: paths are sorted and matched against `path:` globs in NFC, and new names are NFC, on every platform |
-| `add.rs`, `path_room`; `check.rs`, `long_paths`; [atoms.md](atoms.md) | Windows' 260-character path limit | Handled: new paths are cut to 259 UTF-16 units on every platform, and `srl check` reports existing files over it. **TODO in code and spec**: not run on Windows |
-| `editor.rs`, `DEFAULT_EDITOR`; [cli.md](cli.md) | `EDITOR`/`VISUAL` are rarely set on Windows, and editor paths there often contain spaces | Handled: the default is `notepad` on Windows and `vi` elsewhere, and a quoted program may contain spaces. **TODO in code and spec**: not run on Windows; Windows 11's Notepad may return at once (then `srl` reports the file unchanged) |
+| `store.rs`, `note_paths`, `nfc`; [store.md](store.md) | macOS often lists file names in Unicode NFD, so paths could sort and match differently | Handled: paths are sorted and matched against `path:`, `in:` and `exclude` in NFC, on every platform |
+| `check.rs`, `long_paths`; [cli.md](cli.md) | Windows' 260-character path limit | Handled: `srl check` reports notes over 259 UTF-16 units, on every platform. **TODO in code and spec**: not run on Windows |
+| `write.rs`; [notes.md](notes.md) | Replacing a note atomically: a rename over an existing file, which Windows refuses while another program holds the file open without sharing | Handled: the rename's error is reported and the note left as it was. **TODO in code and spec**: not run on Windows |
+| `editor.rs`, `DEFAULT_EDITOR`; [cli.md](cli.md) | `EDITOR`/`VISUAL` are rarely set on Windows, and editor paths there often contain spaces | Handled: the default is `notepad` on Windows and `vi` elsewhere, and a quoted program may contain spaces. **TODO in code and spec**: not run on Windows; Windows 11's Notepad may return at once |
 | `study.rs`, `colors_work`; [frontends.md](frontends.md) | ANSI colors show as text in the old Windows console | Handled: virtual terminal mode is turned on (with `anstyle-query`), else highlights are printed raw and the reason reported. **TODO in code and spec**: not run on Windows |
-| `drill.rs`, `programs`; [drills.md](drills.md) | "Executable" and `#!` scripts are Unix concepts | Handled: `which` decides, with the execute bit on Unix and `PATHEXT` on Windows. The Windows test drills (`.cmd`) compile (`scripts/check-windows.sh`) but have not been run yet |
-| `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
+| `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `.srl/log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
 | `index.rs`, `connect`; [store.md](store.md) | SQLite's file locking is unreliable on network file systems (NFS, SMB) on every platform: concurrent updates could damage the index cache | **TODO in code and spec**: damage is usually detected and the cache rebuilt; keep stores on a local disk for now |
 | `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
 
@@ -303,7 +295,7 @@ Write tests for every module that has logic, which is nearly all of
   `#[expect(clippy::unwrap_used, reason = "…")]`.
 
 The specification's examples are good test cases. If a document says
-`srl find tag:japanese -tag:jlpt/n5` excludes N5, there should be a test
+`srl find in:japanese -in:n5` excludes N5, there should be a test
 showing that it does.
 
 ## Dependencies
@@ -314,12 +306,12 @@ dependency is code we didn't review, compile time and something that can be
 abandoned or deprecated, so it has to be worth it.
 
 **Use a crate** for standard, well-specified problems where a maintained
-crate is the usual choice: argument parsing, JSON, YAML and TOML parsing,
-SQLite, Unicode normalization, FSRS, temporary directories in tests.
+crate is the usual choice: argument parsing, JSON and TOML parsing,
+SQLite, Unicode normalization, FSRS, temporary files.
 
 **Write it yourself** when the code fits in a screen and has no tricky edge
 cases. Examples: joining selector terms, finding the store directory,
-building a file name from a title, mapping outcomes to exit codes. Running the
+parsing item headers, mapping outcomes to exit codes. Running the
 binary in integration tests needs no crate either, because
 `std::process::Command` is enough.
 
@@ -340,22 +332,21 @@ Current dependencies:
 |---|---|---|
 | `clap` (derive) | `srl` | Argument parsing, help and usage errors |
 | `anyhow` | `srl` | Error type with context in the CLI |
-| `getrandom` | `srl` | The random seed for new atom IDs (the core derives IDs from it) |
+| `getrandom` | `srl` | The random seed for new item IDs (the core derives IDs from it) |
 | `dirs` | `srl` | The platform's data directory, for the default store |
-| `which` | both | Finding `srl-NAME` and drill programs, with `PATHEXT` on Windows |
+| `which` | `srl` | Finding `srl-NAME` programs, with `PATHEXT` on Windows |
 | `anstyle-query` | `srl`, on Windows only | Turning on ANSI colors in Windows consoles, without `unsafe` code of our own. Already part of the build through `clap` |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
-| `toml` | `srl-core` | Parsing `srl.toml` |
+| `toml` | `srl-core` | Parsing `.srl/config.toml` |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |
 | `sha2` | `srl-core` | The `hash` of review events |
-| `unicode-normalization` | `srl-core` | NFC for comparing atom paths |
+| `unicode-normalization` | `srl-core` | NFC for comparing note paths |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
-| `saphyr` | `srl-core` | YAML 1.2 parsing and writing of front-matter |
-| `globset` | `srl-core` | `path:` globs in selectors |
-| `serde` (derive), `serde_json` (`preserve_order`, `float_roundtrip`) | both | The JSON formats; facets keep their file order, and numbers read back from the index cache are exactly the ones written |
+| `globset` | `srl-core` | `path:` globs in selectors, `exclude` globs |
+| `serde` (derive), `serde_json` (`preserve_order`, `float_roundtrip`) | both | The JSON formats; fields keep their order, and numbers read back from the index cache are exactly the ones written |
 | `rusqlite` (`bundled`, `cache`) | `srl-core` | The index cache. `bundled` compiles SQLite in (a C compiler is needed to build), so no system library is required; `cache` reuses prepared statements |
 | `blake3` | `srl-core` | Hashing every file on every use for the index cache. Several times faster than SHA-256 on CPUs without SHA instructions |
-| `tempfile` | `srl`; tests of both crates | The temporary copy the editor works on; temporary store trees in tests |
+| `tempfile` | `srl-core`; tests of both crates | The temporary file a changed note is written to before it is renamed over the note; temporary store trees in tests |
 
 ## Linting and formatting
 
@@ -396,67 +387,38 @@ Clap turns doc comments into `--help` text, where the backticks that
 things like `SRL_DIR`, use the `help = "…"` attribute instead of a doc
 comment.
 
-## Front-matter editing: the YAML caveat
+## Note editing
 
-Rust has good YAML parsers, but no mature library that changes a YAML
-document while preserving its comments and layout. A serde round trip
-(parse, change, serialize) would rewrite a person's file: comments dropped,
-flow lists turned into block lists, quoting and key order changed. Atom
-files are edited by hand, so `srl` must never do that.
+Notes are written by hand, so `srl` must never rewrite one: no
+re-serializing, no normalized whitespace or line endings. The commands that
+change notes (see [notes.md](notes.md), "How srl writes to notes") go
+through one module, `write.rs`, with these rules:
 
-Only a few commands change front-matter that already exists: `srl check
---fix` (adds `id`), `srl accept`, `srl suspend` and `srl unsuspend` (set
-`status`). All of them set one top-level scalar key. Commands that write new files (`srl add --title`,
-`srl add --stdin`, `srl new`) can serialize normally. `srl edit` takes the
-whole file from the user and only parses it.
-
-So:
-
-1. **One module edits existing front-matter**: `frontmatter.rs` in
-   `srl-core`, with one entry point that sets a top-level key to a scalar
-   value. Nothing else writes into an existing atom file.
-2. **It edits text, not data.** It finds the line of the key (a line that
-   starts, unindented, with `key:`, `"key":` or `'key':`) and replaces the
-   value on that line, keeping anything after the value such as a
-   `# comment`. A missing key gets a new line right after the opening `---`,
-   with the line ending of that line. Every other byte of the file stays the
-   same.
-3. **It refuses what it doesn't handle** and returns an error rather than
-   guessing: front-matter that isn't a block mapping (`{id: x}`), a key whose
-   value spans several lines, or a key that appears twice.
-4. **It verifies its own work.** After editing, it parses the new text and
-   compares it with the old parse: they must be equal except for the one key
-   that was set. If not, the edit is abandoned and the file is left
-   untouched.
+1. **It edits lines, not data.** It changes header lines (adding `id:ID`,
+   removing `draft`), replaces the lines of one item (`srl edit ID
+   --stdin`), or appends lines at the end. Every other byte of the file
+   stays the same, including a UTF-8 BOM, `\r\n` line endings and a missing
+   final newline. New lines get the line ending of the note's first line,
+   or `\n` in a note without one.
+2. **It verifies its own work.** After editing, it parses the new text and
+   compares the items with the old parse: they must be equal except for
+   the change it meant to make. If not, the edit is abandoned and the file
+   is left untouched.
+3. **It checks the file didn't change underneath it**, by comparing the
+   bytes it read with the bytes on disk right before writing.
+4. **It writes atomically**: to a temporary file in the note's folder
+   (`tempfile`), then a rename over the note.
 5. **It has thorough tests**, including CRLF line endings, a UTF-8 BOM, no
-   trailing newline, empty front-matter, a file with no front-matter, quoted
-   keys (`"status": draft`), trailing comments and non-ASCII text around the
-   edited line.
-6. **The parser must follow YAML 1.2**, so that `no`, `yes`, `on` and `off`
-   stay strings. Under YAML 1.1 rules an atom with `title: no` would silently
-   become `false`. Test this explicitly.
-
-The YAML crate is `saphyr`: it follows YAML 1.2 and rejects duplicate keys.
-`yaml.rs` converts between YAML and the JSON values the rest of the core
-uses, and refuses YAML features atoms don't need (tags such as `!x`,
-aliases, non-text keys). New files are written through the same module and
-parsed again before they are saved, so a writer bug fails instead of storing
-a different atom. Step 2 scans lines rather than using parser positions. That
-is enough for one-line scalars, and step 4 catches any line it misreads.
-
-Format-preserving YAML crates were checked when `frontmatter.rs` was
-written (October 2026). `yaml-edit`, `yaml-splice` and `oneyaml` exist, but
-all are young, at 0.x versions or recent 1.x, and `yaml-edit` has a fork that
-exists to fix its source-preserving edits. None was mature enough. Check
-again when this module needs to do more than set one scalar. A mature crate
-can replace steps 2 and 3, but steps 4 to 6 still apply.
+   trailing newline, headers with extra spaces, `<!--srl-->` without
+   spaces, quoted values, non-ASCII text around the edited line, and a note
+   changed between reading and writing.
 
 ## The command line
 
 - `args.rs` describes the commands with clap's derive API and holds no
   logic. Options shared by many commands (`--json`, `--dry-run`, the
   selector) are small `Args` structs flattened into each command.
-- Selector terms may start with `-` (`-tag:a`), which clap would read as an
+- Selector terms may start with `-` (`-in:a`), which clap would read as an
   option. `argv.rs` applies one rule before clap parses: on a command that
   takes a selector, every argument that is not one of that command's options
   (or an option's value) is a selector term. It moves the options first and
@@ -470,15 +432,15 @@ can replace steps 2 and 3, but steps 4 to 6 still apply.
 
 ## The index cache
 
-`index.rs` keeps `.cache/index.sqlite` (see [store.md](store.md), "The index
-cache"). It must never change a result, only skip work:
+`index.rs` keeps `.srl/cache/index.sqlite` (see [store.md](store.md), "The
+index cache"). It must never change a result, only skip work:
 
-- **One code path for both.** A cached atom goes through
-  `Content::from_fields` like a parsed one, and new log lines go through the
-  same `Replayer::apply` as a full replay. Don't add a second way to compute
+- **One code path for both.** A cached note's items are rebuilt through the
+  same constructors as parsed ones, and new log lines go through the same
+  `Replayer::apply` as a full replay. Don't add a second way to compute
   anything the cache stores.
-- **Commands read through `Index`**, not `Atoms::load` or `Log::load`, where
-  speed matters. `Atoms::load`, `Log::load` and `History::replay` stay as the
+- **Commands read through `Index`**, not `Notes::load` or `Log::load`, where
+  speed matters. `Notes::load`, `Log::load` and `History::replay` stay as the
   reference that the cache is tested against, and as the fallback when the
   cache can't be used.
 - **Bump `SCHEMA_VERSION`** whenever the tables, or what a stored value
