@@ -33,7 +33,7 @@ const FOLDERS: [&str; 2] = [ATOMS, LOG];
 
 /// The `srl.toml` that `srl init` writes: every key at its default, commented
 /// out (see `docs/store.md`, "Configuration").
-pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is optional; these are the defaults.
+pub(crate) const DEFAULT_CONFIG: &str = r"# srl configuration. Every key is optional; these are the defaults.
 
 [schedule]
 # desired_retention = 0.9    # FSRS target probability of recall
@@ -43,12 +43,9 @@ pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is opt
 # mature_days = 21           # an atom with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
 
-[grading]
-# cmd = ""                   # external grader for `cmd` cards; empty means fall back to self-grading
-
 [drills]
 # timeout_seconds = 10       # a drill that takes longer is skipped
-"#;
+";
 
 /// Everything needed to find a store, gathered by the caller.
 ///

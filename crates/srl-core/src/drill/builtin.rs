@@ -1,129 +1,48 @@
-//! The built-in drills: `reveal`, `reverse`, `cloze`, `cards` and
-//! `confusable` (see `docs/drills.md`, "Built-in drills").
+//! The built-in drills: `cloze` and `cards` (see `docs/drills.md`,
+//! "Built-in drills").
 //!
-//! They write whole refs (`cloze:0:1`, `reveal`), and their cards are
+//! They write whole refs (`cloze:0:1`, `cards:0`), and their cards are
 //! checked like any drill's.
 
-use jiff::civil::Date;
 use serde_json::Value;
 
+use crate::Atom;
 use crate::card::RawCard;
-use crate::{Atom, Atoms, Id, random};
 
 /// One built-in drill.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Builtin {
-    Reveal,
-    Reverse,
     Cloze,
     Cards,
-    Confusable,
 }
 
-/// The most other atoms a `confusable` card offers as choices.
-const MAX_CONFUSABLE: usize = 3;
-
 impl Builtin {
-    pub(crate) const ALL: [Self; 5] = [
-        Self::Reveal,
-        Self::Reverse,
-        Self::Cloze,
-        Self::Cards,
-        Self::Confusable,
-    ];
+    pub(crate) const ALL: [Self; 2] = [Self::Cloze, Self::Cards];
 
     pub(crate) fn name(self) -> &'static str {
         match self {
-            Self::Reveal => "reveal",
-            Self::Reverse => "reverse",
             Self::Cloze => "cloze",
             Self::Cards => "cards",
-            Self::Confusable => "confusable",
         }
     }
 
     /// The first line of the drill's help.
     pub(crate) fn summary(self) -> &'static str {
         match self {
-            Self::Reveal => "Shows the title, then the answer or the body; you rate yourself.",
-            Self::Reverse => {
-                "Asks the other way round: shows the answer or the body, you recall the title."
-            }
             Self::Cloze => "Sentences with {{marked}} spans to fill in.",
             Self::Cards => "Hand-written questions and answers.",
-            Self::Confusable => {
-                "Multiple choice between this atom and atoms easily confused with it."
-            }
         }
     }
 
-    /// The drill's cards for `atom`. `atoms` is the whole store, and `day`
-    /// the study day. Errors are plain reasons: the facet is not in the
-    /// drill's shape.
-    pub(crate) fn cards(
-        self,
-        atom: &Atom,
-        atoms: &Atoms,
-        day: Date,
-    ) -> Result<Vec<RawCard>, String> {
-        let facet = atom.content().facets().get(self.name());
-        match (self, facet) {
-            (Self::Reveal, _) => Ok(vec![reveal(atom)]),
-            (Self::Reverse, Some(facet)) => reverse(atom, facet),
-            (Self::Cloze, Some(facet)) => cloze(facet),
-            (Self::Cards, Some(facet)) => cards(facet),
-            (Self::Confusable, Some(facet)) => confusable(atom, facet, atoms, day),
-            (Self::Reverse | Self::Cloze | Self::Cards | Self::Confusable, None) => Ok(Vec::new()),
-        }
-    }
-}
-
-/// The atom's `answer`, or else its body, and whether it was the body.
-fn answer_or_body(atom: &Atom) -> (&str, bool) {
-    let content = atom.content();
-    content
-        .answer()
-        .map_or((content.body(), true), |answer| (answer, false))
-}
-
-/// The `explanation` of a card whose answer or prompt already shows the body:
-/// none, rather than the body a second time.
-fn no_explanation(card: RawCard) -> RawCard {
-    RawCard {
-        explanation: Some(String::new()),
-        ..card
-    }
-}
-
-fn reveal(atom: &Atom) -> RawCard {
-    let (answer, is_body) = answer_or_body(atom);
-    let card = RawCard::new(
-        "reveal".to_owned(),
-        atom.content().title().to_owned(),
-        answer.to_owned(),
-        "self",
-    );
-    if is_body { no_explanation(card) } else { card }
-}
-
-fn reverse(atom: &Atom, facet: &Value) -> Result<Vec<RawCard>, String> {
-    match facet {
-        Value::Bool(false) => Ok(Vec::new()),
-        Value::Bool(true) => {
-            let (prompt, is_body) = answer_or_body(atom);
-            if prompt.trim().is_empty() {
-                return Err("`reverse` needs an `answer` or a body to ask about".to_owned());
-            }
-            let card = RawCard::new(
-                "reverse".to_owned(),
-                prompt.to_owned(),
-                atom.content().title().to_owned(),
-                "self",
-            );
-            Ok(vec![if is_body { no_explanation(card) } else { card }])
-        }
-        Value::Null | Value::Number(_) | Value::String(_) | Value::Array(_) | Value::Object(_) => {
-            Err(format!("`reverse` must be true or false, but is {facet}"))
+    /// The drill's cards for `atom`. Errors are plain reasons: the facet is
+    /// not in the drill's shape.
+    pub(crate) fn cards(self, atom: &Atom) -> Result<Vec<RawCard>, String> {
+        let Some(facet) = atom.content().facets().get(self.name()) else {
+            return Ok(Vec::new());
+        };
+        match self {
+            Self::Cloze => cloze(facet),
+            Self::Cards => cards(facet),
         }
     }
 }
@@ -164,37 +83,24 @@ fn cloze_cards(index: usize, pieces: &[Piece]) -> Vec<RawCard> {
     groups
         .into_iter()
         .map(|blanked| {
-            // Each piece as it appears in the prompt and in the answer, and
-            // what its blank accepts if it is one.
+            // Each piece as it appears in the prompt and in the answer.
             let parts = pieces
                 .iter()
                 .scan(0, |blanks, piece| {
                     Some(match piece {
                         Piece::Span { group, text } if *group == blanked => {
                             *blanks += 1;
-                            (
-                                format!("==[{blanks}]=="),
-                                format!("=={text}=="),
-                                Some(vec![text.clone()]),
-                            )
+                            (format!("==[{blanks}]=="), format!("=={text}=="))
                         }
                         Piece::Span { text, .. } | Piece::Text(text) => {
-                            (text.clone(), text.clone(), None)
+                            (text.clone(), text.clone())
                         }
                     })
                 })
                 .collect::<Vec<_>>();
-            let prompt = parts.iter().map(|(prompt, _, _)| prompt.as_str()).collect();
-            let answer = parts.iter().map(|(_, answer, _)| answer.as_str()).collect();
-            RawCard {
-                accept: Some(
-                    parts
-                        .into_iter()
-                        .filter_map(|(_, _, accept)| accept)
-                        .collect(),
-                ),
-                ..RawCard::new(format!("cloze:{index}:{blanked}"), prompt, answer, "exact")
-            }
+            let prompt = parts.iter().map(|(prompt, _)| prompt.as_str()).collect();
+            let answer = parts.iter().map(|(_, answer)| answer.as_str()).collect();
+            RawCard::new(format!("cloze:{index}:{blanked}"), prompt, answer)
         })
         .collect()
 }
@@ -282,78 +188,20 @@ fn hand_written(index: usize, item: &Value) -> Result<RawCard, String> {
     };
     if let Some(key) = fields
         .keys()
-        .find(|key| !["q", "a", "accept", "explanation"].contains(&key.as_str()))
+        .find(|key| !["q", "a"].contains(&key.as_str()))
     {
-        return Err(format!(
-            "has an unknown key `{key}`; use q, a, accept and explanation"
-        ));
+        return Err(format!("has an unknown key `{key}`; use q and a"));
     }
     let text = |key: &str| match fields.get(key) {
-        None | Some(Value::Null) => Ok(None),
-        Some(Value::String(text)) => Ok(Some(text.clone())),
+        None | Some(Value::Null) => Err(format!("has no `{key}`")),
+        Some(Value::String(text)) => Ok(text.clone()),
         Some(other) => Err(format!("has a `{key}` that is not text: {other}")),
     };
-    let question = text("q")?.ok_or_else(|| "has no `q`".to_owned())?;
-    let answer = text("a")?.ok_or_else(|| "has no `a`".to_owned())?;
-    let accept = match fields.get("accept") {
-        None | Some(Value::Null) => None,
-        Some(accept) => Some(list_of_text(accept, "accept")?),
-    };
-    let grading = if accept.is_some() { "exact" } else { "self" };
-    Ok(RawCard {
-        accept: accept.map(|accept| vec![accept]),
-        explanation: text("explanation")?,
-        ..RawCard::new(format!("cards:{index}"), question, answer, grading)
-    })
-}
-
-fn confusable(
-    atom: &Atom,
-    facet: &Value,
-    atoms: &Atoms,
-    day: Date,
-) -> Result<Vec<RawCard>, String> {
-    let others = list_of_text(facet, "confusable")?
-        .iter()
-        .map(|text| {
-            let id =
-                Id::parse(text).map_err(|error| format!("`confusable` lists {text}: {error}"))?;
-            if &id == atom.id() {
-                return Err("`confusable` lists the atom itself".to_owned());
-            }
-            atoms
-                .get(&id)
-                .ok_or_else(|| format!("`confusable` lists {id}, which no atom has"))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    if others.is_empty() {
-        return Ok(Vec::new());
-    }
-    let (shown, is_body) = answer_or_body(atom);
-    if shown.trim().is_empty() {
-        return Err("`confusable` needs an `answer` or a body to ask about".to_owned());
-    }
-    let title = atom.content().title().to_owned();
-    let choices = std::iter::once(title.clone())
-        .chain(
-            others
-                .iter()
-                .take(MAX_CONFUSABLE)
-                .map(|other| other.content().title().to_owned()),
-        )
-        .collect::<Vec<_>>();
-    let seed = random::seed(&format!("{}:{day}", atom.id()));
-    let card = RawCard {
-        accept: Some(vec![vec![title.clone()]]),
-        choices: Some(random::shuffle(choices, seed)),
-        ..RawCard::new(
-            "confusable".to_owned(),
-            format!("Which one matches?\n\n{shown}"),
-            title,
-            "choice",
-        )
-    };
-    Ok(vec![if is_body { no_explanation(card) } else { card }])
+    Ok(RawCard::new(
+        format!("cards:{index}"),
+        text("q")?,
+        text("a")?,
+    ))
 }
 
 /// A facet value that must be a list of text. Errors are plain reasons.
@@ -376,81 +224,19 @@ mod tests {
 
     use super::*;
 
-    fn atom(text: &str) -> Atom {
-        Atom::parse("a.md".to_owned(), text.to_owned()).unwrap()
-    }
-
-    fn store(atoms: Vec<Atom>) -> Atoms {
-        Atoms {
-            atoms,
-            problems: Vec::new(),
-        }
-    }
-
-    fn day() -> Date {
-        Date::constant(2026, 10, 26)
-    }
-
     fn run(builtin: Builtin, text: &str) -> Result<Vec<RawCard>, String> {
-        let atom = atom(text);
-        builtin.cards(&atom, &store(vec![atom.clone()]), day())
+        builtin.cards(&Atom::parse("a.md".to_owned(), text.to_owned()).unwrap())
     }
 
     #[test]
-    fn reveal_shows_the_answer_and_explains_with_the_body() {
-        let cards = run(
-            Builtin::Reveal,
-            "---\nid: k3m9q1\ntitle: 鮪\nanswer: tuna\n---\nA fish.\n",
-        )
-        .unwrap();
-        assert_eq!(cards.len(), 1);
-        assert_eq!(cards[0].prompt.as_deref(), Some("鮪"));
-        assert_eq!(cards[0].answer.as_deref(), Some("tuna"));
-        assert_eq!(cards[0].explanation, None);
-    }
-
-    #[test]
-    fn reveal_without_an_answer_shows_the_body_and_no_explanation() {
-        let cards = run(
-            Builtin::Reveal,
-            "---\nid: k3m9q1\ntitle: 鮪\n---\nA fish.\n",
-        )
-        .unwrap();
-        assert_eq!(cards[0].answer.as_deref(), Some("A fish.\n"));
-        assert_eq!(cards[0].explanation.as_deref(), Some(""));
-    }
-
-    #[test]
-    fn reverse_asks_the_other_way_round() {
-        let cards = run(
-            Builtin::Reverse,
-            "---\nid: k3m9q1\ntitle: 鮪\nanswer: tuna\nreverse: true\n---\n",
-        )
-        .unwrap();
-        assert_eq!(cards[0].prompt.as_deref(), Some("tuna"));
-        assert_eq!(cards[0].answer.as_deref(), Some("鮪"));
-        assert!(
-            run(
-                Builtin::Reverse,
-                "---\nid: k3m9q1\ntitle: 鮪\nreverse: false\n---\n"
-            )
-            .unwrap()
-            .is_empty()
-        );
-        assert!(
-            run(
-                Builtin::Reverse,
-                "---\nid: k3m9q1\ntitle: 鮪\nreverse: true\n---\n"
-            )
-            .is_err()
-        );
-        assert!(
-            run(
-                Builtin::Reverse,
-                "---\nid: k3m9q1\ntitle: 鮪\nanswer: x\nreverse: yes\n---\n"
-            )
-            .is_err()
-        );
+    fn a_drill_without_its_facet_makes_no_cards() {
+        for builtin in Builtin::ALL {
+            assert!(
+                run(builtin, "---\nid: k3m9q1\ntitle: 鮪\n---\nA fish.\n")
+                    .unwrap()
+                    .is_empty()
+            );
+        }
     }
 
     #[test]
@@ -472,13 +258,6 @@ mod tests {
         assert_eq!(
             cards[1].answer.as_deref(),
             Some("==周囲の反対==を==ものともせず==、彼女は起業した。")
-        );
-        assert_eq!(
-            cards[1].accept,
-            Some(vec![
-                vec!["周囲の反対".to_owned()],
-                vec!["ものともせず".to_owned()]
-            ])
         );
         assert_eq!(
             cards[2].prompt.as_deref(),
@@ -523,54 +302,25 @@ mod tests {
     }
 
     #[test]
-    fn hand_written_cards_are_exact_with_accept_and_self_without() {
+    fn hand_written_cards_are_questions_and_answers() {
         let cards = cards(&json!([
-            {"q": "Which particle?", "a": "を", "accept": ["を"]},
-            {"q": "Explain.", "a": "Because.", "explanation": ""}
+            {"q": "Which particle?", "a": "を"},
+            {"q": "Explain.", "a": "Because."}
         ]))
         .unwrap();
-        assert_eq!(cards[0].grading.as_deref(), Some("exact"));
-        assert_eq!(cards[0].accept, Some(vec![vec!["を".to_owned()]]));
-        assert_eq!(cards[1].grading.as_deref(), Some("self"));
+        assert_eq!(cards[0].prompt.as_deref(), Some("Which particle?"));
+        assert_eq!(cards[0].answer.as_deref(), Some("を"));
         assert_eq!(cards[1].reference.as_deref(), Some("cards:1"));
-        assert_eq!(cards[1].explanation.as_deref(), Some(""));
+        assert!(super::cards(&json!([])).unwrap().is_empty());
         for bad in [
             json!({"q": "x"}),
             json!([{"q": "x"}]),
             json!([{"q": "x", "a": "y", "hint": "z"}]),
-            json!([{"q": "x", "a": "y", "accept": "y"}]),
+            json!([{"q": "x", "a": "y", "accept": ["y"]}]),
+            json!([{"q": "x", "a": "y", "explanation": "z"}]),
+            json!([{"q": "x", "a": 1}]),
         ] {
             assert!(super::cards(&bad).is_err(), "accepted {bad}");
-        }
-    }
-
-    #[test]
-    fn confusable_offers_the_titles_in_an_order_fixed_for_the_day() {
-        let this =
-            atom("---\nid: aaaaa1\ntitle: 鮪\nanswer: tuna\nconfusable: [aaaaa2, aaaaa3]\n---\n");
-        let others = [
-            atom("---\nid: aaaaa2\ntitle: 鯖\n---\n"),
-            atom("---\nid: aaaaa3\ntitle: 鮭\n---\n"),
-        ];
-        let atoms = store(std::iter::once(this.clone()).chain(others).collect());
-        let cards = Builtin::Confusable.cards(&this, &atoms, day()).unwrap();
-        let card = &cards[0];
-        assert_eq!(card.prompt.as_deref(), Some("Which one matches?\n\ntuna"));
-        assert_eq!(card.accept, Some(vec![vec!["鮪".to_owned()]]));
-        let mut choices = card.choices.clone().unwrap();
-        assert_eq!(
-            Builtin::Confusable.cards(&this, &atoms, day()).unwrap()[0].choices,
-            Some(choices.clone())
-        );
-        choices.sort();
-        assert_eq!(choices, ["鮪", "鮭", "鯖"]);
-    }
-
-    #[test]
-    fn confusable_refuses_unknown_atoms_and_itself() {
-        for facet in ["[zzzzzz]", "[aaaaa1]", "aaaaa2"] {
-            let text = format!("---\nid: aaaaa1\ntitle: x\nanswer: y\nconfusable: {facet}\n---\n");
-            assert!(run(Builtin::Confusable, &text).is_err(), "accepted {facet}");
         }
     }
 }

@@ -300,13 +300,11 @@ mod tests {
                 atom: id(),
                 rating,
                 card: Some(crate::CardUsed {
-                    drill: "reveal".to_owned(),
+                    drill: "cards".to_owned(),
                     reference: reference.to_owned(),
-                    grading: "self".to_owned(),
                 }),
                 response: None,
                 by: By::Human,
-                grader: "self".to_owned(),
                 hash: String::new(),
             }),
             day,
@@ -340,21 +338,21 @@ mod tests {
     #[test]
     fn a_reviewed_atom_is_not_due_the_same_day_but_is_later() {
         let day = date(2026, 10, 26);
-        let memories = replay(vec![review(day, 1, "reveal")], day);
+        let memories = replay(vec![review(day, 1, "cards:0")], day);
         let memory = memories.get(&id());
         assert_eq!(memories.state(&id()), State::Young);
         assert_eq!(memory.due, Some(date(2026, 10, 27)));
-        let later = replay(vec![review(day, 1, "reveal")], date(2026, 10, 27));
+        let later = replay(vec![review(day, 1, "cards:0")], date(2026, 10, 27));
         assert_eq!(later.state(&id()), State::Due);
     }
 
     #[test]
     fn good_reviews_grow_the_interval() {
         let first = date(2026, 1, 1);
-        let one = replay(vec![review(first, 3, "reveal")], first);
+        let one = replay(vec![review(first, 3, "cards:0")], first);
         let due = one.get(&id()).due.unwrap();
         let two = replay(
-            vec![review(first, 3, "reveal"), review(due, 3, "reveal")],
+            vec![review(first, 3, "cards:0"), review(due, 3, "cards:0")],
             due,
         );
         let second = two.get(&id());
@@ -371,7 +369,7 @@ mod tests {
                 review(
                     day.checked_add(Span::new().days(offset)).unwrap(),
                     1,
-                    "reveal",
+                    "cards:0",
                 )
             })
             .collect::<Vec<_>>();
@@ -393,9 +391,9 @@ mod tests {
     #[test]
     fn new_today_counts_first_reviews_on_this_study_day() {
         let day = date(2026, 1, 2);
-        let memories = replay(vec![review(date(2026, 1, 1), 3, "reveal")], day);
+        let memories = replay(vec![review(date(2026, 1, 1), 3, "cards:0")], day);
         assert_eq!(memories.new_today(), 0);
-        let memories = replay(vec![review(day, 3, "reveal")], day);
+        let memories = replay(vec![review(day, 3, "cards:0")], day);
         assert_eq!(memories.new_today(), 1);
     }
 }

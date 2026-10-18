@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn commands_without_a_selector_are_untouched() {
-        let args: Vec<OsString> = ["srl", "add", "--title", "-ない", "--answer", "-nai"]
+        let args: Vec<OsString> = ["srl", "add", "--title", "-ない", "--source", "-nai"]
             .map(OsString::from)
             .into();
         assert_eq!(separate_selector(args.clone()), args);

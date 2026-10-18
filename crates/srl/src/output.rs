@@ -93,21 +93,15 @@ pub(crate) fn drills_json(drills: &[(&srl_core::Drill, Option<String>)]) -> anyh
     Ok(())
 }
 
-/// Prints cards for people: for each, a line with its ref and grading mode,
-/// the prompt, the choices as a numbered list if it has any, a line `---`,
-/// and the answer. Cards are separated by blank lines.
+/// Prints cards for people: for each, a line with its ref, the prompt, a
+/// line `---`, and the answer. Cards are separated by blank lines.
 pub(crate) fn cards(cards: &[srl_core::Card]) {
     for (index, card) in cards.iter().enumerate() {
         if index > 0 {
             println!();
         }
-        println!("{}  {}", card.reference(), card.grading().name());
+        println!("{}", card.reference());
         println!("{}", card.prompt().trim_end());
-        if let srl_core::Grading::Choice { choices, .. } = card.grading() {
-            for (number, choice) in choices.iter().enumerate() {
-                println!("{}. {choice}", number + 1);
-            }
-        }
         println!("---");
         println!("{}", card.answer().trim_end());
     }

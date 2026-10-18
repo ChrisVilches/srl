@@ -121,7 +121,6 @@ mod tests {
                 card: None,
                 response: None,
                 by: By::Human,
-                grader: "self".to_owned(),
                 hash: String::new(),
             }),
             day,

@@ -120,6 +120,12 @@ pub enum Error {
     NoCards { drill: String, id: crate::Id },
 
     #[error(
+        "atom {id} has no facets, so it has no cards and is never studied; \
+         add one, such as `cards:` (see `srl drills`)"
+    )]
+    NoFacets { id: crate::Id },
+
+    #[error(
         "skipped line {line} of {}: {reason}; the log must not be edited by hand, \
          so restore the line from a backup or version control",
         file.display()
@@ -146,15 +152,6 @@ pub enum Error {
 
     #[error("the review on standard input is not valid: {reason}; nothing was recorded")]
     InvalidReview { reason: String },
-
-    #[error("the grading request on standard input is not valid: {reason}")]
-    InvalidGradeRequest { reason: String },
-
-    #[error(
-        "the grader `{command}` failed: {reason}; falling back to self-grading \
-         (fix the grader, or `[grading] cmd` in srl.toml)"
-    )]
-    GraderFailed { command: String, reason: String },
 
     #[error("cannot schedule with FSRS: {reason}; check `[schedule]` in srl.toml")]
     Fsrs { reason: String },

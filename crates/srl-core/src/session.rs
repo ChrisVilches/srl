@@ -187,7 +187,8 @@ mod tests {
         (tmp, store, atoms)
     }
 
-    const CARD: &str = r#"{"atoms": ["aaaaa1"], "drill": "llm", "ref": "llm:1", "prompt": "q", "answer": "a", "grading": "self"}"#;
+    const CARD: &str =
+        r#"{"atoms": ["aaaaa1"], "drill": "llm", "ref": "llm:1", "prompt": "q", "answer": "a"}"#;
 
     #[test]
     fn a_session_is_saved_listed_loaded_and_removed() {

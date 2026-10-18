@@ -110,7 +110,6 @@ impl Status {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Content {
     title: String,
-    answer: Option<String>,
     tags: Vec<String>,
     status: Status,
     source: Option<String>,
@@ -129,9 +128,9 @@ impl Content {
         fields: Map<String, Value>,
         body: String,
     ) -> std::result::Result<Self, String> {
-        let (known, facets): (Map<_, _>, Map<_, _>) = fields.into_iter().partition(|(key, _)| {
-            ["title", "answer", "tags", "status", "source"].contains(&key.as_str())
-        });
+        let (known, facets): (Map<_, _>, Map<_, _>) = fields
+            .into_iter()
+            .partition(|(key, _)| ["title", "tags", "status", "source"].contains(&key.as_str()));
         if let Some(key) = facets.keys().find(|key| RESERVED.contains(&key.as_str())) {
             return Err(format!("`{key}` is a reserved name and cannot be a facet"));
         }
@@ -151,7 +150,6 @@ impl Content {
             .unwrap_or_default();
         Ok(Self {
             title,
-            answer: optional_string(&known, "answer")?,
             tags: tags(&known)?,
             status,
             source: optional_string(&known, "source")?,
@@ -162,10 +160,6 @@ impl Content {
 
     pub fn title(&self) -> &str {
         &self.title
-    }
-
-    pub fn answer(&self) -> Option<&str> {
-        self.answer.as_deref()
     }
 
     pub fn tags(&self) -> &[String] {
@@ -195,7 +189,6 @@ impl Content {
         let fixed = [
             ("id", Some(Value::from(id.as_str()))),
             ("title", Some(Value::from(self.title.as_str()))),
-            ("answer", self.answer.as_deref().map(Value::from)),
             (
                 "tags",
                 Some(Value::from(self.tags.clone())).filter(|_| !self.tags.is_empty()),
@@ -512,12 +505,12 @@ mod tests {
 
     #[test]
     fn other_keys_are_facets_in_file_order() {
-        let atom = atom("---\nid: a7f3k2\ntitle: x\nreverse: true\ncloze: [a]\n---\n").unwrap();
+        let atom = atom("---\nid: a7f3k2\ntitle: x\nconj: true\ncloze: [a]\n---\n").unwrap();
         let json = serde_json::to_value(&atom).unwrap();
         assert_eq!(
             json,
-            json!({"id": "a7f3k2", "path": "a.md", "title": "x", "answer": null, "tags": [],
-                   "status": "active", "source": null, "reverse": true, "cloze": ["a"], "body": ""})
+            json!({"id": "a7f3k2", "path": "a.md", "title": "x", "tags": [],
+                   "status": "active", "source": null, "conj": true, "cloze": ["a"], "body": ""})
         );
     }
 
@@ -598,7 +591,7 @@ mod tests {
     #[test]
     fn fields_leave_out_defaults() {
         let content = Content::from_fields(
-            json!({"title": "鮪", "answer": "tuna", "reverse": true})
+            json!({"title": "鮪", "status": null, "cards": [{"q": "鮪", "a": "tuna"}]})
                 .as_object()
                 .unwrap()
                 .clone(),
@@ -608,7 +601,7 @@ mod tests {
         let id = Id::parse("k3m9q1").unwrap();
         assert_eq!(
             Value::Object(content.fields(&id)),
-            json!({"id": "k3m9q1", "title": "鮪", "answer": "tuna", "reverse": true})
+            json!({"id": "k3m9q1", "title": "鮪", "cards": [{"q": "鮪", "a": "tuna"}]})
         );
     }
 }

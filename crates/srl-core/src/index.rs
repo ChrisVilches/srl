@@ -23,7 +23,7 @@ use crate::{Atom, Atoms, Config, Error, History, Id, Log, Memory, Result, Review
 
 /// The version of the tables below. Change it whenever they, or what they
 /// mean, change: a cache of another version is rebuilt.
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 /// The tables. Their layout is not a contract (see `docs/store.md`).
 const SCHEMA: &str = "
@@ -842,8 +842,8 @@ mod tests {
     fn review(t: &str, atom: &str, rating: u8, reference: &str) -> String {
         format!(
             "{{\"type\":\"review\",\"t\":\"{t}\",\"atom\":\"{atom}\",\"rating\":{rating},\
-             \"card\":{{\"drill\":\"cloze\",\"ref\":\"{reference}\",\"grading\":\"exact\"}},\
-             \"response\":null,\"by\":\"human\",\"grader\":\"exact\",\"hash\":\"000000000000\"}}\n"
+             \"card\":{{\"drill\":\"cloze\",\"ref\":\"{reference}\"}},\
+             \"response\":null,\"by\":\"human\",\"hash\":\"000000000000\"}}\n"
         )
     }
 
@@ -907,7 +907,7 @@ mod tests {
         write(
             &store,
             "log/2026-10.jsonl",
-            &review("2026-10-01T10:00:00+09:00", "aaaaa2", 4, "reveal"),
+            &review("2026-10-01T10:00:00+09:00", "aaaaa2", 4, "cloze:0:1"),
         );
         assert_same(&mut index, &store);
         // An edit that keeps the size, a new atom, a removed one, a bad one.
@@ -942,7 +942,7 @@ mod tests {
         write(
             &store,
             "log/2026-08.jsonl",
-            &review("2026-08-30T10:00:00+09:00", "aaaaa1", 2, "reveal"),
+            &review("2026-08-30T10:00:00+09:00", "aaaaa1", 2, "cloze:0:1"),
         );
         assert_same(&mut index, &store);
         let file = store.root().join("log/2026-09.jsonl");

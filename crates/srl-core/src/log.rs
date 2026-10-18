@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::config::Schedule;
-use crate::{Atom, Error, Grading, Id, Result, Store};
+use crate::{Atom, Error, Id, Result, Store};
 
 /// The lock file that every append holds (see `docs/log.md`, "Files").
 const LOCK_FILE: &str = ".lock";
@@ -41,14 +41,13 @@ pub struct Review {
     /// The time, ISO 8601 with offset.
     pub t: String,
     pub atom: Id,
-    /// 1–4, as stored (after the `choice` rule).
+    /// 1–4, as given.
     pub rating: u8,
     /// The card used, or `None` for a review without a card.
     pub card: Option<CardUsed>,
-    pub response: Option<Vec<String>>,
+    /// What was answered, if the review was recorded with it.
+    pub response: Option<String>,
     pub by: By,
-    /// `self`, `exact`, `choice` or `cmd:<command>`.
-    pub grader: String,
     /// The start of the SHA-256 of the atom file at review time, in hex.
     pub hash: String,
 }
@@ -60,7 +59,6 @@ pub struct CardUsed {
     pub drill: String,
     #[serde(rename = "ref")]
     pub reference: String,
-    pub grading: String,
 }
 
 /// The atom's memory starts over (see `docs/log.md`, "`reset`").
@@ -115,11 +113,10 @@ impl Event {
 }
 
 impl CardUsed {
-    pub(crate) fn of(drill: &str, reference: &str, grading: &Grading) -> Self {
+    pub(crate) fn of(drill: &str, reference: &str) -> Self {
         Self {
             drill: drill.to_owned(),
             reference: reference.to_owned(),
-            grading: grading.name().to_owned(),
         }
     }
 }
@@ -332,11 +329,9 @@ mod tests {
             card: Some(CardUsed {
                 drill: "cloze".to_owned(),
                 reference: "cloze:0:1".to_owned(),
-                grading: "exact".to_owned(),
             }),
-            response: Some(vec!["ものともせず".to_owned()]),
-            by: By::Human,
-            grader: "exact".to_owned(),
+            response: Some("ものともせず".to_owned()),
+            by: By::Agent,
             hash: "3fa91c0d22be".to_owned(),
         })
     }
@@ -347,8 +342,8 @@ mod tests {
         assert_eq!(
             line,
             serde_json::json!({"type": "review", "t": "2026-10-26T09:12:31+09:00", "atom": "a7f3k2",
-                "rating": 3, "card": {"drill": "cloze", "ref": "cloze:0:1", "grading": "exact"},
-                "response": ["ものともせず"], "by": "human", "grader": "exact", "hash": "3fa91c0d22be"})
+                "rating": 3, "card": {"drill": "cloze", "ref": "cloze:0:1"},
+                "response": "ものともせず", "by": "agent", "hash": "3fa91c0d22be"})
         );
     }
 
@@ -393,8 +388,9 @@ mod tests {
             "not json".to_owned(),
             good.replace("\"rating\":3", "\"rating\":5"),
             good.replace("+09:00", ""),
-            good.replace("\"by\":\"human\"", "\"by\":\"robot\""),
+            good.replace("\"by\":\"agent\"", "\"by\":\"robot\""),
             good.replace("\"hash\"", "\"extra\":1,\"hash\""),
+            good.replace("\"ものともせず\"", "[\"ものともせず\"]"),
         ];
         fs::write(&file, format!("{good}{}\n", bad.join("\n"))).unwrap();
         let log = Log::load(&store, &Schedule::default()).unwrap();

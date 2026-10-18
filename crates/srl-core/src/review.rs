@@ -6,20 +6,16 @@ use serde_json::Value;
 
 use crate::log::{self, CardUsed};
 use crate::{
-    Atom, Atoms, By, Card, Error, Event, Grading, Id, Memories, Reset, Result, Review, State, Store,
+    Atom, Atoms, By, Card, Error, Event, Id, Memories, Reset, Result, Review, State, Store,
 };
 
-/// The rating a `choice` card can't be: Easy (see `docs/grading.md`,
-/// "Multiple choice can't be rated Easy").
-const EASY: u8 = 4;
-
 /// What `srl review --stdin` reads: a card, its rating, and optionally the
-/// response and who reviewed.
+/// response and who recorded the review.
 #[derive(Debug, Clone)]
 pub struct ReviewRequest {
     card: Card,
     rating: u8,
-    response: Option<Vec<String>>,
+    response: Option<String>,
     by: By,
 }
 
@@ -28,12 +24,12 @@ pub struct ReviewRequest {
 struct RawRequest {
     card: Value,
     rating: u8,
-    response: Option<Vec<String>>,
+    response: Option<String>,
     by: Option<By>,
 }
 
 impl ReviewRequest {
-    /// Reads `{"card": …, "rating": N, "response": […], "by": "human"}`.
+    /// Reads `{"card": …, "rating": N, "response": "…", "by": "human"}`.
     /// `response` and `by` may be left out; `by` is then `human`.
     pub fn parse(text: &str, atoms: &Atoms) -> Result<Self> {
         let invalid = |reason: String| Error::InvalidReview { reason };
@@ -45,7 +41,7 @@ impl ReviewRequest {
     }
 
     /// A review of a card that is already checked. The rating must be 1–4.
-    pub fn new(card: Card, rating: u8, response: Option<Vec<String>>, by: By) -> Result<Self> {
+    pub fn new(card: Card, rating: u8, response: Option<String>, by: By) -> Result<Self> {
         check_rating(rating).map_err(|reason| Error::InvalidReview { reason })?;
         Ok(Self {
             card,
@@ -65,32 +61,16 @@ fn check_rating(rating: u8) -> std::result::Result<(), String> {
 }
 
 /// Records a review of a card: one event per atom of the card, all with the
-/// same rating. A `choice` card rated Easy is stored as Good. `cmd` is
-/// `[grading] cmd` from `srl.toml`, which names the grader of `cmd` cards.
-/// Returns the events; with `dry_run`, they are not written.
+/// same rating. Returns the events; with `dry_run`, they are not written.
 pub fn review(
     store: &Store,
     atoms: &Atoms,
     request: &ReviewRequest,
-    cmd: &str,
     now: &Zoned,
     dry_run: bool,
 ) -> Result<Vec<Event>> {
     let card = &request.card;
-    let rating = match card.grading() {
-        Grading::Choice { .. } if request.rating == EASY => EASY - 1,
-        Grading::SelfRated | Grading::Exact { .. } | Grading::Choice { .. } | Grading::Cmd => {
-            request.rating
-        }
-    };
-    let grader = match card.grading() {
-        Grading::Cmd if !cmd.trim().is_empty() => format!("cmd:{}", cmd.trim()),
-        Grading::Cmd => "self".to_owned(),
-        Grading::SelfRated | Grading::Exact { .. } | Grading::Choice { .. } => {
-            card.grading().name().to_owned()
-        }
-    };
-    let used = CardUsed::of(card.drill(), card.reference(), card.grading());
+    let used = CardUsed::of(card.drill(), card.reference());
     let events = card
         .atoms()
         .iter()
@@ -99,11 +79,10 @@ pub fn review(
             Ok(Event::Review(Review {
                 t: log::time(now),
                 atom: id.clone(),
-                rating,
+                rating: request.rating,
                 card: Some(used.clone()),
                 response: request.response.clone(),
                 by: request.by,
-                grader: grader.clone(),
                 hash: log::hash(atom),
             }))
         })
@@ -134,7 +113,6 @@ pub fn review_ids(
                 card: None,
                 response: None,
                 by,
-                grader: "self".to_owned(),
                 hash: log::hash(atom),
             }))
         })
@@ -220,9 +198,9 @@ mod tests {
     fn a_card_about_two_atoms_gives_two_events() {
         let (_tmp, store, atoms) = store();
         let text = r#"{"card": {"atoms": ["aaaaa1", "aaaaa2"], "drill": "synthesis", "ref": "synthesis:1",
-            "prompt": "q", "answer": "a", "grading": "self"}, "rating": 2, "by": "agent"}"#;
+            "prompt": "q", "answer": "a"}, "rating": 2, "by": "agent"}"#;
         let request = ReviewRequest::parse(text, &atoms).unwrap();
-        let events = review(&store, &atoms, &request, "", &now(), false).unwrap();
+        let events = review(&store, &atoms, &request, &now(), false).unwrap();
         assert_eq!(logged(&store), events);
         let Event::Review(first) = &events[0] else {
             panic!("expected a review");
@@ -230,33 +208,32 @@ mod tests {
         assert_eq!(first.t, "2026-10-26T09:12:31+09:00");
         assert_eq!(first.rating, 2);
         assert_eq!(first.by, By::Agent);
-        assert_eq!(first.grader, "self");
+        assert_eq!(first.response, None);
         assert_eq!(first.hash.len(), 12);
         assert_eq!(events[1].atom().as_str(), "aaaaa2");
     }
 
     #[test]
-    fn a_choice_card_rated_easy_is_stored_as_good() {
+    fn the_rating_and_response_are_kept_as_given() {
         let (_tmp, store, atoms) = store();
-        let text = r#"{"card": {"atoms": ["aaaaa1"], "drill": "confusable", "ref": "confusable",
-            "prompt": "q", "answer": "a", "grading": "choice", "accept": [["a"]], "choices": ["a", "b"]},
-            "rating": 4, "response": ["a"]}"#;
+        let text = r#"{"card": {"atoms": ["aaaaa1"], "drill": "cards", "ref": "cards:0",
+            "prompt": "q", "answer": "a"}, "rating": 4, "response": "my answer"}"#;
         let request = ReviewRequest::parse(text, &atoms).unwrap();
-        let events = review(&store, &atoms, &request, "", &now(), true).unwrap();
-        assert!(
-            matches!(&events[0], Event::Review(review) if review.rating == 3 && review.grader == "choice")
-        );
+        let events = review(&store, &atoms, &request, &now(), true).unwrap();
+        assert!(matches!(&events[0], Event::Review(review)
+            if review.rating == 4 && review.response.as_deref() == Some("my answer")));
         assert!(logged(&store).is_empty());
     }
 
     #[test]
     fn bad_reviews_are_refused() {
         let (_tmp, _store, atoms) = store();
-        let card = r#"{"atoms": ["aaaaa1"], "drill": "reveal", "ref": "reveal", "prompt": "q", "answer": "a", "grading": "self"}"#;
+        let card = r#"{"atoms": ["aaaaa1"], "drill": "cards", "ref": "cards:0", "prompt": "q", "answer": "a"}"#;
         for text in [
             format!(r#"{{"card": {card}, "rating": 5}}"#),
             format!(r#"{{"card": {card}}}"#),
             format!(r#"{{"card": {card}, "rating": 3, "mood": "good"}}"#),
+            format!(r#"{{"card": {card}, "rating": 3, "response": ["a"]}}"#),
             r#"{"card": {"atoms": ["zzzzzz"]}, "rating": 3}"#.to_owned(),
         ] {
             assert!(

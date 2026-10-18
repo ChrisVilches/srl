@@ -11,8 +11,8 @@ use anyhow::{Context, bail};
 use jiff::Zoned;
 use jiff::civil::Date;
 use srl_core::{
-    Atom, Atoms, Config, Content, Drills, Error, Flags, GradeRequest, Id, Index, Log, Lookup,
-    Memories, NextOptions, ReviewRequest, Search, Selector, Status, Store,
+    Atom, Atoms, Config, Content, Drills, Error, Flags, Id, Index, Log, Lookup, Memories,
+    NextOptions, ReviewRequest, Search, Selector, Status, Store,
 };
 
 use crate::args::{AddArgs, By, Cli, Command, ReviewArgs, SessionCommand};
@@ -71,7 +71,6 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             json,
         } => next(&store()?, &selector.terms, drill.as_deref(), json.json),
         Command::Cards { id, json } => cards(&store()?, &id, json.json),
-        Command::Grade => grade(&store()?),
         Command::Review(args) => review(&store()?, &args),
         Command::Reset { selector, dry_run } => reset(&store()?, &selector.terms, dry_run.dry_run),
         Command::Session { action } => match action {
@@ -192,7 +191,6 @@ fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
     } else if let Some(title) = args.title {
         vec![Content::from_flags(Flags {
             title,
-            answer: args.answer,
             tags: args.tags,
             source: args.source,
         })?]
@@ -475,20 +473,6 @@ fn next(
     Ok(Outcome::Done)
 }
 
-/// `srl grade`: grades the card and response on standard input, and prints
-/// the result as JSON. A failing grader is reported, and the result says to
-/// fall back to self-grading.
-fn grade(store: &Store) -> anyhow::Result<Outcome> {
-    let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
-    let atoms = load(&mut Index::open(store))?;
-    let request = GradeRequest::parse(&text, &atoms)?;
-    let config = Config::load(store)?;
-    let (graded, problem) = srl_core::grade(&request, &atoms, &config.grading.cmd, &search()?);
-    problem.iter().for_each(output::problem);
-    output::json_lines(&[graded])?;
-    Ok(Outcome::Done)
-}
-
 /// `srl review`: records a review from standard input, or of atoms by ID.
 /// Prints nothing, or with `--dry-run` the events it would write.
 fn review(store: &Store, args: &ReviewArgs) -> anyhow::Result<Outcome> {
@@ -498,8 +482,7 @@ fn review(store: &Store, args: &ReviewArgs) -> anyhow::Result<Outcome> {
     let events = if args.stdin {
         let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
         let request = ReviewRequest::parse(&text, &atoms)?;
-        let config = Config::load(store)?;
-        srl_core::review(store, &atoms, &request, &config.grading.cmd, &now, dry_run)?
+        srl_core::review(store, &atoms, &request, &now, dry_run)?
     } else {
         let ids = args
             .ids

@@ -15,7 +15,6 @@ use crate::{Error, Result, Store};
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub schedule: Schedule,
-    pub grading: Grading,
     pub drills: Drills,
 }
 
@@ -56,13 +55,6 @@ impl Schedule {
             now.date()
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct Grading {
-    /// The external grader; empty means none.
-    pub cmd: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

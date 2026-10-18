@@ -21,10 +21,6 @@ pub(crate) use builtin::Builtin;
 /// The file name of the drill `NAME` is `srl-drill-NAME`.
 const PREFIX: &str = "srl-drill-";
 
-/// The order in which drills' cards are pooled; drills not listed come after,
-/// by name (see `docs/scheduling.md`).
-const ORDER: [&str; 5] = ["reveal", "reverse", "cloze", "cards", "confusable"];
-
 /// One drill, and where it was found.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Drill {
@@ -58,13 +54,12 @@ impl Drill {
         match &self.source {
             Source::Builtin(builtin) => Ok(builtin.summary().to_owned()),
             Source::Program(path) => {
-                let help =
-                    process::run(path, &["--help"], b"", Some(timeout)).map_err(|reason| {
-                        Error::DrillHelp {
-                            drill: self.name.clone(),
-                            reason,
-                        }
-                    })?;
+                let help = process::run(path, &["--help"], b"", timeout).map_err(|reason| {
+                    Error::DrillHelp {
+                        drill: self.name.clone(),
+                        reason,
+                    }
+                })?;
                 Ok(help
                     .lines()
                     .map(|line| line.trim_start_matches('#').trim())
@@ -85,14 +80,10 @@ impl Drill {
         run: &Run<'_>,
     ) -> std::result::Result<Vec<std::result::Result<RawCard, String>>, String> {
         match &self.source {
-            Source::Builtin(builtin) => Ok(builtin
-                .cards(atom, run.atoms, run.day)?
-                .into_iter()
-                .map(Ok)
-                .collect()),
+            Source::Builtin(builtin) => Ok(builtin.cards(atom)?.into_iter().map(Ok).collect()),
             Source::Program(path) => {
                 let input = input(atom, run.day)?;
-                let output = process::run(path, &[], input.as_bytes(), Some(run.timeout))?;
+                let output = process::run(path, &[], input.as_bytes(), run.timeout)?;
                 Ok(output
                     .lines()
                     .enumerate()
@@ -209,24 +200,21 @@ impl Drills {
         self.by_name.get(name)
     }
 
-    /// The drills that apply to `atom`, in pool order: `reveal`, then the
-    /// drill of each facet (see `docs/drills.md`, rules 1 and 2). Also
-    /// returns the facets that have no drill.
+    /// The drills that apply to `atom`, by name: the drill of each facet (see
+    /// `docs/drills.md`, rules 1 and 2). Also returns the facets that have no
+    /// drill.
     pub fn applicable<'a>(&'a self, atom: &'a Atom) -> (Vec<&'a Drill>, Vec<&'a str>) {
         let facets = atom.content().facets().keys().map(String::as_str);
-        let names = std::iter::once("reveal")
-            .chain(facets.clone())
-            .collect::<HashSet<_>>();
-        let mut drills = names
-            .iter()
+        let mut drills = facets
+            .clone()
             .filter_map(|name| self.get(name))
             .collect::<Vec<_>>();
-        drills.sort_by_key(|drill| pool_position(drill.name()));
+        drills.sort_by(|one, other| one.name().cmp(other.name()));
         let missing = facets.filter(|name| self.get(name).is_none()).collect();
         (drills, missing)
     }
 
-    /// The cards of every drill that applies to `atom`, in pool order, one
+    /// The cards of every drill that applies to `atom`, by drill name, one
     /// entry per drill. A drill that fails, and each invalid card, is
     /// reported in that drill's entry; the other cards are kept.
     pub fn cards(
@@ -261,13 +249,6 @@ impl Drills {
             .map(|drill| drill_cards(drill, atom, &run))
             .collect()
     }
-}
-
-/// Where a drill's cards go in the pool: the fixed order first, then the
-/// other drills by name.
-pub(crate) fn pool_position(name: &str) -> (usize, String) {
-    let fixed = ORDER.iter().position(|known| *known == name);
-    (fixed.unwrap_or(ORDER.len()), name.to_owned())
 }
 
 /// What one drill made for one atom.

@@ -91,6 +91,11 @@ fn atom_problems(
     day: Date,
     timeout: Duration,
 ) -> Vec<Error> {
+    if atom.content().facets().is_empty() {
+        return vec![Error::NoFacets {
+            id: atom.id().clone(),
+        }];
+    }
     let (_, missing) = drills.applicable(atom);
     let missing = missing.into_iter().map(|facet| {
         let (id, facet) = (atom.id().clone(), facet.to_owned());
@@ -229,24 +234,40 @@ mod tests {
     fn facets_without_drills_and_without_cards_are_reported() {
         let (_tmp, store) = store(&[(
             "a.md",
-            "---\nid: aaaaa1\ntitle: x\nconj: {verb: 食べる}\nmy facet: 1\nreverse: false\ncloze: [no span]\n---\n",
+            "---\nid: aaaaa1\ntitle: x\nconj: {verb: 食べる}\nmy facet: 1\ncards: []\ncloze: [no span]\n---\n",
         )]);
         let problems = run(&store, None, false).problems;
         assert!(
             matches!(&problems[..], [
             Error::NoDrill { facet: conj, .. },
             Error::NotADrillName { .. },
-            Error::NoCards { drill: reverse, .. },
+            Error::NoCards { drill: cards, .. },
             Error::DrillFailed { drill: cloze, .. },
-        ] if conj == "conj" && reverse == "reverse" && cloze == "cloze"),
+        ] if conj == "conj" && cards == "cards" && cloze == "cloze"),
+            "{problems:?}"
+        );
+    }
+
+    #[test]
+    fn atoms_without_facets_are_reported() {
+        let (_tmp, store) = store(&[("a.md", "---\nid: aaaaa1\ntitle: x\n---\nNotes.\n")]);
+        let problems = run(&store, None, false).problems;
+        assert!(
+            matches!(&problems[..], [Error::NoFacets { .. }]),
             "{problems:?}"
         );
     }
 
     #[test]
     fn fix_assigns_missing_ids_and_keeps_the_rest_of_the_file() {
-        let text = "---\ntitle: x  # a comment\n---\nbody\n";
-        let (_tmp, store) = store(&[("a.md", text), ("b.md", "---\nid: aaaaa1\ntitle: y\n---\n")]);
+        let text = "---\ntitle: x  # a comment\ncards: [{q: a, a: b}]\n---\nbody\n";
+        let (_tmp, store) = store(&[
+            ("a.md", text),
+            (
+                "b.md",
+                "---\nid: aaaaa1\ntitle: y\ncards: [{q: a, a: b}]\n---\n",
+            ),
+        ]);
         let dry = run(&store, Some(0), true);
         assert_eq!(dry.fixed.len(), 1);
         assert!(matches!(&dry.problems[..], [Error::MissingId { .. }]));
@@ -258,7 +279,7 @@ mod tests {
         assert_eq!(
             fs::read_to_string(store.atom_file("a.md")).unwrap(),
             format!(
-                "---\nid: {}\ntitle: x  # a comment\n---\nbody\n",
+                "---\nid: {}\ntitle: x  # a comment\ncards: [{{q: a, a: b}}]\n---\nbody\n",
                 report.fixed[0].id
             )
         );
@@ -266,8 +287,11 @@ mod tests {
 
     #[test]
     fn paths_longer_than_new_files_may_be_are_reported() {
-        let atom = "---\nid: aaaaa1\ntitle: x\n---\n";
-        let (_tmp, store) = store(&[("a.md", "---\nid: aaaaa2\ntitle: y\n---\n")]);
+        let atom = "---\nid: aaaaa1\ntitle: x\ncards: [{q: a, a: b}]\n---\n";
+        let (_tmp, store) = store(&[(
+            "a.md",
+            "---\nid: aaaaa2\ntitle: y\ncards: [{q: a, a: b}]\n---\n",
+        )]);
         let long = format!(
             "{}/{}/{}.md",
             "x".repeat(100),

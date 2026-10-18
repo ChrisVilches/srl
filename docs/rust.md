@@ -36,7 +36,7 @@ crates/
     src/yaml.rs         front-matter between YAML text and JSON values
     src/frontmatter.rs  setting one key in an existing atom file (see below)
     src/process.rs      running a drill program with a time limit
-    src/random.rs       reproducible random numbers (IDs, drill seeds)
+    src/random.rs       reproducible random numbers for new IDs
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
     src/args.rs         clap definitions, no logic

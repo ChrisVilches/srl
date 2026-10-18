@@ -15,10 +15,14 @@ use crate::output;
 
 /// The file `srl new` opens: front-matter to fill in, and an empty body.
 pub(crate) const TEMPLATE: &str = "---
-# The title is required; everything else is optional. Write the knowledge
-# itself below the second `---`. Lines starting with # are comments.
+# The title is required; everything else is optional. Questions come from
+# facets, for example:
+#   cards:
+#     - q: The question
+#       a: The answer
+# Write the knowledge itself below the second `---`; it is shown after the
+# answer of every card. Lines starting with # are comments.
 title:
-answer:
 tags: []
 ---
 ";

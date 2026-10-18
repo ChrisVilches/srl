@@ -5,9 +5,7 @@ use std::time::Duration;
 
 use jiff::civil::Date;
 
-use crate::{
-    Atom, Atoms, Card, Config, Drills, Error, Memories, Result, Selector, State, Status, drill,
-};
+use crate::{Atom, Atoms, Card, Config, Drills, Error, Memories, Result, Selector, State, Status};
 
 /// What `srl next` needs besides the atoms and their memories.
 #[derive(Debug, Clone, Copy)]
@@ -72,13 +70,13 @@ pub fn next(
 }
 
 /// The card of `atom` whose ref was used least recently, cards never used
-/// first; ties by the fixed drill order, then by ref.
+/// first; ties by drill name, then by ref.
 fn least_recently_used(atom: &Atom, cards: Vec<Card>, memories: &Memories) -> Option<Card> {
     let memory = memories.get(atom.id());
     cards.into_iter().min_by_key(|card| {
         (
             memory.last_used(card.reference()),
-            drill::pool_position(card.drill()),
+            card.drill().to_owned(),
             card.reference().to_owned(),
         )
     })
@@ -129,11 +127,9 @@ mod tests {
                 card: Some(CardUsed {
                     drill: reference.split(':').next().unwrap().to_owned(),
                     reference: reference.to_owned(),
-                    grading: "self".to_owned(),
                 }),
                 response: None,
                 by: By::Human,
-                grader: "self".to_owned(),
                 hash: String::new(),
             }),
             day,
@@ -175,10 +171,17 @@ mod tests {
         fixture(&[
             (
                 "a.md",
-                "---\nid: aaaaa1\ntitle: a\nanswer: x\nreverse: true\n---\n",
+                "---\nid: aaaaa1\ntitle: a\ncards: [{q: x, a: y}, {q: z, a: w}]\ncloze: ['{{x}}']\n---\n",
             ),
-            ("b.md", "---\nid: aaaaa2\ntitle: b\n---\n"),
-            ("c.md", "---\nid: aaaaa3\ntitle: c\nstatus: draft\n---\n"),
+            (
+                "b.md",
+                "---\nid: aaaaa2\ntitle: b\ncards: [{q: b, a: c}]\n---\n",
+            ),
+            (
+                "c.md",
+                "---\nid: aaaaa3\ntitle: c\nstatus: draft\ncards: [{q: c, a: d}]\n---\n",
+            ),
+            ("d.md", "---\nid: aaaaa4\ntitle: d\n---\nNotes only.\n"),
         ])
     }
 
@@ -187,14 +190,20 @@ mod tests {
         let fixture = atoms();
         let card = next_card(&fixture, Vec::new(), &Config::default(), "", None).unwrap();
         assert_eq!(card.atoms()[0].as_str(), "aaaaa1");
-        assert_eq!(card.reference(), "reveal");
+        assert_eq!(card.reference(), "cards:0");
         assert!(next_card(&fixture, Vec::new(), &Config::default(), "id:aaaaa3", None).is_none());
+    }
+
+    #[test]
+    fn an_atom_without_facets_is_skipped() {
+        let fixture = atoms();
+        assert!(next_card(&fixture, Vec::new(), &Config::default(), "id:aaaaa4", None).is_none());
     }
 
     #[test]
     fn due_atoms_come_before_new_ones() {
         let fixture = atoms();
-        let entries = vec![reviewed("aaaaa2", date(2026, 10, 1), 3, "reveal")];
+        let entries = vec![reviewed("aaaaa2", date(2026, 10, 1), 3, "cards:0")];
         let card = next_card(&fixture, entries, &Config::default(), "", None).unwrap();
         assert_eq!(card.atoms()[0].as_str(), "aaaaa2");
     }
@@ -202,7 +211,7 @@ mod tests {
     #[test]
     fn an_atom_reviewed_today_is_not_next_again() {
         let fixture = atoms();
-        let entries = vec![reviewed("aaaaa1", DAY, 3, "reveal")];
+        let entries = vec![reviewed("aaaaa1", DAY, 3, "cards:0")];
         let card = next_card(&fixture, entries, &Config::default(), "", None).unwrap();
         assert_eq!(card.atoms()[0].as_str(), "aaaaa2");
     }
@@ -211,12 +220,13 @@ mod tests {
     fn the_least_recently_used_card_comes_next() {
         let fixture = atoms();
         let entries = vec![
-            reviewed("aaaaa1", date(2026, 9, 1), 3, "reveal"),
-            reviewed("aaaaa1", date(2026, 9, 20), 3, "reverse"),
-            reviewed("aaaaa1", date(2026, 10, 1), 1, "reveal"),
+            reviewed("aaaaa1", date(2026, 9, 1), 3, "cards:0"),
+            reviewed("aaaaa1", date(2026, 9, 10), 3, "cloze:0:1"),
+            reviewed("aaaaa1", date(2026, 9, 20), 3, "cards:1"),
+            reviewed("aaaaa1", date(2026, 10, 1), 1, "cards:0"),
         ];
         let card = next_card(&fixture, entries, &Config::default(), "id:aaaaa1", None).unwrap();
-        assert_eq!(card.reference(), "reverse");
+        assert_eq!(card.reference(), "cloze:0:1");
     }
 
     #[test]
@@ -229,29 +239,22 @@ mod tests {
             },
             ..Config::default()
         };
-        let entries = vec![reviewed("aaaaa1", DAY, 3, "reveal")];
+        let entries = vec![reviewed("aaaaa1", DAY, 3, "cards:0")];
         assert!(next_card(&fixture, entries, &config, "", None).is_none());
     }
 
     #[test]
     fn drill_restricts_the_pool_and_skips_atoms_without_its_cards() {
         let fixture = atoms();
-        let card = next_card(
-            &fixture,
-            Vec::new(),
-            &Config::default(),
-            "",
-            Some("reverse"),
-        )
-        .unwrap();
-        assert_eq!(card.reference(), "reverse");
+        let card = next_card(&fixture, Vec::new(), &Config::default(), "", Some("cloze")).unwrap();
+        assert_eq!(card.reference(), "cloze:0:1");
         assert!(
             next_card(
                 &fixture,
                 Vec::new(),
                 &Config::default(),
                 "id:aaaaa2",
-                Some("reverse")
+                Some("cloze")
             )
             .is_none()
         );

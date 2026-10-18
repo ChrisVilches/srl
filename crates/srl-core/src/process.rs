@@ -1,5 +1,4 @@
-//! Running a program (a drill, the external grader) with an optional time
-//! limit.
+//! Running a drill program with a time limit.
 
 use std::io::{self, Read, Write};
 use std::path::Path;
@@ -21,7 +20,7 @@ pub(crate) fn run(
     program: &Path,
     args: &[&str],
     input: &[u8],
-    timeout: Option<Duration>,
+    timeout: Duration,
 ) -> Result<String, String> {
     let mut child = Command::new(program)
         .args(args)
@@ -50,7 +49,7 @@ pub(crate) fn run(
         let mut output = Vec::new();
         stdout.read_to_end(&mut output).map(|_| output)
     });
-    let deadline = timeout.map(|timeout| Instant::now() + timeout);
+    let deadline = Instant::now() + timeout;
     let status = loop {
         if let Some(status) = child
             .try_wait()
@@ -58,9 +57,7 @@ pub(crate) fn run(
         {
             break status;
         }
-        if let Some((deadline, timeout)) = deadline.zip(timeout)
-            && Instant::now() >= deadline
-        {
+        if Instant::now() >= deadline {
             child
                 .kill()
                 .map_err(|error| format!("it took too long, and cannot be stopped ({error})"))?;

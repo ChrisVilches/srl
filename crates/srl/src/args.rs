@@ -167,8 +167,6 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Grade an answer: card and response as JSON on standard input.
-    Grade,
     /// Record a review, from JSON on standard input or for atoms by ID.
     Review(ReviewArgs),
     /// Make matching atoms new again.
@@ -218,9 +216,6 @@ pub(crate) struct AddArgs {
     /// The title of a new atom.
     #[arg(long, value_name = "TITLE")]
     pub(crate) title: Option<String>,
-    /// The answer of the new atom.
-    #[arg(long, value_name = "ANSWER", requires = "title")]
-    pub(crate) answer: Option<String>,
     /// A tag of the new atom (repeatable).
     #[arg(long = "tag", value_name = "TAG", requires = "title")]
     pub(crate) tags: Vec<String>,
@@ -233,7 +228,7 @@ pub(crate) struct AddArgs {
 
 #[derive(Debug, Args)]
 pub(crate) struct ReviewArgs {
-    /// Read `{"card": …, "rating": N, "response": […], "by": "human"}` from standard input.
+    /// Read `{"card": …, "rating": N, "response": "…", "by": "human"}` from standard input.
     #[arg(long, conflicts_with_all = ["ids", "rating"])]
     pub(crate) stdin: bool,
     /// Atoms to review without a card.

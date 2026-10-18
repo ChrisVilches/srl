@@ -121,8 +121,6 @@ fn added_atoms_can_be_shown() {
         dir(&tmp),
         "--title",
         "鮪",
-        "--answer",
-        "まぐろ — tuna",
         "--tag",
         "kanji/food",
     ]);
@@ -467,18 +465,18 @@ fn drills_lists_built_in_drills_and_the_stores_programs() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let listed = stdout(&output);
     let lines = listed.lines().collect::<Vec<_>>();
-    assert_eq!(lines.len(), 6, "{listed}");
+    assert_eq!(lines.len(), 3, "{listed}");
     assert!(lines[0].starts_with("cards  built-in  "));
     assert!(lines[1].starts_with("cloze  ") && lines[1].ends_with("  My own cloze"));
-    assert!(lines[3].starts_with("conj  ") && lines[3].ends_with("  Conjugation cards"));
-    assert!(lines[3].contains("srl-drill-conj"));
+    assert!(lines[2].starts_with("conj  ") && lines[2].ends_with("  Conjugation cards"));
+    assert!(lines[2].contains("srl-drill-conj"));
     let json = srl(&["drills", "--json", "--dir", dir(&tmp)]);
-    let reveal = stdout(&json)
+    let cards = stdout(&json)
         .lines()
         .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
-        .find(|drill| drill["name"] == "reveal")
+        .find(|drill| drill["name"] == "cards")
         .unwrap();
-    assert!(reveal["path"].is_null());
+    assert!(cards["path"].is_null());
 }
 
 #[test]
@@ -490,12 +488,12 @@ fn cards_runs_every_drill_that_applies_and_drops_invalid_cards() {
         "Conjugation",
         0,
         &[
-            r#"{"ref": "te", "prompt": "te-form?", "answer": "tabete", "grading": "exact", "accept": [["tabete"]]}"#,
-            r#"{"ref": "past", "prompt": "no grading", "answer": "tabeta"}"#,
+            r#"{"ref": "te", "prompt": "te-form?", "answer": "tabete"}"#,
+            r#"{"ref": "past", "prompt": "past?", "answer": "tabeta", "grading": "self"}"#,
         ],
     );
     let d = dir(&tmp);
-    let line = r#"{"title": "taberu", "answer": "to eat", "conj": {"verb": "taberu"}, "cloze": ["I {{eat}} bread."], "body": "A verb."}"#;
+    let line = r#"{"title": "taberu", "conj": {"verb": "taberu"}, "cloze": ["I {{eat}} bread."], "body": "A verb."}"#;
     let id = stdout(&srl_with_input(&["add", "--stdin", "--dir", d], line))
         .trim()
         .to_owned();
@@ -505,9 +503,9 @@ fn cards_runs_every_drill_that_applies_and_drops_invalid_cards() {
         .lines()
         .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap()["ref"].clone())
         .collect::<Vec<_>>();
-    assert_eq!(refs, ["reveal", "cloze:0:1", "conj:te"]);
+    assert_eq!(refs, ["cloze:0:1", "conj:te"]);
     assert!(
-        stderr(&output).contains("no `grading`"),
+        stderr(&output).contains("unknown field `grading`"),
         "{}",
         stderr(&output)
     );
@@ -521,7 +519,10 @@ fn cards_runs_every_drill_that_applies_and_drops_invalid_cards() {
     assert!(input["day"].as_str().unwrap().len() == "2026-10-26".len());
 
     let text = srl(&["cards", &id, "--dir", d]);
-    assert!(stdout(&text).starts_with("reveal  self\ntaberu\n---\nto eat\n\ncloze:0:1  exact\n"));
+    assert_eq!(
+        stdout(&text),
+        "cloze:0:1\nI ==[1]== bread.\n---\nI ==eat== bread.\n\nconj:te\nte-form?\n---\ntabete\n"
+    );
 }
 
 #[test]
@@ -536,13 +537,13 @@ fn a_drill_that_takes_too_long_is_skipped_and_reported() {
     let d = dir(&tmp);
     let id = stdout(&srl_with_input(
         &["add", "--stdin", "--dir", d],
-        r#"{"title": "x", "slow": 1}"#,
+        r#"{"title": "x", "slow": 1, "cards": [{"q": "q", "a": "a"}]}"#,
     ))
     .trim()
     .to_owned();
     let output = srl(&["cards", &id, "--dir", d]);
     assert_eq!(output.status.code(), Some(2));
-    assert!(stdout(&output).starts_with("reveal  self\n"));
+    assert_eq!(stdout(&output), "cards:0\nq\n---\na\n");
     assert!(
         stderr(&output).contains("longer than 1 seconds"),
         "{}",
@@ -559,7 +560,11 @@ fn check_reports_problems_and_fix_assigns_missing_ids() {
     assert!(clean.stdout.is_empty() && clean.stderr.is_empty());
 
     let hand = tmp.path().join("atoms").join("hand.md");
-    fs::write(&hand, "---\ntitle: written by hand  # a comment\n---\n").unwrap();
+    fs::write(
+        &hand,
+        "---\ntitle: written by hand  # a comment\ncards: [{q: a, a: b}]\n---\n",
+    )
+    .unwrap();
     let missing = srl(&["check", "--dir", d]);
     assert_eq!(missing.status.code(), Some(2));
     assert!(stderr(&missing).contains("srl check --fix"));
@@ -573,16 +578,24 @@ fn check_reports_problems_and_fix_assigns_missing_ids() {
     let id = stdout(&fixed).split("  ").next().unwrap().to_owned();
     assert_eq!(
         fs::read_to_string(&hand).unwrap(),
-        format!("---\nid: {id}\ntitle: written by hand  # a comment\n---\n")
+        format!(
+            "---\nid: {id}\ntitle: written by hand  # a comment\ncards: [{{q: a, a: b}}]\n---\n"
+        )
     );
 
     srl_with_input(
         &["add", "--stdin", "--dir", d],
         r#"{"title": "y", "conj": {"verb": "x"}}"#,
     );
-    let no_drill = srl(&["check", "--dir", d]);
-    assert_eq!(no_drill.status.code(), Some(2));
-    assert!(stderr(&no_drill).contains("no drill `conj`"));
+    srl(&["add", "--title", "z", "--dir", d]);
+    let problems = srl(&["check", "--dir", d]);
+    assert_eq!(problems.status.code(), Some(2));
+    assert!(stderr(&problems).contains("no drill `conj`"));
+    assert!(
+        stderr(&problems).contains("has no facets"),
+        "{}",
+        stderr(&problems)
+    );
 }
 
 /// The JSON values printed by a command, one per line.
@@ -605,7 +618,7 @@ fn next_card(d: &str, extra: &[&str]) -> serde_json::Value {
 
 /// Records `rating` for `card` with `srl review --stdin`.
 fn record(d: &str, card: &serde_json::Value, rating: u8) {
-    let request = serde_json::json!({"card": card, "rating": rating, "response": []});
+    let request = serde_json::json!({"card": card, "rating": rating});
     let output = srl_with_input(&["review", "--stdin", "--dir", d], &request.to_string());
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert!(output.stdout.is_empty());
@@ -617,8 +630,8 @@ fn record(d: &str, card: &serde_json::Value, rating: u8) {
 fn fish() -> (TempDir, String, String) {
     let tmp = store();
     let lines = [
-        r#"{"title": "鮪", "answer": "tuna", "tags": ["kanji"], "cloze": ["{{鮪}}は魚です。"]}"#,
-        r#"{"title": "鯖", "answer": "mackerel", "tags": ["kanji"]}"#,
+        r#"{"title": "鮪", "tags": ["kanji"], "cards": [{"q": "鮪", "a": "tuna"}], "cloze": ["{{鮪}}は魚です。"]}"#,
+        r#"{"title": "鯖", "tags": ["kanji"], "cards": [{"q": "鯖", "a": "mackerel"}]}"#,
     ];
     let added = srl_with_input(&["add", "--stdin", "--dir", dir(&tmp)], &lines.join("\n"));
     let [tuna, mackerel] = ids(&added).try_into().unwrap();
@@ -631,19 +644,17 @@ fn the_study_loop_records_reviews_and_schedules_atoms() {
     let d = dir(&tmp);
     assert_eq!(ids(&srl(&["find", "state:new", "--dir", d])).len(), 2);
 
-    // A new atom comes first, by path, with the first card in drill order.
+    // A new atom comes first, by path, with the first card by drill name.
     let card = next_card(d, &[]);
     assert_eq!(card["atoms"][0], tuna.as_str());
-    assert_eq!(card["ref"], "reveal");
-
-    // The cloze card is graded by comparing the answer.
-    let cloze = next_card(d, &["--drill", "cloze"]);
-    let request = serde_json::json!({"card": cloze, "response": ["鮪"]});
-    let graded = srl_with_input(&["grade", "--dir", d], &request.to_string());
+    assert_eq!(card["ref"], "cards:0");
     assert_eq!(
-        json_lines(&graded),
-        [serde_json::json!({"correct": [true], "suggested_rating": 3, "feedback": null})]
+        card,
+        serde_json::json!({"atoms": [tuna], "drill": "cards", "ref": "cards:0",
+            "prompt": "鮪", "answer": "tuna"})
     );
+    let cloze = next_card(d, &["--drill", "cloze"]);
+    assert_eq!(cloze["ref"], "cloze:0:1");
 
     record(d, &card, 3);
     // Rated today, so it is not next again; the other new atom is.
@@ -668,12 +679,16 @@ fn the_study_loop_records_reviews_and_schedules_atoms() {
     let lines = stdout(&log);
     let lines = lines.lines().collect::<Vec<_>>();
     assert_eq!(lines.len(), 2, "{lines:?}");
-    assert!(lines[0].ends_with(&format!("  {tuna}  review  3  reveal  human")));
+    assert!(lines[0].ends_with(&format!("  {tuna}  review  3  cards:0  human")));
     assert!(lines[1].ends_with(&format!("  {mackerel}  review  1  -  agent")));
     let only_tuna = format!("id:{tuna}");
     let events = json_lines(&srl(&["log", &only_tuna, "--json", "--dir", d]));
     assert_eq!(events.len(), 1);
-    assert_eq!(events[0]["card"]["ref"], "reveal");
+    assert_eq!(
+        events[0]["card"],
+        serde_json::json!({"drill": "cards", "ref": "cards:0"})
+    );
+    assert!(events[0]["response"].is_null());
     assert_eq!(events[0]["hash"].as_str().unwrap().len(), 12);
 
     // A reset makes reviewed atoms new again; then there is nothing to reset.
@@ -745,42 +760,20 @@ fn a_broken_log_line_is_reported_and_skipped() {
 }
 
 #[test]
-fn cmd_cards_are_graded_by_the_configured_grader() {
-    let (tmp, drills) = store_with_drills();
+fn a_response_and_rating_are_recorded_as_given() {
+    let (tmp, tuna, _mackerel) = fish();
     let d = dir(&tmp);
-    let id = stdout(&srl(&["add", "--title", "x", "--dir", d]))
-        .trim()
-        .to_owned();
-    let card = serde_json::json!({"atoms": [id], "drill": "llm", "ref": "llm:1", "prompt": "Use it in a sentence.",
-        "answer": "Any sentence.", "grading": "cmd"});
-    let request = serde_json::json!({"card": card, "response": ["My sentence."]});
-
-    let fallback = srl_with_input(&["grade", "--dir", d], &request.to_string());
-    assert_eq!(fallback.status.code(), Some(0), "{}", stderr(&fallback));
-    assert_eq!(json_lines(&fallback)[0]["fallback"], "self");
-
-    let program = drill_program(
-        &drills,
-        "grader",
-        "A grader",
-        0,
-        &[r#"{"correct": [true], "rating": 4, "feedback": "Natural."}"#],
-    );
-    let config = format!(
-        "[grading]\ncmd = {}\n",
-        serde_json::json!(program.to_str().unwrap())
-    );
-    fs::write(tmp.path().join("srl.toml"), config).unwrap();
-    let graded = srl_with_input(&["grade", "--dir", d], &request.to_string());
-    assert_eq!(graded.status.code(), Some(0), "{}", stderr(&graded));
-    assert_eq!(
-        json_lines(&graded),
-        [serde_json::json!({"correct": [true], "suggested_rating": 4, "feedback": "Natural."})]
-    );
-    let input = fs::read_to_string(drills.join("srl-drill-grader.input")).unwrap();
-    let input = serde_json::from_str::<serde_json::Value>(&input).unwrap();
-    assert_eq!(input["atom"]["title"], "x");
-    assert_eq!(input["response"][0], "My sentence.");
+    let card = next_card(d, &[]);
+    let request =
+        serde_json::json!({"card": card, "rating": 4, "response": "a big fish", "by": "agent"});
+    let output = srl_with_input(&["review", "--stdin", "--dir", d], &request.to_string());
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let only_tuna = format!("id:{tuna}");
+    let events = json_lines(&srl(&["log", &only_tuna, "--json", "--dir", d]));
+    assert_eq!(events[0]["rating"], 4);
+    assert_eq!(events[0]["response"], "a big fish");
+    assert_eq!(events[0]["by"], "agent");
+    assert!(events[0].get("grader").is_none());
 }
 
 #[test]
@@ -827,7 +820,7 @@ fn sessions_are_saved_listed_and_removed() {
     let d = dir(&tmp);
     let card = |id: &str, prompt: &str| {
         serde_json::json!({"atoms": [id], "drill": "agent", "ref": format!("agent:{prompt}"),
-            "prompt": prompt, "answer": "a", "grading": "self"})
+            "prompt": prompt, "answer": "a"})
         .to_string()
     };
     let cards = [card(&mackerel, "one"), card(&tuna, "two")].join("\n");

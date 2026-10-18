@@ -20,11 +20,10 @@ pub(crate) const MAX_PATH: usize = 259;
 /// The most characters of a title that go into a file name.
 const SLUG_LEN: usize = 60;
 
-/// The fields of `srl add --title TITLE [--answer ANSWER] [--tag TAG]… [--source SOURCE]`.
+/// The fields of `srl add --title TITLE [--tag TAG]… [--source SOURCE]`.
 #[derive(Debug, Clone, Default)]
 pub struct Flags {
     pub title: String,
-    pub answer: Option<String>,
     pub tags: Vec<String>,
     pub source: Option<String>,
 }
@@ -42,7 +41,6 @@ impl Content {
     pub fn from_flags(flags: Flags) -> Result<Self> {
         let fields = [
             ("title", Some(Value::from(flags.title))),
-            ("answer", flags.answer.map(Value::from)),
             ("tags", Some(Value::from(flags.tags))),
             ("source", flags.source.map(Value::from)),
         ]
@@ -431,7 +429,7 @@ mod tests {
         assert_eq!(
             serde_json::to_value(atom).unwrap(),
             json!({"id": added[0].id, "path": "japanese/grammar/をものともせず.md",
-                   "title": "〜をものともせず", "answer": null, "tags": ["japanese/grammar", "jlpt/n1"],
+                   "title": "〜をものともせず", "tags": ["japanese/grammar", "jlpt/n1"],
                    "status": "active", "source": "Tobira ch.3",
                    "cloze": ["嵐を{{ものともせず}}、漁師たちは海へ出た。"],
                    "body": "Undeterred by (adversity).\n"})
@@ -488,7 +486,7 @@ mod tests {
         for line in [
             r#"{"id": "a7f3k2", "title": "x"}"#,
             r#"{"title": ""}"#,
-            r#"{"answer": "x"}"#,
+            r#"{"source": "x"}"#,
             r#"{"title": "x", "body": 3}"#,
             r#"{"title": "x", "path": "y"}"#,
             r#"["title"]"#,
@@ -522,10 +520,9 @@ mod tests {
 
     #[test]
     fn a_whole_file_without_an_id_is_new_content() {
-        let content = Content::from_file_text(
-            "---\n# a comment\ntitle: 鮪\nanswer:\ntags: []\n---\nA fish.\n",
-        )
-        .unwrap();
+        let content =
+            Content::from_file_text("---\n# a comment\ntitle: 鮪\ntags: []\n---\nA fish.\n")
+                .unwrap();
         assert_eq!(content.title(), "鮪");
         assert_eq!(content.body(), "A fish.\n");
         for text in [
