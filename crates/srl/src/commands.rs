@@ -4,11 +4,12 @@
 //! `output`. Commands that are not written yet fail with a clear message.
 
 use std::env;
+use std::fs;
 use std::io;
 use std::path::PathBuf;
 
 use anyhow::{Context, bail};
-use srl_core::{Atoms, Content, Error, Flags, Id, Lookup, Selector, Status, Store};
+use srl_core::{Atoms, Content, Error, Flags, Id, Lookup, NewAtom, Selector, Status, Store};
 
 use crate::args::{AddArgs, Cli, Command, SessionCommand};
 use crate::{Outcome, external, output};
@@ -57,28 +58,37 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
     )
 }
 
-/// `srl add`: from flags or JSON lines. Prints the new IDs, or with
+/// `srl add`: from flags, JSON lines or Markdown files. Prints the new IDs, or with
 /// `--dry-run` the IDs and the files that would be written.
 fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
-    if !args.files.is_empty() {
-        bail!("`srl add FILE…` is not implemented yet; use --cue or --stdin");
-    }
-    let contents = if args.stdin {
+    let new = if !args.files.is_empty() {
+        args.files
+            .into_iter()
+            .map(|file| {
+                let text = fs::read_to_string(&file)
+                    .with_context(|| format!("cannot read {}", file.display()))?;
+                Ok(NewAtom::from_file(file, text)?)
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?
+    } else if args.stdin {
         let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
         Content::from_json_lines(&text)?
+            .into_iter()
+            .map(NewAtom::from)
+            .collect()
     } else if let Some(cue) = args.cue {
-        vec![Content::from_flags(Flags {
+        vec![NewAtom::from(Content::from_flags(Flags {
             cue,
             answer: args.answer,
             tags: args.tags,
             source: args.source,
-        })?]
+        })?)]
     } else {
         bail!("nothing to add; give --cue, --stdin or Markdown files");
     };
     let seed = getrandom::u64().context("cannot get random numbers for new IDs")?;
     let dry_run = args.dry_run.dry_run;
-    let added = srl_core::add(store, &load(store)?, contents, args.draft, seed, dry_run)?;
+    let added = srl_core::add(store, &load(store)?, new, args.draft, seed, dry_run)?;
     output::added(&added, dry_run);
     Ok(Outcome::Done)
 }

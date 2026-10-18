@@ -1,15 +1,15 @@
-//! Creating atoms from flags or JSON lines (see `docs/atoms.md`, "Creating
+//! Creating atoms from flags, JSON lines or files (see `docs/atoms.md`, "Creating
 //! atoms").
 
 use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::atom::Content;
-use crate::{Atom, Atoms, Error, Id, Result, Status, Store, yaml};
+use crate::atom::{Content, split_front_matter};
+use crate::{Atom, Atoms, Error, Id, Result, Status, Store, frontmatter, yaml};
 
 /// The most characters of a cue that go into a file name.
 const SLUG_LEN: usize = 60;
@@ -21,6 +21,50 @@ pub struct Flags {
     pub answer: Option<String>,
     pub tags: Vec<String>,
     pub source: Option<String>,
+}
+
+/// An atom to add: its content, and the file it is copied from, if it comes
+/// from one.
+#[derive(Debug, Clone)]
+pub struct NewAtom {
+    content: Content,
+    /// The file's path, for messages, and its text.
+    file: Option<(PathBuf, String)>,
+}
+
+impl From<Content> for NewAtom {
+    fn from(content: Content) -> Self {
+        Self {
+            content,
+            file: None,
+        }
+    }
+}
+
+impl NewAtom {
+    /// An atom to copy from the Markdown file at `file`, whose text is
+    /// `text`. The file must be a valid atom without an `id`.
+    pub fn from_file(file: PathBuf, text: String) -> Result<Self> {
+        let invalid = |reason: String| Error::InvalidFile {
+            file: file.clone(),
+            reason,
+        };
+        let (front, body) = split_front_matter(&text).ok_or_else(|| {
+            invalid("it does not start with front-matter between `---` lines".to_owned())
+        })?;
+        let fields = yaml::parse_mapping(front).map_err(invalid)?;
+        if fields.contains_key("id") {
+            return Err(invalid(
+                "it already has an `id`; remove the `id` line, and `srl add` assigns a new one"
+                    .to_owned(),
+            ));
+        }
+        let content = Content::from_fields(fields, body.to_owned()).map_err(invalid)?;
+        Ok(Self {
+            content,
+            file: Some((file, text)),
+        })
+    }
 }
 
 /// An atom that was (or, with `dry_run`, would be) added.
@@ -89,7 +133,7 @@ impl Content {
 pub fn add(
     store: &Store,
     existing: &Atoms,
-    contents: Vec<Content>,
+    new: Vec<NewAtom>,
     draft: bool,
     seed: u64,
     dry_run: bool,
@@ -101,9 +145,9 @@ pub fn add(
         .collect::<HashSet<_>>();
     let mut used_paths = store.atom_paths()?.into_iter().collect::<HashSet<_>>();
     let mut ids = random_ids(seed);
-    let prepared = contents
+    let prepared = new
         .into_iter()
-        .map(|content| {
+        .map(|NewAtom { content, file }| {
             let content = if draft {
                 content.with_status(Status::Draft)
             } else {
@@ -118,7 +162,10 @@ pub fn add(
                 used_paths.contains(path) || store.atom_file(path).exists()
             });
             used_paths.insert(path.clone());
-            let text = render(&content, &id)?;
+            let text = match file {
+                None => render(&content, &id)?,
+                Some((file, text)) => copy(&file, &text, &content, &id, draft)?,
+            };
             Ok((Added { id, path }, text))
         })
         .collect::<Result<Vec<_>>>()?;
@@ -223,14 +270,42 @@ fn render(content: &Content, id: &Id) -> Result<String> {
     let front = yaml::render_mapping(&content.fields(id), &["tags"])
         .map_err(|reason| Error::InvalidNewAtom { reason })?;
     let text = format!("---\n{front}---\n{}", content.body());
-    let reread = Atom::parse(String::new(), text.clone())?;
-    if reread.id() == id && reread.content() == content {
+    if reads_back(&text, content, id)? {
         Ok(text)
     } else {
         Err(Error::InvalidNewAtom {
             reason: format!("its file would not read back as the same atom:\n{text}"),
         })
     }
+}
+
+/// The text of a file copied in: the original text with `id` set, and with
+/// `draft` also `status: draft`. Checks that it reads back as the same atom.
+fn copy(file: &Path, original: &str, content: &Content, id: &Id, draft: bool) -> Result<String> {
+    let invalid = |reason: String| Error::InvalidFile {
+        file: file.to_path_buf(),
+        reason,
+    };
+    // `status` first, so that `id`, added last, ends up on the first line.
+    let with_status = if draft {
+        frontmatter::set(original, "status", Status::Draft.as_str()).map_err(invalid)?
+    } else {
+        original.to_owned()
+    };
+    let text = frontmatter::set(&with_status, "id", id.as_str()).map_err(invalid)?;
+    if reads_back(&text, content, id)? {
+        Ok(text)
+    } else {
+        Err(invalid(
+            "its copy would not read back as the same atom".to_owned(),
+        ))
+    }
+}
+
+/// Whether `text` parses as the atom `id` with `content`.
+fn reads_back(text: &str, content: &Content, id: &Id) -> Result<bool> {
+    let reread = Atom::parse(String::new(), text.to_owned())?;
+    Ok(reread.id() == id && reread.content() == content)
 }
 
 /// Writes a file that must not exist yet.
@@ -282,7 +357,8 @@ mod tests {
 
     fn add_all(store: &Store, contents: Vec<Content>) -> Vec<Added> {
         let atoms = Atoms::load(store).unwrap();
-        add(store, &atoms, contents, false, 0, false).unwrap()
+        let new = contents.into_iter().map(NewAtom::from).collect();
+        add(store, &atoms, new, false, 0, false).unwrap()
     }
 
     #[test]
@@ -369,7 +445,7 @@ mod tests {
         let added = add(
             &store,
             &atoms,
-            vec![content(json!({"cue": "x"}))],
+            vec![content(json!({"cue": "x"})).into()],
             true,
             0,
             false,
@@ -397,7 +473,7 @@ mod tests {
         let added = add(
             &store,
             &atoms,
-            vec![content(json!({"cue": "x"}))],
+            vec![content(json!({"cue": "x"})).into()],
             false,
             0,
             true,
@@ -442,5 +518,55 @@ mod tests {
         let content = Content::from_json_line(r#"{"cue": "x", "body": "no newline"}"#).unwrap();
         let id = Id::parse("a7f3k2").unwrap();
         assert!(render(&content, &id).is_ok());
+    }
+
+    fn file(text: &str) -> Result<NewAtom> {
+        NewAtom::from_file(PathBuf::from("in.md"), text.to_owned())
+    }
+
+    #[test]
+    fn a_copied_file_keeps_every_byte_and_gets_an_id() {
+        let (_tmp, store) = store();
+        let text = "---\r\n# written by hand\r\ncue: 鮪   # the fish\r\ntags: [kanji/food]\r\n---\r\nまぐろ\r\n";
+        let atoms = Atoms::load(&store).unwrap();
+        let added = add(&store, &atoms, vec![file(text).unwrap()], true, 0, false).unwrap();
+        assert_eq!(added[0].path, "kanji/food/鮪.md");
+        let written = fs::read_to_string(store.atom_file(&added[0].path)).unwrap();
+        assert_eq!(
+            written,
+            format!(
+                "---\r\nid: {}\r\nstatus: draft\r\n{}",
+                added[0].id,
+                text.strip_prefix("---\r\n").unwrap()
+            )
+        );
+    }
+
+    #[test]
+    fn files_with_an_id_or_bad_fields_are_refused() {
+        for text in [
+            "---\nid: a7f3k2\ncue: x\n---\n",
+            "---\ntags: [a]\n---\n",
+            "---\ncue: x\nstatus: paused\n---\n",
+            "no front-matter\n",
+            "---\ncue: [x\n---\n",
+        ] {
+            assert!(
+                matches!(file(text), Err(Error::InvalidFile { .. })),
+                "accepted:\n{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn one_file_that_cannot_be_edited_adds_nothing() {
+        let (_tmp, store) = store();
+        let atoms = Atoms::load(&store).unwrap();
+        let new = vec![
+            file("---\ncue: a\n---\n").unwrap(),
+            file("---\ncue: b\nstatus: >-\n  active\n---\n").unwrap(),
+        ];
+        assert!(add(&store, &atoms, new, true, 0, false).is_err());
+        assert!(store.atom_paths().unwrap().is_empty());
     }
 }

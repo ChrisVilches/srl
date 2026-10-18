@@ -21,6 +21,7 @@ crates/
     src/add.rs            atoms.md, "Creating atoms"
     src/selector.rs       selectors.md
     src/yaml.rs         front-matter between YAML text and JSON values
+    src/frontmatter.rs  setting one key in an existing atom file (see below)
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
     src/args.rs         clap definitions, no logic
@@ -370,10 +371,12 @@ So:
 1. **One module edits existing front-matter**: `frontmatter.rs` in
    `srl-core`, with one entry point that sets a top-level key to a scalar
    value. Nothing else writes into an existing atom file.
-2. **It edits text, not data.** It finds the line of the key and replaces
-   the value on that line, keeping anything after the value such as a
-   `# comment`. A missing key gets a new line right after the opening `---`.
-   Every other byte of the file stays the same.
+2. **It edits text, not data.** It finds the line of the key (a line that
+   starts, unindented, with `key:`, `"key":` or `'key':`) and replaces the
+   value on that line, keeping anything after the value such as a
+   `# comment`. A missing key gets a new line right after the opening `---`,
+   with the line ending of that line. Every other byte of the file stays the
+   same.
 3. **It refuses what it doesn't handle** and returns an error rather than
    guessing: front-matter that isn't a block mapping (`{id: x}`), a key whose
    value spans several lines, or a key that appears twice.
@@ -389,15 +392,20 @@ So:
    stay strings. Under YAML 1.1 rules an atom with `cue: no` would silently
    become `false`. Test this explicitly.
 
-The YAML crate is `saphyr`: it follows YAML 1.2, rejects duplicate keys, and
-reports source positions, which makes step 2 exact. `yaml.rs` converts
-between YAML and the JSON values the rest of the core uses, and refuses YAML
-features atoms don't need (tags such as `!x`, aliases, non-text keys). New
-files are written through the same module and parsed again before they are
-saved, so a writer bug fails instead of storing a different atom. Before
-writing `frontmatter.rs`, check again whether a format-preserving YAML crate
-has appeared. If a mature one exists, it can replace steps 2 and 3, but steps
-4 to 6 still apply.
+The YAML crate is `saphyr`: it follows YAML 1.2 and rejects duplicate keys.
+`yaml.rs` converts between YAML and the JSON values the rest of the core
+uses, and refuses YAML features atoms don't need (tags such as `!x`,
+aliases, non-text keys). New files are written through the same module and
+parsed again before they are saved, so a writer bug fails instead of storing
+a different atom. Step 2 scans lines rather than using parser positions. That
+is enough for one-line scalars, and step 4 catches any line it misreads.
+
+Format-preserving YAML crates were checked when `frontmatter.rs` was
+written (October 2026). `yaml-edit`, `yaml-splice` and `oneyaml` exist, but
+all are young, at 0.x versions or recent 1.x, and `yaml-edit` has a fork that
+exists to fix its source-preserving edits. None was mature enough. Check
+again when this module needs to do more than set one scalar. A mature crate
+can replace steps 2 and 3, but steps 4 to 6 still apply.
 
 ## The command line
 

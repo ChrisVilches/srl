@@ -9,11 +9,12 @@
 mod add;
 mod atom;
 mod error;
+mod frontmatter;
 mod selector;
 mod store;
 mod yaml;
 
-pub use add::{Added, Flags, add};
+pub use add::{Added, Flags, NewAtom, add};
 pub use atom::{Atom, Atoms, Content, Id, Status, TagCount};
 pub use error::{Error, Result};
 pub use selector::Selector;

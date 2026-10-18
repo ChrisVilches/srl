@@ -324,3 +324,50 @@ fn tags_counts_every_tag() {
     let empty = store();
     assert_eq!(srl(&["tags", "--dir", dir(&empty)]).status.code(), Some(1));
 }
+
+#[test]
+fn added_files_are_copied_with_an_id_and_left_alone() {
+    let tmp = store();
+    let source = tmp.path().join("notes.md");
+    let text = "---\ncue: 鮪  # the fish\ntags: [kanji/food]\n---\nまぐろ\n";
+    fs::write(&source, text).unwrap();
+    let output = srl(&["add", "--dir", dir(&tmp), source.to_str().unwrap()]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let id = stdout(&output).trim().to_owned();
+    assert_eq!(fs::read_to_string(&source).unwrap(), text);
+    let copied = tmp
+        .path()
+        .join("atoms")
+        .join("kanji")
+        .join("food")
+        .join("鮪.md");
+    assert_eq!(
+        fs::read_to_string(copied).unwrap(),
+        format!("---\nid: {id}\n{}", text.strip_prefix("---\n").unwrap())
+    );
+}
+
+#[test]
+fn one_bad_file_adds_nothing() {
+    let tmp = store();
+    let good = tmp.path().join("good.md");
+    let bad = tmp.path().join("bad.md");
+    fs::write(&good, "---\ncue: fine\n---\n").unwrap();
+    fs::write(&bad, "---\nid: a7f3k2\ncue: has an id\n---\n").unwrap();
+    let output = srl(&[
+        "add",
+        "--dir",
+        dir(&tmp),
+        good.to_str().unwrap(),
+        bad.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("bad.md"));
+    assert!(stderr(&output).contains("`id`"));
+    assert!(
+        fs::read_dir(tmp.path().join("atoms"))
+            .unwrap()
+            .next()
+            .is_none()
+    );
+}

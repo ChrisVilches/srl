@@ -62,6 +62,16 @@ fn flow_entry(key: &str, items: &[Value]) -> Result<String, String> {
     Ok(format!("{}: [{}]\n", emit(&string(key))?, items.join(", ")))
 }
 
+/// A string as one YAML scalar on one line, quoted only where YAML needs it.
+pub(crate) fn render_scalar(text: &str) -> Result<String, String> {
+    let rendered = emit(&string(text))?;
+    if rendered.contains('\n') {
+        Err(format!("`{text}` cannot be written on one line"))
+    } else {
+        Ok(rendered)
+    }
+}
+
 /// One YAML node as text, without the leading `---` line or a final newline.
 fn emit(node: &Yaml<'_>) -> Result<String, String> {
     let mut text = String::new();
