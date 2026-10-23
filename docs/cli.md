@@ -16,7 +16,7 @@ agents all use the same commands. There is no separate API.
   left, 2 error.
 - **Errors in notes stop every command that reads items** (see
   [notes.md](notes.md), "Errors"), except `srl id` for items without an ID,
-  and `srl lint`.
+  `srl check`, which reports them, and `srl lint`.
 - **`--dry-run`** on every command that writes: show what would change, change
   nothing.
 - **`--dir DIR`** on every command, to choose the store (see
@@ -53,7 +53,7 @@ agents all use the same commands. There is no separate API.
 | `srl cards ID… [--json]` | Print the cards of each ID (see below). |
 | `srl add NOTE [--kind NAME] [--see PATH] [--draft] --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
 | `srl edit ID` | Open the note of the item in the editor (see "Editing in the editor" below). |
-| `srl edit ID --stdin` | Replace the item's lines in its note with standard input, which must be exactly one item with the same ID. The rest of the note is unchanged. Prints nothing. |
+| `srl edit ID --stdin` | Replace the item's lines in its note with standard input, which must be exactly one item with the same ID. The rest of the note is unchanged. Prints nothing; with `--dry-run`, only checks the input. |
 | `srl drafts [SELECTOR] [--json]` | List drafts: the same as `srl find SELECTOR status:draft`. |
 | `srl accept SELECTOR` | Remove `draft` from the headers of the items of matching draft cards. |
 | `srl suspend SELECTOR` | Suspend matching active cards. |

@@ -81,7 +81,7 @@ document, listed at the end.
 | **Item** | A question written in a note: a header line `<!-- srl id:x7k2m9 -->` followed by fields such as `Q:` and `A:`. It has an ID, and gives one or more cards. |
 | **Kind** | How an item's fields become cards. There is one, `qa`: a question and an answer, with optional cloze deletions. |
 | **Card** | One question, ready to show: an ID, a prompt and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
-| **Context** | The note an item belongs to, shown after the answer of its cards. |
+| **Context** | The note an item belongs to, or the note its `see:` names, shown after the answer of its cards. |
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
 | **Frontend** | A program that shows cards to a person and records the ratings: the terminal `srl study`, a web viewer, a shell prompt. |
 | **Review event** | One line in the log: this card was rated this way, at this time. |

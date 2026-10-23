@@ -211,22 +211,27 @@ editor, which is you changing it). The rules for writing:
    with the spaces before it. Every other byte of the file stays the same,
    including line endings and a byte order mark.
 2. **Every note is checked before the first one is written.** If any note
-   has an error other than an item without an ID, the command reports every
-   error and changes nothing.
+   has an error, the command reports every error and changes nothing. For
+   `srl id`, an item without an ID is not an error, since that is what it
+   fixes.
 3. **A note that changed while `srl` was working is not written.** Right
    before writing, the file is read again and compared with what `srl`
    read. If it differs, for example because your editor saved it in
    between, the command stops and says so; notes it wrote before stay
    written, and running it again finishes the work.
 4. **Writes are atomic.** The new content is written to a temporary file
-   next to the note, then renamed over it, so a note is never left half
-   written. If the rename fails, the note is left as it was and the error
-   is reported.
+   next to the note, named `.srl-*.tmp`, then renamed over it, so a note is
+   never left half written. If the rename fails, the note is left as it was
+   and the error is reported. If `srl` is killed before the rename, the
+   temporary file may be left behind; delete it (see
+   [store.md](store.md), "Version control and syncing").
 5. **Every change is reported.** `srl id` prints one line per item it gave
    an ID: the ID and `PATH:LINE`, separated by two spaces. `srl accept` and
    `srl add` print the IDs of the items they changed or added (see
    [cli.md](cli.md)). With `--dry-run` they write nothing, and print the
-   same (`srl add`: the items it would write).
+   same (`srl add`: the items it would write). `srl edit ID --stdin`
+   changes only the item it was given, so it prints nothing; with
+   `--dry-run` it only checks its input.
 
 `srl add` and its format are described in [cli.md](cli.md).
 

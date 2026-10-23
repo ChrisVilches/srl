@@ -269,7 +269,7 @@ fn remove(file: &Path) -> std::result::Result<(), String> {
         })
 }
 
-/// Opens the cache, creating `.cache/` (with a `.gitignore` that ignores
+/// Opens the cache, creating `.srl/cache/` (with a `.gitignore` that ignores
 /// everything in it) and the file if needed.
 ///
 // TODO(platform): SQLite's file locking is unreliable on network file

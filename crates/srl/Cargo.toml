@@ -18,12 +18,13 @@ getrandom.workspace = true
 jiff = { workspace = true, features = ["default"] }
 serde.workspace = true
 serde_json.workspace = true
-tempfile.workspace = true
 which.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true
-
 
 [target.'cfg(windows)'.dependencies]
 anstyle-query.workspace = true

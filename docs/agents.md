@@ -27,7 +27,8 @@ the agent does it, outside `srl`, and records the rating it decided.
 2. **Agents write new notes, not into yours.** Items an agent generates go
    into a note of their own, such as `generated/wo-mono-tomo-sezu.md`, with
    `see:` naming the note they ask about. They then show your note as their
-   context, and your note stays as you wrote it.
+   context, and your note stays as you wrote it. The one exception is
+   `srl edit ID --stdin`, for an agent you allow to edit your items.
 3. **Reviews go through `srl review`.** An agent never writes to the log, and
    marks its reviews with `--by agent` (or `"by": "agent"`).
 
@@ -119,6 +120,12 @@ asks questions in the chat.
 A batch job (for example nightly) writes more draft items for notes whose
 cards keep lapsing, or adds cloze deletions to existing items with
 `srl edit ID --stdin`. Studying then needs no LLM at all.
+
+Adding the first cloze deletion to an item changes its card ID (`x7k2m9`
+becomes `x7k2m9-1`), which leaves the old card's history orphaned. The job
+should run `srl check` afterwards and report the `srl move` commands it
+suggests, for you to run (see [scheduling.md](scheduling.md), "Moving
+history").
 
 ### Analyze
 

@@ -70,12 +70,13 @@ among other output.
 Trade-off: a typo in one note blocks studying every note until it is
 fixed. A non-strict mode may come later.
 
-## Why `srl` writes only header lines
+## Why `srl` changes notes so little
 
-Your notes are yours. The commands that change them add an ID or remove
-`draft`, on the header line, and nothing else; new items are only ever
-appended. So a change by `srl` can't damage text you wrote, and is easy to
-see in a diff.
+Your notes are yours. `srl id` and `srl accept` change header lines only,
+adding an ID or removing `draft`; `srl add` only appends new items; and
+`srl edit ID --stdin` replaces the lines of the one item it was given. No
+command rewrites a note, so a change by `srl` can't damage text you wrote,
+and is easy to see in a diff.
 
 ## Why IDs, not positions
 

@@ -34,7 +34,7 @@ crates/
     src/next.rs           scheduling.md, "Choosing the next card" and "Siblings"
     src/selector.rs       selectors.md
     src/index.rs          store.md, "The index cache": `.srl/cache/index.sqlite`
-    src/random.rs       reproducible random numbers for new IDs
+    src/random.rs         reproducible random numbers for new IDs
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
     src/args.rs         clap definitions, no logic
@@ -407,8 +407,10 @@ through one module, `write.rs`, with these rules:
    is left untouched.
 3. **It checks the file didn't change underneath it**, by comparing the
    bytes it read with the bytes on disk right before writing.
-4. **It writes atomically**: to a temporary file in the note's folder
-   (`tempfile`), then a rename over the note.
+4. **It writes atomically**: to a temporary file `.srl-*.tmp` in the
+   note's folder (`tempfile`), then a rename over the note. The name is part
+   of the specification, because users ignore it in git (see
+   [store.md](store.md), "Version control and syncing").
 5. **It has thorough tests**, including CRLF line endings, a UTF-8 BOM, no
    trailing newline, headers with extra spaces, `<!--srl-->` without
    spaces, quoted values, non-ASCII text around the edited line, and a note

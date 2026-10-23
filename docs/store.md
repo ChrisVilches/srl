@@ -23,7 +23,7 @@ study/
 
 | Path | Source of truth? | Written by |
 |---|---|---|
-| notes (`**/*.md`) | yes | you, any editor; `srl id`, `srl accept` and `srl add` (see [notes.md](notes.md), "How srl writes to notes") |
+| notes (`**/*.md`) | yes | you, any editor; `srl id`, `srl accept`, `srl add` and `srl edit ID --stdin` (see [notes.md](notes.md), "How srl writes to notes") |
 | `.srl/config.toml` | yes | you |
 | `.srl/log/` | yes | `srl review`, `srl reset`, `srl move`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |
 | `.srl/cache/` | no | `srl`, automatically |
@@ -158,7 +158,19 @@ The store works well with git or any file syncing tool:
 
 - Item edits show as ordinary line diffs in your notes.
 - The log is append-only, so it almost never conflicts on merge.
-- `.srl/cache/` ignores itself (it holds its own `.gitignore`). Add
-  `.srl/log/.lock` to the store's `.gitignore`.
+- `.srl/cache/` ignores itself (it holds its own `.gitignore`). Add the
+  two other files `srl` may leave in the store to the store's
+  `.gitignore`: the log's lock (see [log.md](log.md)), and the temporary
+  file of a note write that was killed before it finished (see
+  [notes.md](notes.md), "How srl writes to notes"):
+
+  ```gitignore
+  .srl/log/.lock
+  .srl-*.tmp
+  ```
+
+- Commit everything else: your notes, `.srl/config.toml` and
+  `.srl/log/*.jsonl`. The log is your whole review history; without it, a
+  clone starts every card as new.
 - Some sync tools skip folders whose names start with `.`. Check that yours
   syncs `.srl/`, or your review history stays on one device.

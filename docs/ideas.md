@@ -23,7 +23,7 @@ program answers two questions:
 
 | Call | Input | Output | Rule |
 |---|---|---|---|
-| `srl-kind-NAME ids` | the item's fields, as JSON | the card suffixes, one per line, or one empty line for a single card with the item's ID | **Deterministic and fast**: the same fields always give the same IDs. Called for every item of the kind, on every command that reads items, and cached with the note. |
+| `srl-kind-NAME ids` | the item's fields, as JSON | the card suffixes, one per line, or one empty line for a single card with the item's ID | **Deterministic and fast**: the same fields always give the same IDs. Called for every item of the kind, on every command that reads items, so its result would need a cache: notes themselves are not cached (see [store.md](store.md), "The index cache"). |
 | `srl-kind-NAME card` | the item's fields, the card's suffix, its context and the study day, as JSON | one card's `prompt` and `answer`, as JSON | **May differ every time.** Called only when a card is about to be shown. |
 
 Example: a conjugation kind.

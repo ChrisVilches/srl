@@ -1,6 +1,6 @@
 //! The `srl` command line: parses arguments, calls `srl-core`, prints results.
 //!
-//! No logic about atoms, cards or scheduling lives here; it belongs in
+//! No logic about notes, items, cards or scheduling lives here; it belongs in
 //! `srl-core`, which this crate uses like any other library.
 
 mod args;
