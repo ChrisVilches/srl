@@ -23,6 +23,7 @@ crates/
     src/context.rs        notes.md, "Context"
     src/write.rs          notes.md, "How srl writes to notes" (see below)
     src/check.rs          cli.md, "Checking": `srl check` and `srl lint`
+    src/stats.rs          cli.md, "Analysis": `srl stats`
     src/config.rs         store.md, "Configuration"; the study day
     src/card.rs           cards.md: the card format and card IDs
     src/kind.rs           cards.md, "Kinds": the `qa` kind
@@ -435,12 +436,11 @@ through one module, `write.rs`, with these rules:
 `index.rs` keeps `.srl/cache/index.sqlite` (see [store.md](store.md), "The
 index cache"). It must never change a result, only skip work:
 
-- **One code path for both.** A cached note's items are rebuilt through the
-  same constructors as parsed ones, and new log lines go through the same
+- **One code path for both.** New log lines go through the same
   `Replayer::apply` as a full replay. Don't add a second way to compute
   anything the cache stores.
-- **Commands read through `Index`**, not `Notes::load` or `Log::load`, where
-  speed matters. `Notes::load`, `Log::load` and `History::replay` stay as the
+- **Commands read memories through `Index`**, not `Log::load`, where
+  speed matters. `Log::load` and `History::replay` stay as the
   reference that the cache is tested against, and as the fallback when the
   cache can't be used.
 - **Bump `SCHEMA_VERSION`** whenever the tables, or what a stored value

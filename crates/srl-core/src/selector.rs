@@ -1,14 +1,15 @@
 //! The selector language (see `docs/selectors.md`).
 
-use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
+use globset::GlobSet;
 
+use crate::config::globs;
 use crate::store::nfc;
-use crate::{Atom, Error, Id, Memories, Result, State, Status};
+use crate::{Card, CardId, Error, Item, Memories, Result, State};
 
 /// The keys of `key:value` terms.
-const KEYS: &str = "tag, path, id, status, state";
+const KEYS: &str = "in, path, id, status, state";
 
-/// A parsed selector: atoms match when they match every term.
+/// A parsed selector: cards match when they match every term.
 #[derive(Debug, Clone)]
 pub struct Selector {
     terms: Vec<Term>,
@@ -20,16 +21,51 @@ struct Term {
     filter: Filter,
 }
 
-/// What one term checks. Lists are alternatives (`tag:a,b`).
+/// What one term checks. Lists are alternatives (`in:a,b`).
 #[derive(Debug, Clone)]
 enum Filter {
-    Tag(Vec<String>),
+    /// Names in NFC, lowercased.
+    In(Vec<String>),
     Path(GlobSet),
-    Id(Vec<Id>),
+    /// Card IDs, or item IDs that stand for all their cards.
+    Id(Vec<CardId>),
     Status(Vec<Status>),
     State(Vec<StateTerm>),
     /// Lowercased.
     Text(String),
+}
+
+/// A card's status (see `docs/notes.md`, "Status").
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Status {
+    Active,
+    Draft,
+    Suspended,
+}
+
+impl Status {
+    /// The status named `text`, if there is one.
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "active" => Some(Self::Active),
+            "draft" => Some(Self::Draft),
+            "suspended" => Some(Self::Suspended),
+            _ => None,
+        }
+    }
+
+    /// The status of `card` of `item`: `draft` if the item is a draft, else
+    /// `suspended` if the card is suspended, else `active`.
+    pub fn of(item: &Item, card: &Card, memories: &Memories) -> Self {
+        if item.is_draft() {
+            Self::Draft
+        } else if memories.is_suspended(card.id()) {
+            Self::Suspended
+        } else {
+            Self::Active
+        }
+    }
 }
 
 /// A value of `state:`: one of the four exclusive states, or `leech`, which
@@ -52,7 +88,7 @@ impl StateTerm {
         }
     }
 
-    fn matches(self, id: &Id, memories: &Memories) -> bool {
+    fn matches(self, id: &CardId, memories: &Memories) -> bool {
         match self {
             Self::State(state) => memories.state(id) == state,
             Self::Leech => memories.is_leech(id),
@@ -84,45 +120,47 @@ impl Selector {
         }
     }
 
-    /// Whether the selector has `state:` terms, which need the memories of
-    /// the atoms, and so the log.
-    pub fn needs_memories(&self) -> bool {
+    /// Whether `card` of `item` matches.
+    pub fn matches(&self, item: &Item, card: &Card, memories: &Memories) -> bool {
         self.terms
             .iter()
-            .any(|term| matches!(term.filter, Filter::State(_)))
+            .all(|term| term.filter.matches(item, card, memories) != term.negated)
     }
 
-    /// Whether `atom` matches. `memories` must be given if the selector
-    /// [needs them](Self::needs_memories).
-    pub fn matches(&self, atom: &Atom, memories: Option<&Memories>) -> bool {
-        self.terms
-            .iter()
-            .all(|term| term.filter.matches(atom, memories) != term.negated)
+    /// The cards that match, with their items, in the order they are
+    /// written.
+    pub fn select<'a>(
+        &self,
+        cards: impl Iterator<Item = (&'a Item, &'a Card)>,
+        memories: &Memories,
+    ) -> Vec<(&'a Item, &'a Card)> {
+        cards
+            .filter(|(item, card)| self.matches(item, card, memories))
+            .collect()
     }
 }
 
+/// The names `in:` matches for a note path: each folder, and the file name
+/// without `.md`, in NFC and lowercased.
+fn names(path: &str) -> impl Iterator<Item = String> + '_ {
+    path.split('/')
+        .map(|part| nfc(part.strip_suffix(".md").unwrap_or(part)).to_lowercase())
+}
+
 impl Filter {
-    fn matches(&self, atom: &Atom, memories: Option<&Memories>) -> bool {
+    fn matches(&self, item: &Item, card: &Card, memories: &Memories) -> bool {
         match self {
-            Self::Tag(wanted) => atom.content().tags().iter().any(|tag| {
-                wanted.iter().any(|want| {
-                    tag == want
-                        || tag
-                            .strip_prefix(want.as_str())
-                            .is_some_and(|rest| rest.starts_with('/'))
-                })
+            Self::In(wanted) => names(item.path()).any(|name| wanted.contains(&name)),
+            Self::Path(globs) => globs.is_match(nfc(item.path())),
+            Self::Id(ids) => ids.iter().any(|id| match id.suffix() {
+                Some(_) => id == card.id(),
+                None => id.item() == item.id(),
             }),
-            Self::Path(globs) => globs.is_match(nfc(atom.path())),
-            Self::Id(ids) => ids.contains(atom.id()),
-            Self::Status(statuses) => statuses.contains(&atom.content().status()),
-            Self::State(states) => {
-                let memories =
-                    memories.expect("memories should be given for a selector with `state:` terms");
-                states
-                    .iter()
-                    .any(|state| state.matches(atom.id(), memories))
-            }
-            Self::Text(text) => atom.text().to_lowercase().contains(text.as_str()),
+            Self::Status(statuses) => statuses.contains(&Status::of(item, card, memories)),
+            Self::State(states) => states
+                .iter()
+                .any(|state| state.matches(card.id(), memories)),
+            Self::Text(text) => item.search_text().contains(text.as_str()),
         }
     }
 }
@@ -170,11 +208,16 @@ fn keyed(key: &str, values: &str) -> std::result::Result<Filter, String> {
         return Err("it has an empty value".to_owned());
     }
     match key {
-        "tag" => Ok(Filter::Tag(values.into_iter().map(str::to_owned).collect())),
+        "in" => Ok(Filter::In(
+            values
+                .into_iter()
+                .map(|value| nfc(value).to_lowercase())
+                .collect(),
+        )),
         "path" => globs(&values).map(Filter::Path),
         "id" => values
             .into_iter()
-            .map(|value| Id::parse(value).map_err(|error| error.to_string()))
+            .map(|value| CardId::parse(value).map_err(|error| error.to_string()))
             .collect::<std::result::Result<_, _>>()
             .map(Filter::Id),
         "status" => values
@@ -199,25 +242,6 @@ fn keyed(key: &str, values: &str) -> std::result::Result<Filter, String> {
             "`{key}:` is not a key; use one of {KEYS}, or put the term in double quotes to search for the text"
         )),
     }
-}
-
-/// Globs where `*` stops at `/` and `**` crosses it. Patterns and paths are
-/// both compared in NFC (see `docs/store.md`, "File names").
-fn globs(patterns: &[&str]) -> std::result::Result<GlobSet, String> {
-    patterns
-        .iter()
-        .map(|pattern| {
-            GlobBuilder::new(&nfc(pattern))
-                .literal_separator(true)
-                .build()
-                .map_err(|error| format!("`{pattern}` is not a valid glob ({error})"))
-        })
-        .try_fold(GlobSetBuilder::new(), |mut set, glob| {
-            set.add(glob?);
-            Ok::<_, String>(set)
-        })?
-        .build()
-        .map_err(|error| format!("the globs are not valid ({error})"))
 }
 
 /// Splits a selector into terms at spaces. A term may start with `-`, and
@@ -274,140 +298,170 @@ fn words(text: &str) -> Result<Vec<Word>> {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
+
     use super::*;
+    use crate::note::read_items;
+    use crate::{By, Config, Entry, Event, Log, Review};
 
-    fn atom(id: &str, path: &str, front: &str, body: &str) -> Atom {
-        Atom::parse(
-            path.to_owned(),
-            format!("---\nid: {id}\n{front}\n---\n{body}"),
-        )
-        .unwrap()
-    }
-
-    /// The IDs of the atoms in `atoms()` that `selector` picks.
-    fn pick(selector: &str) -> Vec<String> {
-        let selector = Selector::parse(selector).unwrap();
-        atoms()
+    /// The notes of the tests, with their items.
+    fn items() -> Vec<Item> {
+        let notes = [
+            (
+                "japanese/Grammar/wo.md",
+                "<!-- srl id:aaa1 -->\nQ: 〜をものともせず?\nA: Undeterred by (adversity).\n",
+            ),
+            (
+                "japanese/n5.md",
+                "<!-- srl id:aaa2 -->\nQ: {{c1::です}} {{c2::ます}}\n",
+            ),
+            (
+                "kanji/food.md",
+                "<!-- srl id:aaa3 draft -->\nQ: 鮪\nA: Tuna.\n",
+            ),
+            (
+                "rust/ownership/move.md",
+                "<!-- srl id:aaa4 -->\nQ: Move semantics?\nA: Ownership MOVES on assignment.\n",
+            ),
+        ];
+        notes
             .iter()
-            .filter(|atom| selector.matches(atom, None))
-            .map(|atom| atom.id().to_string())
+            .flat_map(|(path, text)| {
+                let (items, problems) = read_items(path, text);
+                assert!(problems.is_empty(), "{problems:?}");
+                items
+            })
             .collect()
     }
 
-    fn atoms() -> Vec<Atom> {
-        vec![
-            atom(
-                "aaaaa1",
-                "japanese/grammar/wo.md",
-                "title: 〜をものともせず\ntags: [japanese/grammar, jlpt/n1]",
-                "Undeterred by (adversity).\n",
-            ),
-            atom(
-                "aaaaa2",
-                "japanese/n5.md",
-                "title: です\ntags: [japanese/grammar, jlpt/n5]",
-                "",
-            ),
-            atom(
-                "aaaaa3",
-                "kanji/food/maguro.md",
-                "title: 鮪\ntags: [kanji/food]\nstatus: draft",
-                "Tuna.\n",
-            ),
-            atom(
-                "aaaaa4",
-                "rust/ownership/move.md",
-                "title: Move semantics\ntags: [rust/ownership, rust]\nstatus: suspended",
-                "Ownership MOVES on assignment.\n",
-            ),
-        ]
+    /// Card `aaa4` is suspended; `aaa1` was reviewed and is due.
+    fn memories() -> Memories {
+        let day = date(2026, 1, 1);
+        let entries = vec![
+            Entry {
+                event: Event::Suspend(crate::CardEvent {
+                    t: "2026-01-01T12:00:00+00:00".to_owned(),
+                    card: CardId::parse("aaa4").unwrap(),
+                }),
+                day,
+            },
+            Entry {
+                event: Event::Review(Review {
+                    t: "2026-01-01T12:00:00+00:00".to_owned(),
+                    card: CardId::parse("aaa1").unwrap(),
+                    rating: 1,
+                    response: None,
+                    by: By::Human,
+                    hash: String::new(),
+                }),
+                day,
+            },
+        ];
+        let log = Log {
+            entries,
+            problems: Vec::new(),
+        };
+        Memories::replay(&log, &Config::default(), date(2026, 3, 1)).unwrap()
+    }
+
+    /// The IDs of the cards that `selector` picks.
+    fn pick(selector: &str) -> Vec<String> {
+        let selector = Selector::parse(selector).unwrap();
+        let items = items();
+        let cards = items
+            .iter()
+            .flat_map(|item| item.cards().iter().map(move |card| (item, card)));
+        selector
+            .select(cards, &memories())
+            .into_iter()
+            .map(|(_, card)| card.id().to_string())
+            .collect()
     }
 
     #[test]
-    fn empty_selector_matches_every_atom() {
-        assert_eq!(pick(""), ["aaaaa1", "aaaaa2", "aaaaa3", "aaaaa4"]);
+    fn empty_selector_matches_every_card() {
+        assert_eq!(pick(""), ["aaa1", "aaa2-1", "aaa2-2", "aaa3", "aaa4"]);
     }
 
     #[test]
-    fn tag_matches_the_tag_and_tags_under_it() {
-        assert_eq!(pick("tag:japanese"), ["aaaaa1", "aaaaa2"]);
-        assert_eq!(pick("tag:japanese/gram"), Vec::<String>::new());
+    fn in_matches_a_folder_or_the_file_name_ignoring_case() {
+        assert_eq!(pick("in:grammar"), ["aaa1"]);
+        assert_eq!(pick("in:japanese"), ["aaa1", "aaa2-1", "aaa2-2"]);
+        assert_eq!(pick("in:food"), ["aaa3"]);
+        assert_eq!(pick("in:foo"), Vec::<String>::new());
+        assert_eq!(pick("in:wo.md"), Vec::<String>::new());
     }
 
     #[test]
-    fn comma_is_or() {
-        assert_eq!(pick("tag:jlpt/n1,kanji/food"), ["aaaaa1", "aaaaa3"]);
-    }
-
-    #[test]
-    fn space_is_and() {
-        assert_eq!(pick("tag:japanese tag:jlpt/n5"), ["aaaaa2"]);
-    }
-
-    #[test]
-    fn negated_tag_excludes_children() {
-        assert_eq!(pick("tag:japanese -tag:jlpt/n5"), ["aaaaa1"]);
-        assert_eq!(pick("-tag:japanese"), ["aaaaa3", "aaaaa4"]);
+    fn comma_is_or_space_is_and_minus_is_not() {
+        assert_eq!(pick("in:grammar,food"), ["aaa1", "aaa3"]);
+        assert_eq!(pick("in:japanese in:n5"), ["aaa2-1", "aaa2-2"]);
+        assert_eq!(pick("in:japanese -in:n5"), ["aaa1"]);
     }
 
     #[test]
     fn path_star_stays_in_one_folder() {
-        assert_eq!(pick("path:japanese/*"), ["aaaaa2"]);
-        assert_eq!(pick("path:japanese/**"), ["aaaaa1", "aaaaa2"]);
-        assert_eq!(pick("path:rust/ownership/*"), ["aaaaa4"]);
+        assert_eq!(pick("path:japanese/*"), ["aaa2-1", "aaa2-2"]);
+        assert_eq!(pick("path:japanese/**"), ["aaa1", "aaa2-1", "aaa2-2"]);
     }
 
     #[test]
-    fn id_and_status_terms() {
-        assert_eq!(pick("id:aaaaa2,aaaaa3"), ["aaaaa2", "aaaaa3"]);
-        assert_eq!(pick("status:draft"), ["aaaaa3"]);
-        assert_eq!(pick("status:active"), ["aaaaa1", "aaaaa2"]);
-        assert_eq!(pick("-status:active"), ["aaaaa3", "aaaaa4"]);
+    fn an_item_id_stands_for_all_its_cards() {
+        assert_eq!(pick("id:aaa2"), ["aaa2-1", "aaa2-2"]);
+        assert_eq!(pick("id:aaa2-2,aaa3"), ["aaa2-2", "aaa3"]);
     }
 
     #[test]
-    fn text_matches_anywhere_in_the_file_ignoring_case() {
-        assert_eq!(pick("ものともせず"), ["aaaaa1"]);
-        assert_eq!(pick("moves"), ["aaaaa4"]);
-        assert_eq!(pick("jlpt/n5"), ["aaaaa2"]);
-        assert_eq!(pick("-tuna"), ["aaaaa1", "aaaaa2", "aaaaa4"]);
+    fn status_comes_from_the_header_and_the_log() {
+        assert_eq!(pick("status:draft"), ["aaa3"]);
+        assert_eq!(pick("status:suspended"), ["aaa4"]);
+        assert_eq!(pick("status:active"), ["aaa1", "aaa2-1", "aaa2-2"]);
     }
 
     #[test]
-    fn quotes_group_words_and_make_keys_text() {
-        assert_eq!(pick("\"moves on\""), ["aaaaa4"]);
-        assert_eq!(pick("assignment on"), ["aaaaa4"]);
-        assert_eq!(pick("\"assignment on\""), Vec::<String>::new());
-        assert_eq!(pick("\"tags: [kanji\""), ["aaaaa3"]);
-        assert_eq!(pick("-\"by (adversity)\""), ["aaaaa2", "aaaaa3", "aaaaa4"]);
+    fn state_comes_from_the_log() {
+        assert_eq!(pick("state:due"), ["aaa1"]);
+        assert_eq!(pick("-state:new"), ["aaa1"]);
+    }
+
+    #[test]
+    fn text_matches_the_fields_ignoring_case() {
+        assert_eq!(pick("ものともせず"), ["aaa1"]);
+        assert_eq!(pick("moves"), ["aaa4"]);
+        assert_eq!(pick("\"moves on\""), ["aaa4"]);
+        assert_eq!(pick("srl"), Vec::<String>::new());
+        assert_eq!(pick("-tuna"), ["aaa1", "aaa2-1", "aaa2-2", "aaa4"]);
     }
 
     #[test]
     fn and_status_adds_a_term() {
-        let selector = Selector::parse("tag:kanji,rust")
+        let selector = Selector::parse("in:food,rust")
             .unwrap()
             .and_status(Status::Draft);
-        let picked = atoms()
+        let items = items();
+        let cards = items
             .iter()
-            .filter(|atom| selector.matches(atom, None))
-            .map(|atom| atom.id().to_string())
-            .collect::<Vec<_>>();
-        assert_eq!(picked, ["aaaaa3"]);
+            .flat_map(|item| item.cards().iter().map(move |card| (item, card)));
+        let picked = selector.select(cards, &memories());
+        assert_eq!(picked.len(), 1);
+        assert_eq!(picked[0].1.id().to_string(), "aaa3");
     }
 
     #[test]
     fn unknown_selector_key_is_an_error() {
-        let error = Selector::parse("tga:x").unwrap_err();
-        assert!(error.to_string().contains("tag, path"), "{error}");
+        let error = Selector::parse("ni:x").unwrap_err();
+        assert!(error.to_string().contains("in, path"), "{error}");
+        assert!(Selector::parse("tag:x").is_err());
     }
 
     #[test]
     fn invalid_terms_are_errors() {
         for text in [
-            "tag:",
-            "tag:a,,b",
+            "in:",
+            "in:a,,b",
             "status:paused",
             "id:XYZ",
+            "id:a-",
             "state:old",
             "path:[",
             "-",
@@ -420,13 +474,21 @@ mod tests {
     }
 
     #[test]
-    fn path_globs_match_whatever_unicode_form_names_are_in() {
-        let decomposed = atom("aaaaa1", "cafe\u{301}.md", "title: x", "");
-        let composed = atom("aaaaa2", "caf\u{e9}.md", "title: x", "");
-        for pattern in ["path:caf\u{e9}.md", "path:cafe\u{301}.md"] {
-            let selector = Selector::parse(pattern).unwrap();
-            assert!(selector.matches(&decomposed, None), "{pattern}");
-            assert!(selector.matches(&composed, None), "{pattern}");
+    fn names_match_whatever_unicode_form_they_are_in() {
+        let (items, _) = read_items("cafe\u{301}/x.md", "<!-- srl id:abc -->\nQ: q\nA: a\n");
+        let item = &items[0];
+        let card = &item.cards()[0];
+        let memories = memories();
+        for selector in [
+            "in:caf\u{e9}",
+            "in:cafe\u{301}",
+            "path:caf\u{e9}/*",
+            "path:CAFE\u{301}/*",
+        ] {
+            let matched = Selector::parse(selector)
+                .unwrap()
+                .matches(item, card, &memories);
+            assert_eq!(matched, !selector.starts_with("path:CAFE"), "{selector}");
         }
     }
 }

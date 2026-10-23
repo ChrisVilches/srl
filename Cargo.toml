@@ -19,7 +19,6 @@ getrandom = "0.4.3"
 globset = { version = "0.4.20", default-features = false }
 jiff = { version = "0.2.38", default-features = false, features = ["std"] }
 rusqlite = { version = "0.41.0", default-features = false, features = ["bundled", "cache"] }
-saphyr = { version = "0.2.2", default-features = false }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["preserve_order", "float_roundtrip"] }
 sha2 = { version = "0.11.1", default-features = false }

@@ -1,6 +1,6 @@
 [package]
 name = "srl-core"
-description = "The core of srl: store, atoms, drills, cards, grading, scheduling. No CLI code."
+description = "The core of srl: store, notes, items, cards, scheduling. No CLI code."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,17 +11,13 @@ fsrs.workspace = true
 globset.workspace = true
 jiff.workspace = true
 rusqlite.workspace = true
-saphyr.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 unicode-normalization.workspace = true
-which.workspace = true
-
-[dev-dependencies]
-tempfile.workspace = true
 
 [lints]
 workspace = true

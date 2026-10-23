@@ -1,11 +1,11 @@
-//! The index cache, `.cache/index.sqlite` (see `docs/store.md`, "The index
-//! cache").
+//! The index cache, `.srl/cache/index.sqlite` (see `docs/store.md`, "The
+//! index cache").
 //!
-//! It keeps what is slow to compute from the files: each atom file's parsed
-//! front-matter, and the log replayed through FSRS. Every file is still read
-//! on every use and compared with the cache by its BLAKE3 hash, so the cache can
-//! only skip work, never change a result. When it can't be used, the files
-//! are read directly and the problem is reported.
+//! It keeps what is slow to compute from the files: the log replayed
+//! through FSRS. Every log file is still read on every use and compared
+//! with the cache by its BLAKE3 hash, so the cache can only skip work, never
+//! change a result. When it can't be used, the files are read directly and
+//! the problem is reported.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -15,33 +15,30 @@ use std::time::Duration;
 
 use jiff::civil::Date;
 use rusqlite::{Connection, ErrorCode, OptionalExtension, Transaction, TransactionBehavior};
-use serde_json::{Map, Value};
 
-use crate::atom::read_atom_file;
-use crate::schedule::Replayer;
-use crate::{Atom, Atoms, Config, Error, History, Id, Log, Memory, Result, Reviewed, Store, log};
+use crate::schedule::{Replayer, Seen};
+use crate::{CardId, Config, Error, History, Log, Memory, Result, Reviewed, Store, log};
 
 /// The version of the tables below. Change it whenever they, or what they
 /// mean, change: a cache of another version is rebuilt.
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 
 /// The tables. Their layout is not a contract (see `docs/store.md`).
 const SCHEMA: &str = "
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE atoms (path TEXT PRIMARY KEY, hash TEXT NOT NULL, id TEXT NOT NULL,
-    fields TEXT NOT NULL);
 CREATE TABLE log_files (name TEXT PRIMARY KEY, len INTEGER NOT NULL, hash TEXT NOT NULL,
     lines INTEGER NOT NULL);
 CREATE TABLE log_problems (seq INTEGER PRIMARY KEY, name TEXT NOT NULL, line INTEGER NOT NULL,
     reason TEXT NOT NULL);
-CREATE TABLE memories (atom TEXT PRIMARY KEY, reviews INTEGER NOT NULL, lapses INTEGER NOT NULL,
+CREATE TABLE memories (card TEXT PRIMARY KEY, reviews INTEGER NOT NULL, lapses INTEGER NOT NULL,
     stability REAL, difficulty REAL, first_review TEXT, last_review TEXT, due TEXT,
-    last_used TEXT NOT NULL);
-CREATE TABLE reviews (seq INTEGER PRIMARY KEY, atom TEXT NOT NULL, day TEXT NOT NULL,
+    suspended INTEGER NOT NULL, seen_position INTEGER, seen_day TEXT, touched INTEGER NOT NULL);
+CREATE TABLE reviews (seq INTEGER PRIMARY KEY, card TEXT NOT NULL, day TEXT NOT NULL,
     rating INTEGER NOT NULL, was_new INTEGER NOT NULL);
 ";
 
-/// Every table, to drop them all before building them again.
+/// Every table, to drop them all before building them again. `atoms` is
+/// from earlier versions.
 const TABLES: [&str; 6] = [
     "meta",
     "atoms",
@@ -54,7 +51,7 @@ const TABLES: [&str; 6] = [
 /// How long to wait for another `srl` that is updating the cache.
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// The cache's file name in `.cache/`.
+/// The cache's file name in `.srl/cache/`.
 const FILE: &str = "index.sqlite";
 
 /// Why using the cache failed.
@@ -107,7 +104,7 @@ fn corrupt(what: &str) -> impl FnOnce(String) -> Failure {
     move |reason| Failure::Corrupt(format!("{what}: {reason}"))
 }
 
-/// The atoms and memories of a store, through the index cache.
+/// The memories of a store's cards, through the index cache.
 ///
 /// Problems with the cache itself are collected, to be reported with
 /// [`Index::problems`]; the results are the same either way.
@@ -136,18 +133,16 @@ impl Index {
     }
 
     /// Deletes the cache and builds it again from the files (`srl
-    /// reindex`). Returns the atoms, whose `problems` are those of the atom
-    /// files, and the log lines that were skipped. Fails if the cache can't
-    /// be written.
-    pub fn rebuild(store: &Store, config: &Config) -> Result<(Atoms, Vec<Error>)> {
+    /// reindex`). Returns the log lines that were skipped. Fails if the
+    /// cache can't be written.
+    pub fn rebuild(store: &Store, config: &Config) -> Result<Vec<Error>> {
         let mut index = Self {
             strict: true,
             ..Self::open(store)
         };
         remove(&index.file()).map_err(|reason| index.reindex_error(reason))?;
-        let atoms = index.atoms()?;
         let (_, problems) = index.memories(config)?;
-        Ok((atoms, problems))
+        Ok(problems)
     }
 
     /// The store this index belongs to.
@@ -161,14 +156,9 @@ impl Index {
         std::mem::take(&mut self.problems)
     }
 
-    /// Every atom, as [`Atoms::load`] reads them.
-    pub fn atoms(&mut self) -> Result<Atoms> {
-        self.run(cached_atoms, Atoms::load)
-    }
-
-    /// Every atom's memory, as [`History::replay`] computes it from
+    /// Every card's memory, as [`History::replay`] computes it from
     /// [`Log::load`], and the log lines that were skipped.
-    pub fn memories(&mut self, config: &Config) -> Result<(HashMap<Id, Memory>, Vec<Error>)> {
+    pub fn memories(&mut self, config: &Config) -> Result<(HashMap<CardId, Memory>, Vec<Error>)> {
         self.run(
             |transaction, store| {
                 let (memories, problems) = refresh_log(transaction, store, config)?;
@@ -360,80 +350,6 @@ fn hash(bytes: &[u8]) -> String {
     blake3::hash(bytes).to_hex().to_string()
 }
 
-/// A cached atom: the hash of its file, its ID and its fields.
-struct CachedAtom {
-    hash: String,
-    id: String,
-    fields: String,
-}
-
-/// Reads every atom file, and parses only those whose text isn't cached.
-fn cached_atoms(
-    transaction: &Transaction<'_>,
-    store: &Store,
-) -> std::result::Result<Atoms, Failure> {
-    let cached = transaction
-        .prepare("SELECT path, hash, id, fields FROM atoms")?
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                CachedAtom {
-                    hash: row.get(1)?,
-                    id: row.get(2)?,
-                    fields: row.get(3)?,
-                },
-            ))
-        })?
-        .collect::<rusqlite::Result<HashMap<_, _>>>()?;
-    let mut parsed = Vec::new();
-    let mut kept = HashSet::new();
-    for path in store.atom_paths()? {
-        let text = match read_atom_file(store, &path) {
-            Ok(text) => text,
-            Err(error) => {
-                parsed.push(Err(error));
-                continue;
-            }
-        };
-        let hash = hash(text.as_bytes());
-        let atom = match cached.get(&path) {
-            Some(atom) if atom.hash == hash => Ok(cached_atom(path.clone(), text, atom)?),
-            _ => {
-                let atom = Atom::parse(path.clone(), text);
-                if let Ok(atom) = &atom {
-                    let fields = Value::Object(atom.fields()).to_string();
-                    execute(
-                        transaction,
-                        "INSERT OR REPLACE INTO atoms (path, hash, id, fields) \
-                         VALUES (?1, ?2, ?3, ?4)",
-                        [&path, &hash, atom.id().as_str(), &fields],
-                    )?;
-                }
-                atom
-            }
-        };
-        if atom.is_ok() {
-            kept.insert(path);
-        }
-        parsed.push(atom);
-    }
-    for path in cached.keys().filter(|path| !kept.contains(*path)) {
-        execute(transaction, "DELETE FROM atoms WHERE path = ?1", [path])?;
-    }
-    Ok(Atoms::from_parsed(parsed))
-}
-
-fn cached_atom(
-    path: String,
-    text: String,
-    cached: &CachedAtom,
-) -> std::result::Result<Atom, Failure> {
-    let id = Id::parse(&cached.id).map_err(|error| corrupt("an atom's ID")(error.to_string()))?;
-    let fields = serde_json::from_str::<Map<String, Value>>(&cached.fields)
-        .map_err(|error| corrupt("an atom's fields")(error.to_string()))?;
-    Atom::from_fields(path, text, id, fields).map_err(corrupt("an atom"))
-}
-
 /// A log file as the cache last read it.
 struct CachedFile {
     name: String,
@@ -452,13 +368,13 @@ struct LogFile {
     text: String,
 }
 
-/// Brings the replayed log up to date, and returns every atom's memory and
+/// Brings the replayed log up to date, and returns every card's memory and
 /// the log lines that were skipped.
 fn refresh_log(
     transaction: &Transaction<'_>,
     store: &Store,
     config: &Config,
-) -> std::result::Result<(HashMap<Id, Memory>, Vec<Error>), Failure> {
+) -> std::result::Result<(HashMap<CardId, Memory>, Vec<Error>), Failure> {
     let files = log::files(store)?
         .into_iter()
         .map(|path| {
@@ -508,14 +424,11 @@ fn refresh_log(
         };
         log.read(&file.path, new, lines_before, &config.schedule);
         for entry in &log.entries {
-            let atom = entry.event.atom();
-            let memory = memories.entry(atom.clone()).or_default();
-            let (next, reviewed) = replayer.apply(memory, entry, position)?;
-            *memory = next;
+            let (cards, reviewed) = replayer.apply(&mut memories, entry, position)?;
             if let Some(reviewed) = reviewed {
                 insert_review(transaction, &reviewed)?;
             }
-            changed.insert(atom.clone());
+            changed.extend(cards);
             position += 1;
         }
         for problem in log.problems {
@@ -542,7 +455,7 @@ fn refresh_log(
     for id in &changed {
         let memory = memories
             .get(id)
-            .expect("a changed atom should have a memory");
+            .expect("a changed card should have a memory");
         insert_memory(transaction, id, memory)?;
     }
     set_meta(transaction, "settings", &settings)?;
@@ -644,9 +557,9 @@ fn cached_problems(
 fn insert_review(transaction: &Transaction<'_>, reviewed: &Reviewed) -> rusqlite::Result<()> {
     execute(
         transaction,
-        "INSERT INTO reviews (atom, day, rating, was_new) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO reviews (card, day, rating, was_new) VALUES (?1, ?2, ?3, ?4)",
         (
-            reviewed.atom.as_str(),
+            reviewed.card.to_string(),
             reviewed.day.to_string(),
             reviewed.rating,
             reviewed.was_new,
@@ -656,7 +569,7 @@ fn insert_review(transaction: &Transaction<'_>, reviewed: &Reviewed) -> rusqlite
 
 fn cached_reviews(transaction: &Transaction<'_>) -> std::result::Result<Vec<Reviewed>, Failure> {
     transaction
-        .prepare("SELECT atom, day, rating, was_new FROM reviews ORDER BY seq")?
+        .prepare("SELECT card, day, rating, was_new FROM reviews ORDER BY seq")?
         .query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -666,9 +579,9 @@ fn cached_reviews(transaction: &Transaction<'_>) -> std::result::Result<Vec<Revi
             ))
         })?
         .map(|row| {
-            let (atom, day, rating, was_new) = row?;
+            let (card, day, rating, was_new) = row?;
             Ok(Reviewed {
-                atom: to_id(&atom)?,
+                card: to_id(&card)?,
                 day: to_date(&day)?,
                 rating,
                 was_new,
@@ -679,17 +592,16 @@ fn cached_reviews(transaction: &Transaction<'_>) -> std::result::Result<Vec<Revi
 
 fn insert_memory(
     transaction: &Transaction<'_>,
-    id: &Id,
+    id: &CardId,
     memory: &Memory,
 ) -> std::result::Result<(), Failure> {
-    let last_used = serde_json::to_string(&memory.last_used)
-        .map_err(|error| Failure::Unusable(error.to_string()))?;
     execute(
         transaction,
-        "INSERT OR REPLACE INTO memories (atom, reviews, lapses, stability, difficulty, \
-         first_review, last_review, due, last_used) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT OR REPLACE INTO memories (card, reviews, lapses, stability, difficulty, \
+         first_review, last_review, due, suspended, seen_position, seen_day, touched) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         (
-            id.as_str(),
+            id.to_string(),
             to_i64(memory.reviews),
             memory.lapses,
             memory.state.map(|state| f64::from(state.stability)),
@@ -697,7 +609,10 @@ fn insert_memory(
             memory.first_review.map(|day| day.to_string()),
             memory.last_review.map(|day| day.to_string()),
             memory.due.map(|day| day.to_string()),
-            last_used,
+            memory.suspended,
+            memory.seen.map(|seen| to_i64(seen.position)),
+            memory.seen.map(|seen| seen.day.to_string()),
+            memory.touched,
         ),
     )?;
     Ok(())
@@ -713,16 +628,19 @@ type MemoryRow = (
     Option<String>,
     Option<String>,
     Option<String>,
-    String,
+    bool,
+    Option<i64>,
+    Option<String>,
+    bool,
 );
 
 fn cached_memories(
     transaction: &Transaction<'_>,
-) -> std::result::Result<HashMap<Id, Memory>, Failure> {
+) -> std::result::Result<HashMap<CardId, Memory>, Failure> {
     transaction
         .prepare(
-            "SELECT atom, reviews, lapses, stability, difficulty, first_review, last_review, \
-             due, last_used FROM memories",
+            "SELECT card, reviews, lapses, stability, difficulty, first_review, last_review, \
+             due, suspended, seen_position, seen_day, touched FROM memories",
         )?
         .query_map([], |row| {
             Ok((
@@ -735,35 +653,69 @@ fn cached_memories(
                 row.get(6)?,
                 row.get(7)?,
                 row.get(8)?,
+                row.get(9)?,
+                row.get(10)?,
+                row.get(11)?,
             ))
         })?
         .map(|row: rusqlite::Result<MemoryRow>| {
-            let (atom, reviews, lapses, stability, difficulty, first, last, due, last_used) = row?;
-            let state = match (stability, difficulty) {
-                (Some(stability), Some(difficulty)) => Some(fsrs::MemoryState {
-                    stability: to_f32(stability)?,
-                    difficulty: to_f32(difficulty)?,
-                }),
-                (None, None) => None,
-                (Some(_), None) | (None, Some(_)) => {
-                    return Err(Failure::Corrupt(format!(
-                        "atom {atom} has only half a memory state"
-                    )));
-                }
-            };
-            let memory = Memory {
-                reviews: to_usize(reviews)?,
-                lapses,
-                state,
-                first_review: first.as_deref().map(to_date).transpose()?,
-                last_review: last.as_deref().map(to_date).transpose()?,
-                due: due.as_deref().map(to_date).transpose()?,
-                last_used: serde_json::from_str(&last_used)
-                    .map_err(|error| corrupt("a memory's cards")(error.to_string()))?,
-            };
-            Ok((to_id(&atom)?, memory))
+            let row = row?;
+            Ok((to_id(&row.0)?, memory_row(&row)?))
         })
         .collect()
+}
+
+/// The memory a row of `memories` holds.
+fn memory_row(row: &MemoryRow) -> std::result::Result<Memory, Failure> {
+    let (
+        card,
+        reviews,
+        lapses,
+        stability,
+        difficulty,
+        first,
+        last,
+        due,
+        suspended,
+        position,
+        day,
+        touched,
+    ) = row;
+    let state = match (stability, difficulty) {
+        (Some(stability), Some(difficulty)) => Some(fsrs::MemoryState {
+            stability: to_f32(*stability)?,
+            difficulty: to_f32(*difficulty)?,
+        }),
+        (None, None) => None,
+        (Some(_), None) | (None, Some(_)) => {
+            return Err(Failure::Corrupt(format!(
+                "card {card} has only half a memory state"
+            )));
+        }
+    };
+    let seen = match (position, day) {
+        (Some(position), Some(day)) => Some(Seen {
+            position: to_usize(*position)?,
+            day: to_date(day)?,
+        }),
+        (None, None) => None,
+        (Some(_), None) | (None, Some(_)) => {
+            return Err(Failure::Corrupt(format!(
+                "card {card} has only half its last review"
+            )));
+        }
+    };
+    Ok(Memory {
+        reviews: to_usize(*reviews)?,
+        lapses: *lapses,
+        state,
+        first_review: first.as_deref().map(to_date).transpose()?,
+        last_review: last.as_deref().map(to_date).transpose()?,
+        due: due.as_deref().map(to_date).transpose()?,
+        suspended: *suspended,
+        seen,
+        touched: *touched,
+    })
 }
 
 /// Reads the files directly, as if there were no cache.
@@ -799,8 +751,8 @@ fn to_date(text: &str) -> std::result::Result<Date, Failure> {
         .map_err(|error| corrupt("a day")(error.to_string()))
 }
 
-fn to_id(text: &str) -> std::result::Result<Id, Failure> {
-    Id::parse(text).map_err(|error| corrupt("an atom ID")(error.to_string()))
+fn to_id(text: &str) -> std::result::Result<CardId, Failure> {
+    CardId::parse(text).map_err(|error| corrupt("a card ID")(error.to_string()))
 }
 
 #[cfg(test)]
@@ -822,63 +774,41 @@ mod tests {
     }
 
     fn write(store: &Store, path: &str, text: &str) {
-        let file = store.root().join(path);
+        let file = store.srl_dir().join(path);
         fs::create_dir_all(file.parent().unwrap()).unwrap();
         fs::write(file, text).unwrap();
     }
 
     fn append(store: &Store, path: &str, text: &str) {
-        let file = store.root().join(path);
+        let file = store.srl_dir().join(path);
         let old = fs::read_to_string(&file).unwrap_or_default();
         fs::write(file, format!("{old}{text}")).unwrap();
     }
 
-    fn atom(id: &str, title: &str) -> String {
+    fn review(t: &str, card: &str, rating: u8) -> String {
         format!(
-            "---\nid: {id}\ntitle: {title}\ntags: [a, b]\nn: 0.1\ncloze:\n  - x {{{{y}}}}\n---\nBody of {title}.\n"
-        )
-    }
-
-    fn review(t: &str, atom: &str, rating: u8, reference: &str) -> String {
-        format!(
-            "{{\"type\":\"review\",\"t\":\"{t}\",\"atom\":\"{atom}\",\"rating\":{rating},\
-             \"card\":{{\"drill\":\"cloze\",\"ref\":\"{reference}\"}},\
+            "{{\"type\":\"review\",\"t\":\"{t}\",\"card\":\"{card}\",\"rating\":{rating},\
              \"response\":null,\"by\":\"human\",\"hash\":\"000000000000\"}}\n"
         )
     }
 
-    fn reset(t: &str, atom: &str) -> String {
-        format!("{{\"type\":\"reset\",\"t\":\"{t}\",\"atom\":\"{atom}\"}}\n")
+    fn event(kind: &str, t: &str, card: &str) -> String {
+        format!("{{\"type\":\"{kind}\",\"t\":\"{t}\",\"card\":\"{card}\"}}\n")
     }
 
     fn strings(errors: &[Error]) -> Vec<String> {
         errors.iter().map(ToString::to_string).collect()
     }
 
-    /// Reads the store through `index` and directly, and checks that both
-    /// give the same atoms, memories, reviews and problems.
+    /// Reads the log through `index` and directly, and checks that both
+    /// give the same memories, reviews and problems.
     fn assert_same(index: &mut Index, store: &Store) {
         let config = Config::load(store).unwrap();
-        let cached = index.atoms().unwrap();
         let (history, problems) = index.history(&config).unwrap();
         let (memories, memory_problems) = index.memories(&config).unwrap();
         assert!(index.problems().is_empty(), "{:?}", index.problems());
-        let atoms = Atoms::load(store).unwrap();
         let log = Log::load(store, &config.schedule).unwrap();
         let replayed = History::replay(&log, &config).unwrap();
-        assert_eq!(
-            serde_json::to_value(&cached.atoms).unwrap(),
-            serde_json::to_value(&atoms.atoms).unwrap()
-        );
-        let texts = |atoms: &Atoms| {
-            atoms
-                .atoms
-                .iter()
-                .map(|atom| atom.text().to_owned())
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(texts(&cached), texts(&atoms));
-        assert_eq!(strings(&cached.problems), strings(&atoms.problems));
         assert_eq!(history, replayed);
         assert_eq!(memories, replayed.memories);
         assert_eq!(strings(&problems), strings(&log.problems));
@@ -890,39 +820,41 @@ mod tests {
         let (_tmp, store) = store();
         let mut index = Index::open(&store);
         assert_same(&mut index, &store);
-        write(&store, "atoms/one.md", &atom("aaaaa1", "one"));
-        write(&store, "atoms/sub/two.md", &atom("aaaaa2", "two"));
         write(
             &store,
             "log/2026-09.jsonl",
-            &review("2026-09-01T10:00:00+09:00", "aaaaa1", 3, "cloze:0:1"),
+            &review("2026-09-01T10:00:00+09:00", "aaa1", 3),
         );
         assert_same(&mut index, &store);
         // Appending to the last file, and starting a new month.
         append(
             &store,
             "log/2026-09.jsonl",
-            &review("2026-09-05T10:00:00+09:00", "aaaaa1", 1, "cloze:0:1"),
+            &review("2026-09-05T10:00:00+09:00", "aaa1", 1),
         );
         write(
             &store,
             "log/2026-10.jsonl",
-            &review("2026-10-01T10:00:00+09:00", "aaaaa2", 4, "cloze:0:1"),
+            &review("2026-10-01T10:00:00+09:00", "aaa2-1", 4),
         );
         assert_same(&mut index, &store);
-        // An edit that keeps the size, a new atom, a removed one, a bad one.
-        write(&store, "atoms/one.md", &atom("aaaaa1", "uno"));
-        write(&store, "atoms/three.md", &atom("aaaaa3", "three"));
-        fs::remove_file(store.root().join("atoms/sub/two.md")).unwrap();
-        write(&store, "atoms/bad.md", "no front-matter\n");
-        write(&store, "atoms/dup.md", &atom("aaaaa1", "dup"));
-        assert_same(&mut index, &store);
-        // Bad lines, blank lines, resets, a line without a newline yet.
+        // Bad lines, blank lines, resets, suspensions, moves, a line without
+        // a newline yet.
         append(&store, "log/2026-10.jsonl", "not json\n\n");
         append(
             &store,
             "log/2026-10.jsonl",
-            &reset("2026-10-02T10:00:00+09:00", "aaaaa2"),
+            &event("reset", "2026-10-02T10:00:00+09:00", "aaa2-1"),
+        );
+        append(
+            &store,
+            "log/2026-10.jsonl",
+            &event("suspend", "2026-10-02T11:00:00+09:00", "aaa1"),
+        );
+        append(
+            &store,
+            "log/2026-10.jsonl",
+            "{\"type\":\"move\",\"t\":\"2026-10-02T12:00:00+09:00\",\"from\":\"aaa1\",\"to\":\"aaa1-1\"}\n",
         );
         append(
             &store,
@@ -934,7 +866,7 @@ mod tests {
         append(
             &store,
             "log/2026-10.jsonl",
-            &review("2026-10-04T03:00:00+09:00", "aaaaa3", 3, "cloze:0:1"),
+            &review("2026-10-04T03:00:00+09:00", "aaa3", 3),
         );
         assert_same(&mut index, &store);
         // A file that sorts before the last one, and a line inserted in the
@@ -942,31 +874,31 @@ mod tests {
         write(
             &store,
             "log/2026-08.jsonl",
-            &review("2026-08-30T10:00:00+09:00", "aaaaa1", 2, "cloze:0:1"),
+            &review("2026-08-30T10:00:00+09:00", "aaa1", 2),
         );
         assert_same(&mut index, &store);
-        let file = store.root().join("log/2026-09.jsonl");
+        let file = store.log_dir().join("2026-09.jsonl");
         let text = fs::read_to_string(&file).unwrap();
         let (first, rest) = text.split_once('\n').unwrap();
         fs::write(
             &file,
             format!(
                 "{first}\n{}{rest}",
-                review("2026-09-02T10:00:00+09:00", "aaaaa1", 4, "x")
+                review("2026-09-02T10:00:00+09:00", "aaa1", 4)
             ),
         )
         .unwrap();
         assert_same(&mut index, &store);
         // A truncated file, and a removed one.
         fs::write(&file, first).unwrap();
-        fs::remove_file(store.root().join("log/2026-08.jsonl")).unwrap();
+        fs::remove_file(store.log_dir().join("2026-08.jsonl")).unwrap();
         assert_same(&mut index, &store);
         // Settings the replay depends on.
-        write(&store, "srl.toml", "[schedule]\nday_starts_at = 11\n");
+        write(&store, "config.toml", "[schedule]\nday_starts_at = 11\n");
         assert_same(&mut index, &store);
         write(
             &store,
-            "srl.toml",
+            "config.toml",
             "[schedule]\nday_starts_at = 11\ndesired_retention = 0.8\n",
         );
         assert_same(&mut index, &store);
@@ -978,11 +910,10 @@ mod tests {
     fn appended_lines_are_replayed_on_top_of_the_cache() {
         let (_tmp, store) = store();
         let config = Config::default();
-        write(&store, "atoms/one.md", &atom("aaaaa1", "one"));
         write(
             &store,
             "log/2026-09.jsonl",
-            &review("2026-09-01T10:00:00+09:00", "aaaaa1", 3, "cloze:0:1"),
+            &review("2026-09-01T10:00:00+09:00", "aaa1", 3),
         );
         Index::open(&store).memories(&config).unwrap();
         // A cached memory that differs from the log: only a full replay
@@ -995,34 +926,35 @@ mod tests {
         append(
             &store,
             "log/2026-09.jsonl",
-            &review("2026-09-05T10:00:00+09:00", "aaaaa1", 3, "cloze:0:1"),
+            &review("2026-09-05T10:00:00+09:00", "aaa1", 3),
         );
+        let card = CardId::parse("aaa1").unwrap();
         let (memories, _) = Index::open(&store).memories(&config).unwrap();
-        assert_eq!(memories[&Id::parse("aaaaa1").unwrap()].lapses, 42);
-        assert_eq!(memories[&Id::parse("aaaaa1").unwrap()].reviews, 2);
+        assert_eq!(memories[&card].lapses, 42);
+        assert_eq!(memories[&card].reviews, 2);
         // srl reindex starts over.
         Index::rebuild(&store, &config).unwrap();
         let (memories, _) = Index::open(&store).memories(&config).unwrap();
-        assert_eq!(memories[&Id::parse("aaaaa1").unwrap()].lapses, 0);
+        assert_eq!(memories[&card].lapses, 0);
     }
 
     #[test]
     fn a_damaged_cache_is_rebuilt_and_reported() {
         let (_tmp, store) = store();
-        write(&store, "atoms/one.md", &atom("aaaaa1", "one"));
         write(
             &store,
             "log/2026-09.jsonl",
-            &review("2026-09-01T10:00:00+09:00", "aaaaa1", 3, "cloze:0:1"),
+            &review("2026-09-01T10:00:00+09:00", "aaa1", 3),
         );
-        Index::open(&store).atoms().unwrap();
+        let config = Config::default();
+        Index::open(&store).memories(&config).unwrap();
         fs::write(
             store.cache_dir().join(FILE),
             "this is not a database, but long enough to look like one at first glance",
         )
         .unwrap();
         let mut index = Index::open(&store);
-        index.atoms().unwrap();
+        index.memories(&config).unwrap();
         let problems = index.problems();
         assert!(
             matches!(problems.as_slice(), [Error::CacheRebuilt { .. }]),
@@ -1032,11 +964,11 @@ mod tests {
         // Data that doesn't decode counts as damage too.
         let connection = Connection::open(store.cache_dir().join(FILE)).unwrap();
         connection
-            .execute("UPDATE atoms SET fields = 'nonsense'", [])
+            .execute("UPDATE memories SET seen_day = 'nonsense'", [])
             .unwrap();
         drop(connection);
         let mut index = Index::open(&store);
-        index.atoms().unwrap();
+        index.memories(&config).unwrap();
         assert!(matches!(
             index.problems().as_slice(),
             [Error::CacheRebuilt { .. }]
@@ -1047,11 +979,15 @@ mod tests {
     #[test]
     fn an_unusable_cache_is_reported_and_the_files_are_read_directly() {
         let (_tmp, store) = store();
-        write(&store, "atoms/one.md", &atom("aaaaa1", "one"));
-        write(&store, ".cache", "a file where the folder should be");
+        write(
+            &store,
+            "log/2026-09.jsonl",
+            &review("2026-09-01T10:00:00+09:00", "aaa1", 3),
+        );
+        write(&store, "cache", "a file where the folder should be");
         let mut index = Index::open(&store);
-        let atoms = index.atoms().unwrap();
-        assert_eq!(atoms.atoms.len(), 1);
+        let (memories, _) = index.memories(&Config::default()).unwrap();
+        assert_eq!(memories.len(), 1);
         assert!(matches!(
             index.problems().as_slice(),
             [Error::CacheUnusable { .. }]
@@ -1068,7 +1004,7 @@ mod tests {
     #[test]
     fn the_cache_folder_ignores_itself_in_git() {
         let (_tmp, store) = store();
-        Index::open(&store).atoms().unwrap();
+        Index::open(&store).memories(&Config::default()).unwrap();
         assert_eq!(
             fs::read_to_string(store.cache_dir().join(".gitignore")).unwrap(),
             "*\n"
@@ -1120,15 +1056,13 @@ mod tests {
     #[test]
     fn processes_can_share_the_cache_while_the_log_grows() {
         let (_tmp, store) = store();
-        write(&store, "atoms/one.md", &atom("aaaaa1", "one"));
-        write(&store, "atoms/two.md", &atom("aaaaa2", "two"));
-        let event = |atom: &str| {
-            let line = review("2026-09-01T10:00:00+09:00", atom, 3, "cloze:0:1");
+        let event = |card: &str| {
+            let line = review("2026-09-01T10:00:00+09:00", card, 3);
             serde_json::from_str::<crate::Event>(&line).unwrap()
         };
-        let writers = ["aaaaa1", "aaaaa2"].map(|atom| {
+        let writers = ["aaa1", "aaa2"].map(|card| {
             let store = store.clone();
-            let event = event(atom);
+            let event = event(card);
             std::thread::spawn(move || {
                 for _ in 0..40 {
                     log::append(&store, std::slice::from_ref(&event)).unwrap();
@@ -1141,7 +1075,6 @@ mod tests {
                 std::thread::spawn(move || {
                     for _ in 0..20 {
                         let mut index = Index::open(&store);
-                        index.atoms().unwrap();
                         let (_, problems) = index.memories(&Config::default()).unwrap();
                         assert!(problems.is_empty(), "{problems:?}");
                         assert!(index.problems().is_empty(), "{:?}", index.problems());
@@ -1155,6 +1088,6 @@ mod tests {
         let mut index = Index::open(&store);
         assert_same(&mut index, &store);
         let (memories, _) = index.memories(&Config::default()).unwrap();
-        assert_eq!(memories[&Id::parse("aaaaa1").unwrap()].reviews, 40);
+        assert_eq!(memories[&CardId::parse("aaa1").unwrap()].reviews, 40);
     }
 }

@@ -1,51 +1,48 @@
-//! Finding and creating a store (see `docs/store.md`).
+//! Finding and creating a store, and listing its notes (see
+//! `docs/store.md`).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use globset::GlobSet;
 use unicode_normalization::UnicodeNormalization;
 
 use crate::{Error, Result};
 
-/// The file whose presence marks a directory as a store.
-const CONFIG_FILE: &str = "srl.toml";
+/// The folder that marks a directory as a store and holds everything `srl`
+/// owns.
+const SRL: &str = ".srl";
+
+/// The configuration file, in `.srl/`.
+const CONFIG_FILE: &str = "config.toml";
+
+/// The folder of the review log, in `.srl/`.
+const LOG: &str = "log";
+
+/// The folder of derived data, in `.srl/`.
+const CACHE: &str = "cache";
 
 /// The default store, relative to the platform's data directory.
 const DEFAULT_STORE: &str = "srl";
 
-/// The folder of atom files.
-const ATOMS: &str = "atoms";
+/// The `config.toml` that `srl init` writes: every key at its default,
+/// commented out (see `docs/store.md`, "Configuration").
+pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is optional; these are the defaults.
 
-/// The folder of the review log.
-const LOG: &str = "log";
-
-/// The folder of the store's own drills.
-const DRILLS: &str = "drills";
-
-/// The folder of prepared sessions.
-const SESSIONS: &str = "sessions";
-
-/// The folder of derived data, such as the index cache.
-const CACHE: &str = ".cache";
-
-/// The folders `srl init` creates.
-const FOLDERS: [&str; 2] = [ATOMS, LOG];
-
-/// The `srl.toml` that `srl init` writes: every key at its default, commented
-/// out (see `docs/store.md`, "Configuration").
-pub(crate) const DEFAULT_CONFIG: &str = r"# srl configuration. Every key is optional; these are the defaults.
+[notes]
+# exclude = []               # globs of notes to ignore, relative to the store's folder
 
 [schedule]
 # desired_retention = 0.9    # FSRS target probability of recall
 # day_starts_at = 4          # hour (local time) when a new study day begins
-# new_per_day = 10           # new atoms introduced per day, across all selectors
-# leech_lapses = 8           # an atom with this many lapses is a leech
-# mature_days = 21           # an atom with at least this stability (days) is mature
+# new_per_day = 10           # new cards introduced per day, across all selectors
+# leech_lapses = 8           # a card with this many lapses is a leech
+# mature_days = 21           # a card with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
 
-[drills]
-# timeout_seconds = 10       # a drill that takes longer is skipped
-";
+[study]
+# context = "prose"          # how context is shown: prose, full or none
+"#;
 
 /// Everything needed to find a store, gathered by the caller.
 ///
@@ -66,7 +63,7 @@ pub struct Lookup {
     pub data_dir: Option<PathBuf>,
 }
 
-/// One `srl` store: a directory holding atoms, the log and configuration.
+/// One `srl` store: a folder of notes with a `.srl/` folder in it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Store {
     root: PathBuf,
@@ -74,7 +71,7 @@ pub struct Store {
 
 impl Store {
     /// Finds the store, using the first match of: `--dir`, `SRL_DIR`, the
-    /// nearest directory from `cwd` upwards that contains `srl.toml`, and the
+    /// nearest directory from `cwd` upwards that contains `.srl/`, and the
     /// default store in the platform's data directory.
     pub fn locate(lookup: &Lookup) -> Result<Self> {
         lookup
@@ -97,7 +94,7 @@ impl Store {
     /// Finds the store like [`Store::locate`], and checks that it exists.
     pub fn open(lookup: &Lookup) -> Result<Self> {
         let store = Self::locate(lookup)?;
-        if store.root.join(CONFIG_FILE).is_file() {
+        if store.config_file().is_file() {
             Ok(store)
         } else {
             Err(Error::NotAStore { root: store.root })
@@ -112,91 +109,75 @@ impl Store {
             .map_or_else(|| lookup.cwd.clone(), |dir| lookup.cwd.join(dir))
     }
 
-    /// Creates a store in `root`, which may already exist and hold other
-    /// files, and returns the paths it creates. With `dry_run`, only returns
-    /// them.
+    /// Creates a store in `root`, which may already exist and hold notes
+    /// and other files, and returns the paths it creates. With `dry_run`,
+    /// only returns them.
     pub fn init(root: &Path, dry_run: bool) -> Result<Vec<PathBuf>> {
-        let config = root.join(CONFIG_FILE);
-        if config.exists() {
+        let store = Self {
+            root: root.to_path_buf(),
+        };
+        if store.srl_dir().exists() {
             return Err(Error::StoreExists {
                 root: root.to_path_buf(),
             });
         }
-        let folders = FOLDERS
-            .iter()
-            .map(|folder| root.join(folder))
-            .filter(|folder| !folder.is_dir())
-            .collect::<Vec<_>>();
+        let config = store.config_file();
+        let log = store.log_dir();
         if !dry_run {
-            for folder in &folders {
-                fs::create_dir_all(folder).map_err(Error::io(folder))?;
-            }
+            fs::create_dir_all(&log).map_err(Error::io(&log))?;
             fs::write(&config, DEFAULT_CONFIG).map_err(Error::io(&config))?;
         }
-        Ok(std::iter::once(config).chain(folders).collect())
+        Ok(vec![config, log])
     }
 
-    /// The store's directory.
+    /// The store's folder.
     pub fn root(&self) -> &Path {
         &self.root
     }
 
-    /// The configuration file, `srl.toml`.
+    /// The folder of everything `srl` owns, `.srl/`.
+    pub fn srl_dir(&self) -> PathBuf {
+        self.root.join(SRL)
+    }
+
+    /// The configuration file, `.srl/config.toml`.
     pub fn config_file(&self) -> PathBuf {
-        self.root.join(CONFIG_FILE)
-    }
-
-    /// The folder of drills that belong to this store. It may not exist.
-    pub fn drills_dir(&self) -> PathBuf {
-        self.root.join(DRILLS)
-    }
-
-    /// The folder of sessions. It may not exist.
-    pub fn sessions_dir(&self) -> PathBuf {
-        self.root.join(SESSIONS)
-    }
-
-    /// The file of session `name`.
-    pub fn session_file(&self, name: &str) -> PathBuf {
-        self.sessions_dir().join(format!("{name}.jsonl"))
+        self.srl_dir().join(CONFIG_FILE)
     }
 
     /// The folder of the review log.
     pub fn log_dir(&self) -> PathBuf {
-        self.root.join(LOG)
+        self.srl_dir().join(LOG)
     }
 
     /// The folder of derived data, safe to delete.
     pub fn cache_dir(&self) -> PathBuf {
-        self.root.join(CACHE)
+        self.srl_dir().join(CACHE)
     }
 
-    /// The folder that holds the atom files.
-    pub fn atoms_dir(&self) -> PathBuf {
-        self.root.join(ATOMS)
-    }
-
-    /// Every atom file: each `.md` file under `atoms/`, at any depth, as a
-    /// path relative to `atoms/` with `/` between folders, as named on
-    /// disk. Sorted by their [NFC](nfc) form, so that the Unicode form a
-    /// file system gives names in never changes the order (see
-    /// `docs/store.md`, "File names").
-    pub fn atom_paths(&self) -> Result<Vec<String>> {
-        let dir = self.atoms_dir();
-        let mut paths = markdown_files(&dir, "")?;
+    /// Every note: each `.md` file under the store's folder, at any depth,
+    /// outside folders whose name starts with `.` and not matched by
+    /// `exclude`. Paths are relative to the store's folder, with `/`
+    /// between folders, as named on disk, and sorted by their [NFC](nfc)
+    /// form, so that the Unicode form a file system gives names in never
+    /// changes the order (see `docs/store.md`, "File names").
+    pub fn note_paths(&self, exclude: &GlobSet) -> Result<Vec<String>> {
+        let mut paths = markdown_files(&self.root, "")?;
+        paths.retain(|path| !exclude.is_match(nfc(path)));
         paths.sort_by_cached_key(|path| (nfc(path), path.clone()));
         Ok(paths)
     }
 
-    /// The file of an atom path from [`Store::atom_paths`], with the
-    /// platform's separator between folders.
-    pub fn atom_file(&self, path: &str) -> PathBuf {
+    /// The file of a note path, with the platform's separator between
+    /// folders.
+    pub fn note_file(&self, path: &str) -> PathBuf {
         path.split('/')
-            .fold(self.atoms_dir(), |file, part| file.join(part))
+            .fold(self.root.clone(), |file, part| file.join(part))
     }
 }
 
-/// The `.md` files under `dir`, whose path relative to `atoms/` is `prefix`.
+/// The `.md` files under `dir`, whose path relative to the store is
+/// `prefix`, skipping folders whose name starts with `.`.
 fn markdown_files(dir: &Path, prefix: &str) -> Result<Vec<String>> {
     let entries = fs::read_dir(dir).map_err(Error::io(dir))?;
     entries
@@ -208,7 +189,11 @@ fn markdown_files(dir: &Path, prefix: &str) -> Result<Vec<String>> {
                 .ok_or_else(|| Error::NonUtf8Path { path: path.clone() })?;
             let relative = format!("{prefix}{name}");
             if path.is_dir() {
-                markdown_files(&path, &format!("{relative}/"))
+                if name.starts_with('.') {
+                    Ok(Vec::new())
+                } else {
+                    markdown_files(&path, &format!("{relative}/"))
+                }
             } else if path.extension().is_some_and(|extension| extension == "md") && path.is_file()
             {
                 Ok(vec![relative])
@@ -227,10 +212,10 @@ pub(crate) fn nfc(text: &str) -> String {
     text.nfc().collect()
 }
 
-/// The nearest of `dir` and its parents that contains `srl.toml`.
+/// The nearest of `dir` and its parents that contains `.srl/`.
 fn marked_ancestor(dir: &Path) -> Option<PathBuf> {
     dir.ancestors()
-        .find(|candidate| candidate.join(CONFIG_FILE).is_file())
+        .find(|candidate| candidate.join(SRL).is_dir())
         .map(Path::to_path_buf)
 }
 
@@ -247,12 +232,20 @@ mod tests {
     fn tree() -> TempDir {
         let tmp = TempDir::new().unwrap();
         fs::create_dir_all(tmp.path().join("notes").join("japanese").join("grammar")).unwrap();
-        fs::write(tmp.path().join("notes").join(CONFIG_FILE), "").unwrap();
+        Store::init(&tmp.path().join("notes"), false).unwrap();
         tmp
     }
 
     fn root(lookup: &Lookup) -> PathBuf {
         Store::locate(lookup).unwrap().root().to_path_buf()
+    }
+
+    fn open(dir: &Path) -> Store {
+        Store::open(&Lookup {
+            dir: Some(dir.to_path_buf()),
+            ..Lookup::default()
+        })
+        .unwrap()
     }
 
     #[test]
@@ -279,7 +272,7 @@ mod tests {
     }
 
     #[test]
-    fn nearest_parent_with_config_is_found() {
+    fn nearest_parent_with_srl_folder_is_found() {
         let tmp = tree();
         let lookup = Lookup {
             cwd: tmp.path().join("notes").join("japanese").join("grammar"),
@@ -303,6 +296,7 @@ mod tests {
     #[test]
     fn open_refuses_a_directory_without_config() {
         let tmp = TempDir::new().unwrap();
+        fs::create_dir(tmp.path().join(".srl")).unwrap();
         let lookup = Lookup {
             dir: Some(tmp.path().to_path_buf()),
             ..Lookup::default()
@@ -335,11 +329,12 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("new");
         let created = Store::init(&root, false).unwrap();
-        assert_eq!(created.len(), 3);
-        assert!(root.join("atoms").is_dir());
-        assert!(root.join("log").is_dir());
+        assert_eq!(created.len(), 2);
+        assert!(root.join(".srl").join("config.toml").is_file());
+        assert!(root.join(".srl").join("log").is_dir());
+        fs::create_dir(root.join("sub")).unwrap();
         let lookup = Lookup {
-            cwd: root.join("atoms"),
+            cwd: root.join("sub"),
             ..Lookup::default()
         };
         assert_eq!(Store::open(&lookup).unwrap().root(), root);
@@ -357,7 +352,7 @@ mod tests {
     #[test]
     fn init_dry_run_writes_nothing() {
         let tmp = TempDir::new().unwrap();
-        assert_eq!(Store::init(tmp.path(), true).unwrap().len(), 3);
+        assert_eq!(Store::init(tmp.path(), true).unwrap().len(), 2);
         assert!(fs::read_dir(tmp.path()).unwrap().next().is_none());
     }
 
@@ -372,20 +367,43 @@ mod tests {
     }
 
     #[test]
-    fn atom_paths_sort_by_their_composed_form_and_stay_as_named() {
+    fn notes_skip_dot_folders_other_files_and_excluded_ones() {
         let tmp = TempDir::new().unwrap();
         Store::init(tmp.path(), false).unwrap();
-        let store = Store::open(&Lookup {
-            dir: Some(tmp.path().to_path_buf()),
-            ..Lookup::default()
-        })
-        .unwrap();
+        let store = open(tmp.path());
+        for path in [
+            "a.md",
+            "b.txt",
+            "sub/c.md",
+            ".obsidian/d.md",
+            "templates/e.md",
+            "sub/.git/f.md",
+        ] {
+            let file = store.note_file(path);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, "").unwrap();
+        }
+        let exclude = globset::GlobSetBuilder::new()
+            .add(globset::Glob::new("templates/**").unwrap())
+            .build()
+            .unwrap();
+        assert_eq!(store.note_paths(&exclude).unwrap(), ["a.md", "sub/c.md"]);
+    }
+
+    #[test]
+    fn note_paths_sort_by_their_composed_form_and_stay_as_named() {
+        let tmp = TempDir::new().unwrap();
+        Store::init(tmp.path(), false).unwrap();
+        let store = open(tmp.path());
         // "é" decomposed, as macOS often names files: by bytes it sorts
         // before "f", composed it sorts after.
         let decomposed = "e\u{301}.md";
         for name in ["ea.md", "f.md", decomposed] {
-            fs::write(store.atoms_dir().join(name), "").unwrap();
+            fs::write(store.note_file(name), "").unwrap();
         }
-        assert_eq!(store.atom_paths().unwrap(), ["ea.md", "f.md", decomposed]);
+        assert_eq!(
+            store.note_paths(&GlobSet::empty()).unwrap(),
+            ["ea.md", "f.md", decomposed]
+        );
     }
 }

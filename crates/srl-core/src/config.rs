@@ -1,21 +1,59 @@
-//! The configuration in `srl.toml` (see `docs/store.md`, "Configuration").
+//! The configuration in `.srl/config.toml` (see `docs/store.md`,
+//! "Configuration").
 
 use std::fs;
-use std::time::Duration;
 
+use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use jiff::civil::{Date, DateTime};
 use serde::Deserialize;
 
-use crate::{Error, Result, Store};
+use crate::store::nfc;
+use crate::{ContextMode, Error, Result, Store};
 
-/// Every setting of `srl.toml`. A key the file leaves out has its default;
-/// a key the file has but `srl` doesn't know is an error, so that a typo
-/// never goes unnoticed.
+/// Every setting of `config.toml`. A key the file leaves out has its
+/// default; a key the file has but `srl` doesn't know is an error, so that
+/// a typo never goes unnoticed.
 #[derive(Debug, Clone, PartialEq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
+    pub notes: Notes,
     pub schedule: Schedule,
-    pub drills: Drills,
+    pub study: Study,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Notes {
+    /// Globs of notes to ignore, relative to the store's folder.
+    pub exclude: Vec<String>,
+}
+
+impl Notes {
+    /// The `exclude` globs, compiled. They were checked when the
+    /// configuration was read.
+    pub fn exclude_set(&self) -> GlobSet {
+        globs(&self.exclude).expect("the exclude globs should have been checked when read")
+    }
+}
+
+/// Globs where `*` stops at `/` and `**` crosses it. Patterns are compared
+/// in NFC (see `docs/store.md`, "File names"). Errors are plain reasons.
+pub(crate) fn globs(patterns: &[impl AsRef<str>]) -> std::result::Result<GlobSet, String> {
+    patterns
+        .iter()
+        .map(|pattern| {
+            let pattern = pattern.as_ref();
+            GlobBuilder::new(&nfc(pattern))
+                .literal_separator(true)
+                .build()
+                .map_err(|error| format!("`{pattern}` is not a valid glob ({error})"))
+        })
+        .try_fold(GlobSetBuilder::new(), |mut set, glob| {
+            set.add(glob?);
+            Ok::<_, String>(set)
+        })?
+        .build()
+        .map_err(|error| format!("the globs are not valid ({error})"))
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -57,36 +95,22 @@ impl Schedule {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Drills {
-    pub timeout_seconds: u64,
-}
-
-impl Default for Drills {
-    fn default() -> Self {
-        Self {
-            timeout_seconds: 10,
-        }
-    }
-}
-
-impl Drills {
-    /// How long a drill may run before it counts as failed.
-    pub fn timeout(&self) -> Duration {
-        Duration::from_secs(self.timeout_seconds)
-    }
+pub struct Study {
+    /// How context is shown (see `docs/notes.md`, "Context").
+    pub context: ContextMode,
 }
 
 impl Config {
-    /// Reads the store's `srl.toml`.
+    /// Reads the store's `config.toml`.
     pub fn load(store: &Store) -> Result<Self> {
         let file = store.config_file();
         let text = fs::read_to_string(&file).map_err(Error::io(&file))?;
         Self::parse(&text).map_err(|reason| Error::InvalidConfig { file, reason })
     }
 
-    /// Parses the text of `srl.toml`. Errors are plain reasons.
+    /// Parses the text of `config.toml`. Errors are plain reasons.
     fn parse(text: &str) -> std::result::Result<Self, String> {
         let config = toml::from_str::<Self>(text).map_err(|error| error.message().to_owned())?;
         let schedule = &config.schedule;
@@ -96,9 +120,7 @@ impl Config {
         if schedule.day_starts_at > 23 {
             return Err("`schedule.day_starts_at` must be an hour from 0 to 23".to_owned());
         }
-        if config.drills.timeout_seconds == 0 {
-            return Err("`drills.timeout_seconds` must be at least 1".to_owned());
-        }
+        globs(&config.notes.exclude).map_err(|reason| format!("`notes.exclude`: {reason}"))?;
         Ok(config)
     }
 }
@@ -117,9 +139,13 @@ mod tests {
 
     #[test]
     fn given_keys_replace_defaults() {
-        let config = Config::parse("[drills]\ntimeout_seconds = 3\n").unwrap();
-        assert_eq!(config.drills.timeout_seconds, 3);
+        let config =
+            Config::parse("[notes]\nexclude = [\"templates/**\"]\n[study]\ncontext = \"full\"\n")
+                .unwrap();
+        assert_eq!(config.notes.exclude, ["templates/**"]);
+        assert_eq!(config.study.context, ContextMode::Full);
         assert_eq!(config.schedule, Schedule::default());
+        assert!(config.notes.exclude_set().is_match("templates/a/b.md"));
     }
 
     #[test]
@@ -137,12 +163,13 @@ mod tests {
     #[test]
     fn unknown_keys_and_bad_values_are_errors() {
         for text in [
-            "[drills]\ntimeout = 3\n",
+            "[drills]\ntimeout_seconds = 3\n",
             "[shedule]\n",
             "[schedule]\nday_starts_at = 24\n",
             "[schedule]\ndesired_retention = 1.5\n",
-            "[drills]\ntimeout_seconds = 0\n",
             "[schedule]\nnew_per_day = \"ten\"\n",
+            "[study]\ncontext = \"some\"\n",
+            "[notes]\nexclude = [\"[\"]\n",
             "not toml",
         ] {
             assert!(Config::parse(text).is_err(), "accepted:\n{text}");

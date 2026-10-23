@@ -13,12 +13,13 @@ pub enum Error {
     NoStore { cwd: PathBuf },
 
     #[error(
-        "{root} is not a store (it has no srl.toml); create one with `srl init` or choose another with --dir or SRL_DIR"
+        "{root} is not a store (it has no .srl/config.toml); create one with `srl init` or \
+         choose another with --dir or SRL_DIR"
     )]
     NotAStore { root: PathBuf },
 
     #[error(
-        "{root} is already a store (it has srl.toml); use it as it is, or choose another directory"
+        "{root} is already a store (it has .srl/); use it as it is, or choose another directory"
     )]
     StoreExists { root: PathBuf },
 
@@ -33,97 +34,66 @@ pub enum Error {
     #[error("the file name {path} is not valid UTF-8; rename it")]
     NonUtf8Path { path: PathBuf },
 
-    #[error("`{text}` is not an atom ID; IDs are six characters a-z and 0-9")]
-    InvalidId { text: String },
-
-    #[error("skipped atoms/{path}: {reason}; fix the file")]
-    InvalidAtom { path: String, reason: String },
-
-    #[error("skipped atoms/{path}: it has no `id`; run `srl check --fix` to assign one")]
-    MissingId { path: String },
+    #[error("`{text}` is not an item ID; item IDs are 1 to 32 characters a-z and 0-9")]
+    InvalidItemId { text: String },
 
     #[error(
-        "skipped atoms/{path}: its ID {id} is already used by atoms/{first}; \
-         give one of them a new ID by deleting its `id` line and running `srl check --fix`"
+        "`{text}` is not a card ID; a card ID is an item ID, optionally followed by `-` and \
+         a suffix of a-z and 0-9 (x7k2m9, k3m9q1-2)"
     )]
-    DuplicateId {
-        id: crate::Id,
+    InvalidCardId { text: String },
+
+    #[error("{path}:{line}: {reason}")]
+    Note {
         path: String,
-        first: String,
+        line: usize,
+        reason: String,
     },
 
-    #[error("no atom has the ID {id}; list atoms with `srl find`")]
-    UnknownId { id: crate::Id },
+    #[error("{path}:{line}: this item has no ID; run `srl id` to give it one")]
+    MissingId { path: String, line: usize },
+
+    #[error(
+        "{count} problem(s) in the notes, listed above; fix them first, since srl reads every \
+         item strictly"
+    )]
+    NotesInvalid { count: usize },
+
+    #[error("no item or card has the ID {id}; list cards with `srl find`")]
+    UnknownId { id: String },
+
+    #[error("there is no card {id}; reviews are about one card (list them with `srl cards`)")]
+    UnknownCard { id: String },
 
     #[error("invalid selector term `{term}`: {reason}")]
     BadSelector { term: String, reason: String },
 
-    #[error("cannot add the atom: {reason}")]
-    InvalidNewAtom { reason: String },
-
     #[error(
-        "cannot add the atom: the folder {} and the folder of its first tag are so long that no \
-         file name fits within {limit} characters, the most Windows allows; move the store to \
-         a shorter path, or give the atom a shorter first tag",
-        dir.display()
-    )]
-    PathTooLong { dir: PathBuf, limit: usize },
-
-    #[error(
-        "the full path of atoms/{path} is longer than {limit} characters, the most Windows \
-         allows without long paths; give it a shorter name, or move the store to a shorter path"
+        "the full path of {path} is longer than {limit} characters, the most Windows allows \
+         without long paths; give it a shorter name, or move the store to a shorter path"
     )]
     PathOverLimit { path: String, limit: usize },
 
-    #[error("line {line} of standard input is not a valid atom: {reason}; nothing was added")]
+    #[error("line {line} of standard input is not a valid item: {reason}; nothing was added")]
     InvalidLine { line: usize, reason: String },
+
+    #[error("cannot add to {path}: {reason}; nothing was added")]
+    InvalidNotePath { path: String, reason: String },
+
+    #[error("standard input is not one item with the ID {id}: {reason}; nothing was changed")]
+    InvalidEdit { id: String, reason: String },
+
+    #[error(
+        "{path} changed while srl was working on it, so it was not written; run the command \
+         again"
+    )]
+    ChangedMeanwhile { path: String },
+
+    #[error("cannot change {path}: {reason}; it was left as it was")]
+    CannotWrite { path: String, reason: String },
 
     #[error("{} is not a valid configuration: {reason}; fix it (see docs/store.md)", file.display())]
     InvalidConfig { file: PathBuf, reason: String },
-
-    #[error("cannot look for drills in {}: {reason}", folder.display())]
-    DrillSearch { folder: PathBuf, reason: String },
-
-    #[error("`srl-drill-{drill} --help` failed: {reason}; fix the drill program")]
-    DrillHelp { drill: String, reason: String },
-
-    #[error(
-        "drill `{drill}` failed for atom {id}: {reason}; its cards were skipped \
-         (fix the facet, or the drill program)"
-    )]
-    DrillFailed {
-        drill: String,
-        id: crate::Id,
-        reason: String,
-    },
-
-    #[error("drill `{drill}` wrote an invalid card for atom {id}: {reason}; the card was dropped")]
-    InvalidCard {
-        drill: String,
-        id: crate::Id,
-        reason: String,
-    },
-
-    #[error(
-        "atom {id} has the facet `{facet}`, but there is no drill `{facet}`; \
-         install srl-drill-{facet} or remove the facet (`srl drills` lists the drills)"
-    )]
-    NoDrill { id: crate::Id, facet: String },
-
-    #[error(
-        "atom {id} has the facet `{facet}`, which can't have a drill: drill names are lowercase \
-         letters, digits, - and _; rename or remove the facet"
-    )]
-    NotADrillName { id: crate::Id, facet: String },
-
-    #[error("drill `{drill}` writes no cards for atom {id}; check the facet (see `srl drills`)")]
-    NoCards { drill: String, id: crate::Id },
-
-    #[error(
-        "atom {id} has no facets, so it has no cards and is never studied; \
-         add one, such as `cards:` (see `srl drills`)"
-    )]
-    NoFacets { id: crate::Id },
 
     #[error(
         "skipped line {line} of {}: {reason}; the log must not be edited by hand, \
@@ -153,7 +123,17 @@ pub enum Error {
     #[error("the review on standard input is not valid: {reason}; nothing was recorded")]
     InvalidReview { reason: String },
 
-    #[error("cannot schedule with FSRS: {reason}; check `[schedule]` in srl.toml")]
+    #[error("cannot move the history of {from} to {to}: {reason}; nothing was recorded")]
+    CannotMove {
+        from: String,
+        to: String,
+        reason: String,
+    },
+
+    #[error("{id} has reviews but no card; {suggestion}")]
+    Orphan { id: String, suggestion: String },
+
+    #[error("cannot schedule with FSRS: {reason}; check `[schedule]` in .srl/config.toml")]
     Fsrs { reason: String },
 
     #[error(
@@ -164,48 +144,16 @@ pub enum Error {
 
     #[error(
         "cannot use the index cache {}: {reason}; reading the files directly instead, which is slower \
-         (check that you may write to the store's .cache folder, or delete it)",
+         (check that you may write to the store's .srl/cache folder, or delete it)",
         path.display()
     )]
     CacheUnusable { path: PathBuf, reason: String },
 
     #[error(
-        "cannot build the index cache {}: {reason}; check that you may write to the store's .cache folder",
+        "cannot build the index cache {}: {reason}; check that you may write to the store's .srl/cache folder",
         path.display()
     )]
     Reindex { path: PathBuf, reason: String },
-
-    #[error("there is no drill `{name}`; `srl drills` lists the drills")]
-    UnknownDrill { name: String },
-
-    #[error(
-        "`{name}` can't name a session: use lowercase letters, digits, - and _ (as in n1-food)"
-    )]
-    InvalidSessionName { name: String },
-
-    #[error("line {line} of standard input is not a valid card: {reason}; nothing was saved")]
-    InvalidSessionLine { line: usize, reason: String },
-
-    #[error("there are no cards for session `{name}` on standard input; nothing was saved")]
-    EmptySession { name: String },
-
-    #[error("there is no session `{name}`; `srl session list` lists the sessions")]
-    UnknownSession { name: String },
-
-    #[error(
-        "skipped line {line} of session `{name}`: {reason}; save the session again with `srl session put`"
-    )]
-    InvalidSessionCard {
-        name: String,
-        line: usize,
-        reason: String,
-    },
-
-    #[error("cannot change atoms/{path}: {reason}; nothing was changed")]
-    CannotEdit { path: String, reason: String },
-
-    #[error("the new text of atom {id} is not valid: {reason}; nothing was changed")]
-    InvalidEdit { id: crate::Id, reason: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -215,5 +163,10 @@ impl Error {
     pub(crate) fn io(path: impl Into<PathBuf>) -> impl FnOnce(std::io::Error) -> Self {
         let path = path.into();
         move |source| Self::Io { path, source }
+    }
+
+    /// Whether this is a problem in a note (see `docs/notes.md`, "Errors").
+    pub fn is_in_note(&self) -> bool {
+        matches!(self, Self::Note { .. } | Self::MissingId { .. })
     }
 }

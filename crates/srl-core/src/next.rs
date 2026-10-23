@@ -1,104 +1,91 @@
 //! Choosing the next card (see `docs/scheduling.md`, "Choosing the next
-//! card").
+//! card" and "Siblings").
 
-use std::time::Duration;
+use std::collections::HashMap;
 
-use jiff::civil::Date;
+use crate::{Card, CardId, Config, Item, ItemId, Memories, Notes, Selector, State, Status};
 
-use crate::{Atom, Atoms, Card, Config, Drills, Error, Memories, Result, Selector, State, Status};
-
-/// What `srl next` needs besides the atoms and their memories.
-#[derive(Debug, Clone, Copy)]
-pub struct NextOptions<'a> {
-    /// Only cards from this drill (`--drill NAME`).
-    pub drill: Option<&'a str>,
-    pub day: Date,
-    pub timeout: Duration,
-}
-
-/// The next card for the atoms that match `selector` (plus `status:active`),
-/// if there is one, and the problems met on the way (failing drills,
-/// invalid cards).
+/// The next card among those that match `selector` (plus
+/// `status:active`), if there is one.
 ///
-/// Due atoms come first, by due day and then ID; then new atoms, by path, if
-/// fewer than `new_per_day` atoms had their first review today. The first
-/// of those atoms that has any card gives the card its rotation picks.
-pub fn next(
-    atoms: &Atoms,
+/// Due cards come first, by due day and then card ID; then new cards, in
+/// the order they are written, if fewer than `new_per_day` cards had their
+/// first review today. The first of those that is its item's pick under the
+/// sibling rule is the one.
+pub fn next<'a>(
+    notes: &'a Notes,
     memories: &Memories,
-    drills: &Drills,
     selector: Selector,
     config: &Config,
-    options: NextOptions<'_>,
-) -> Result<(Option<Card>, Vec<Error>)> {
-    if let Some(name) = options.drill
-        && drills.get(name).is_none()
-    {
-        return Err(Error::UnknownDrill {
-            name: name.to_owned(),
-        });
-    }
+) -> Option<&'a Card> {
     let selector = selector.and_status(Status::Active);
-    let matching = atoms.select(&selector, Some(memories));
-    let mut due = matching
-        .iter()
-        .copied()
-        .filter(|atom| memories.state(atom.id()) == State::Due)
-        .collect::<Vec<_>>();
-    due.sort_by_key(|atom| (memories.get(atom.id()).due, atom.id().clone()));
     let limit = usize::try_from(config.schedule.new_per_day).expect("a u32 should fit in a usize");
-    let new = matching
+    let new_allowed = memories.new_today() < limit;
+    let eligible = selector
+        .select(notes.cards(), memories)
+        .into_iter()
+        .filter(|(_, card)| match memories.state(card.id()) {
+            State::Due => true,
+            State::New => new_allowed,
+            State::Young | State::Mature => false,
+        })
+        .collect::<Vec<_>>();
+    let picks = picks(&eligible, memories);
+    let is_pick = |item: &ItemId, card: &Card| picks.get(item) == Some(&card.id());
+    let mut due = eligible
         .iter()
-        .copied()
-        .filter(|atom| memories.state(atom.id()) == State::New)
-        .filter(|_| memories.new_today() < limit);
-    let mut problems = Vec::new();
-    for atom in due.into_iter().chain(new) {
-        let made = drills.cards_of(atom, atoms, options.day, options.timeout, options.drill);
-        let cards = made
-            .into_iter()
-            .flat_map(|made| {
-                problems.extend(made.problems);
-                made.cards
-            })
-            .collect::<Vec<_>>();
-        if let Some(card) = least_recently_used(atom, cards, memories) {
-            return Ok((Some(card), problems));
-        }
-    }
-    Ok((None, problems))
+        .filter(|(_, card)| memories.state(card.id()) == State::Due)
+        .collect::<Vec<_>>();
+    due.sort_by_key(|(_, card)| (memories.get(card.id()).due, card.id().clone()));
+    let new = eligible
+        .iter()
+        .filter(|(_, card)| memories.state(card.id()) == State::New);
+    due.into_iter()
+        .chain(new)
+        .find(|(item, card)| is_pick(item.id(), card))
+        .map(|(_, card)| *card)
 }
 
-/// The card of `atom` whose ref was used least recently, cards never used
-/// first; ties by drill name, then by ref.
-fn least_recently_used(atom: &Atom, cards: Vec<Card>, memories: &Memories) -> Option<Card> {
-    let memory = memories.get(atom.id());
-    cards.into_iter().min_by_key(|card| {
-        (
-            memory.last_used(card.reference()),
-            card.drill().to_owned(),
-            card.reference().to_owned(),
-        )
-    })
+/// The card each item offers today under the sibling rule: none if any of
+/// its cards was reviewed today, else its eligible card reviewed longest
+/// ago, never reviewed first, ties to the lowest card ID.
+fn picks<'a>(
+    eligible: &[(&'a Item, &'a Card)],
+    memories: &Memories,
+) -> HashMap<&'a ItemId, &'a CardId> {
+    let mut picks: HashMap<&ItemId, &CardId> = HashMap::new();
+    for (item, card) in eligible {
+        let reviewed_today = item
+            .cards()
+            .iter()
+            .any(|sibling| memories.reviewed_today(sibling.id()));
+        if reviewed_today {
+            continue;
+        }
+        let key = |id: &CardId| (memories.get(id).seen.map(|seen| seen.position), id.clone());
+        picks
+            .entry(item.id())
+            .and_modify(|pick| {
+                if key(card.id()) < key(pick) {
+                    *pick = card.id();
+                }
+            })
+            .or_insert(card.id());
+    }
+    picks
 }
 
 #[cfg(test)]
 mod tests {
-    use jiff::civil::date;
+    use jiff::civil::{Date, date};
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{By, CardUsed, Entry, Event, Id, Log, Lookup, Review, Search, Store};
+    use crate::{By, Entry, Event, Log, Lookup, Review, Store};
 
     const DAY: Date = Date::constant(2026, 10, 26);
 
-    struct Fixture {
-        _tmp: TempDir,
-        atoms: Atoms,
-        drills: Drills,
-    }
-
-    fn fixture(files: &[(&str, &str)]) -> Fixture {
+    fn notes(files: &[(&str, &str)]) -> (TempDir, Notes) {
         let tmp = TempDir::new().unwrap();
         Store::init(tmp.path(), false).unwrap();
         let store = Store::open(&Lookup {
@@ -107,27 +94,19 @@ mod tests {
         })
         .unwrap();
         for (path, text) in files {
-            std::fs::write(store.atom_file(path), text).unwrap();
+            std::fs::write(store.note_file(path), text).unwrap();
         }
-        let atoms = Atoms::load(&store).unwrap();
-        let drills = Drills::find(&store, &Search::default()).0;
-        Fixture {
-            _tmp: tmp,
-            atoms,
-            drills,
-        }
+        let notes = Notes::load(&store, &Config::default()).unwrap();
+        assert!(notes.problems().is_empty(), "{:?}", notes.problems());
+        (tmp, notes)
     }
 
-    fn reviewed(id: &str, day: Date, rating: u8, reference: &str) -> Entry {
+    fn reviewed(id: &str, day: Date, rating: u8) -> Entry {
         Entry {
             event: Event::Review(Review {
                 t: format!("{day}T12:00:00+00:00"),
-                atom: Id::parse(id).unwrap(),
+                card: CardId::parse(id).unwrap(),
                 rating,
-                card: Some(CardUsed {
-                    drill: reference.split(':').next().unwrap().to_owned(),
-                    reference: reference.to_owned(),
-                }),
                 response: None,
                 by: By::Human,
                 hash: String::new(),
@@ -137,101 +116,117 @@ mod tests {
     }
 
     fn next_card(
-        fixture: &Fixture,
+        notes: &Notes,
         entries: Vec<Entry>,
         config: &Config,
         selector: &str,
-        drill: Option<&str>,
-    ) -> Option<Card> {
+    ) -> Option<String> {
         let log = Log {
             entries,
             problems: Vec::new(),
         };
         let memories = Memories::replay(&log, config, DAY).unwrap();
-        let options = NextOptions {
-            drill,
-            day: DAY,
-            timeout: Duration::from_secs(10),
-        };
         let selector = Selector::parse(selector).unwrap();
-        let (card, problems) = next(
-            &fixture.atoms,
-            &memories,
-            &fixture.drills,
-            selector,
-            config,
-            options,
-        )
-        .unwrap();
-        assert!(problems.is_empty(), "{problems:?}");
-        card
+        next(notes, &memories, selector, config).map(|card| card.id().to_string())
     }
 
-    fn atoms() -> Fixture {
-        fixture(&[
+    fn store() -> (TempDir, Notes) {
+        notes(&[
             (
                 "a.md",
-                "---\nid: aaaaa1\ntitle: a\ncards: [{q: x, a: y}, {q: z, a: w}]\ncloze: ['{{x}}']\n---\n",
+                "<!-- srl id:aaa1 -->\nQ: {{c1::x}} {{c2::y}} {{c10::z}}\n\n<!-- srl id:aaa2 -->\nQ: b\nA: c\n",
             ),
-            (
-                "b.md",
-                "---\nid: aaaaa2\ntitle: b\ncards: [{q: b, a: c}]\n---\n",
-            ),
-            (
-                "c.md",
-                "---\nid: aaaaa3\ntitle: c\nstatus: draft\ncards: [{q: c, a: d}]\n---\n",
-            ),
-            ("d.md", "---\nid: aaaaa4\ntitle: d\n---\nNotes only.\n"),
+            ("b.md", "<!-- srl id:aaa3 draft -->\nQ: c\nA: d\n"),
         ])
     }
 
     #[test]
-    fn new_atoms_come_by_path_and_drafts_never() {
-        let fixture = atoms();
-        let card = next_card(&fixture, Vec::new(), &Config::default(), "", None).unwrap();
-        assert_eq!(card.atoms()[0].as_str(), "aaaaa1");
-        assert_eq!(card.reference(), "cards:0");
-        assert!(next_card(&fixture, Vec::new(), &Config::default(), "id:aaaaa3", None).is_none());
+    fn new_cards_come_in_written_order_and_drafts_never() {
+        let (_tmp, notes) = store();
+        assert_eq!(
+            next_card(&notes, Vec::new(), &Config::default(), "").as_deref(),
+            Some("aaa1-1")
+        );
+        assert_eq!(
+            next_card(&notes, Vec::new(), &Config::default(), "id:aaa3"),
+            None
+        );
     }
 
     #[test]
-    fn an_atom_without_facets_is_skipped() {
-        let fixture = atoms();
-        assert!(next_card(&fixture, Vec::new(), &Config::default(), "id:aaaaa4", None).is_none());
+    fn due_cards_come_before_new_ones() {
+        let (_tmp, notes) = store();
+        let entries = vec![reviewed("aaa2", date(2026, 10, 1), 3)];
+        assert_eq!(
+            next_card(&notes, entries, &Config::default(), "").as_deref(),
+            Some("aaa2")
+        );
     }
 
     #[test]
-    fn due_atoms_come_before_new_ones() {
-        let fixture = atoms();
-        let entries = vec![reviewed("aaaaa2", date(2026, 10, 1), 3, "cards:0")];
-        let card = next_card(&fixture, entries, &Config::default(), "", None).unwrap();
-        assert_eq!(card.atoms()[0].as_str(), "aaaaa2");
+    fn a_sibling_reviewed_today_holds_back_the_others() {
+        let (_tmp, notes) = store();
+        let entries = vec![reviewed("aaa1-1", DAY, 3)];
+        assert_eq!(
+            next_card(&notes, entries, &Config::default(), "").as_deref(),
+            Some("aaa2")
+        );
+        let entries = vec![reviewed("aaa1-1", DAY, 3)];
+        assert_eq!(
+            next_card(&notes, entries, &Config::default(), "id:aaa1"),
+            None
+        );
     }
 
     #[test]
-    fn an_atom_reviewed_today_is_not_next_again() {
-        let fixture = atoms();
-        let entries = vec![reviewed("aaaaa1", DAY, 3, "cards:0")];
-        let card = next_card(&fixture, entries, &Config::default(), "", None).unwrap();
-        assert_eq!(card.atoms()[0].as_str(), "aaaaa2");
-    }
-
-    #[test]
-    fn the_least_recently_used_card_comes_next() {
-        let fixture = atoms();
+    fn new_siblings_come_one_a_day_in_id_order() {
+        let (_tmp, notes) = store();
+        let entries = vec![reviewed("aaa1-1", date(2026, 10, 25), 3)];
+        assert_eq!(
+            next_card(&notes, entries, &Config::default(), "id:aaa1").as_deref(),
+            Some("aaa1-2")
+        );
         let entries = vec![
-            reviewed("aaaaa1", date(2026, 9, 1), 3, "cards:0"),
-            reviewed("aaaaa1", date(2026, 9, 10), 3, "cloze:0:1"),
-            reviewed("aaaaa1", date(2026, 9, 20), 3, "cards:1"),
-            reviewed("aaaaa1", date(2026, 10, 1), 1, "cards:0"),
+            reviewed("aaa1-1", date(2026, 10, 24), 3),
+            reviewed("aaa1-2", date(2026, 10, 25), 3),
         ];
-        let card = next_card(&fixture, entries, &Config::default(), "id:aaaaa1", None).unwrap();
-        assert_eq!(card.reference(), "cloze:0:1");
+        assert_eq!(
+            next_card(&notes, entries, &Config::default(), "id:aaa1").as_deref(),
+            Some("aaa1-10")
+        );
     }
 
     #[test]
-    fn the_new_atom_limit_stops_new_atoms() {
-        let fixture = atoms();
+    fn the_sibling_reviewed_longest_ago_goes_first_so_none_starves() {
+        let (_tmp, notes) = store();
+        // All three are due; -2 was reviewed longest ago, then -10, then -1.
+        let entries = vec![
+            reviewed("aaa1-2", date(2026, 9, 1), 1),
+            reviewed("aaa1-10", date(2026, 9, 2), 1),
+            reviewed("aaa1-1", date(2026, 9, 3), 1),
+        ];
+        assert_eq!(
+            next_card(&notes, entries, &Config::default(), "id:aaa1").as_deref(),
+            Some("aaa1-2")
+        );
+    }
+
+    #[test]
+    fn a_new_sibling_goes_before_a_due_one() {
+        let (_tmp, notes) = store();
+        let entries = vec![
+            reviewed("aaa1-1", date(2026, 9, 1), 1),
+            reviewed("aaa1-2", date(2026, 9, 2), 1),
+        ];
+        assert_eq!(
+            next_card(&notes, entries, &Config::default(), "id:aaa1").as_deref(),
+            Some("aaa1-10")
+        );
+    }
+
+    #[test]
+    fn the_new_card_limit_stops_new_cards() {
+        let (_tmp, notes) = store();
         let config = Config {
             schedule: crate::config::Schedule {
                 new_per_day: 1,
@@ -239,24 +234,7 @@ mod tests {
             },
             ..Config::default()
         };
-        let entries = vec![reviewed("aaaaa1", DAY, 3, "cards:0")];
-        assert!(next_card(&fixture, entries, &config, "", None).is_none());
-    }
-
-    #[test]
-    fn drill_restricts_the_pool_and_skips_atoms_without_its_cards() {
-        let fixture = atoms();
-        let card = next_card(&fixture, Vec::new(), &Config::default(), "", Some("cloze")).unwrap();
-        assert_eq!(card.reference(), "cloze:0:1");
-        assert!(
-            next_card(
-                &fixture,
-                Vec::new(),
-                &Config::default(),
-                "id:aaaaa2",
-                Some("cloze")
-            )
-            .is_none()
-        );
+        let entries = vec![reviewed("aaa2", DAY, 3)];
+        assert_eq!(next_card(&notes, entries, &config, ""), None);
     }
 }

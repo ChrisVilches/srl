@@ -222,9 +222,11 @@ editor, which is you changing it). The rules for writing:
    next to the note, then renamed over it, so a note is never left half
    written. If the rename fails, the note is left as it was and the error
    is reported.
-5. **Every change is printed**, one line each: the item ID, the note's path
-   and the line, separated by two spaces. `--dry-run` prints the same lines
-   and writes nothing.
+5. **Every change is reported.** `srl id` prints one line per item it gave
+   an ID: the ID and `PATH:LINE`, separated by two spaces. `srl accept` and
+   `srl add` print the IDs of the items they changed or added (see
+   [cli.md](cli.md)). With `--dry-run` they write nothing, and print the
+   same (`srl add`: the items it would write).
 
 `srl add` and its format are described in [cli.md](cli.md).
 

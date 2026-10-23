@@ -8,12 +8,10 @@
 
 use std::env;
 use std::io::{self, BufRead, IsTerminal, Write};
+use std::path::Path;
 
 use anyhow::{Context, bail};
-use srl_core::{
-    Atoms, By, Card, Config, Drills, Id, Index, Memories, NextOptions, ReviewRequest, Selector,
-    State, Status, Store,
-};
+use srl_core::{By, Card, Config, Index, Item, Notes, ReviewRequest, Selector, State, Store};
 
 use crate::{Outcome, commands, editor, output};
 
@@ -41,40 +39,9 @@ enum Step {
     Quit,
 }
 
-/// Where the cards of a study session come from.
-pub(crate) enum Cards<'a> {
-    /// `srl next`'s choice, card after card: due atoms, then new ones.
-    Scheduled {
-        selector: &'a Selector,
-        drill: Option<&'a str>,
-    },
-    /// A prepared session, in file order, each card once.
-    Prepared(std::vec::IntoIter<Card>),
-}
-
-/// `srl study [SELECTOR] [--drill NAME]`: refuses without a terminal, then
-/// studies until nothing is left or you quit.
-pub(crate) fn run(store: &Store, terms: &[String], drill: Option<&str>) -> anyhow::Result<Outcome> {
-    let selector = Selector::parse(&terms.join(" "))?;
-    in_terminal(
-        store,
-        Cards::Scheduled {
-            selector: &selector,
-            drill,
-        },
-    )
-}
-
-/// `srl study --session NAME`: the cards of the session, in file order. A
-/// card that is no longer valid is reported and skipped.
-pub(crate) fn run_session(store: &Store, name: &str) -> anyhow::Result<Outcome> {
-    let atoms = Atoms::load(store)?;
-    let (cards, problems) = srl_core::load_session(store, &atoms, name)?;
-    problems.iter().for_each(output::problem);
-    in_terminal(store, Cards::Prepared(cards.into_iter()))
-}
-
-fn in_terminal(store: &Store, cards: Cards<'_>) -> anyhow::Result<Outcome> {
+/// `srl study [SELECTOR]`: refuses without a terminal, then studies until
+/// nothing is left or you quit.
+pub(crate) fn run(store: &Store, selector: &Selector) -> anyhow::Result<Outcome> {
     if !io::stdin().is_terminal() {
         bail!(
             "`srl study` needs a terminal; in scripts and pipes, use `srl next` and `srl review`"
@@ -83,10 +50,10 @@ fn in_terminal(store: &Store, cards: Cards<'_>) -> anyhow::Result<Outcome> {
     let color = io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none() && colors_work();
     let mut input = io::stdin().lock();
     let mut out = io::stdout().lock();
-    let mut edit = |atoms: &Atoms, id: &Id| editor::edit(store, atoms, id).map(|_| ());
+    let mut edit = |file: &Path| editor::open(file);
     study(
         store,
-        cards,
+        selector,
         &mut Io {
             input: &mut input,
             out: &mut out,
@@ -135,75 +102,57 @@ pub(crate) struct Io<'a> {
 /// What the loop needs for every card.
 struct Session<'a, 'b> {
     store: &'a Store,
-    index: &'a mut Index,
+    config: Config,
     io: &'a mut Io<'b>,
-    edit: &'a mut dyn FnMut(&Atoms, &Id) -> anyhow::Result<()>,
+    edit: &'a mut dyn FnMut(&Path) -> anyhow::Result<()>,
 }
 
-/// Studies `cards` until there are no more or you quit, then prints a
-/// summary. Atoms and the log are read again before every card, so edits
-/// and other frontends' reviews count at once.
+/// Studies the cards `srl next` gives for `selector` until there are no
+/// more or you quit, then prints a summary. Notes and the log are read
+/// again before every card, so edits and other frontends' reviews count at
+/// once.
 pub(crate) fn study(
     store: &Store,
-    mut cards: Cards<'_>,
+    selector: &Selector,
     io: &mut Io<'_>,
-    edit: &mut dyn FnMut(&Atoms, &Id) -> anyhow::Result<()>,
+    edit: &mut dyn FnMut(&Path) -> anyhow::Result<()>,
 ) -> anyhow::Result<Summary> {
-    let config = Config::load(store)?;
-    let search = commands::search()?;
-    let (drills, problems) = Drills::find(store, &search);
-    problems.iter().for_each(output::problem);
     let mut index = Index::open(store);
     let mut session = Session {
         store,
-        index: &mut index,
+        config: Config::load(store)?,
         io,
         edit,
     };
     let mut summary = Summary::default();
     let mut first = true;
     loop {
-        let atoms = session.atoms()?;
-        let memories = session.index.memories(&config);
-        commands::report_cache(session.index);
+        let notes = commands::strict(Notes::load(store, &session.config)?)?;
+        let now = commands::now()?;
+        let memories = index.memories(&session.config);
+        commands::report_cache(&mut index);
         let (memories, log_problems) = memories?;
         if first {
             // Later rounds read the same files; their problems were
             // reported once already.
-            atoms.problems.iter().for_each(output::problem);
             log_problems.iter().for_each(output::problem);
             first = false;
         }
-        let today = config.schedule.study_day(commands::now()?.datetime());
-        let memories = Memories::new(memories, &config, today);
-        let card = match &mut cards {
-            Cards::Scheduled { selector, drill } => {
-                let options = NextOptions {
-                    drill: *drill,
-                    day: today,
-                    timeout: config.drills.timeout(),
-                };
-                let (card, problems) = srl_core::next(
-                    &atoms,
-                    &memories,
-                    &drills,
-                    Selector::clone(selector),
-                    &config,
-                    options,
-                )?;
-                problems.iter().for_each(output::problem);
-                card
-            }
-            Cards::Prepared(list) => list.next(),
-        };
-        let Some(card) = card else {
+        let today = session.config.schedule.study_day(now.datetime());
+        let memories = srl_core::Memories::new(memories, &session.config, today);
+        let Some(card) = srl_core::next(
+            &notes,
+            &memories,
+            Selector::clone(selector),
+            &session.config,
+        ) else {
             break;
         };
-        let was_new = card
-            .atoms()
-            .first()
-            .is_some_and(|id| memories.state(id) == State::New);
-        match session.card(&atoms, card)? {
+        let item = notes
+            .item(card.id().item())
+            .context("a card's item should be in the notes")?;
+        let was_new = memories.state(card.id()) == State::New;
+        match session.card(item, card, &memories)? {
             Step::Rated { rating } => {
                 summary = Summary {
                     reviews: summary.reviews + 1,
@@ -219,7 +168,7 @@ pub(crate) fn study(
         session.io.out,
         "\n{} reviewed, {} new, {} Again.",
         plural(summary.reviews, "card"),
-        plural(summary.new, "atom"),
+        summary.new,
         summary.again
     )?;
     Ok(summary)
@@ -234,29 +183,26 @@ fn plural(count: usize, noun: &str) -> String {
 }
 
 impl Session<'_, '_> {
-    /// Every atom, through the index cache. Problems with the cache are
-    /// reported; those of the files are left to the caller.
-    fn atoms(&mut self) -> anyhow::Result<Atoms> {
-        let atoms = self.index.atoms();
-        commands::report_cache(self.index);
-        Ok(atoms?)
-    }
-
-    /// Shows one card's prompt, then its answer and the body of its atoms,
+    /// Shows one card's prompt, then its answer and the item's context,
     /// takes your rating, and records it.
-    fn card(&mut self, atoms: &Atoms, card: Card) -> anyhow::Result<Step> {
+    fn card(
+        &mut self,
+        item: &Item,
+        card: &Card,
+        memories: &srl_core::Memories,
+    ) -> anyhow::Result<Step> {
         let prompt = self.render(card.prompt());
         writeln!(self.io.out, "\n{prompt}")?;
         let line = self.read("(Enter to show the answer, q to quit) ")?;
         if matches!(line.as_deref().map(str::trim), None | Some("q")) {
             return Ok(Step::Quit);
         }
-        self.reveal(atoms, &card)?;
-        let id = card
-            .atoms()
-            .first()
-            .context("a card should have at least one atom")?
-            .clone();
+        let answer = self.render(card.answer());
+        writeln!(self.io.out, "---\n{answer}")?;
+        if let Some(context) = srl_core::context(self.store, item, self.config.study.context)? {
+            let context = self.render(context.trim_end());
+            writeln!(self.io.out, "---\n{context}")?;
+        }
         loop {
             let Some(line) = self.read("Rating 1-4, e edit, s suspend, q quit: ")? else {
                 return Ok(Step::Quit);
@@ -268,23 +214,19 @@ impl Session<'_, '_> {
                 "4" => 4,
                 "q" => return Ok(Step::Quit),
                 "s" => {
-                    let atoms = self.atoms()?;
-                    let atom = atoms
-                        .get(&id)
-                        .with_context(|| format!("atom {id} is gone from the store"))?;
-                    srl_core::change_status(
+                    srl_core::suspend(
                         self.store,
-                        &[atom],
-                        Status::Active,
-                        Status::Suspended,
+                        &[(item, card)],
+                        memories,
+                        true,
+                        &commands::now()?,
                         false,
                     )?;
-                    writeln!(self.io.out, "Suspended {id}.")?;
+                    writeln!(self.io.out, "Suspended {}.", card.id())?;
                     return Ok(Step::Suspended);
                 }
                 "e" => {
-                    let atoms = self.atoms()?;
-                    if let Err(error) = (self.edit)(&atoms, &id) {
+                    if let Err(error) = (self.edit)(&self.store.note_file(item.path())) {
                         output::error(&error);
                     }
                     continue;
@@ -294,31 +236,18 @@ impl Session<'_, '_> {
                     continue;
                 }
             };
-            // Read the atoms again: an edit changes the file the review's
+            // Read the notes again: an edit changes the item the review's
             // hash is taken from.
-            let atoms = self.atoms()?;
-            let request = ReviewRequest::new(card, rating, None, By::Human)?;
-            srl_core::review(self.store, &atoms, &request, &commands::now()?, false)?;
+            let notes = commands::strict(Notes::load(self.store, &self.config)?)?;
+            let request = ReviewRequest {
+                card: card.id().clone(),
+                rating,
+                response: None,
+                by: By::Human,
+            };
+            srl_core::review(self.store, &notes, &[request], &commands::now()?, false)?;
             return Ok(Step::Rated { rating });
         }
-    }
-
-    /// Shows the card's answer, then the body of each of its atoms that has
-    /// one.
-    fn reveal(&mut self, atoms: &Atoms, card: &Card) -> anyhow::Result<()> {
-        let answer = self.render(card.answer());
-        writeln!(self.io.out, "---\n{answer}")?;
-        for id in card.atoms() {
-            let atom = atoms
-                .get(id)
-                .with_context(|| format!("atom {id} is gone from the store"))?;
-            let body = atom.content().body().trim_end();
-            if !body.trim().is_empty() {
-                let body = self.render(body);
-                writeln!(self.io.out, "\n{body}")?;
-            }
-        }
-        Ok(())
     }
 
     /// Asks `question` and reads one line, without its line ending. `None`
@@ -359,6 +288,7 @@ fn render(text: &str, color: bool) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::io::Cursor;
 
     use srl_core::{Event, Lookup};
@@ -366,7 +296,7 @@ mod tests {
 
     use super::*;
 
-    fn store(lines: &[&str]) -> (TempDir, Store) {
+    fn store(notes: &[(&str, &str)]) -> (TempDir, Store) {
         let tmp = TempDir::new().unwrap();
         Store::init(tmp.path(), false).unwrap();
         let store = Store::open(&Lookup {
@@ -374,44 +304,27 @@ mod tests {
             ..Lookup::default()
         })
         .unwrap();
-        let contents = srl_core::Content::from_json_lines(&lines.join("\n")).unwrap();
-        let atoms = Atoms::load(&store).unwrap();
-        srl_core::add(&store, &atoms, contents, false, 0, false).unwrap();
+        for (path, text) in notes {
+            fs::write(store.note_file(path), text).unwrap();
+        }
         (tmp, store)
     }
 
-    /// Studies the scheduled cards for `selector` with `typed` as the input;
-    /// returns the summary, what was written, and how many times the editor
-    /// was opened.
-    fn run(
-        store: &Store,
-        selector: &str,
-        drill: Option<&str>,
-        typed: &str,
-    ) -> (Summary, String, usize) {
+    /// Studies the cards for `selector` with `typed` as the input; returns
+    /// the summary, what was written, and how many times the editor was
+    /// opened.
+    fn run(store: &Store, selector: &str, typed: &str) -> (Summary, String, usize) {
         let selector = Selector::parse(selector).unwrap();
-        drive(
-            store,
-            Cards::Scheduled {
-                selector: &selector,
-                drill,
-            },
-            typed,
-        )
-    }
-
-    /// Studies `cards` with `typed` as the input, as [`run`] does.
-    fn drive(store: &Store, cards: Cards<'_>, typed: &str) -> (Summary, String, usize) {
         let mut input = Cursor::new(typed.as_bytes().to_vec());
         let mut out = Vec::new();
         let mut edits = 0;
-        let mut edit = |_: &Atoms, _: &Id| {
+        let mut edit = |_: &Path| {
             edits += 1;
             Ok(())
         };
         let summary = study(
             store,
-            cards,
+            &selector,
             &mut Io {
                 input: &mut input,
                 out: &mut out,
@@ -429,11 +342,12 @@ mod tests {
     }
 
     #[test]
-    fn a_card_is_revealed_with_the_body_and_rated() {
-        let (_tmp, store) = store(&[
-            r#"{"title": "Fish", "cards": [{"q": "鮪", "a": "tuna"}], "body": "A fish."}"#,
-        ]);
-        let (summary, out, _) = run(&store, "", None, "\n3\n");
+    fn a_card_is_revealed_with_the_context_and_rated() {
+        let (_tmp, store) = store(&[(
+            "fish.md",
+            "A fish.\n\n<!-- srl id:aaa1 -->\nQ: 鮪\nA: tuna\n",
+        )]);
+        let (summary, out, _) = run(&store, "", "\n3\n");
         assert_eq!(
             summary,
             Summary {
@@ -443,12 +357,8 @@ mod tests {
             }
         );
         assert!(out.contains("\n鮪\n"), "{out}");
-        assert!(out.contains("---\ntuna\n"), "{out}");
-        assert!(out.contains("\nA fish."), "{out}");
-        assert!(
-            out.ends_with("1 card reviewed, 1 atom new, 0 Again.\n"),
-            "{out}"
-        );
+        assert!(out.contains("---\ntuna\n---\nA fish.\n"), "{out}");
+        assert!(out.ends_with("1 card reviewed, 1 new, 0 Again.\n"), "{out}");
         let Event::Review(review) = &events(&store)[0] else {
             panic!("expected a review");
         };
@@ -456,94 +366,54 @@ mod tests {
     }
 
     #[test]
-    fn a_cloze_card_shows_its_blanks_then_the_sentence() {
-        let (_tmp, store) = store(&[r#"{"title": "鮪", "cloze": ["{{鮪}}は魚です。"]}"#]);
-        let (summary, out, _) = run(&store, "", Some("cloze"), "\n1\n");
-        assert!(out.contains("\n==[1]==は魚です。\n"), "{out}");
-        assert!(out.contains("---\n==鮪==は魚です。\n"), "{out}");
+    fn a_cloze_card_shows_its_blank_then_the_sentence_and_no_context_when_there_is_none() {
+        let (_tmp, store) = store(&[("a.md", "<!-- srl id:aaa1 -->\nQ: {{c1::鮪}}は魚です。\n")]);
+        let (summary, out, _) = run(&store, "", "\n1\n");
+        assert!(out.contains("\n==[...]==は魚です。\n"), "{out}");
+        assert!(out.contains("---\n==鮪==は魚です。\nRating"), "{out}");
         assert_eq!(summary.again, 1);
     }
 
     #[test]
     fn enter_alone_at_the_rating_asks_again() {
-        let (_tmp, store) = store(&[r#"{"title": "x", "cards": [{"q": "q", "a": "a"}]}"#]);
-        let (summary, out, _) = run(&store, "", None, "\n\n2\n");
+        let (_tmp, store) = store(&[("a.md", "<!-- srl id:aaa1 -->\nQ: q\nA: a\n")]);
+        let (summary, out, _) = run(&store, "", "\n\n2\n");
         assert!(out.contains("Type 1, 2, 3 or 4, or e, s or q."), "{out}");
         assert_eq!(summary.reviews, 1);
     }
 
     #[test]
-    fn atoms_without_cards_are_not_studied() {
-        let (_tmp, store) = store(&[r#"{"title": "x", "body": "Notes only."}"#]);
-        let (summary, out, _) = run(&store, "", None, "");
-        assert_eq!(summary, Summary::default());
-        assert!(!out.contains("Notes only."), "{out}");
-    }
-
-    #[test]
     fn quitting_records_nothing() {
-        let (_tmp, store) = store(&[r#"{"title": "x", "cards": [{"q": "q", "a": "a"}]}"#]);
-        let (summary, _, _) = run(&store, "", None, "q\n");
+        let (_tmp, store) = store(&[("a.md", "<!-- srl id:aaa1 -->\nQ: q\nA: a\n")]);
+        let (summary, _, _) = run(&store, "", "q\n");
         assert_eq!(summary, Summary::default());
         assert!(events(&store).is_empty());
-        let (summary, _, _) = run(&store, "", None, "\n");
+        let (summary, _, _) = run(&store, "", "\n");
         assert_eq!(summary, Summary::default());
         assert!(events(&store).is_empty());
     }
 
     #[test]
     fn s_suspends_and_e_edits_before_rating() {
-        let (_tmp, store) = store(&[
-            r#"{"title": "x", "cards": [{"q": "q", "a": "a"}]}"#,
-            r#"{"title": "y", "cards": [{"q": "q", "a": "a"}]}"#,
-        ]);
-        let (summary, out, edits) = run(&store, "", None, "\ne\nwhat\ns\n\n4\n");
+        let (_tmp, store) = store(&[(
+            "a.md",
+            "<!-- srl id:aaa1 -->\nQ: q\nA: a\n\n<!-- srl id:aaa2 -->\nQ: r\nA: b\n",
+        )]);
+        let (summary, out, edits) = run(&store, "", "\ne\nwhat\ns\n\n4\n");
         assert_eq!(edits, 1);
         assert!(out.contains("Type 1, 2, 3 or 4, or e, s or q."), "{out}");
-        assert!(out.contains("Suspended"), "{out}");
+        assert!(out.contains("Suspended aaa1."), "{out}");
         assert_eq!(summary.reviews, 1);
-        let atoms = Atoms::load(&store).unwrap();
-        assert_eq!(atoms.atoms[0].content().status(), Status::Suspended);
-        assert!(matches!(&events(&store)[..], [Event::Review(review)] if review.rating == 4));
+        assert!(
+            matches!(&events(&store)[..], [Event::Suspend(_), Event::Review(review)] if review.rating == 4)
+        );
     }
 
     #[test]
-    fn a_session_shows_its_cards_in_order_whether_due_or_not() {
-        let (_tmp, store) = store(&[r#"{"title": "鮪"}"#, r#"{"title": "鯖"}"#]);
-        let atoms = Atoms::load(&store).unwrap();
-        let ids = atoms
-            .atoms
-            .iter()
-            .map(|atom| atom.id().to_string())
-            .collect::<Vec<_>>();
-        let card = |id: &str, prompt: &str| {
-            format!(
-                r#"{{"atoms": ["{id}"], "drill": "agent", "ref": "agent:{prompt}", "prompt": "{prompt}", "answer": "a"}}"#
-            )
-        };
-        // The second atom first, and the first one twice.
-        let text = [
-            card(&ids[1], "one"),
-            card(&ids[0], "two"),
-            card(&ids[0], "three"),
-        ]
-        .join("\n");
-        srl_core::put_session(&store, &atoms, "mixed", &text, false).unwrap();
-        let (cards, problems) = srl_core::load_session(&store, &atoms, "mixed").unwrap();
-        assert!(problems.is_empty());
-        let (summary, out, _) = drive(
-            &store,
-            Cards::Prepared(cards.into_iter()),
-            "\n3\n\n3\n\n1\n",
-        );
-        let one = out.find("\none\n").unwrap();
-        let two = out.find("\ntwo\n").unwrap();
-        let three = out.find("\nthree\n").unwrap();
-        assert!(one < two && two < three, "{out}");
-        assert_eq!(summary.reviews, 3);
-        assert_eq!(summary.new, 2);
-        assert_eq!(summary.again, 1);
-        assert_eq!(events(&store).len(), 3);
+    fn siblings_wait_for_the_next_day() {
+        let (_tmp, store) = store(&[("a.md", "<!-- srl id:aaa1 -->\nQ: {{c1::x}} {{c2::y}}\n")]);
+        let (summary, _, _) = run(&store, "", "\n3\n\n3\n");
+        assert_eq!(summary.reviews, 1);
     }
 
     #[test]

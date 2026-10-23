@@ -42,7 +42,8 @@ command that needs memory states replays the whole log, one rule per step:
 - A **lapse** is an Again (1) on a card that already had a review since its
   last reset.
 - A `reset` event makes the card new again: no memory state, no lapses.
-  Only the time of its last review is kept, for the sibling rule.
+  Its status, and the time of its last review for the sibling rule, are
+  kept.
 - A `move` event gives everything the card `from` has to the card `to`, and
   leaves `from` with nothing (see "Moving history").
 - `suspend` and `unsuspend` events only change the card's status (see
@@ -100,7 +101,7 @@ another (the answer of a cloze card is in the prompt of its sibling), so:
 > **Each study day, an item offers at most one card. If none of its cards
 > was reviewed today, it offers the eligible card reviewed longest ago,
 > where a card never reviewed counts as longest ago, and ties go to the
-> lowest card ID.**
+> lowest card ID** (see [cards.md](cards.md), "Card IDs", for their order).
 
 A card is **eligible** if it is active, matches the selector, and is due,
 or is new while today's new-card limit is not reached. "Reviewed" means its

@@ -1,309 +1,199 @@
-//! `srl check`: validating atoms, drills and cards, and assigning missing
-//! IDs (see `docs/atoms.md`, "Validation").
+//! `srl check` and `srl lint` (see `docs/cli.md`, "Checking").
 
 use std::collections::HashSet;
-use std::fs;
-use std::time::Duration;
+use std::path;
 
-use jiff::civil::Date;
+use serde::Serialize;
 
-use crate::add::{self, random_ids};
-use crate::{Atom, Atoms, Drills, Error, Id, Result, Store, atom, drill, frontmatter};
+use crate::note::parse::{self, Line};
+use crate::note::read_note;
+use crate::{CardId, Config, Error, Memories, Notes, Result, Store};
 
-/// An atom that `srl check --fix` gave an ID (or would, with `--dry-run`).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Fixed {
-    pub id: Id,
-    /// Relative to `atoms/`, with `/` between folders.
-    pub path: String,
-}
+/// The longest full path, in UTF-16 units, that Windows allows without long
+/// paths (260 including a final NUL).
+const MAX_PATH: usize = 259;
 
-/// What `srl check` found.
-#[derive(Debug)]
-pub struct Report {
-    /// The atoms that got an ID, with `fix`.
-    pub fixed: Vec<Fixed>,
-    /// Every problem left, in the order: paths over the length limit,
-    /// unreadable atom files, then each atom's facets, drills and cards, by
-    /// path.
-    pub problems: Vec<Error>,
-}
-
-/// Checks every atom of the store, runs every drill that applies to it, and
-/// checks the cards (see `docs/atoms.md`, "Validation").
+/// The notes whose full path is longer than [`MAX_PATH`], as problems.
 ///
-/// With `fix`, atoms without an `id` first get one, made from the seed in
-/// `fix`; with `dry_run`, nothing is written. Atoms are read again after
-/// fixing, so the report describes the store as it is now.
-pub fn check(
-    store: &Store,
-    drills: &Drills,
-    day: Date,
-    timeout: Duration,
-    fix: Option<u64>,
-    dry_run: bool,
-) -> Result<Report> {
-    let atoms = Atoms::load(store)?;
-    let fixed = match fix {
-        Some(seed) => assign_ids(store, &atoms, seed, dry_run)?,
-        None => Vec::new(),
-    };
-    let atoms = if fixed.is_empty() || dry_run {
-        atoms
-    } else {
-        Atoms::load(store)?
-    };
-    let card_problems = atoms
-        .atoms
+// TODO(platform): Not run on Windows yet. `srl` itself copes with longer
+// paths there (Rust's standard library uses the long path form), so the
+// limit is for other programs. See docs/cli.md, "Checking".
+pub fn long_paths(store: &Store, notes: &Notes) -> Result<Vec<Error>> {
+    let root = path::absolute(store.root()).map_err(Error::io(store.root()))?;
+    // Lossy only for counting: a part that isn't valid Unicode becomes one
+    // replacement character. Such names only occur on Unix, where the limit
+    // doesn't apply anyway.
+    let used = root.to_string_lossy().encode_utf16().count() + 1;
+    Ok(notes
+        .paths()
         .iter()
-        .flat_map(|atom| atom_problems(atom, &atoms, drills, day, timeout))
-        .collect::<Vec<_>>();
-    Ok(Report {
-        fixed,
-        problems: long_paths(store)?
-            .into_iter()
-            .chain(atoms.problems)
-            .chain(card_problems)
-            .collect(),
-    })
-}
-
-/// The atom files whose full path is longer than new files may be (see
-/// `docs/atoms.md`, "Creating atoms"), as problems.
-fn long_paths(store: &Store) -> Result<Vec<Error>> {
-    let room = add::path_room(store)?;
-    Ok(store
-        .atom_paths()?
-        .into_iter()
-        .filter(|path| add::units(path) > room.units)
+        .filter(|path| used + path.encode_utf16().count() > MAX_PATH)
         .map(|path| Error::PathOverLimit {
-            path,
-            limit: add::MAX_PATH,
+            path: path.clone(),
+            limit: MAX_PATH,
         })
         .collect())
 }
 
-/// The problems of one atom's facets, drills and cards.
-fn atom_problems(
-    atom: &Atom,
-    atoms: &Atoms,
-    drills: &Drills,
-    day: Date,
-    timeout: Duration,
-) -> Vec<Error> {
-    if atom.content().facets().is_empty() {
-        return vec![Error::NoFacets {
-            id: atom.id().clone(),
-        }];
-    }
-    let (_, missing) = drills.applicable(atom);
-    let missing = missing.into_iter().map(|facet| {
-        let (id, facet) = (atom.id().clone(), facet.to_owned());
-        if drill::is_drill_name(&facet) {
-            Error::NoDrill { id, facet }
-        } else {
-            Error::NotADrillName { id, facet }
-        }
-    });
-    let from_drills = drills
-        .cards(atom, atoms, day, timeout)
-        .into_iter()
-        .flat_map(|made| {
-            if made.cards.is_empty() && made.problems.is_empty() {
-                vec![Error::NoCards {
-                    drill: made.drill,
-                    id: atom.id().clone(),
-                }]
-            } else {
-                made.problems
-            }
-        });
-    missing.chain(from_drills).collect()
-}
-
-/// Gives each atom file without an `id` a new one, by adding an `id` line.
-/// Every file is prepared and checked before the first one is written.
-fn assign_ids(store: &Store, atoms: &Atoms, seed: u64, dry_run: bool) -> Result<Vec<Fixed>> {
-    let mut used = atoms
-        .atoms
-        .iter()
-        .map(|atom| atom.id().clone())
-        .chain(atoms.problems.iter().filter_map(|problem| {
-            if let Error::DuplicateId { id, .. } = problem {
-                Some(id.clone())
-            } else {
-                None
-            }
-        }))
+/// Every orphan: an ID with reviews in the log, not moved away, but no
+/// card in the store. When its item still exists with exactly one card that
+/// has no events, the notice says how to move the history there (see
+/// `docs/scheduling.md`, "Moving history").
+pub fn orphans(notes: &Notes, memories: &Memories) -> Vec<Error> {
+    let cards = notes
+        .cards()
+        .map(|(_, card)| card.id())
         .collect::<HashSet<_>>();
-    let mut ids = random_ids(seed);
-    let prepared = atoms
-        .problems
-        .iter()
-        .filter_map(|problem| {
-            if let Error::MissingId { path } = problem {
-                Some(path)
-            } else {
-                None
+    let mut orphans = memories
+        .all()
+        .filter(|(id, memory)| memory.seen.is_some() && !cards.contains(id))
+        .map(|(id, _)| id.clone())
+        .collect::<Vec<CardId>>();
+    orphans.sort();
+    orphans
+        .into_iter()
+        .map(|id| {
+            let fresh = notes
+                .item(id.item())
+                .map(|item| {
+                    item.cards()
+                        .iter()
+                        .filter(|card| !memories.get(card.id()).touched)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let suggestion = match fresh.as_slice() {
+                [card] => format!(
+                    "{} is new. To keep the history: srl move {id} {}",
+                    card.id(),
+                    card.id()
+                ),
+                _ => "its history stays in the log; give it to a card with `srl move` if you \
+                      want to keep it"
+                    .to_owned(),
+            };
+            Error::Orphan {
+                id: id.to_string(),
+                suggestion,
             }
         })
-        .map(|path| {
-            let id = ids
-                .by_ref()
-                .find(|id| !used.contains(id))
-                .expect("the sequence of IDs should be endless");
-            used.insert(id.clone());
-            let text = with_id(store, path, &id)?;
-            Ok((
-                Fixed {
-                    id,
-                    path: path.clone(),
-                },
-                text,
-            ))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    if !dry_run {
-        for (fixed, text) in &prepared {
-            let file = store.atom_file(&fixed.path);
-            fs::write(&file, text).map_err(Error::io(file))?;
-        }
-    }
-    Ok(prepared.into_iter().map(|(fixed, _)| fixed).collect())
+        .collect()
 }
 
-/// The text of the atom file at `path` with `id` added. Checks that it reads
-/// back as the same atom with that ID.
-fn with_id(store: &Store, path: &str, id: &Id) -> Result<String> {
-    let cannot = |reason: String| Error::CannotEdit {
-        path: path.to_owned(),
-        reason,
-    };
-    let file = store.atom_file(path);
-    let text = fs::read_to_string(&file).map_err(Error::io(&file))?;
-    let (_, content) = atom::read(&text).map_err(cannot)?;
-    let new = frontmatter::set(&text, "id", id.as_str()).map_err(cannot)?;
-    if atom::read(&new).map_err(cannot)? == (Some(id.clone()), content) {
-        Ok(new)
-    } else {
-        Err(cannot(
-            "it would not read back with only its `id` added".to_owned(),
-        ))
+/// Something `srl lint` found: probably meant to be an item, but isn't one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Lint {
+    pub path: String,
+    pub line: usize,
+    pub message: String,
+}
+
+/// `srl lint`: looks through every note for text that was probably meant
+/// to be an item (see `docs/cli.md`, "Checking"). These are guesses, so
+/// they are never errors.
+pub fn lint(store: &Store, config: &Config) -> Result<Vec<Lint>> {
+    let mut found = Vec::new();
+    for path in store.note_paths(&config.notes.exclude_set())? {
+        let text = read_note(store, &path)?;
+        found.extend(lint_text(&text).into_iter().map(|(line, message)| Lint {
+            path: path.clone(),
+            line,
+            message: message.to_owned(),
+        }));
     }
+    Ok(found)
+}
+
+/// The suspicious lines of one note, with their numbers (from 1).
+fn lint_text(text: &str) -> Vec<(usize, &'static str)> {
+    let parsed = parse::parse(text);
+    parse::lines(text)
+        .into_iter()
+        .zip(parsed.lines)
+        .enumerate()
+        .filter(|(_, (_, kind))| *kind == Line::Text)
+        .filter_map(|(index, (line, _))| suspicion(line).map(|message| (index + 1, message)))
+        .collect()
+}
+
+/// Why `line`, outside items, looks like part of one.
+fn suspicion(line: &str) -> Option<&'static str> {
+    let bare = without_markers(line);
+    if parse::header_start(bare).is_some() && parse::header_start(line).is_none() {
+        return Some(
+            "a header that isn't at column 0 is not read; move it to the start of the line",
+        );
+    }
+    if bare.starts_with("Q:") || bare.starts_with("A:") {
+        return Some(
+            "this looks like a field of an item without a header; add `<!-- srl -->` on the line \
+             before the question",
+        );
+    }
+    if line.contains("{{c") && has_cloze(line) {
+        return Some(
+            "a cloze deletion outside an item is not studied; put it in the Q: of an item",
+        );
+    }
+    None
+}
+
+/// `line` without leading spaces, list markers (`-`, `*`, `+`, `1.`) and
+/// quote markers (`>`).
+fn without_markers(line: &str) -> &str {
+    let mut rest = line.trim_start();
+    loop {
+        let next = rest
+            .strip_prefix('>')
+            .or_else(|| {
+                ["- ", "* ", "+ "]
+                    .iter()
+                    .find_map(|marker| rest.strip_prefix(marker))
+            })
+            .or_else(|| {
+                let digits =
+                    rest.len() - rest.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+                (digits > 0)
+                    .then(|| rest.get(digits..))
+                    .flatten()
+                    .and_then(|tail| tail.strip_prefix(". "))
+            });
+        match next {
+            Some(stripped) => rest = stripped.trim_start(),
+            None => return rest,
+        }
+    }
+}
+
+/// Whether `line` has `{{c`, a number and `::`.
+fn has_cloze(line: &str) -> bool {
+    line.match_indices("{{c").any(|(start, _)| {
+        let rest = line.get(start + 3..).unwrap_or_default();
+        let digits = rest.len() - rest.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+        digits > 0
+            && rest
+                .get(digits..)
+                .is_some_and(|tail| tail.starts_with("::"))
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
-
     use super::*;
-    use crate::{Lookup, Search};
 
-    fn store(files: &[(&str, &str)]) -> (TempDir, Store) {
-        let tmp = TempDir::new().unwrap();
-        Store::init(tmp.path(), false).unwrap();
-        let store = Store::open(&Lookup {
-            dir: Some(tmp.path().to_path_buf()),
-            ..Lookup::default()
-        })
-        .unwrap();
-        for (path, text) in files {
-            fs::write(store.atom_file(path), text).unwrap();
-        }
-        (tmp, store)
-    }
-
-    fn run(store: &Store, fix: Option<u64>, dry_run: bool) -> Report {
-        let (drills, problems) = Drills::find(store, &Search::default());
-        assert!(problems.is_empty());
-        let day = Date::constant(2026, 10, 26);
-        check(store, &drills, day, Duration::from_secs(10), fix, dry_run).unwrap()
+    #[test]
+    fn lint_finds_items_without_headers_and_misplaced_headers() {
+        let text = "Q: bare\nA: bare\n- Q: in a list\n> A: quoted\n1. Q: numbered\n  <!-- srl -->\nSee {{c1::x}} here.\n<!-- srl id:abc -->\nQ: {{c1::fine}}\n\n```\nQ: in code\n```\nQuestion: not a field\n";
+        let found = lint_text(text)
+            .into_iter()
+            .map(|(line, _)| line)
+            .collect::<Vec<_>>();
+        assert_eq!(found, [1, 2, 3, 4, 5, 6, 7]);
     }
 
     #[test]
-    fn a_clean_store_has_no_problems() {
-        let (_tmp, store) = store(&[(
-            "a.md",
-            "---\nid: aaaaa1\ntitle: x\ncloze: ['{{a}} b']\n---\n",
-        )]);
-        let report = run(&store, None, false);
-        assert!(report.problems.is_empty(), "{:?}", report.problems);
-    }
-
-    #[test]
-    fn facets_without_drills_and_without_cards_are_reported() {
-        let (_tmp, store) = store(&[(
-            "a.md",
-            "---\nid: aaaaa1\ntitle: x\nconj: {verb: 食べる}\nmy facet: 1\ncards: []\ncloze: [no span]\n---\n",
-        )]);
-        let problems = run(&store, None, false).problems;
-        assert!(
-            matches!(&problems[..], [
-            Error::NoDrill { facet: conj, .. },
-            Error::NotADrillName { .. },
-            Error::NoCards { drill: cards, .. },
-            Error::DrillFailed { drill: cloze, .. },
-        ] if conj == "conj" && cards == "cards" && cloze == "cloze"),
-            "{problems:?}"
-        );
-    }
-
-    #[test]
-    fn atoms_without_facets_are_reported() {
-        let (_tmp, store) = store(&[("a.md", "---\nid: aaaaa1\ntitle: x\n---\nNotes.\n")]);
-        let problems = run(&store, None, false).problems;
-        assert!(
-            matches!(&problems[..], [Error::NoFacets { .. }]),
-            "{problems:?}"
-        );
-    }
-
-    #[test]
-    fn fix_assigns_missing_ids_and_keeps_the_rest_of_the_file() {
-        let text = "---\ntitle: x  # a comment\ncards: [{q: a, a: b}]\n---\nbody\n";
-        let (_tmp, store) = store(&[
-            ("a.md", text),
-            (
-                "b.md",
-                "---\nid: aaaaa1\ntitle: y\ncards: [{q: a, a: b}]\n---\n",
-            ),
-        ]);
-        let dry = run(&store, Some(0), true);
-        assert_eq!(dry.fixed.len(), 1);
-        assert!(matches!(&dry.problems[..], [Error::MissingId { .. }]));
-        assert_eq!(fs::read_to_string(store.atom_file("a.md")).unwrap(), text);
-
-        let report = run(&store, Some(0), false);
-        assert_eq!(report.fixed, dry.fixed);
-        assert!(report.problems.is_empty(), "{:?}", report.problems);
-        assert_eq!(
-            fs::read_to_string(store.atom_file("a.md")).unwrap(),
-            format!(
-                "---\nid: {}\ntitle: x  # a comment\ncards: [{{q: a, a: b}}]\n---\nbody\n",
-                report.fixed[0].id
-            )
-        );
-    }
-
-    #[test]
-    fn paths_longer_than_new_files_may_be_are_reported() {
-        let atom = "---\nid: aaaaa1\ntitle: x\ncards: [{q: a, a: b}]\n---\n";
-        let (_tmp, store) = store(&[(
-            "a.md",
-            "---\nid: aaaaa2\ntitle: y\ncards: [{q: a, a: b}]\n---\n",
-        )]);
-        let long = format!(
-            "{}/{}/{}.md",
-            "x".repeat(100),
-            "y".repeat(100),
-            "z".repeat(60)
-        );
-        fs::create_dir_all(store.atom_file(&long).parent().unwrap()).unwrap();
-        fs::write(store.atom_file(&long), atom).unwrap();
-        let problems = run(&store, None, false).problems;
-        assert!(
-            matches!(&problems[..], [Error::PathOverLimit { path, .. }] if *path == long),
-            "{problems:?}"
-        );
+    fn markers_are_stripped() {
+        assert_eq!(without_markers("  > - 12. Q: x"), "Q: x");
+        assert_eq!(without_markers("-x"), "-x");
     }
 }

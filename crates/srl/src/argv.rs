@@ -141,42 +141,39 @@ mod tests {
 
     #[test]
     fn negated_terms_are_terms() {
-        let (terms, json, _) = find(&["find", "tag:japanese", "-tag:jlpt/n5", "-ものともせず"]);
-        assert_eq!(terms, ["tag:japanese", "-tag:jlpt/n5", "-ものともせず"]);
+        let (terms, json, _) = find(&["find", "in:japanese", "-in:n5", "-ものともせず"]);
+        assert_eq!(terms, ["in:japanese", "-in:n5", "-ものともせず"]);
         assert!(!json);
     }
 
     #[test]
     fn options_after_negated_terms_are_options() {
-        let (terms, json, dir) = find(&["find", "-tag:a", "--json", "--dir", "/s", "b"]);
-        assert_eq!(terms, ["-tag:a", "b"]);
+        let (terms, json, dir) = find(&["find", "-in:a", "--json", "--dir", "/s", "b"]);
+        assert_eq!(terms, ["-in:a", "b"]);
         assert!(json);
         assert_eq!(dir, Some(PathBuf::from("/s")));
     }
 
     #[test]
     fn options_before_the_command_are_kept() {
-        let (terms, _, dir) = find(&["--dir=/s", "find", "-tag:a"]);
-        assert_eq!(terms, ["-tag:a"]);
+        let (terms, _, dir) = find(&["--dir=/s", "find", "-in:a"]);
+        assert_eq!(terms, ["-in:a"]);
         assert_eq!(dir, Some(PathBuf::from("/s")));
     }
 
     #[test]
     fn option_values_are_not_terms() {
-        let cli = parse(&["next", "-state:new", "--drill", "cloze", "tag:a"]);
-        let Command::Next {
-            selector, drill, ..
-        } = cli.command
-        else {
+        let cli = parse(&["next", "-state:new", "--dir", "/store", "in:a"]);
+        let Command::Next { selector, .. } = cli.command else {
             panic!("expected next, got {:?}", cli.command);
         };
-        assert_eq!(selector.terms, ["-state:new", "tag:a"]);
-        assert_eq!(drill.as_deref(), Some("cloze"));
+        assert_eq!(selector.terms, ["-state:new", "in:a"]);
+        assert_eq!(cli.dir, Some(PathBuf::from("/store")));
     }
 
     #[test]
     fn commands_without_a_selector_are_untouched() {
-        let args: Vec<OsString> = ["srl", "add", "--title", "-ない", "--source", "-nai"]
+        let args: Vec<OsString> = ["srl", "add", "-ない.md", "--stdin", "--see", "-nai.md"]
             .map(OsString::from)
             .into();
         assert_eq!(separate_selector(args.clone()), args);

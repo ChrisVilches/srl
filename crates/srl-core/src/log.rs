@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::config::Schedule;
-use crate::{Atom, Error, Id, Result, Store};
+use crate::{CardId, Error, Item, Result, Store};
 
 /// The lock file that every append holds (see `docs/log.md`, "Files").
 const LOCK_FILE: &str = ".lock";
@@ -23,7 +23,7 @@ const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
 /// How often a waiting append tries the lock again.
 const LOCK_RETRY: Duration = Duration::from_millis(20);
 
-/// The number of hex characters of an atom file's SHA-256 in `hash`.
+/// The number of hex characters of an item's SHA-256 in `hash`.
 const HASH_LEN: usize = 12;
 
 /// One line of the log.
@@ -31,45 +31,47 @@ const HASH_LEN: usize = 12;
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Event {
     Review(Review),
-    Reset(Reset),
+    Reset(CardEvent),
+    Move(Move),
+    Suspend(CardEvent),
+    Unsuspend(CardEvent),
 }
 
-/// An atom was rated (see `docs/log.md`, "`review`").
+/// A card was rated (see `docs/log.md`, "`review`").
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Review {
     /// The time, ISO 8601 with offset.
     pub t: String,
-    pub atom: Id,
+    pub card: CardId,
     /// 1–4, as given.
     pub rating: u8,
-    /// The card used, or `None` for a review without a card.
-    pub card: Option<CardUsed>,
     /// What was answered, if the review was recorded with it.
     pub response: Option<String>,
     pub by: By,
-    /// The start of the SHA-256 of the atom file at review time, in hex.
+    /// The start of the SHA-256 of the item's text at review time, in hex.
     pub hash: String,
 }
 
-/// Which card a review used.
+/// An event about one card with nothing else to say: `reset`, `suspend`,
+/// `unsuspend`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CardUsed {
-    pub drill: String,
-    #[serde(rename = "ref")]
-    pub reference: String,
-}
-
-/// The atom's memory starts over (see `docs/log.md`, "`reset`").
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Reset {
+pub struct CardEvent {
     pub t: String,
-    pub atom: Id,
+    pub card: CardId,
 }
 
-/// Who ran a review.
+/// One card's history goes to another (see `docs/log.md`, "`move`").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Move {
+    pub t: String,
+    pub from: CardId,
+    pub to: CardId,
+}
+
+/// Who recorded a review.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum By {
@@ -78,17 +80,21 @@ pub enum By {
 }
 
 impl Event {
-    pub fn atom(&self) -> &Id {
+    /// The card the event is about; for a `move`, the card that gets the
+    /// history.
+    pub fn card(&self) -> &CardId {
         match self {
-            Self::Review(review) => &review.atom,
-            Self::Reset(reset) => &reset.atom,
+            Self::Review(review) => &review.card,
+            Self::Reset(event) | Self::Suspend(event) | Self::Unsuspend(event) => &event.card,
+            Self::Move(moved) => &moved.to,
         }
     }
 
     pub fn t(&self) -> &str {
         match self {
             Self::Review(review) => &review.t,
-            Self::Reset(reset) => &reset.t,
+            Self::Reset(event) | Self::Suspend(event) | Self::Unsuspend(event) => &event.t,
+            Self::Move(moved) => &moved.t,
         }
     }
 
@@ -112,25 +118,16 @@ impl Event {
     }
 }
 
-impl CardUsed {
-    pub(crate) fn of(drill: &str, reference: &str) -> Self {
-        Self {
-            drill: drill.to_owned(),
-            reference: reference.to_owned(),
-        }
-    }
-}
-
 /// The time of an event that happens `now`, to the second, with its offset:
 /// `2026-10-26T09:12:31+09:00`.
 pub(crate) fn time(now: &Zoned) -> String {
     now.strftime("%Y-%m-%dT%H:%M:%S%:z").to_string()
 }
 
-/// The `hash` of an atom: the start of the SHA-256 of its file, in hex.
-pub(crate) fn hash(atom: &Atom) -> String {
+/// The `hash` of an item: the start of the SHA-256 of its text, in hex.
+pub(crate) fn hash(item: &Item) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
-    Sha256::digest(atom.text().as_bytes())
+    Sha256::digest(item.text().as_bytes())
         .iter()
         .flat_map(|byte| [byte >> 4, byte & 0x0f])
         .take(HASH_LEN)
@@ -200,11 +197,12 @@ impl Log {
         }
     }
 
-    /// The events of the atoms in `ids`, in log order.
-    pub fn of<'a>(&'a self, ids: &'a [&Id]) -> impl Iterator<Item = &'a Entry> {
+    /// The events about the cards in `ids`, in log order. A `move` event is
+    /// about the card it moved history to.
+    pub fn of<'a>(&'a self, ids: &'a [&CardId]) -> impl Iterator<Item = &'a Entry> {
         self.entries
             .iter()
-            .filter(move |entry| ids.contains(&entry.event.atom()))
+            .filter(move |entry| ids.contains(&entry.event.card()))
     }
 }
 
@@ -321,15 +319,15 @@ mod tests {
         (tmp, store)
     }
 
+    fn card(id: &str) -> CardId {
+        CardId::parse(id).unwrap()
+    }
+
     fn review(t: &str, rating: u8) -> Event {
         Event::Review(Review {
             t: t.to_owned(),
-            atom: Id::parse("a7f3k2").unwrap(),
+            card: card("k3m9q1-2"),
             rating,
-            card: Some(CardUsed {
-                drill: "cloze".to_owned(),
-                reference: "cloze:0:1".to_owned(),
-            }),
             response: Some("ものともせず".to_owned()),
             by: By::Agent,
             hash: "3fa91c0d22be".to_owned(),
@@ -337,30 +335,50 @@ mod tests {
     }
 
     #[test]
-    fn a_review_is_written_in_the_documented_format() {
+    fn events_are_written_in_the_documented_format() {
         let line = serde_json::to_value(review("2026-10-26T09:12:31+09:00", 3)).unwrap();
         assert_eq!(
             line,
-            serde_json::json!({"type": "review", "t": "2026-10-26T09:12:31+09:00", "atom": "a7f3k2",
-                "rating": 3, "card": {"drill": "cloze", "ref": "cloze:0:1"},
-                "response": "ものともせず", "by": "agent", "hash": "3fa91c0d22be"})
+            serde_json::json!({"type": "review", "t": "2026-10-26T09:12:31+09:00",
+                "card": "k3m9q1-2", "rating": 3, "response": "ものともせず", "by": "agent",
+                "hash": "3fa91c0d22be"})
+        );
+        let moved = Event::Move(Move {
+            t: "2026-10-26T10:05:00+09:00".to_owned(),
+            from: card("x7k2m9"),
+            to: card("x7k2m9-1"),
+        });
+        assert_eq!(
+            serde_json::to_value(&moved).unwrap(),
+            serde_json::json!({"type": "move", "t": "2026-10-26T10:05:00+09:00",
+                "from": "x7k2m9", "to": "x7k2m9-1"})
+        );
+        assert_eq!(moved.card(), &card("x7k2m9-1"));
+        let suspended = Event::Suspend(CardEvent {
+            t: "2026-10-26T10:10:00+09:00".to_owned(),
+            card: card("x7k2m9"),
+        });
+        assert_eq!(
+            serde_json::to_value(&suspended).unwrap(),
+            serde_json::json!({"type": "suspend", "t": "2026-10-26T10:10:00+09:00",
+                "card": "x7k2m9"})
         );
     }
 
     #[test]
-    fn the_hash_is_the_start_of_the_files_sha256() {
-        let text = "---\nid: a7f3k2\ntitle: x\n---\n";
-        let atom = Atom::parse("a.md".to_owned(), text.to_owned()).unwrap();
-        // `printf -- '---\nid: a7f3k2\ntitle: x\n---\n' | sha256sum | cut -c1-12`
-        assert_eq!(hash(&atom), "596de0cd75dd");
+    fn the_hash_is_the_start_of_the_items_sha256() {
+        let (items, _) =
+            crate::note::read_items("a.md", "Prose.\n<!-- srl id:abc -->\nQ: q\nA: a\n\nMore.\n");
+        // `printf -- '<!-- srl id:abc -->\nQ: q\nA: a' | sha256sum | cut -c1-12`
+        assert_eq!(hash(&items[0]), "e99dc095da78");
     }
 
     #[test]
     fn appended_events_read_back_by_month_with_their_study_day() {
         let (_tmp, store) = store();
-        let reset = Event::Reset(Reset {
+        let reset = Event::Reset(CardEvent {
             t: "2026-11-01T03:00:00+09:00".to_owned(),
-            atom: Id::parse("a7f3k2").unwrap(),
+            card: card("k3m9q1-2"),
         });
         let events = [review("2026-10-26T09:12:31+09:00", 3), reset];
         append(&store, &events).unwrap();
@@ -391,6 +409,8 @@ mod tests {
             good.replace("\"by\":\"agent\"", "\"by\":\"robot\""),
             good.replace("\"hash\"", "\"extra\":1,\"hash\""),
             good.replace("\"ものともせず\"", "[\"ものともせず\"]"),
+            good.replace("k3m9q1-2", "K3M9Q1"),
+            good.replace("\"review\"", "\"rename\""),
         ];
         fs::write(&file, format!("{good}{}\n", bad.join("\n"))).unwrap();
         let log = Log::load(&store, &Schedule::default()).unwrap();

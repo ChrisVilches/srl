@@ -106,18 +106,17 @@ under `templates/` and the note `inbox.md`.
 
 ## The index cache
 
-`.srl/cache/index.sqlite` holds what is slow to compute from the files: each
-note's parsed items, and the log replayed through FSRS (each card's memory,
-every review, and the log lines that are not valid events). It is only ever
-an optimization: every command gives the same results with it, without it,
-or after it was deleted.
+`.srl/cache/index.sqlite` holds what is slow to compute from the files: the
+log replayed through FSRS (each card's memory, every review, and the log
+lines that are not valid events). It is only ever an optimization: every
+command gives the same results with it, without it, or after it was
+deleted.
 
-- **Every file is still read on every use**, and compared with the cache by
-  a hash of its content (BLAKE3). Modification times are never trusted. What
-  the cache saves is parsing and replaying, not reading.
-- **Notes:** a note whose content is cached reuses its parsed items; any
-  other note is parsed again. Notes with errors are not cached, so they are
-  read and reported every time.
+- **Every log file is still read on every use**, and compared with the
+  cache by a hash of its content (BLAKE3). Modification times are never
+  trusted. What the cache saves is replaying, not reading.
+- **Notes are not cached.** They are read and parsed on every use: parsing
+  a note costs about as much as hashing it would.
 - **The log:** new lines are replayed on top of the cached memories when
   every log file the cache has read still starts with exactly the bytes it
   read (ending with a newline, unless nothing was added to that file), and

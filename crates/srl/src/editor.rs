@@ -1,159 +1,41 @@
-//! Editing in the person's editor: `srl edit ID`, `srl new`, and `e` in
+//! Opening a note in the person's editor: `srl edit ID` and `e` in
 //! `srl study` (see `docs/cli.md`, "Editing in the editor").
 
 use std::env;
-use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, bail};
-use srl_core::{Added, Atoms, Content, Error, Id, Store};
-use tempfile::NamedTempFile;
 
-use crate::output;
-
-/// The file `srl new` opens: front-matter to fill in, and an empty body.
-pub(crate) const TEMPLATE: &str = "---
-# The title is required; everything else is optional. Questions come from
-# facets, for example:
-#   cards:
-#     - q: The question
-#       a: The answer
-# Write the knowledge itself below the second `---`; it is shown after the
-# answer of every card. Lines starting with # are comments.
-title:
-tags: []
----
-";
-
-/// What an edit did.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Edited {
-    Changed,
-    Unchanged,
-}
-
-/// Opens atom `id` in the editor, and replaces the atom's file with the
-/// result, checked like `srl edit ID --stdin`. The editor works on a
-/// temporary copy, so the atom file never holds a half-finished edit. An
-/// edit that is not a valid atom is kept in its temporary file, and the
-/// error says where.
-pub(crate) fn edit(store: &Store, atoms: &Atoms, id: &Id) -> anyhow::Result<Edited> {
+/// Opens `file` in the editor and waits for it. A note is the person's own
+/// file, so it is edited in place and not checked afterwards: the next
+/// command that reads items reports any error in it.
+pub(crate) fn open(file: &Path) -> anyhow::Result<()> {
     let (program, args) = editor()?;
-    edit_with(store, atoms, id, &program, &args)
+    open_with(file, &program, &args)
 }
 
-/// Like [`edit`], with the editor `program` and its `args` given.
-fn edit_with(
-    store: &Store,
-    atoms: &Atoms,
-    id: &Id,
-    program: &Path,
-    args: &[String],
-) -> anyhow::Result<Edited> {
-    let atom = atoms
-        .get(id)
-        .ok_or_else(|| Error::UnknownId { id: id.clone() })?;
-    let Some((text, copy)) = edit_copy(&format!("srl-{id}-"), atom.text(), program, args)? else {
-        return Ok(Edited::Unchanged);
-    };
-    match srl_core::replace(store, atoms, id, &text, false) {
-        Ok(()) => Ok(Edited::Changed),
-        Err(error) => Err(kept(copy, &error.to_string())),
-    }
-}
-
-/// `srl new`: opens [`TEMPLATE`] in the editor and adds the result as a new
-/// atom (a draft with `draft`), like `srl add`. Returns the atom, or `None`
-/// if the template came back unchanged. A result that is not a valid atom
-/// is kept in its temporary file, and the error says where.
-pub(crate) fn new(store: &Store, draft: bool, dry_run: bool) -> anyhow::Result<Option<Added>> {
-    let (program, args) = editor()?;
-    let seed = getrandom::u64().context("cannot get random numbers for new IDs")?;
-    new_with(store, draft, dry_run, seed, &program, &args)
-}
-
-/// Like [`new`], with the seed for the ID and the editor given.
-fn new_with(
-    store: &Store,
-    draft: bool,
-    dry_run: bool,
-    seed: u64,
-    program: &Path,
-    args: &[String],
-) -> anyhow::Result<Option<Added>> {
-    let Some((text, copy)) = edit_copy("srl-new-", TEMPLATE, program, args)? else {
-        return Ok(None);
-    };
-    let added = Content::from_file_text(&text).and_then(|content| {
-        let atoms = Atoms::load(store)?;
-        srl_core::add(store, &atoms, vec![content], draft, seed, dry_run)
-    });
-    match added {
-        Ok(added) => Ok(added.into_iter().next()),
-        Err(error) => Err(kept(copy, &error.to_string())),
-    }
-}
-
-/// Writes `text` to a temporary file, opens it in the editor, and returns
-/// what the editor left there, with the file. `None` if the text came back
-/// unchanged. Fails if the editor fails.
-fn edit_copy(
-    prefix: &str,
-    text: &str,
-    program: &Path,
-    args: &[String],
-) -> anyhow::Result<Option<(String, NamedTempFile)>> {
-    let mut copy = tempfile::Builder::new()
-        .prefix(prefix)
-        .suffix(".md")
-        .tempfile()
-        .context("cannot create a temporary file to edit in")?;
-    copy.write_all(text.as_bytes())
-        .context("cannot write the temporary file to edit")?;
-    let path = copy.path().to_path_buf();
+/// Like [`open`], with the editor `program` and its `args` given.
+fn open_with(file: &Path, program: &Path, args: &[String]) -> anyhow::Result<()> {
     let status = Command::new(program)
         .args(args)
-        .arg(&path)
+        .arg(file)
         .status()
         .with_context(|| format!("cannot start the editor `{}`", program.display()))?;
     if !status.success() {
-        bail!("the editor exited with {status}; nothing was changed");
+        bail!("the editor exited with {status}");
     }
-    let edited = fs::read_to_string(&path)
-        .with_context(|| format!("cannot read the edited file {}", path.display()))?;
-    if edited == text {
-        // Also what an editor that returns at once looks like, so say so
-        // rather than doing nothing without a word.
-        output::note(
-            "the file came back from the editor unchanged, so nothing changed; if you did \
-             edit it, the editor returned before you saved (`code` needs `--wait`, for example)",
-        );
-        return Ok(None);
-    }
-    Ok(Some((edited, copy)))
-}
-
-/// Keeps `copy`, which holds an edit that could not be used, and says
-/// where it is, after `error`.
-fn kept(copy: NamedTempFile, error: &str) -> anyhow::Error {
-    match copy.keep() {
-        Ok((_, path)) => anyhow::anyhow!("{error}; your edit is kept in {}", path.display()),
-        Err(keep_error) => {
-            anyhow::anyhow!("{error}; and your edit could not be kept ({keep_error})")
-        }
-    }
+    Ok(())
 }
 
 /// The editor when neither `VISUAL` nor `EDITOR` is set, like git's.
 ///
 // TODO(platform): Notepad is the one editor every Windows has, but this
 // hasn't been run on Windows. Windows 11's Notepad may open the file in a
-// tab of a Notepad window that is already open and return at once; `srl`
-// then sees the file unchanged and says so (see `edit_copy`), so no edit is
-// lost silently, but the edit can't be made that way. If that happens,
-// decide on another default. See docs/cli.md, "Editing in the editor".
+// tab of a Notepad window that is already open and return at once; `e` in
+// `srl study` then asks for the rating before the edit is done. If that
+// happens, decide on another default. See docs/cli.md, "Editing in the
+// editor".
 #[cfg(windows)]
 const DEFAULT_EDITOR: &str = "notepad";
 
@@ -213,33 +95,11 @@ fn split(value: &str) -> anyhow::Result<(String, Vec<String>)> {
 
 #[cfg(test)]
 mod tests {
-    use srl_core::{Content, Lookup};
+    use std::fs;
+
     use tempfile::TempDir;
 
     use super::*;
-
-    /// A store with one atom, and its ID.
-    fn store() -> (TempDir, Store, Id) {
-        let tmp = TempDir::new().unwrap();
-        Store::init(tmp.path(), false).unwrap();
-        let store = Store::open(&Lookup {
-            dir: Some(tmp.path().to_path_buf()),
-            ..Lookup::default()
-        })
-        .unwrap();
-        let contents = Content::from_json_lines(r#"{"title": "x"}"#).unwrap();
-        let added = srl_core::add(
-            &store,
-            &Atoms::load(&store).unwrap(),
-            contents,
-            false,
-            0,
-            false,
-        )
-        .unwrap();
-        let id = added[0].id.clone();
-        (tmp, store, id)
-    }
 
     /// An editor program in `dir` that runs `unix` (a POSIX shell script) or
     /// `windows` (a batch file), with the file to edit as its argument.
@@ -259,111 +119,22 @@ mod tests {
         path
     }
 
-    fn file(store: &Store) -> String {
-        let atoms = Atoms::load(store).unwrap();
-        atoms.atoms[0].text().to_owned()
-    }
-
     #[test]
-    fn an_edit_replaces_the_atom_file() {
-        let (tmp, store, id) = store();
+    fn the_editor_works_on_the_note_itself() {
+        let tmp = TempDir::new().unwrap();
+        let note = tmp.path().join("a.md");
+        fs::write(&note, "Prose.\n").unwrap();
         let program = editor_program(tmp.path(), r#"echo 'More.' >> "$1""#, "echo More.>> %1");
-        let atoms = Atoms::load(&store).unwrap();
-        let edited = edit_with(&store, &atoms, &id, &program, &[]).unwrap();
-        assert_eq!(edited, Edited::Changed);
-        assert!(file(&store).ends_with("More.\n") || file(&store).ends_with("More.\r\n"));
+        open_with(&note, &program, &[]).unwrap();
+        assert!(fs::read_to_string(&note).unwrap().contains("More."));
     }
 
     #[test]
-    fn closing_without_changes_changes_nothing() {
-        let (tmp, store, id) = store();
-        let before = file(&store);
-        let program = editor_program(tmp.path(), "true", "exit /b 0");
-        let atoms = Atoms::load(&store).unwrap();
-        assert_eq!(
-            edit_with(&store, &atoms, &id, &program, &[]).unwrap(),
-            Edited::Unchanged
-        );
-        assert_eq!(file(&store), before);
-    }
-
-    #[test]
-    fn an_invalid_edit_is_kept_and_the_atom_left_alone() {
-        let (tmp, store, id) = store();
-        let before = file(&store);
-        let program = editor_program(
-            tmp.path(),
-            r#"echo 'not an atom' > "$1""#,
-            "echo not an atom> %1",
-        );
-        let atoms = Atoms::load(&store).unwrap();
-        let error = edit_with(&store, &atoms, &id, &program, &[])
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("your edit is kept in"), "{error}");
-        let kept = error.rsplit("kept in ").next().unwrap();
-        assert!(fs::read_to_string(kept).unwrap().contains("not an atom"));
-        fs::remove_file(kept).unwrap();
-        assert_eq!(file(&store), before);
-    }
-
-    #[test]
-    fn a_failing_editor_changes_nothing() {
-        let (tmp, store, id) = store();
-        let before = file(&store);
-        let program = editor_program(
-            tmp.path(),
-            r#"echo 'More.' >> "$1"; exit 3"#,
-            "echo More.>> %1\r\nexit /b 3",
-        );
-        let atoms = Atoms::load(&store).unwrap();
-        assert!(edit_with(&store, &atoms, &id, &program, &[]).is_err());
-        assert_eq!(file(&store), before);
-    }
-
-    #[test]
-    fn new_adds_what_the_editor_wrote() {
-        let (tmp, store, _) = store();
-        let program = editor_program(
-            tmp.path(),
-            r#"printf -- '---\ntitle: tuna\ntags: [fish]\n---\nA fish.\n' > "$1""#,
-            "(echo ---& echo title: tuna& echo tags: [fish]& echo ---& echo A fish.)> %1",
-        );
-        let added = new_with(&store, true, false, 7, &program, &[])
-            .unwrap()
-            .unwrap();
-        assert_eq!(added.path, "fish/tuna.md");
-        let atoms = Atoms::load(&store).unwrap();
-        let atom = atoms.get(&added.id).unwrap();
-        assert_eq!(atom.content().title(), "tuna");
-        assert_eq!(atom.content().status(), srl_core::Status::Draft);
-    }
-
-    #[test]
-    fn new_with_the_template_unchanged_adds_nothing() {
-        let (tmp, store, _) = store();
-        let program = editor_program(tmp.path(), "true", "exit /b 0");
-        assert!(
-            new_with(&store, false, false, 7, &program, &[])
-                .unwrap()
-                .is_none()
-        );
-        assert_eq!(Atoms::load(&store).unwrap().atoms.len(), 1);
-    }
-
-    #[test]
-    fn new_keeps_an_invalid_atom_and_adds_nothing() {
-        let (tmp, store, _) = store();
-        // The template's empty title is no title.
-        let program = editor_program(tmp.path(), r#"echo 'Body.' >> "$1""#, "echo Body.>> %1");
-        let error = new_with(&store, false, false, 7, &program, &[])
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("title"), "{error}");
-        let kept = error.rsplit("kept in ").next().unwrap();
-        assert!(fs::read_to_string(kept).unwrap().contains("Body."));
-        fs::remove_file(kept).unwrap();
-        assert_eq!(Atoms::load(&store).unwrap().atoms.len(), 1);
+    fn a_failing_editor_is_an_error() {
+        let tmp = TempDir::new().unwrap();
+        let note = tmp.path().join("a.md");
+        let program = editor_program(tmp.path(), "exit 3", "exit /b 3");
+        assert!(open_with(&note, &program, &[]).is_err());
     }
 
     fn words(program: &str, args: &[&str]) -> (String, Vec<String>) {

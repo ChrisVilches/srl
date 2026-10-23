@@ -48,6 +48,10 @@ A **card ID** is the ID of its item, alone or followed by `-` and a
 Item IDs never contain `-`, so the part before the first `-` is always the
 item, and no two items can produce the same card ID.
 
+**Card IDs are ordered** by item ID, then by suffix: a card without a
+suffix first, then suffixes that are whole numbers, compared as numbers,
+then any other suffix as text. So `k3m9q1-2` comes before `k3m9q1-10`.
+
 A kind takes its suffixes from what you wrote, never from positions, so
 that adding, removing or reordering parts of an item doesn't give one
 card's history to another. When a card disappears anyway, because you

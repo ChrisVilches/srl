@@ -6,9 +6,11 @@
     reason = "this module is where output happens"
 )]
 
+use std::fmt::Display;
 use std::path::PathBuf;
 
 use serde::Serialize;
+use srl_core::{By, Card, Event, Item, Lint, Stats, Written};
 
 /// Prints one path per line.
 pub(crate) fn paths(paths: &[PathBuf]) {
@@ -18,89 +20,60 @@ pub(crate) fn paths(paths: &[PathBuf]) {
 }
 
 /// Prints one ID per line.
-pub(crate) fn ids(ids: &[srl_core::Id]) {
+pub(crate) fn ids<T: Display>(ids: &[T]) {
     for id in ids {
         println!("{id}");
     }
 }
 
-/// Prints the IDs of added atoms, one per line. With `dry_run`, also prints
-/// the file each would be written to.
-pub(crate) fn added(added: &[srl_core::Added], dry_run: bool) {
-    for atom in added {
-        if dry_run {
-            println!("{}  atoms/{}", atom.id, atom.path);
-        } else {
-            println!("{}", atom.id);
-        }
+/// Prints one line per changed item: its ID and `PATH:LINE`, separated by
+/// two spaces.
+pub(crate) fn written(written: &[Written]) {
+    for done in written {
+        println!("{}  {}:{}", done.id, done.path, done.line);
     }
 }
 
-/// Prints one line per atom: ID, title and tags, separated by two spaces.
-pub(crate) fn atom_lines(atoms: &[&srl_core::Atom]) {
-    for atom in atoms {
-        let content = atom.content();
-        let title = content
-            .title()
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
-        let line = format!("{}  {title}  {}", atom.id(), content.tags().join(" "));
-        println!("{}", line.trim_end());
-    }
-}
-
-/// Prints one line per tag: the count, right-aligned, and the tag.
-pub(crate) fn tag_counts(counts: &[srl_core::TagCount]) {
-    let width = counts
-        .iter()
-        .map(|count| count.count.to_string().len())
-        .max()
-        .unwrap_or(0);
-    for count in counts {
-        println!("{:>width$}  {}", count.count, count.tag);
-    }
-}
-
-/// Prints one line per drill: name, where it was found (`built-in` or the
-/// program's path) and summary, separated by two spaces.
-pub(crate) fn drills(drills: &[(&srl_core::Drill, Option<String>)]) {
-    for (drill, summary) in drills {
-        let place = drill
-            .path()
-            .map_or_else(|| "built-in".to_owned(), |path| path.display().to_string());
+/// Prints one line per card: its ID, `PATH:LINE` of its item, and the
+/// first line of the item's first field, separated by two spaces.
+pub(crate) fn card_lines(cards: &[(&Item, &Card)]) {
+    for (item, card) in cards {
         let line = format!(
-            "{}  {place}  {}",
-            drill.name(),
-            summary.as_deref().unwrap_or("")
+            "{}  {}:{}  {}",
+            card.id(),
+            item.path(),
+            item.line(),
+            item.label()
         );
         println!("{}", line.trim_end());
     }
 }
 
-/// Prints one JSON line per drill: `{"name", "path", "summary"}`, with
-/// `path` `null` for a built-in drill and `summary` `null` if its help
-/// failed.
-pub(crate) fn drills_json(drills: &[(&srl_core::Drill, Option<String>)]) -> anyhow::Result<()> {
-    for (drill, summary) in drills {
-        let line = serde_json::json!({
-            "name": drill.name(),
-            "path": drill.path(),
-            "summary": summary,
-        });
-        println!("{}", serde_json::to_string(&line)?);
+/// Prints items for people: for each, a line `PATH:LINE`, the item as
+/// written, and the context after a line `---` if there is one. Items are
+/// separated by blank lines.
+pub(crate) fn items(items: &[(&Item, Option<String>)]) {
+    for (index, (item, context)) in items.iter().enumerate() {
+        if index > 0 {
+            println!();
+        }
+        println!("{}:{}", item.path(), item.line());
+        println!("{}", item.text());
+        if let Some(context) = context {
+            println!("---");
+            print!("{context}");
+        }
     }
-    Ok(())
 }
 
-/// Prints cards for people: for each, a line with its ref, the prompt, a
+/// Prints cards for people: for each, a line with its ID, the prompt, a
 /// line `---`, and the answer. Cards are separated by blank lines.
-pub(crate) fn cards(cards: &[srl_core::Card]) {
+pub(crate) fn cards(cards: &[&Card]) {
     for (index, card) in cards.iter().enumerate() {
         if index > 0 {
             println!();
         }
-        println!("{}", card.reference());
+        println!("{}", card.id());
         println!("{}", card.prompt().trim_end());
         println!("---");
         println!("{}", card.answer().trim_end());
@@ -108,37 +81,33 @@ pub(crate) fn cards(cards: &[srl_core::Card]) {
 }
 
 /// Prints one line per log event, fields separated by two spaces: the time,
-/// the atom, and `reset`, or `review`, the rating, the card's ref (`-`
-/// without a card) and who reviewed.
-pub(crate) fn events(events: &[&srl_core::Event]) {
+/// the card, and what happened (see `docs/cli.md`, "Analysis").
+pub(crate) fn events(events: &[&Event]) {
     for event in events {
-        match event {
-            srl_core::Event::Review(review) => {
-                let reference = review
-                    .card
-                    .as_ref()
-                    .map_or("-", |card| card.reference.as_str());
+        let what = match event {
+            Event::Review(review) => {
                 let by = match review.by {
-                    srl_core::By::Human => "human",
-                    srl_core::By::Agent => "agent",
+                    By::Human => "human",
+                    By::Agent => "agent",
                 };
-                println!(
-                    "{}  {}  review  {}  {reference}  {by}",
-                    review.t, review.atom, review.rating
-                );
+                format!("review  {}  {by}", review.rating)
             }
-            srl_core::Event::Reset(reset) => println!("{}  {}  reset", reset.t, reset.atom),
-        }
+            Event::Reset(_) => "reset".to_owned(),
+            Event::Suspend(_) => "suspend".to_owned(),
+            Event::Unsuspend(_) => "unsuspend".to_owned(),
+            Event::Move(moved) => format!("move  {}", moved.from),
+        };
+        println!("{}  {}  {what}", event.t(), event.card());
     }
 }
 
 /// Prints statistics, one `NAME  VALUE` line each. Retention is a
 /// percentage with the number of reviews it comes from, or `-` without
 /// reviews.
-pub(crate) fn stats(report: &srl_core::Stats) {
+pub(crate) fn stats(report: &Stats) {
     let states = &report.states;
     for (name, value) in [
-        ("atoms", report.atoms),
+        ("cards", report.cards),
         ("new", states.new),
         ("due", states.due),
         ("young", states.young),
@@ -158,31 +127,16 @@ pub(crate) fn stats(report: &srl_core::Stats) {
     }
 }
 
-/// Prints one line per session: its name and number of cards.
-pub(crate) fn sessions(sessions: &[srl_core::SessionInfo]) {
-    for session in sessions {
-        println!("{}  {}", session.name, session.cards);
+/// Prints what `srl lint` found, as `PATH:LINE: message`.
+pub(crate) fn lints(found: &[Lint]) {
+    for lint in found {
+        println!("{}:{}: {}", lint.path, lint.line, lint.message);
     }
 }
 
-/// Prints one line per atom that got an ID: the ID and its file.
-pub(crate) fn fixed(fixed: &[srl_core::Fixed]) {
-    for atom in fixed {
-        println!("{}  atoms/{}", atom.id, atom.path);
-    }
-}
-
-/// Prints whole files, separated by blank lines.
-pub(crate) fn files<'a>(texts: impl Iterator<Item = &'a str>) {
-    for (index, text) in texts.enumerate() {
-        if index > 0 {
-            println!();
-        }
-        print!("{text}");
-        if !text.ends_with('\n') {
-            println!();
-        }
-    }
+/// Prints text as it is.
+pub(crate) fn text(text: &str) {
+    print!("{text}");
 }
 
 /// Prints each item as one line of JSON.

@@ -30,14 +30,14 @@ pub(crate) const SELECTOR: &str = "terms";
 
 /// A selector, given as any number of arguments that are joined with spaces.
 ///
-/// Terms may start with `-` (negation, as in `-tag:jlpt/n5`); `argv` makes
-/// sure they reach this argument.
+/// Terms may start with `-` (negation, as in `-in:n5`); `argv` makes sure
+/// they reach this argument.
 #[derive(Debug, Args)]
 pub(crate) struct Selector {
     #[arg(
         id = SELECTOR,
         value_name = "SELECTOR",
-        help = "Terms such as tag:a,b -state:new or text; joined with spaces"
+        help = "Terms such as in:a,b -state:new or text; joined with spaces"
     )]
     pub(crate) terms: Vec<String>,
 }
@@ -64,53 +64,54 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Validate atoms, drills and cards.
-    Check {
-        /// Assign missing IDs.
-        #[arg(long)]
-        fix: bool,
+    /// Check the notes, the configuration and the log.
+    Check,
+    /// Look for text that was probably meant to be an item.
+    Lint,
+    /// Give an ID to every item without one.
+    Id {
         #[command(flatten)]
         dry_run: DryRun,
     },
     /// Rebuild the index cache.
     Reindex,
-    /// Write a new atom in $EDITOR.
-    New {
-        /// Add the atom as a draft.
-        #[arg(long)]
-        draft: bool,
-        #[command(flatten)]
-        dry_run: DryRun,
-    },
-    /// Add atoms from flags or JSONL on standard input.
-    Add(AddArgs),
-    /// Edit an atom in $EDITOR, or replace it with standard input.
-    Edit {
-        id: String,
-        /// Replace the atom's file with standard input. The `id` must not change.
-        #[arg(long)]
-        stdin: bool,
-        #[command(flatten)]
-        dry_run: DryRun,
-    },
-    /// Print atoms.
-    Show {
-        #[arg(required = true)]
-        ids: Vec<String>,
-        #[command(flatten)]
-        json: Json,
-    },
-    /// List matching atoms.
+    /// List matching cards.
     Find {
         #[command(flatten)]
         selector: Selector,
         #[command(flatten)]
         json: Json,
     },
-    /// List every tag in use, with counts.
-    Tags {
+    /// Print items, with their context.
+    Show {
+        /// Card or item IDs.
+        #[arg(required = true)]
+        ids: Vec<String>,
+        /// How to show the context (default: `context` in .srl/config.toml).
+        #[arg(long, value_enum, value_name = "MODE")]
+        context: Option<ContextMode>,
         #[command(flatten)]
         json: Json,
+    },
+    /// Print the cards of items or cards.
+    Cards {
+        /// Card or item IDs.
+        #[arg(required = true)]
+        ids: Vec<String>,
+        #[command(flatten)]
+        json: Json,
+    },
+    /// Append items (JSONL of fields from standard input) to a note.
+    Add(AddArgs),
+    /// Open an item's note in $EDITOR, or replace the item with standard input.
+    Edit {
+        /// A card or item ID.
+        id: String,
+        /// Replace the item with standard input, which must be one item with the same ID.
+        #[arg(long)]
+        stdin: bool,
+        #[command(flatten)]
+        dry_run: DryRun,
     },
     /// List drafts.
     Drafts {
@@ -119,24 +120,31 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Make matching drafts active.
+    /// Remove `draft` from the items of matching draft cards.
     Accept {
         #[command(flatten)]
         selector: Selector,
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Suspend matching atoms.
+    /// Suspend matching active cards.
     Suspend {
         #[command(flatten)]
         selector: Selector,
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Make matching suspended atoms active again.
+    /// Make matching suspended cards active again.
     Unsuspend {
         #[command(flatten)]
         selector: Selector,
+        #[command(flatten)]
+        dry_run: DryRun,
+    },
+    /// Give the history of an orphaned card ID to a card.
+    Move {
+        from: String,
+        to: String,
         #[command(flatten)]
         dry_run: DryRun,
     },
@@ -144,56 +152,31 @@ pub(crate) enum Command {
     Study {
         #[command(flatten)]
         selector: Selector,
-        /// Only use cards from this drill.
-        #[arg(long, value_name = "NAME")]
-        drill: Option<String>,
-        /// Study a prepared session instead of due atoms.
-        #[arg(long, value_name = "NAME", conflicts_with_all = ["terms", "drill"])]
-        session: Option<String>,
     },
     /// Print the next card. Exits with 1 if there is none.
     Next {
         #[command(flatten)]
         selector: Selector,
-        /// Only use cards from this drill.
-        #[arg(long, value_name = "NAME")]
-        drill: Option<String>,
         #[command(flatten)]
         json: Json,
     },
-    /// Print every card of an atom, from every applicable drill.
-    Cards {
-        id: String,
-        #[command(flatten)]
-        json: Json,
-    },
-    /// Record a review, from JSON on standard input or for atoms by ID.
+    /// Record a review, from JSON on standard input or for cards by ID.
     Review(ReviewArgs),
-    /// Make matching atoms new again.
+    /// Make matching cards new again.
     Reset {
         #[command(flatten)]
         selector: Selector,
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Manage prepared sessions.
-    Session {
-        #[command(subcommand)]
-        action: SessionCommand,
-    },
-    /// List available drills and where they were found.
-    Drills {
-        #[command(flatten)]
-        json: Json,
-    },
-    /// Atoms per state, reviews today and recent retention.
+    /// Cards per state, reviews today and recent retention.
     Stats {
         #[command(flatten)]
         selector: Selector,
         #[command(flatten)]
         json: Json,
     },
-    /// Print the log events of matching atoms.
+    /// Print the log events of matching cards.
     Log {
         #[command(flatten)]
         selector: Selector,
@@ -207,37 +190,36 @@ pub(crate) enum Command {
 
 #[derive(Debug, Args)]
 pub(crate) struct AddArgs {
-    /// Add the atoms as drafts.
+    /// The note, relative to the store's folder; created if it doesn't exist.
+    pub(crate) note: String,
+    /// Read the items from standard input: one JSON object of fields per line.
+    #[arg(long, required = true)]
+    pub(crate) stdin: bool,
+    /// The kind of the new items.
+    #[arg(long, value_name = "NAME")]
+    pub(crate) kind: Option<String>,
+    /// The note shown as the new items' context.
+    #[arg(long, value_name = "PATH")]
+    pub(crate) see: Option<String>,
+    /// Add the items as drafts.
     #[arg(long)]
     pub(crate) draft: bool,
-    /// Read JSONL from standard input, one atom per line.
-    #[arg(long, conflicts_with = "title")]
-    pub(crate) stdin: bool,
-    /// The title of a new atom.
-    #[arg(long, value_name = "TITLE")]
-    pub(crate) title: Option<String>,
-    /// A tag of the new atom (repeatable).
-    #[arg(long = "tag", value_name = "TAG", requires = "title")]
-    pub(crate) tags: Vec<String>,
-    /// Where the new atom came from.
-    #[arg(long, value_name = "SOURCE", requires = "title")]
-    pub(crate) source: Option<String>,
     #[command(flatten)]
     pub(crate) dry_run: DryRun,
 }
 
 #[derive(Debug, Args)]
 pub(crate) struct ReviewArgs {
-    /// Read `{"card": …, "rating": N, "response": "…", "by": "human"}` from standard input.
+    /// Read `{"card": "ID", "rating": N, "response": "…", "by": "human"}` from standard input.
     #[arg(long, conflicts_with_all = ["ids", "rating"])]
     pub(crate) stdin: bool,
-    /// Atoms to review without a card.
+    /// Cards to give the rating.
     #[arg(required_unless_present = "stdin", requires = "rating")]
     pub(crate) ids: Vec<String>,
     /// The rating: 1 Again, 2 Hard, 3 Good, 4 Easy.
     #[arg(long, value_parser = clap::value_parser!(u8).range(1..=4))]
     pub(crate) rating: Option<u8>,
-    /// Who ran the review.
+    /// Who recorded the review.
     #[arg(long, value_enum, default_value_t = By::Human, conflicts_with = "stdin")]
     pub(crate) by: By,
     #[command(flatten)]
@@ -250,25 +232,11 @@ pub(crate) enum By {
     Agent,
 }
 
-#[derive(Debug, Subcommand)]
-pub(crate) enum SessionCommand {
-    /// Save a list of cards (JSONL from standard input) as a session.
-    Put {
-        name: String,
-        #[command(flatten)]
-        dry_run: DryRun,
-    },
-    /// List sessions.
-    List {
-        #[command(flatten)]
-        json: Json,
-    },
-    /// Remove a session.
-    Rm {
-        name: String,
-        #[command(flatten)]
-        dry_run: DryRun,
-    },
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum ContextMode {
+    Prose,
+    Full,
+    None,
 }
 
 #[cfg(test)]
@@ -288,7 +256,7 @@ mod tests {
 
     #[test]
     fn dir_is_accepted_after_the_command() {
-        let cli = parse(&["tags", "--dir", "/s"]).unwrap();
+        let cli = parse(&["find", "--dir", "/s"]).unwrap();
         assert_eq!(cli.dir, Some(PathBuf::from("/s")));
     }
 
@@ -302,6 +270,12 @@ mod tests {
     fn review_needs_ids_or_stdin() {
         assert!(parse(&["review"]).is_err());
         assert!(parse(&["review", "--stdin"]).is_ok());
+    }
+
+    #[test]
+    fn add_needs_stdin() {
+        assert!(parse(&["add", "a.md"]).is_err());
+        assert!(parse(&["add", "a.md", "--stdin", "--see", "b.md", "--draft"]).is_ok());
     }
 
     #[test]

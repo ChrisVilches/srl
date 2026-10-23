@@ -58,7 +58,7 @@ agents all use the same commands. There is no separate API.
 | `srl accept SELECTOR` | Remove `draft` from the headers of the items of matching draft cards. |
 | `srl suspend SELECTOR` | Suspend matching active cards. |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
-| `srl move FROM TO` | Give the history of the orphan `FROM` to the card `TO` (see [scheduling.md](scheduling.md), "Moving history"). Prints nothing. |
+| `srl move FROM TO` | Give the history of the orphan `FROM` to the card `TO` (see [scheduling.md](scheduling.md), "Moving history"). Prints nothing; with `--dry-run`, the event it would write. |
 
 `srl find --json` prints one object per card:
 
