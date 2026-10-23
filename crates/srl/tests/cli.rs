@@ -438,6 +438,27 @@ fn the_study_loop_records_reviews_and_holds_back_siblings() {
 }
 
 #[test]
+fn next_json_gives_the_card_with_its_state_note_and_context() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let first = next_card(d, &[]);
+    assert_eq!(
+        first,
+        serde_json::json!({
+            "id": "x7k2m9",
+            "prompt": "What does 〜をものともせず mean?",
+            "answer": "Undeterred by (adversity), braving.",
+            "state": "new",
+            "path": "japanese/grammar/wo.md",
+            "see": null,
+            "context": "# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n",
+        })
+    );
+    write(&tmp, ".srl/config.toml", "[study]\ncontext = \"none\"\n");
+    assert_eq!(next_card(d, &[])["context"], serde_json::Value::Null);
+}
+
+#[test]
 fn the_new_card_limit_holds_back_new_cards() {
     let tmp = japanese();
     let d = dir(&tmp);
@@ -532,18 +553,28 @@ fn stats_counts_cards_reviews_and_retention() {
 }
 
 #[test]
-fn interactive_commands_refuse_without_a_terminal() {
+fn editing_in_the_editor_refuses_without_a_terminal() {
     let tmp = japanese();
     let d = dir(&tmp);
-    for args in [&["study"][..], &["edit", "x7k2m9"]] {
-        let output = srl_with_input(&[args, &["--dir", d]].concat(), "");
-        assert_eq!(output.status.code(), Some(2), "{args:?}");
-        assert!(
-            stderr(&output).contains("needs a terminal"),
-            "{}",
-            stderr(&output)
-        );
-    }
+    let output = srl_with_input(&["edit", "x7k2m9", "--dir", d], "");
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("needs a terminal"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn removed_study_is_an_unknown_command() {
+    let tmp = japanese();
+    let output = srl(&["study", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("unknown command `study`"),
+        "{}",
+        stderr(&output)
+    );
 }
 
 #[test]

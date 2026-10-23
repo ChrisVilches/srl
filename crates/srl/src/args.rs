@@ -148,11 +148,6 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Study in the terminal.
-    Study {
-        #[command(flatten)]
-        selector: Selector,
-    },
     /// Print the next card. Exits with 1 if there is none.
     Next {
         #[command(flatten)]

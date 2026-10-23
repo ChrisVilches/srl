@@ -41,10 +41,9 @@ crates/
     src/args.rs         clap definitions, no logic
     src/argv.rs         lets selector terms start with `-`
     src/commands.rs     one function per command: gather inputs, call the core, print
-    src/editor.rs       opening the editor (`srl edit ID`, `e` in `srl study`)
+    src/editor.rs       opening the editor (`srl edit ID`)
     src/external.rs     `srl NAME` runs `srl-NAME`
     src/output.rs       the only module that prints
-    src/study.rs        `srl study`, the terminal frontend: writes to the writer it is given
     tests/cli.rs        tests that run the real binary
 ```
 
@@ -274,7 +273,6 @@ Known places:
 | `check.rs`, `long_paths`; [cli.md](cli.md) | Windows' 260-character path limit | Handled: `srl check` reports notes over 259 UTF-16 units, on every platform. **TODO in code and spec**: not run on Windows |
 | `write.rs`; [notes.md](notes.md) | Replacing a note atomically: a rename over an existing file, which Windows refuses while another program holds the file open without sharing | Handled: the rename's error is reported and the note left as it was. **TODO in code and spec**: not run on Windows |
 | `editor.rs`, `DEFAULT_EDITOR`; [cli.md](cli.md) | `EDITOR`/`VISUAL` are rarely set on Windows, and editor paths there often contain spaces | Handled: the default is `notepad` on Windows and `vi` elsewhere, and a quoted program may contain spaces. **TODO in code and spec**: not run on Windows; Windows 11's Notepad may return at once |
-| `study.rs`, `colors_work`; [frontends.md](frontends.md) | ANSI colors show as text in the old Windows console | Handled: virtual terminal mode is turned on (with `anstyle-query`), else highlights are printed raw and the reason reported. **TODO in code and spec**: not run on Windows |
 | `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `.srl/log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
 | `index.rs`, `connect`; [store.md](store.md) | SQLite's file locking is unreliable on network file systems (NFS, SMB) on every platform: concurrent updates could damage the index cache | **TODO in code and spec**: damage is usually detected and the cache rebuilt; keep stores on a local disk for now |
 | `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
@@ -341,7 +339,6 @@ Current dependencies:
 | `getrandom` | `srl` | The random seed for new item IDs (the core derives IDs from it) |
 | `dirs` | `srl` | The platform's data directory, for the default store |
 | `which` | `srl` | Finding `srl-NAME` programs, with `PATHEXT` on Windows |
-| `anstyle-query` | `srl`, on Windows only | Turning on ANSI colors in Windows consoles, without `unsafe` code of our own. Already part of the build through `clap` |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
 | `toml` | `srl-core` | Parsing `.srl/config.toml` |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |
@@ -372,7 +369,7 @@ ordinary idiomatic Rust alone:
 | …except `module_name_repetitions`, `must_use_candidate`, `missing_errors_doc`, `missing_panics_doc` | They add noise and little value in this codebase. |
 | `unwrap_used`, `panic`, `unreachable`, `unimplemented`, `indexing_slicing`, `string_slice`, `dbg_macro` | No unexplained panics or leftovers outside tests: a panic that can't be avoided is an `expect` with a message (see "Errors"). `todo` is left off so that `todo!` can mark unwritten code during development; "Before a release" checks it. |
 | `let_underscore_must_use`, `map_err_ignore`, `unused_result_ok` | Errors are never discarded (fail loudly). |
-| `print_stdout`, `print_stderr` | Only `output.rs` prints, with an `#[expect]`. `study.rs`, the interactive frontend, writes with `write!` to the writer it is given (the terminal), so that tests can drive it; its problems still go through `output`. |
+| `print_stdout`, `print_stderr` | Only `output.rs` prints, with an `#[expect]`. |
 | `exit` | Exit codes come from `main`'s return value. |
 | `wildcard_enum_match_arm` | Matches on enums list every variant. |
 | `allow_attributes`, `allow_attributes_without_reason` | Use `#[expect(lint, reason = "…")]`. It explains itself and warns when it is no longer needed. |

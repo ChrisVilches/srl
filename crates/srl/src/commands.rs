@@ -17,7 +17,7 @@ use srl_core::{
 };
 
 use crate::args::{AddArgs, By, Cli, Command, ReviewArgs};
-use crate::{Outcome, editor, external, output, study};
+use crate::{Outcome, editor, external, output};
 
 pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
     let store = || -> anyhow::Result<Store> { Ok(Store::open(&lookup(cli.dir.clone())?)?) };
@@ -64,7 +64,6 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             dry_run,
         } => suspend(&store()?, &selector(&terms.terms)?, false, dry_run.dry_run),
         Command::Move { from, to, dry_run } => move_history(&store()?, &from, &to, dry_run.dry_run),
-        Command::Study { selector: terms } => study::run(&store()?, &selector(&terms.terms)?),
         Command::Next {
             selector: terms,
             json,
@@ -118,7 +117,7 @@ fn load(store: &Store) -> anyhow::Result<(Config, Notes)> {
 
 /// `notes`, if they have no problems; otherwise reports every problem and
 /// fails.
-pub(crate) fn strict(notes: Notes) -> anyhow::Result<Notes> {
+fn strict(notes: Notes) -> anyhow::Result<Notes> {
     notes.problems().iter().for_each(output::problem);
     let count = notes.problems().len();
     if count > 0 {
@@ -130,10 +129,7 @@ pub(crate) fn strict(notes: Notes) -> anyhow::Result<Notes> {
 /// Every card's memory on today's study day, through the index cache, the
 /// current time, and the log lines that were skipped. Reports any problem
 /// with the cache.
-pub(crate) fn memories(
-    index: &mut Index,
-    config: &Config,
-) -> anyhow::Result<(Memories, Zoned, Vec<Error>)> {
+fn memories(index: &mut Index, config: &Config) -> anyhow::Result<(Memories, Zoned, Vec<Error>)> {
     let now = now()?;
     let memories = index.memories(config);
     report_cache(index);
@@ -436,7 +432,9 @@ fn move_history(store: &Store, from: &str, to: &str, dry_run: bool) -> anyhow::R
     Ok(Outcome::Done)
 }
 
-/// `srl next`: the next card, if there is one.
+/// `srl next`: the next card, if there is one. With `--json`, the card
+/// with what a frontend shows around it: its state, and its item's note and
+/// context (see `docs/cli.md`, "Studying").
 fn next(store: &Store, selector: Selector, json: bool) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
     let Some(card) = srl_core::next(&loaded.notes, &loaded.memories, selector, &loaded.config)
@@ -444,7 +442,20 @@ fn next(store: &Store, selector: Selector, json: bool) -> anyhow::Result<Outcome
         return Ok(Outcome::Nothing);
     };
     if json {
-        output::json_lines(&[card])?;
+        let item = loaded
+            .notes
+            .item(card.id().item())
+            .context("a card's item should be in the notes")?;
+        let context = srl_core::context(store, item, loaded.config.study.context)?;
+        output::json_lines(&[serde_json::json!({
+            "id": card.id(),
+            "prompt": card.prompt(),
+            "answer": card.answer(),
+            "state": state_name(loaded.memories.state(card.id())),
+            "path": item.path(),
+            "see": item.see(),
+            "context": context,
+        })])?;
     } else {
         output::cards(&[card]);
     }
@@ -538,7 +549,7 @@ fn log(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome
 
 /// The local time. Fails if the system's time zone can't be found, rather
 /// than guessing UTC.
-pub(crate) fn now() -> anyhow::Result<Zoned> {
+fn now() -> anyhow::Result<Zoned> {
     let zone = jiff::tz::TimeZone::try_system().context(
         "cannot find the system's time zone, which decides the study day; set the TZ environment variable",
     )?;

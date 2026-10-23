@@ -18,8 +18,8 @@ failures.
 **Card IDs and card content come from two separate calls.** Every command
 that reads items needs their card IDs: selectors, `srl find`, `srl check`,
 scheduling, the sibling rule. Only a few need a card's content: `srl next`
-for the one card it returns, `srl cards`, and `srl study`. So a kind
-program answers two questions:
+for the one card it returns, and `srl cards`. So a kind program answers
+two questions:
 
 | Call | Input | Output | Rule |
 |---|---|---|---|

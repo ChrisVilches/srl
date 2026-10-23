@@ -7,9 +7,10 @@ agents all use the same commands. There is no separate API.
 
 - **`--json` everywhere.** Every command that prints data can print JSON
   instead (JSONL for lists). The default output is for people.
-- **Never ask questions when standard input is not a terminal.** Interactive
-  commands (`srl study`, `srl edit ID`) refuse in a pipe; every action has a
-  non-interactive form.
+- **Never ask questions when standard input is not a terminal.** The one
+  interactive command, `srl edit ID`, refuses in a pipe; every action has a
+  non-interactive form. Studying is up to frontends (see
+  [frontends.md](frontends.md)).
 - **Standard output carries results only.** Errors and warnings go to standard
   error, as one plain message each, saying what to do about it.
 - **Exit codes:** 0 success (or something found), 1 nothing found or nothing
@@ -141,7 +142,7 @@ items it would write, as they would appear in the note, and writes nothing.
 
 ### Editing in the editor
 
-`srl edit ID` and `e` in `srl study` open the item's note in the editor:
+`srl edit ID` opens the item's note in the editor:
 
 - The editor is `VISUAL` if it is set and not empty, else `EDITOR`, else
   the platform's default, as in git: `notepad` on Windows, `vi` everywhere
@@ -164,15 +165,13 @@ items it would write, as they would appear in the note, and writes nothing.
 > **TODO (platform):** not run on Windows yet. Notepad, the default there,
 > is the one editor every Windows has, but Windows 11's Notepad may open the
 > file in a tab of a Notepad window that is already open and return at
-> once. That is harmless here, since `srl` doesn't wait for the edit, but
-> `e` in `srl study` then asks for the rating before you have edited.
+> once. That is harmless, since `srl` doesn't check the note afterwards.
 
 ### Studying
 
 | Command | Does |
 |---|---|
-| `srl study [SELECTOR]` | The built-in terminal frontend (see [frontends.md](frontends.md)). Adds `status:active`, like `srl next`. |
-| `srl next [SELECTOR] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`. Exit 1 if there is none. |
+| `srl next [SELECTOR] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`; with `--json`, with what a frontend shows around it (see below). Exit 1 if there is none. |
 | `srl review --stdin` | Record a review: `{"card": "k3m9q1-2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
 | `srl review ID… --rating N [--by agent]` | Record the same rating for each card. Prints nothing. |
 | `srl reset SELECTOR` | Make matching cards new again. Only cards that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
@@ -183,6 +182,24 @@ The rating is always given by whoever records the review (see
 review wants to keep it, such as an answer typed to an agent (see
 [log.md](log.md)). `by` says who recorded the review, not how the rating
 was decided.
+
+`srl next --json` prints one object: the card's fields (see
+[cards.md](cards.md)), then the card's state and its item's note and
+context, everything a frontend needs to show the card (see
+[frontends.md](frontends.md)):
+
+```json
+{"id": "k3m9q1-2", "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
+ "answer": "周囲の反対をものともせず、==彼女==は起業した。\n\nDespite everyone's opposition, she started a company.",
+ "state": "due", "path": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
+ "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
+```
+
+`state` is as in `srl find --json`: `new` or `due`, since `srl next` only
+gives cards that are due or new (see [scheduling.md](scheduling.md),
+"Choosing the next card"). `path`, `see` and `context` are as in
+`srl show --json` (see [notes.md](notes.md), "Items as JSON"), with
+`context` in the mode set by `context` in the configuration.
 
 Every card given to `srl review` must be a card of the store; an item ID
 is not enough, because a review is about one card. With `--dry-run`,
@@ -267,13 +284,14 @@ exits with 0 if it found something, and 1 if not.
 
 ## The study loop, scripted
 
-`srl study` is a convenience (see [rationale.md](rationale.md), "Why a built-in
-frontend"). The same loop can be written with the primitives:
+`srl` has no built-in frontend (see [rationale.md](rationale.md), "Why no
+built-in frontend"). The loop every frontend runs is written with the
+commands:
 
 ```sh
 sel='in:grammar,kanji'
 while card=$(srl next "$sel" --json); do
-  # show the prompt, then the answer and the context from `srl show`,
+  # show the prompt, then the answer and the context,
   # ask for a rating, then record it:
   jq -n --argjson card "$card" --argjson rating 3 '{card: $card.id, rating: $rating}' | srl review --stdin
 done

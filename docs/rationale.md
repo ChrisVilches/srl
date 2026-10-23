@@ -147,23 +147,27 @@ do exactly that. But a card is produced by code, so repeating the answer in
 it costs nothing, and keeping it out of the prompt means any frontend, log
 viewer or `jq` can show a card without giving the answer away.
 
-## Why a built-in frontend
+## Why no built-in frontend
 
-The study loop can be written as a script around `srl next`, `srl show` and
-`srl review`, so `srl study` adds nothing a frontend couldn't do. It is built
-in anyway, for two reasons:
+The study loop is `srl next --json`, showing what it prints, and
+`srl review`. Every rule of scheduling is in `srl next`, so a built-in
+frontend would add nothing a separate one can't do, and would be the one
+part of `srl` that has opinions about appearance: colors, keys, layout.
+Those are exactly what people want to change, and a frontend of a few dozen
+lines is quick to write, or to have an agent write, from an example.
 
-- **A script can't be the same on every platform.** A shell loop needs `sh`
-  and `jq`, and doesn't run on Windows without extra tools; a PowerShell one
-  runs nowhere else. `srl study` is part of the binary, so studying works
-  the same on Linux, macOS and Windows.
-- **A person needs nothing but a terminal and an editor.** Without a
-  built-in frontend, `srl` would have no way to study until you wrote or
-  installed one.
+So `srl` has no interactive study command. It stays a CLI that other
+programs drive, the same on every platform, and frontends live outside it:
+`examples/` has a web viewer and a Bash frontend to copy (see
+[frontends.md](frontends.md)). `srl next --json` gives everything a
+frontend shows (the card, its state, its note and context), so a frontend
+needs no other command to read.
 
-Trade-off: `srl` keeps one interactive command to maintain. It lives outside
-the core, and calls the same core functions as `srl next` and `srl review`,
-so it can't schedule differently from any other frontend.
+Trade-off: `srl` alone has no comfortable way to study. You install or
+write a frontend first, and one that is not a shell script, such as the
+web viewer, needs more than `srl` to run. In exchange there is no terminal
+handling to keep working on every platform, and no frontend that is more
+official than yours.
 
 ## Why no LLM in the core
 

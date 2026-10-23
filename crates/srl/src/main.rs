@@ -9,7 +9,6 @@ mod commands;
 mod editor;
 mod external;
 mod output;
-mod study;
 
 use std::process::ExitCode;
 

@@ -1,5 +1,5 @@
-//! Opening a note in the person's editor: `srl edit ID` and `e` in
-//! `srl study` (see `docs/cli.md`, "Editing in the editor").
+//! Opening a note in the person's editor: `srl edit ID` (see
+//! `docs/cli.md`, "Editing in the editor").
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -32,10 +32,9 @@ fn open_with(file: &Path, program: &Path, args: &[String]) -> anyhow::Result<()>
 ///
 // TODO(platform): Notepad is the one editor every Windows has, but this
 // hasn't been run on Windows. Windows 11's Notepad may open the file in a
-// tab of a Notepad window that is already open and return at once; `e` in
-// `srl study` then asks for the rating before the edit is done. If that
-// happens, decide on another default. See docs/cli.md, "Editing in the
-// editor".
+// tab of a Notepad window that is already open and return at once, which
+// is harmless: `srl edit` doesn't check the note afterwards. See
+// docs/cli.md, "Editing in the editor".
 #[cfg(windows)]
 const DEFAULT_EDITOR: &str = "notepad";
 

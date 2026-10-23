@@ -5,7 +5,7 @@ cards takes one, and it means the same thing everywhere: for a person
 typing, a script, or an agent.
 
 ```sh
-srl study in:grammar,kanji
+srl next in:grammar,kanji
 srl find in:rust -state:new
 srl accept status:draft in:generated
 ```
@@ -65,7 +65,7 @@ Some commands add a term of their own:
 
 | Command | Adds |
 |---|---|
-| `srl next`, `srl study` | `status:active` (drafts and suspended cards are never studied) |
+| `srl next` | `status:active` (drafts and suspended cards are never studied) |
 | `srl drafts` | `status:draft` |
 
 Every other command applies the selector exactly as written.

@@ -5,9 +5,11 @@ questions and answers inside your Markdown study notes, `srl` turns them
 into **cards**, records how well you answered, and schedules each card for
 review with the FSRS algorithm.
 
-It is built to be used by a person with nothing but a terminal and an editor.
-An LLM agent can operate it too, through the same commands, but no part of
-`srl` depends on an LLM, an agent, or any particular note-taking app.
+It is built to be used by a person with a terminal, an editor and a frontend
+to study with: a small program of their choice that shows cards, such as the
+web viewer in this repository's `examples/`. An LLM agent can operate it
+too, through the same commands, but no part of `srl` depends on an LLM, an
+agent, or any particular note-taking app.
 
 This document explains the main ideas. Each area has its own detailed
 document, listed at the end.
@@ -25,7 +27,7 @@ document, listed at the end.
 - **Plain text.** All data can be read with `cat`, searched with `grep`,
   edited in any editor and versioned with git.
 - **Usable alone, extendable by anything.** A human can do everything with the
-  CLI. Scripts, other frontends and LLM agents build on top of it.
+  CLI. Frontends, scripts and LLM agents build on top of it.
 - **Predictable behaviour.** Every rule is simple enough to state in one
   sentence. Where a smarter rule would be possible, `srl` picks the simple one
   and accepts the trade-off.
@@ -83,7 +85,7 @@ document, listed at the end.
 | **Card** | One question, ready to show: an ID, a prompt and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
 | **Context** | The note an item belongs to, or the note its `see:` names, shown after the answer of its cards. |
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
-| **Frontend** | A program that shows cards to a person and records the ratings: the terminal `srl study`, the web viewer `srl web` (an example), a shell prompt. |
+| **Frontend** | A program that shows cards to a person and records the ratings: the web viewer `srl web` and the Bash `srl quiz` (both examples), a shell prompt. `srl` has none built in. |
 | **Review event** | One line in the log: this card was rated this way, at this time. |
 | **Selector** | A short filter expression that picks cards, such as `in:grammar state:due`. |
 | **Memory state** | What FSRS knows about a card (stability, difficulty, due date). Always computed from the log, never stored as truth. |
@@ -172,7 +174,7 @@ tools. `examples/README.md` lists them:
 | [log.md](log.md) | The review log and its events |
 | [selectors.md](selectors.md) | The selector language |
 | [cli.md](cli.md) | Command conventions and the command reference |
-| [frontends.md](frontends.md) | The frontend contract, the terminal frontend, the web viewer (an example) |
+| [frontends.md](frontends.md) | The frontend contract, rendering, the web viewer (an example) |
 | [agents.md](agents.md) | Operating `srl` with an LLM agent, with agi as the example |
 | [rationale.md](rationale.md) | Why the main decisions were made |
 | [ideas.md](ideas.md) | Mechanics not specified yet, to build on top later |
