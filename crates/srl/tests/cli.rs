@@ -314,11 +314,11 @@ fn cards_prints_the_cards_of_items_and_cards() {
 }
 
 #[test]
-fn add_appends_items_with_flags_and_see_for_the_header() {
+fn add_appends_items_with_their_header_entries() {
     let tmp = japanese();
     let d = dir(&tmp);
-    let input = "{\"Q\": \"Use 〜をものともせず\\nabout football.\", \"A\": \"…\", \"see\": \"japanese/grammar/wo.md\"}\n{\"Q\": \"{{c1::嵐}}をものともせず\"}\n";
-    let args = ["add", "generated/wo.md", "--draft", "--stdin", "--dir", d];
+    let input = "{\"Q\": \"Use 〜をものともせず\\nabout football.\", \"A\": \"…\", \"see\": \"japanese/grammar/wo.md\", \"draft\": true}\n{\"Q\": \"{{c1::嵐}}をものともせず\", \"draft\": true}\n";
+    let args = ["add", "generated/wo.md", "--stdin", "--dir", d];
     let dry = srl_with_input(&[&args[..], &["--dry-run"]].concat(), input);
     assert_eq!(dry.status.code(), Some(0), "{}", stderr(&dry));
     assert!(stdout(&dry).contains(

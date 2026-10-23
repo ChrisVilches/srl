@@ -22,8 +22,8 @@ the agent does it, outside `srl`, and records the rating it decided.
 ## Rules for agents
 
 1. **Agents write drafts.** Items written by an agent are drafts
-   (`srl add --draft`). They enter your study queue only after
-   `srl accept`.
+   (`"draft": true` in `srl add`'s input). They enter your study queue
+   only after `srl accept`.
 2. **Agents write new notes, not into yours.** Items an agent generates go
    into a note of their own, such as `generated/wo-mono-tomo-sezu.md`, with
    `see:` naming the note they ask about. They then show your note as their
@@ -45,7 +45,7 @@ use. For example:
 | Tool | Runs |
 |---|---|
 | `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats` | Reading |
-| `srs_add` | `srl add NOTE --draft --stdin` (always draft) |
+| `srs_add` | `srl add NOTE --stdin` (always draft: the tool sets `"draft": true` on every line, for example with `jq -c '.draft = true'`) |
 | `srs_edit` | `srl edit ID --stdin` (only if you want agents to edit items) |
 | `srs_next`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
 | `read_file` | Reading source material (notes, articles) |
@@ -102,10 +102,10 @@ The agent reads the note, runs `srl find` and `srl show` to see which items
 already exist, and sends the new items as JSONL to:
 
 ```sh
-srl add generated/wo-mono-tomo-sezu.md --draft --stdin
+srl add generated/wo-mono-tomo-sezu.md --stdin
 ```
 
-Each line has the item's fields and
+Each line has the item's fields, `"draft": true`, and
 `"see": "japanese/grammar/wo-mono-tomo-sezu.md"`, which makes your note the
 context of the new item. Questions about several notes can go in one call,
 each line with the note it asks about. You read the new

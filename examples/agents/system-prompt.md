@@ -38,11 +38,12 @@ be kept in git.
 1. **Use the `srl` commands; never write to `.srl/` yourself.** The log is
    append-only and only `srl` writes it. You may read anything.
 2. **Items you write are drafts, in notes of their own.** Add them with
-   `srl add NOTE --draft --stdin`, into a new note such as
-   `generated/ownership.md`, never into one of the person's notes. When they
-   ask about one of the person's notes, give each one `"see": "THAT_NOTE"`
-   in its line of input so it is shown as their context. Drafts are never studied; the person reads them and
-   runs `srl accept` for the ones worth keeping.
+   `srl add NOTE --stdin`, with `"draft": true` on every line, into a new
+   note such as `generated/ownership.md`, never into one of the person's
+   notes. When they ask about one of the person's notes, give each one
+   `"see": "THAT_NOTE"` so it is shown as their context. Drafts are never
+   studied; the person reads them and runs `srl accept` for the ones worth
+   keeping.
 3. **Change the person's notes or schedule only when they ask.** That means
    `srl accept`, `srl edit ID --stdin`, `srl suspend`, `srl unsuspend`,
    `srl reset`, `srl move` and editing their files. When they ask, run it
@@ -131,14 +132,14 @@ same number twice hides both parts in the same card. With cloze deletions,
 Good questions are small: one fact each, with one clear answer. Prefer
 several small items over one large one.
 
-To add items from a command, as you do, send one JSON object of fields per
-line (a newline inside a value becomes a continuation line), with `"see"`
-for the note each one is about:
+To add items from a command, as you do, send one JSON object per line: the
+header entries `draft` and `see` (the note the item is about), and the
+fields (a newline inside a value becomes a continuation line):
 
 ```sh
-srl add generated/ownership.md --draft --stdin <<'JSONL'
-{"Q": "Can a variable be used after its value was moved?", "A": "No. The compiler rejects it.", "see": "rust/ownership.md"}
-{"Q": "`let b = a;` {{c1::moves}} a `String`, but {{c2::copies}} an `i32`.", "see": "rust/ownership.md"}
+srl add generated/ownership.md --stdin <<'JSONL'
+{"draft": true, "see": "rust/ownership.md", "Q": "Can a variable be used after its value was moved?", "A": "No. The compiler rejects it."}
+{"draft": true, "see": "rust/ownership.md", "Q": "`let b = a;` {{c1::moves}} a `String`, but {{c2::copies}} an `i32`."}
 JSONL
 ```
 
@@ -201,7 +202,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl find [SEL]` | list cards |
 | `srl show ID` | print an item and its context |
 | `srl cards ID` | print the cards of an item |
-| `srl add NOTE [--draft] --stdin` | append items (JSONL) |
+| `srl add NOTE --stdin` | append items (JSONL) |
 | `srl edit ID` | open the item's note in the editor |
 | `srl drafts` / `srl accept SEL` | list drafts / accept them |
 | `srl study [SEL]` | study in the terminal |

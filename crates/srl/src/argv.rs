@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn commands_without_a_selector_are_untouched() {
-        let args: Vec<OsString> = ["srl", "add", "-ない.md", "--stdin", "--kind", "-qa"]
+        let args: Vec<OsString> = ["srl", "add", "-ない.md", "--stdin", "--dir", "-store"]
             .map(OsString::from)
             .into();
         assert_eq!(separate_selector(args.clone()), args);

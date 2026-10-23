@@ -28,18 +28,12 @@ pub struct Written {
     pub line: usize,
 }
 
-/// The header entries `srl add` gives every new item, from its flags.
-/// `see:` is given per item, in its line of input.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct NewHeader {
-    pub kind: Option<String>,
-    pub draft: bool,
-}
-
-/// One line of `srl add --stdin`: its `see` and its fields.
+/// One line of `srl add --stdin`: its header entries and its fields.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct NewItem {
+    kind: Option<String>,
     see: Option<String>,
+    draft: bool,
     fields: Vec<(String, String)>,
 }
 
@@ -162,18 +156,13 @@ pub fn accept(
     Ok(written)
 }
 
-/// `srl add NOTE`: appends the items of `input` (one JSON object of fields
-/// per line) to the note at `path`, or creates it.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "each is one input the command gathers; a struct would only rename them"
-)]
+/// `srl add NOTE`: appends the items of `input` (one JSON object of header
+/// entries and fields per line) to the note at `path`, or creates it.
 pub fn add(
     store: &Store,
     config: &Config,
     notes: &Notes,
     path: &str,
-    header: &NewHeader,
     input: &str,
     seed: u64,
     dry_run: bool,
@@ -202,7 +191,7 @@ pub fn add(
                 line: *line,
                 reason,
             };
-            let text = format_item(id, header, item).map_err(invalid)?;
+            let text = format_item(id, item).map_err(invalid)?;
             match read_items(path, &text).1.first() {
                 Some(problem) => Err(invalid(reason_of(problem))),
                 None => Ok(text),
@@ -504,17 +493,29 @@ fn check_note_path(config: &Config, path: &str) -> Result<()> {
 }
 
 /// One line of `srl add --stdin`: a JSON object whose keys are field names,
-/// or `see`, and whose values are text. A `see` must name a note of
+/// with text values, or the header entries `kind` and `see`, with text
+/// values, and `draft`, with `true` or `false`. A `see` must name a note of
 /// `notes`. Errors are plain reasons.
 fn item_of(notes: &Notes, line: &str) -> std::result::Result<NewItem, String> {
     let object = serde_json::from_str::<Map<String, Value>>(line)
         .map_err(|error| format!("it is not a JSON object ({error})"))?;
     let mut item = NewItem::default();
     for (key, value) in object {
+        if key == "draft" {
+            let Value::Bool(draft) = value else {
+                return Err(format!(
+                    "the value of `draft` must be true or false, not {value}"
+                ));
+            };
+            item.draft = draft;
+            continue;
+        }
         let Value::String(text) = value else {
             return Err(format!("the value of `{key}` must be text, not {value}"));
         };
-        if key == "see" {
+        if key == "kind" {
+            item.kind = Some(text);
+        } else if key == "see" {
             let see_nfc = nfc(&text);
             if !notes.paths().iter().any(|known| nfc(known) == see_nfc) {
                 return Err(format!(
@@ -527,8 +528,9 @@ fn item_of(notes: &Notes, line: &str) -> std::result::Result<NewItem, String> {
             item.fields.push((key, text));
         } else {
             return Err(format!(
-                "`{key}` can't name a field: use uppercase letters, digits and _, starting with \
-                 a letter (`see` is the only other key; --kind and --draft are flags)"
+                "`{key}` is neither a header entry (`kind`, `see`, `draft`; every item gets a \
+                 new ID) nor a field name (uppercase letters, digits and _, starting with a \
+                 letter)"
             ));
         }
     }
@@ -540,13 +542,9 @@ fn item_of(notes: &Notes, line: &str) -> std::result::Result<NewItem, String> {
 
 /// An item as `srl add` writes it: a header, then each field, with
 /// continuation lines for multi-line text. Errors are plain reasons.
-fn format_item(
-    id: &ItemId,
-    header: &NewHeader,
-    item: &NewItem,
-) -> std::result::Result<String, String> {
+fn format_item(id: &ItemId, item: &NewItem) -> std::result::Result<String, String> {
     let mut entries = vec![format!("id:{id}")];
-    if let Some(kind) = &header.kind {
+    if let Some(kind) = &item.kind {
         if kind.is_empty() || kind.contains([' ', '"']) {
             return Err(format!("`{kind}` can't be a kind"));
         }
@@ -562,7 +560,7 @@ fn format_item(
             format!("see:{see}")
         });
     }
-    if header.draft {
+    if item.draft {
         entries.push("draft".to_owned());
     }
     let mut lines = vec![format!("<!-- srl {} -->", entries.join(" "))];
@@ -688,17 +686,12 @@ mod tests {
     #[test]
     fn add_appends_items_after_a_blank_line_or_creates_the_note() {
         let (_tmp, store) = store(&[("a.md", "Prose.\r\n"), ("my notes/b c.md", "")]);
-        let header = NewHeader {
-            kind: None,
-            draft: true,
-        };
-        let input = "{\"Q\": \"Two\\nlines\\n\\nand more\", \"see\": \"my notes/b c.md\", \"A\": \"x\"}\n\n{\"Q\": \"{{c1::y}}\"}\n";
+        let input = "{\"Q\": \"Two\\nlines\\n\\nand more\", \"see\": \"my notes/b c.md\", \"A\": \"x\", \"draft\": true}\n\n{\"kind\": \"qa\", \"Q\": \"{{c1::y}}\", \"draft\": false}\n";
         let added = add(
             &store,
             &Config::default(),
             &notes(&store),
             "a.md",
-            &header,
             input,
             3,
             false,
@@ -708,7 +701,7 @@ mod tests {
             panic!("expected two IDs");
         };
         let expected = format!(
-            "<!-- srl id:{one} see:\"my notes/b c.md\" draft -->\nQ: Two\n  lines\n\n  and more\nA: x\n\n<!-- srl id:{two} draft -->\nQ: {{{{c1::y}}}}\n"
+            "<!-- srl id:{one} see:\"my notes/b c.md\" draft -->\nQ: Two\n  lines\n\n  and more\nA: x\n\n<!-- srl id:{two} kind:qa -->\nQ: {{{{c1::y}}}}\n"
         );
         assert_eq!(added.text, expected);
         assert_eq!(
@@ -720,7 +713,6 @@ mod tests {
             &Config::default(),
             &notes(&store),
             "new/b.md",
-            &NewHeader::default(),
             "{\"Q\": \"q\", \"A\": \"a\"}",
             4,
             false,
@@ -741,7 +733,10 @@ mod tests {
             "{\"see\": \"a.md\"}",
             "{\"Q\": \"q\", \"A\": \"a\", \"see\": \"nowhere.md\"}",
             "{\"Q\": \"q\", \"A\": \"a\", \"see\": 1}",
-            "{\"Q\": \"q\", \"A\": \"a\", \"kind\": \"qa\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"kind\": \"nope\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"kind\": \"\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"draft\": \"yes\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"id\": \"abc123\"}",
             "{\"Q\": \"q\", \"A\": \"a\"}\nnot json",
         ] {
             assert!(
@@ -750,7 +745,6 @@ mod tests {
                     &Config::default(),
                     &notes(&store),
                     "a.md",
-                    &NewHeader::default(),
                     input,
                     3,
                     false
@@ -773,7 +767,6 @@ mod tests {
                     &Config::default(),
                     &notes(&store),
                     path,
-                    &NewHeader::default(),
                     "{\"Q\": \"q\", \"A\": \"a\"}",
                     3,
                     false

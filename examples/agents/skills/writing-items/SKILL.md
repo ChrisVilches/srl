@@ -125,28 +125,30 @@ leaves the old card's history behind; see the `fixing-problems` skill.
 ## Adding items with `srl add`
 
 ```sh
-srl add NOTE [--draft] [--dry-run] --stdin
+srl add NOTE [--dry-run] --stdin
 ```
 
-One JSON object per line on standard input; each key is a field, each value
-its text. The key `"see"` is the one exception: it gives that item's `see:`,
-the note shown as its context. A newline in a value (`\n` in JSON) becomes
-a continuation line.
+One JSON object per line on standard input. The lowercase keys are the
+item's header entries: `"kind"` (text, default `qa`), `"see"` (text, the
+note shown as its context) and `"draft"` (`true` or `false`). Every other
+key is a field, and its value the field's text. A newline in a value (`\n`
+in JSON) becomes a continuation line.
 `NOTE` is relative to the store's folder, ends in `.md`, and is created
 with its folders if it doesn't exist. Items are appended at the end, each
 gets a new ID, and the IDs are printed. Every line is checked first: one
 bad line and nothing is added.
 
 ```sh
-srl add generated/rust.md --draft --stdin <<'JSONL'
-{"Q": "Does this compile?\n```rust\nlet a = String::new();\nlet b = a;\nprintln!(\"{a}\");\n```", "A": "No. `a` was moved into `b`.", "see": "rust/ownership.md"}
-{"Q": "A `&mut T` reference is {{c1::exclusive}}: no other reference to the value may exist.", "see": "rust/borrowing.md"}
+srl add generated/rust.md --stdin <<'JSONL'
+{"draft": true, "see": "rust/ownership.md", "Q": "Does this compile?\n```rust\nlet a = String::new();\nlet b = a;\nprintln!(\"{a}\");\n```", "A": "No. `a` was moved into `b`."}
+{"draft": true, "see": "rust/borrowing.md", "Q": "A `&mut T` reference is {{c1::exclusive}}: no other reference to the value may exist."}
 JSONL
 ```
 
-As an agent, always add `--draft`, write into a note of your own (for
-example under `generated/`), and give each item a `"see"` when it is about
-one of the person's notes. Items about different notes can go in one call. Use `--dry-run` to show the person the items before
+As an agent, always give every item `"draft": true`, write into a note of
+your own (for example under `generated/`), and give each item a `"see"`
+when it is about one of the person's notes. Items about different notes
+can go in one call. Use `--dry-run` to show the person the items before
 writing them. A note of your own may also hold prose: write the note with
 its explanation first, then add the items to it.
 

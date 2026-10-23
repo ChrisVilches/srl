@@ -12,7 +12,7 @@ use anyhow::{Context, bail};
 use jiff::Zoned;
 use jiff::civil::Date;
 use srl_core::{
-    Card, CardId, Config, ContextMode, Error, Index, Item, Log, Lookup, Memories, NewHeader, Notes,
+    Card, CardId, Config, ContextMode, Error, Index, Item, Log, Lookup, Memories, Notes,
     ReviewRequest, Selector, State, Status, Store,
 };
 
@@ -43,7 +43,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         ),
         Command::Show { ids, context, json } => show(&store()?, &ids, context, json.json),
         Command::Cards { ids, json } => cards(&store()?, &ids, json.json),
-        Command::Add(args) => add(&store()?, args),
+        Command::Add(args) => add(&store()?, &args),
         Command::Edit { id, stdin, dry_run } => match (stdin, dry_run.dry_run) {
             (true, dry_run) => edit_stdin(&store()?, &id, dry_run),
             (false, false) => edit_in_editor(&store()?, &id),
@@ -347,24 +347,11 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
 
 /// `srl add NOTE --stdin`: appends items to a note, and prints their IDs,
 /// or with `--dry-run` the items as they would be written.
-fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
+fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
     let (config, notes) = load(store)?;
     let input = stdin()?;
-    let header = NewHeader {
-        kind: args.kind,
-        draft: args.draft,
-    };
     let dry_run = args.dry_run.dry_run;
-    let added = srl_core::add(
-        store,
-        &config,
-        &notes,
-        &args.note,
-        &header,
-        &input,
-        seed()?,
-        dry_run,
-    )?;
+    let added = srl_core::add(store, &config, &notes, &args.note, &input, seed()?, dry_run)?;
     if dry_run {
         output::text(&added.text);
     } else {

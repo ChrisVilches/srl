@@ -51,7 +51,7 @@ agents all use the same commands. There is no separate API.
 | `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by note path, line, then card ID): one line each with the card ID, `PATH:LINE` and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print the cards of each ID (see below). |
-| `srl add NOTE [--kind NAME] [--draft] --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
+| `srl add NOTE --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
 | `srl edit ID` | Open the note of the item in the editor (see "Editing in the editor" below). |
 | `srl edit ID --stdin` | Replace the item's lines in its note with standard input, which must be exactly one item with the same ID. The rest of the note is unchanged. Prints nothing; with `--dry-run`, only checks the input. |
 | `srl drafts [SELECTOR] [--json]` | List drafts: the same as `srl find SELECTOR status:draft`. |
@@ -99,43 +99,42 @@ only append to the log.
 ### Adding items
 
 ```sh
-srl add NOTE [--kind NAME] [--draft] --stdin
+srl add NOTE --stdin
 ```
 
-The items come from standard input, one per line, as a JSON object of
-their fields and, optionally, their `see`. The other header entries come
-from flags, and apply to every item added.
+The items come from standard input, one per line, each a JSON object of
+its header entries and its fields. Each item has its own, so items about
+different notes, of different kinds, or drafts and not, can be added at
+once.
 
 ```sh
-srl add generated/japanese.md --draft --stdin <<'JSONL'
-{"Q": "Make a sentence with 〜をものともせず about a football team.", "A": "…", "see": "japanese/grammar/wo-mono-tomo-sezu.md"}
-{"Q": "{{c1::嵐}}をものともせず、漁師たちは海へ出た。", "see": "japanese/grammar/wo-mono-tomo-sezu.md"}
-{"Q": "What does 〜にもかかわらず express?", "A": "Despite, in spite of.", "see": "japanese/grammar/ni-mo-kakawarazu.md"}
+srl add generated/japanese.md --stdin <<'JSONL'
+{"see": "japanese/grammar/wo-mono-tomo-sezu.md", "draft": true, "Q": "Make a sentence with 〜をものともせず about a football team.", "A": "…"}
+{"see": "japanese/grammar/wo-mono-tomo-sezu.md", "draft": true, "Q": "{{c1::嵐}}をものともせず、漁師たちは海へ出た。"}
+{"see": "japanese/grammar/ni-mo-kakawarazu.md", "draft": true, "Q": "What does 〜にもかかわらず express?", "A": "Despite, in spite of."}
 JSONL
 ```
 
-- **Each key is a field name, and each value its text**, in the order
-  given. Multi-line text is written with continuation lines. Which fields
-  are accepted is up to the kind, so `srl add` works the same for every
-  kind there is.
-- **The key `see`** gives that item's `see:` header entry (see
-  [notes.md](notes.md), "Context"): a path relative to the store's folder,
-  to a note of the store. Without it, the item has no `see:`. So items
-  about different notes can be added at once, each with its own context.
-- **`--kind` and `--draft`** set the header entries of the same name for
-  every item (see [notes.md](notes.md), "Header entries"). Without
-  `--kind`, the items are `qa`. There is no way to give the ID: every item
-  gets a new one.
+- **The lowercase keys `kind`, `see` and `draft` are header entries** (see
+  [notes.md](notes.md), "Header entries"): `kind` and `see` take text,
+  `draft` takes `true` or `false`. Each may be left out: the item is then
+  `qa`, has its own note as context, and is not a draft. There is no `id`:
+  every item gets a new ID.
+- **Every other key is a field name, and its value the field's text**, in
+  the order given. Multi-line text is written with continuation lines.
+  Which fields are accepted is up to the kind, so `srl add` works the same
+  for every kind there is.
 - `NOTE` is a path relative to the store's folder, ending in `.md`, and must
   be a note (see [notes.md](notes.md), "Which files are notes"). If it
   doesn't exist, it is created, with its folders.
 - The items are appended to the end of the note, each after a blank line,
   following the rules of [notes.md](notes.md), "How srl writes to notes".
 - Every line is checked before anything is written: if any line is not a
-  valid item (not a JSON object, a key that is neither a field name nor
-  `see`, a value that is not text, a `see` that doesn't name a note of the
-  store, fields the kind doesn't accept), `srl add` reports the
-  first such line and adds nothing. Blank lines are ignored.
+  valid item (not a JSON object, a key that is neither a header entry nor
+  a field name, a value of the wrong type, an unknown kind, a `see` that
+  doesn't name a note of the store, fields the kind doesn't accept),
+  `srl add` reports the first such line and adds nothing. Blank lines are
+  ignored.
 
 It prints the new item IDs, one per line. With `--dry-run` it prints the
 items it would write, as they would appear in the note, and writes nothing.
