@@ -215,33 +215,33 @@ fn keyed(key: &str, values: &str) -> std::result::Result<Filter, String> {
                 .collect(),
         )),
         "path" => globs(&values).map(Filter::Path),
-        "id" => values
-            .into_iter()
-            .map(|value| CardId::parse(value).map_err(|error| error.to_string()))
-            .collect::<std::result::Result<_, _>>()
-            .map(Filter::Id),
-        "status" => values
-            .into_iter()
-            .map(|value| {
-                Status::parse(value).ok_or_else(|| {
-                    format!("`{value}` is not a status; use active, draft or suspended")
-                })
+        "id" => each(&values, |value| {
+            CardId::parse(value).map_err(|error| error.to_string())
+        })
+        .map(Filter::Id),
+        "status" => each(&values, |value| {
+            Status::parse(value)
+                .ok_or_else(|| format!("`{value}` is not a status; use active, draft or suspended"))
+        })
+        .map(Filter::Status),
+        "state" => each(&values, |value| {
+            StateTerm::parse(value).ok_or_else(|| {
+                format!("`{value}` is not a state; use new, due, young, mature or leech")
             })
-            .collect::<std::result::Result<_, _>>()
-            .map(Filter::Status),
-        "state" => values
-            .into_iter()
-            .map(|value| {
-                StateTerm::parse(value).ok_or_else(|| {
-                    format!("`{value}` is not a state; use new, due, young, mature or leech")
-                })
-            })
-            .collect::<std::result::Result<_, _>>()
-            .map(Filter::State),
+        })
+        .map(Filter::State),
         _ => Err(format!(
             "`{key}:` is not a key; use one of {KEYS}, or put the term in double quotes to search for the text"
         )),
     }
+}
+
+/// Each of `values` parsed with `parse`, or the first error.
+fn each<T>(
+    values: &[&str],
+    parse: impl Fn(&str) -> std::result::Result<T, String>,
+) -> std::result::Result<Vec<T>, String> {
+    values.iter().map(|value| parse(value)).collect()
 }
 
 /// Splits a selector into terms at spaces. A term may start with `-`, and

@@ -149,7 +149,7 @@ pub struct Entry {
 
 /// Every event of the log, in file order, and the lines that could not be
 /// read.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Log {
     /// The events: files by name (so by month), lines in order.
     pub entries: Vec<Entry>,
@@ -162,10 +162,7 @@ impl Log {
     /// skipped and reported in `problems`. Study days come from each event's
     /// own time and offset, and `schedule`'s `day_starts_at`.
     pub fn load(store: &Store, schedule: &Schedule) -> Result<Self> {
-        let mut log = Self {
-            entries: Vec::new(),
-            problems: Vec::new(),
-        };
+        let mut log = Self::default();
         for file in files(store)? {
             let text = fs::read_to_string(&file).map_err(Error::io(&file))?;
             log.read(&file, &text, 0, schedule);

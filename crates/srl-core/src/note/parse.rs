@@ -178,19 +178,15 @@ fn front_matter(lines: &[&str]) -> Option<usize> {
     }
     lines
         .iter()
-        .enumerate()
         .skip(1)
-        .find(|(_, line)| **line == "---")
-        .map(|(index, _)| index)
+        .position(|line| *line == "---")
+        .map(|index| index + 1)
 }
 
 /// The character and length of the fence `line` opens, if it opens one:
 /// three or more backticks or tildes after at most three spaces.
 fn opens_fence(line: &str) -> Option<(char, usize)> {
-    let rest = line.trim_start_matches(' ');
-    if line.len() - rest.len() > 3 {
-        return None;
-    }
+    let rest = fence_indent(line)?;
     let character = rest.chars().next().filter(|c| *c == '`' || *c == '~')?;
     let length = rest.chars().take_while(|c| *c == character).count();
     (length >= 3).then_some((character, length))
@@ -198,12 +194,17 @@ fn opens_fence(line: &str) -> Option<(char, usize)> {
 
 /// Whether `line` closes a fence of `length` `character`s.
 fn closes_fence(line: &str, character: char, length: usize) -> bool {
+    fence_indent(line).is_some_and(|rest| {
+        let run = rest.chars().take_while(|c| *c == character).count();
+        run >= length && rest.chars().skip(run).all(char::is_whitespace)
+    })
+}
+
+/// `line` without its leading spaces, if there are at most three, as a
+/// fence may have.
+fn fence_indent(line: &str) -> Option<&str> {
     let rest = line.trim_start_matches(' ');
-    if line.len() - rest.len() > 3 {
-        return false;
-    }
-    let run = rest.chars().take_while(|c| *c == character).count();
-    run >= length && rest.chars().skip(run).all(char::is_whitespace)
+    (line.len() - rest.len() <= 3).then_some(rest)
 }
 
 /// The byte after `srl` if `line` starts like a header: `<!--`, any number

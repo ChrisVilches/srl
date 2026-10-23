@@ -8,6 +8,7 @@
 //! the problem is reported.
 
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -100,8 +101,8 @@ impl From<Error> for Failure {
 }
 
 /// A damaged cache: data in it that doesn't decode.
-fn corrupt(what: &str) -> impl FnOnce(String) -> Failure {
-    move |reason| Failure::Corrupt(format!("{what}: {reason}"))
+fn corrupt(what: &str, reason: impl fmt::Display) -> Failure {
+    Failure::Corrupt(format!("{what}: {reason}"))
 }
 
 /// The memories of a store's cards, through the index cache.
@@ -160,10 +161,7 @@ impl Index {
     /// [`Log::load`], and the log lines that were skipped.
     pub fn memories(&mut self, config: &Config) -> Result<(HashMap<CardId, Memory>, Vec<Error>)> {
         self.run(
-            |transaction, store| {
-                let (memories, problems) = refresh_log(transaction, store, config)?;
-                Ok((memories, problems))
-            },
+            |transaction, store| refresh_log(transaction, store, config),
             |store| {
                 let (history, problems) = uncached_history(store, config)?;
                 Ok((history.memories, problems))
@@ -397,7 +395,7 @@ fn refresh_log(
         let entries = meta(transaction, "entries")?
             .ok_or_else(|| Failure::Corrupt("the number of log entries is missing".to_owned()))?
             .parse::<usize>()
-            .map_err(|error| corrupt("the number of log entries")(error.to_string()))?;
+            .map_err(|error| corrupt("the number of log entries", error))?;
         (cached_memories(transaction)?, entries)
     } else {
         for table in ["memories", "reviews", "log_problems", "log_files"] {
@@ -418,10 +416,7 @@ fn refresh_log(
         let new = file.text.get(start..).ok_or_else(|| {
             Failure::Corrupt(format!("the cached length of log/{} is wrong", file.name))
         })?;
-        let mut log = Log {
-            entries: Vec::new(),
-            problems: Vec::new(),
-        };
+        let mut log = Log::default();
         log.read(&file.path, new, lines_before, &config.schedule);
         for entry in &log.entries {
             let (cards, reviewed) = replayer.apply(&mut memories, entry, position)?;
@@ -729,7 +724,7 @@ fn to_i64(value: usize) -> i64 {
 }
 
 fn to_usize(value: i64) -> std::result::Result<usize, Failure> {
-    usize::try_from(value).map_err(|error| corrupt("a count")(error.to_string()))
+    usize::try_from(value).map_err(|error| corrupt("a count", error))
 }
 
 /// An `f32` that was stored as an `f64`, so converts back exactly.
@@ -748,11 +743,11 @@ fn to_f32(value: f64) -> std::result::Result<f32, Failure> {
 
 fn to_date(text: &str) -> std::result::Result<Date, Failure> {
     text.parse::<Date>()
-        .map_err(|error| corrupt("a day")(error.to_string()))
+        .map_err(|error| corrupt("a day", error))
 }
 
 fn to_id(text: &str) -> std::result::Result<CardId, Failure> {
-    CardId::parse(text).map_err(|error| corrupt("a card ID")(error.to_string()))
+    CardId::parse(text).map_err(|error| corrupt("a card ID", error))
 }
 
 #[cfg(test)]
