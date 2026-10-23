@@ -1,5 +1,9 @@
 """srl-tui: a terminal frontend for srl, with Rich.
 
+Meant for Linux, macOS and Windows, but tried on Linux only. All of it is
+portable except reading one key without Enter (read_key): termios on
+Linux and macOS, msvcrt on Windows, a branch that has never run.
+
 It is a starting point: copy it, rename it, change it. On PATH as
 `srl-tui`, it runs as `srl tui [SELECTOR]`.
 

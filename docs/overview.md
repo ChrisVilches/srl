@@ -146,11 +146,11 @@ tools. `examples/README.md` lists them:
 - `examples/agents/`: a system prompt and skills that turn an LLM agent
   into a guide to `srl` (see [agents.md](agents.md)).
 - `examples/python-frontend/`: `srl tui`, a study frontend for the
-  terminal in Python with Rich, a uv project (see
-  [frontends.md](frontends.md), "Small examples").
+  terminal in Python with Rich, a uv project, meant for every platform but
+  tried on Linux only (see [frontends.md](frontends.md), "Small examples").
 - `examples/web-frontend/`: `srl web`, the web viewer, an npm package with
-  a local server and a React page (see [frontends.md](frontends.md), "The
-  web viewer").
+  a local server and a React page, meant for every platform but tried on
+  Linux only (see [frontends.md](frontends.md), "The web viewer").
 
 - **`srl` never depends on an example.** Delete `examples/` and `srl`
   builds, tests and runs exactly as it did. Nothing in it is built, tested

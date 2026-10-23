@@ -23,9 +23,15 @@ srl web in:grammar          # only notes in a folder named grammar
 
 For each card, space shows the answer, then the context (the note around
 the item, or the one its `see:` names); `1`–`4` records the rating; `s`
-suspends the card without rating it. Each keeps a count of the cards
-reviewed, the new ones and the Again ratings. Nothing is lost by quitting:
-every rating is recorded as it is given.
+suspends the card without rating it. In `srl tui`, `j`/`k` or the arrows
+scroll a context too long for the screen, `e` opens the note in the editor
+and `q` quits. Each keeps a count of the cards reviewed, the new ones and
+the Again ratings. Nothing is lost by quitting: every rating is recorded
+as it is given.
+
+Both are meant for Linux, macOS and Windows, but are tried on Linux only;
+their READMEs say what may differ elsewhere. In `srl tui` on Windows, the
+arrow keys may not scroll; `j`/`k` do the same.
 
 Both are examples, made to be copied and changed. A person who wants
 something else can have you write a frontend of their own: see "A study

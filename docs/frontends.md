@@ -6,7 +6,9 @@ built-in frontend"): every frontend is a separate program, such as a web
 viewer, a shell-prompt question or a script. The repository's `examples/`
 has two, not part of `srl` (see [overview.md](overview.md), "Examples"):
 the web viewer `srl web` and the terminal frontend `srl tui`, in Python.
-They are made to be copied and changed.
+They are made to be copied and changed. Both are meant for Linux, macOS
+and Windows, but are tried on Linux only; their READMEs say what may
+differ elsewhere.
 
 Frontends understand the output of `srl next --json`, and nothing else.
 They don't know about notes, kinds or cloze syntax, so any frontend can
@@ -105,4 +107,6 @@ done
 A fuller one, in Python with Rich, is in the repository's
 `examples/python-frontend/` (see [overview.md](overview.md), "Examples"):
 keys that act without Enter, and the card, the answer and the context
-rendered as Markdown on one terminal screen.
+rendered as Markdown on one terminal screen. Reading a key without Enter is
+the one part written per platform: `termios` on Linux and macOS, `msvcrt`
+on Windows.

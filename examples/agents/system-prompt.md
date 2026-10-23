@@ -157,7 +157,8 @@ srl accept path:generated/ownership.md  # make them studied
 `srl` has no built-in study command: a **frontend** shows the cards and
 records the ratings. The `srl` repository's `examples/` has two to install
 or copy: `srl web` in the browser (it needs Node.js), and `srl tui` in the
-terminal (it needs uv). Either takes a selector and shows due cards, then
+terminal (it needs uv). Both are meant for Linux, macOS and Windows, but
+are tried on Linux only. Either takes a selector and shows due cards, then
 new ones, until none is left:
 
 - Space shows the answer, then the context: the note it comes from.

@@ -2,8 +2,14 @@
 
 `srl-tui` is a study frontend for the terminal, written in Python with
 [Rich](https://github.com/Textualize/rich): the web viewer's layout, made
-for a terminal, as a starting point for a frontend that suits you. It should
-work on Linux, macOS and Windows (it is tried on Linux only).
+for a terminal, as a starting point for a frontend that suits you.
+
+It is meant for Linux, macOS and Windows, but is tried on Linux only. Rich,
+uv and running `srl` work the same everywhere; the one part written per
+platform is reading a key without Enter (`read_key`): `termios` on Linux
+and macOS, `msvcrt` on Windows. On Windows that part has never run, so the
+arrow keys may not scroll there (`j`/`k` do the same), and the alternate
+screen needs a modern terminal such as Windows Terminal.
 
 - One screen per card: a header with the selector, the card's ID and the
   counters, the card in a panel, and the keys at the bottom.
