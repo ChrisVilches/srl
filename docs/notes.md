@@ -185,9 +185,12 @@ The context is shown in one of three **modes**, set by `context` in
 | `none` | Nothing. |
 
 In every mode, the YAML front-matter is removed, runs of blank lines become
-one, and blank lines at the start and the end are removed. A note that
-holds only items has an empty context in `prose` mode, and an empty context
-is not shown.
+one, and blank lines at the start and the end are removed.
+
+**A context with nothing but blank space left is no context**, exactly as
+in mode `none`: frontends show nothing, and `context` is `null` in JSON. So
+a note that holds only items, studied in `prose` mode, needs no setting to
+have no context.
 
 ## How srl writes to notes
 
@@ -269,4 +272,5 @@ JSON object per line:
 - `see` is the path given by `see:`, or `null`.
 - `fields` holds the fields in the order they are written.
 - `cards` lists the IDs of the item's cards, in order.
-- `context` is the context in the mode chosen, or `null` in mode `none`.
+- `context` is the context in the mode chosen, or `null` when there is
+  none (mode `none`, or nothing but blank space left).

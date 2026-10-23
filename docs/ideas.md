@@ -9,20 +9,80 @@ once it is planned; kinds as plugins is one.
 
 ## Kinds
 
-- **Kinds as plugins.** A header with `kind:NAME` would run a program
-  `srl-kind-NAME`: it reads the item's fields as JSON and writes cards, each
-  with a suffix for its ID (see [cards.md](cards.md), "Card IDs"). For
-  example, a conjugation kind:
+### Kinds as plugins
 
-  ```markdown
-  <!-- srl id:v81k3z kind:conj -->
-  VERB: 動く
-  FORMS: te past negative
-  ```
+A header with `kind:NAME` would run a program `srl-kind-NAME`. Would
+change the core: finding programs, running them, and reporting their
+failures.
 
-  giving cards `v81k3z-te`, `v81k3z-past` and `v81k3z-negative`. Would
-  change the core: finding programs, running them, and reporting their
-  failures.
+**Card IDs and card content come from two separate calls.** Every command
+that reads items needs their card IDs: selectors, `srl find`, `srl check`,
+scheduling, the sibling rule. Only a few need a card's content: `srl next`
+for the one card it returns, `srl cards`, and `srl study`. So a kind
+program answers two questions:
+
+| Call | Input | Output | Rule |
+|---|---|---|---|
+| `srl-kind-NAME ids` | the item's fields, as JSON | the card suffixes, one per line, or one empty line for a single card with the item's ID | **Deterministic and fast**: the same fields always give the same IDs. Called for every item of the kind, on every command that reads items, and cached with the note. |
+| `srl-kind-NAME card` | the item's fields, the card's suffix, its context and the study day, as JSON | one card's `prompt` and `answer`, as JSON | **May differ every time.** Called only when a card is about to be shown. |
+
+Example: a conjugation kind.
+
+```markdown
+<!-- srl id:v81k3z kind:conj -->
+VERB: 動く
+FORMS: te past negative
+```
+
+`ids` prints `te`, `past` and `negative`, giving cards `v81k3z-te`,
+`v81k3z-past` and `v81k3z-negative`. `card` with suffix `te` prints the
+て-form question for 動く.
+
+Other rules a plugin design would need:
+
+- **Fields are checked by `ids`.** A program that exits with an error on
+  `ids` makes the item an error in its note, like a `qa` item with a
+  missing `Q`.
+- **A failing `card` call doesn't stop everything.** An LLM API can be
+  down. `srl next` reports the failure and goes on to the next card, as
+  if the failed card were not eligible today.
+- **A time limit** for both calls, set in `.srl/config.toml`.
+- **`srl add` needs no change**: it takes field names from JSON, and
+  `ids` checks them.
+
+### Proof of concept: questions written by an LLM
+
+A kind whose card is written anew by an LLM every time it is shown:
+
+```markdown
+<!-- srl id:q8w2e5 kind:llm-generated -->
+PROMPT: Ask me to use 〜をものともせず in a new sentence about everyday
+  work. The answer is a model sentence and its translation.
+```
+
+- `srl-kind-llm-generated ids` checks that the item has exactly one field,
+  `PROMPT`, and prints one empty line: one card, with the item's ID
+  `q8w2e5`. No call to the LLM.
+- `srl-kind-llm-generated card` sends `PROMPT`, and the item's context
+  (the note about 〜をものともせず), to an LLM API, and prints the question
+  and the answer it wrote. A new card each time, under the same ID.
+
+Each part of the design already allows this:
+
+- **Scheduling** sees one card, `q8w2e5`, with one memory state: how well
+  you can use 〜をものともせず, asked a different way each time. Different
+  content under one ID is the kind's choice; `srl` never compares content.
+- **Prompt and answer match**, because they come out of the same `card`
+  call, and `srl next --json` gives both at once. A frontend holds the
+  card it got; it never asks for it again.
+- **Reviews record only the card ID** (and `hash`, of the item's text), so
+  a card that changes doesn't affect the log. What was actually asked is
+  not in the log. A frontend that wants it can pass it in `response`, or
+  the program can keep its own record.
+- **Cost:** one LLM call per card shown, and none for every other command,
+  because `ids` doesn't call the LLM. The program may cache answers by
+  item ID and study day, so the card stays the same for a day if you
+  prefer that.
 
 ## Agent workflows
 

@@ -44,7 +44,7 @@ use. For example:
 | Tool | Runs |
 |---|---|
 | `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats` | Reading |
-| `srs_add` | `srl add NOTE --draft --stdin` (always draft) |
+| `srs_add` | `srl add NOTE --see PATH --draft --stdin` (always draft) |
 | `srs_edit` | `srl edit ID --stdin` (only if you want agents to edit items) |
 | `srs_next`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
 | `read_file` | Reading source material (notes, articles) |
@@ -82,10 +82,15 @@ srl-agent generate "turn https://… into questions, at most 8"
 ```
 
 The agent reads the note, runs `srl find` and `srl show` to see which items
-already exist, and sends JSONL to
-`srl add generated/wo-mono-tomo-sezu.md --draft --stdin`, each item with
-`see:` naming the source note. You read the new note, delete what you don't
-want, and run `srl accept path:generated/wo-mono-tomo-sezu.md`.
+already exist, and sends the new items' fields as JSONL to:
+
+```sh
+srl add generated/wo-mono-tomo-sezu.md --see japanese/grammar/wo-mono-tomo-sezu.md --draft --stdin
+```
+
+`--see` makes your note the context of every new item. You read the new
+note, delete what you don't want, and run
+`srl accept path:generated/wo-mono-tomo-sezu.md`.
 
 A request such as "test me on N1 grammar using food vocabulary" is the same
 workflow: the agent writes the questions as draft items, and you accept the
