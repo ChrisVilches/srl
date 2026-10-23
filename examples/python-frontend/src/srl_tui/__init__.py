@@ -10,7 +10,8 @@ It is a starting point: copy it, rename it, change it. On PATH as
 It runs the frontend loop of docs/frontends.md: `srl next --json` for the
 card and its context, `srl review --stdin` for the rating. Keys act at
 once, without Enter: space or Enter shows the answer, 1-4 rate, j/k or the
-arrows scroll the context, e edits the note, s suspends the card, q quits.
+arrows scroll the context, Ctrl-D/Ctrl-U by half of it, e edits the note, s
+suspends the card, q quits.
 """
 
 import json
@@ -102,6 +103,7 @@ class Lines:
 
 
 ARROWS = {"\x1b[A": "up", "\x1b[B": "down"}
+CTRL_D, CTRL_U = "\x04", "\x15"
 
 pending = []  # keys read together, such as a held key repeating, not handled yet
 
@@ -135,10 +137,10 @@ def read_key():
 
 
 def wait_for(keys):
-    """Waits until one of the keys is pressed; Ctrl-C and Ctrl-D give q."""
+    """Waits until one of the keys is pressed; Ctrl-C gives q."""
     while True:
         key = read_key()
-        if key in ("\x03", "\x04"):
+        if key == "\x03":
             return "q"
         if key == "\r":
             key = "\n"
@@ -171,13 +173,14 @@ class Session:
         return grid
 
     def context(self, card, height, scroll):
-        """The context panel, at most height lines tall, and the scroll it shows.
+        """The context panel, at most height lines tall, the scroll it shows,
+        and how many lines of the context it shows.
 
         A context too long for the panel shows the lines from scroll on,
         so that the card above it never leaves the screen.
         """
         if card["context"] is None:
-            return Padding(Text("no context", "dim"), (0, 2)), 0
+            return Padding(Text("no context", "dim"), (0, 2)), 0, 0
         width = console.width - 6  # the borders and the padding
         lines = console.render_lines(CardMarkdown(card["context"]), console.options.update_width(width))
         shown = max(height - 2, 3)
@@ -189,10 +192,12 @@ class Session:
         panel = Panel(Lines(lines[scroll:scroll + shown]), title=Text(card["see"] or card["path"], "dim"),
                       title_align="left", subtitle=subtitle, subtitle_align="right",
                       border_style="dim", padding=(0, 2))
-        return panel, scroll
+        return panel, scroll, shown
 
     def show(self, card, answered, scroll):
-        """Draws the screen for the card, and returns the scroll of its context."""
+        """Draws the screen for the card, and returns the scroll of its context
+        and how many lines of it are shown."""
+        shown = 0
         header = self.header(card)
         body = [CardMarkdown(card["prompt"])]
         if answered:
@@ -206,7 +211,7 @@ class Session:
             # What is left of the screen, under the header, the card, and
             # the blank line and the keys at the bottom.
             height = console.height - 1 - len(console.render_lines(panel)) - 2
-            context, scroll = self.context(card, height, scroll)
+            context, scroll, shown = self.context(card, height, scroll)
             screen = Group(header, panel, context, Text())
         else:
             keys = Text("  space answer   e edit  s suspend  q quit", "dim")
@@ -224,7 +229,7 @@ class Session:
         if sync:
             console.file.write("\x1b[?2026l")
             console.file.flush()
-        return scroll
+        return scroll, shown
 
     def run(self):
         """Studies until no card is left (returns True) or q is pressed."""
@@ -236,9 +241,9 @@ class Session:
             answered = False
             scroll = 0
             while True:
-                scroll = self.show(card, answered, scroll)
+                scroll, shown = self.show(card, answered, scroll)
                 if answered:
-                    key = wait_for({"e", "s", "q", "1", "2", "3", "4", "j", "k", "up", "down"})
+                    key = wait_for({"e", "s", "q", "1", "2", "3", "4", "j", "k", "up", "down", CTRL_D, CTRL_U})
                 else:
                     key = wait_for({" ", "\n", "e", "s", "q"})
                 if key == "q":
@@ -247,6 +252,12 @@ class Session:
                     scroll += 1
                 elif key in ("k", "up"):
                     scroll -= 1
+                # Half of the lines shown, as in Vim: the lines that were at
+                # the bottom are then at the top, so none is skipped.
+                elif key == CTRL_D:
+                    scroll += shown // 2
+                elif key == CTRL_U:
+                    scroll -= shown // 2
                 elif key == "e":
                     subprocess.run(["srl", "edit", card["id"]])
                     break  # the note may have changed: get the card again
