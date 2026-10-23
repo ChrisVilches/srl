@@ -231,7 +231,7 @@ function CardView({
             <button
               onClick={onReveal}
               disabled={busy}
-              className="flex-1 rounded-lg bg-stone-900 px-4 py-3 font-medium text-white hover:bg-stone-700 disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+              className="flex-1 rounded-lg bg-stone-900 px-4 py-3 font-medium text-white hover:bg-stone-700 disabled:opacity-50 dark:border dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700"
             >
               Show answer <Key>space</Key>
             </button>
