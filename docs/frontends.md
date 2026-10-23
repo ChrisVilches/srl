@@ -74,9 +74,8 @@ buttons, keys, CSS theme     ──JSON─► POST /api/review      ──runs�
   among them and the Again ratings are counted at the top.
 - **Card text and context are rendered as Markdown** with markdown-it. Raw
   HTML is shown as text. Highlights are paired in order, each `==` with the
-  next one, as `srl quiz` does: Markdown plugins that treat `==`
-  like `*` nest the marks in text without spaces, such as
-  `==[...]==を==[...]==`.
+  next one, as `srl quiz` does: Markdown plugins that treat `==` like `*`
+  nest the marks in text without spaces, such as `==[...]==を==[...]==`.
 - **Only the browser on the same computer can use it.** The server listens
   on `127.0.0.1`, and refuses requests for any host but localhost and POST
   bodies that are not JSON, so that other web pages can't record reviews.

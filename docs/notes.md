@@ -168,7 +168,8 @@ about the note, so it is recorded in the log and never changes the note.
 
 An item's **context** is the note named by `see:` if the header has one,
 and otherwise the note the item is in. Frontends show it after the answer
-of each of the item's cards; `srl show` prints it.
+of each of the item's cards, taking it from `srl next --json`; `srl show`
+prints it too.
 
 - `see:` is a path relative to the store's folder, to a note of the store.
   A `see:` that names anything else is an error.
@@ -176,7 +177,8 @@ of each of the item's cards; `srl show` prints it.
   agent wrote in a file of their own (see [agents.md](agents.md)).
 
 The context is shown in one of three **modes**, set by `context` in
-`.srl/config.toml` (default `prose`) or by `--context` on `srl show`:
+`.srl/config.toml` (default `prose`), which `srl next --json` and
+`srl show` follow; `--context` on `srl show` overrides it:
 
 | Mode | Shows |
 |---|---|

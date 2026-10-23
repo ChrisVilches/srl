@@ -90,7 +90,7 @@ mature_days = 21             # a card with at least this stability (days) is mat
 # weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
 
 [study]
-context = "prose"            # how context is shown: prose, full or none (see notes.md)
+context = "prose"            # context in srl next and srl show: prose, full or none (see notes.md)
 ```
 
 A key or table that is not listed here is an error, so a typo such as
