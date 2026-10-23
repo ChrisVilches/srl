@@ -211,9 +211,19 @@ class Session:
         else:
             keys = Text("  space answer   e edit  s suspend  q quit", "dim")
             screen = Group(header, panel, Text())
-        console.clear()
-        console.print(screen)
-        console.print(keys, end="")  # no newline: on the last line, it would scroll the screen
+        # The frame is written at once, between the begin and the end of a
+        # synchronized update, so the terminal never shows it cleared and
+        # half drawn; terminals without synchronized updates ignore them.
+        sync = not console.legacy_windows
+        if sync:
+            console.file.write("\x1b[?2026h")
+        with console:  # Rich writes the buffer when the block ends
+            console.clear()
+            console.print(screen)
+            console.print(keys, end="")  # no newline: on the last line, it would scroll the screen
+        if sync:
+            console.file.write("\x1b[?2026l")
+            console.file.flush()
         return scroll
 
     def run(self):
