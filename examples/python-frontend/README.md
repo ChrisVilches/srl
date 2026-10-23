@@ -13,8 +13,8 @@ screen needs a modern terminal such as Windows Terminal.
 
 - One screen per card: a header with the selector, the card's ID and the
   counters, the card in a panel, and the keys at the bottom.
-- Card text and context are rendered as Markdown, with `==highlights==` in
-  bold yellow. The context is shown under the answer, titled with its note.
+- Card text and context are rendered as Markdown by Rich (CommonMark plus
+  GFM tables and strikethrough), with `==highlights==` in bold yellow. The context is shown under the answer, titled with its note.
 - The screen never scrolls: the question and the answer always stay in
   view. A context too long for the space left under them scrolls on its
   own, inside its panel.

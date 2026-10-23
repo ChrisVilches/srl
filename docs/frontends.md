@@ -46,6 +46,9 @@ every time, edits and reviews made elsewhere count at once.
 Card text and context are Markdown; card text may also hold `==highlight==`
 (see [cards.md](cards.md)).
 
+- The context is the note as written, so it may use syntax beyond
+  CommonMark that notes commonly have, such as GFM tables. A frontend may
+  render it; both `srl tui` and `srl web` render GFM tables.
 - How highlighted text looks is a frontend setting, never card content.
   `srl tui` uses bold yellow; `srl web` uses CSS.
 - Printing the raw text must always remain acceptable. A simple frontend can
@@ -74,8 +77,8 @@ buttons, keys, CSS theme     ──JSON─► POST /api/review      ──runs�
   Space or Enter shows the answer, `1`–`4` rate, `s` suspends. The
   selector can be changed in the page, and the cards reviewed, the new ones
   among them and the Again ratings are counted at the top.
-- **Card text and context are rendered as Markdown** with markdown-it. Raw
-  HTML is shown as text. Highlights are paired in order, each `==` with the
+- **Card text and context are rendered as CommonMark plus GFM tables**
+  with markdown-it. Raw HTML is shown as text. Highlights are paired in order, each `==` with the
   next one, as `srl tui` does: Markdown plugins that treat `==` like `*`
   nest the marks in text without spaces, such as `==[...]==を==[...]==`.
 - **Only the browser on the same computer can use it.** The server listens
