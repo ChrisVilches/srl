@@ -83,7 +83,7 @@ document, listed at the end.
 | **Card** | One question, ready to show: an ID, a prompt and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
 | **Context** | The note an item belongs to, or the note its `see:` names, shown after the answer of its cards. |
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
-| **Frontend** | A program that shows cards to a person and records the ratings: the terminal `srl study`, a web viewer, a shell prompt. |
+| **Frontend** | A program that shows cards to a person and records the ratings: the terminal `srl study`, the web viewer `srl web` (an example), a shell prompt. |
 | **Review event** | One line in the log: this card was rated this way, at this time. |
 | **Selector** | A short filter expression that picks cards, such as `in:grammar state:due`. |
 | **Memory state** | What FSRS knows about a card (stability, difficulty, due date). Always computed from the log, never stored as truth. |
@@ -139,9 +139,15 @@ free-form answers, if you ask it to), and analyzes your log. See
 
 The repository's `examples/` folder holds things built on `srl` that are
 not part of it: ways to learn it, conveniences, starting points for your own
-tools. `examples/README.md` lists them. The first is `examples/agents/`, a
-system prompt and skills that turn an LLM agent into a guide to `srl` (see
-[agents.md](agents.md)).
+tools. `examples/README.md` lists them:
+
+- `examples/agents/`: a system prompt and skills that turn an LLM agent
+  into a guide to `srl` (see [agents.md](agents.md)).
+- `examples/bash-frontend/`: `srl quiz`, a study frontend in Bash (see
+  [frontends.md](frontends.md), "Small examples").
+- `examples/web-frontend/`: `srl web`, the web viewer, an npm package with
+  a local server and a React page (see [frontends.md](frontends.md), "The
+  web viewer").
 
 - **`srl` never depends on an example.** Delete `examples/` and `srl`
   builds, tests and runs exactly as it did. Nothing in it is built, tested
@@ -166,7 +172,7 @@ system prompt and skills that turn an LLM agent into a guide to `srl` (see
 | [log.md](log.md) | The review log and its events |
 | [selectors.md](selectors.md) | The selector language |
 | [cli.md](cli.md) | Command conventions and the command reference |
-| [frontends.md](frontends.md) | The frontend contract, the terminal frontend, the web viewer |
+| [frontends.md](frontends.md) | The frontend contract, the terminal frontend, the web viewer (an example) |
 | [agents.md](agents.md) | Operating `srl` with an LLM agent, with agi as the example |
 | [rationale.md](rationale.md) | Why the main decisions were made |
 | [ideas.md](ideas.md) | Mechanics not specified yet, to build on top later |

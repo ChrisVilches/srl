@@ -2,7 +2,10 @@
 
 A **frontend** is a program that shows cards to a person and records the
 results. `srl` ships one, the terminal frontend `srl study`. Others are
-separate programs: a web viewer, a shell-prompt question, a script.
+separate programs: a web viewer, a shell-prompt question, a script. The
+repository's `examples/` has two, not part of `srl` (see
+[overview.md](overview.md), "Examples"): the web viewer `srl web` and the
+Bash frontend `srl quiz`.
 
 Frontends understand the card format, and read an item's context from
 `srl show`, and nothing else. They don't know about notes, kinds or cloze
@@ -75,31 +78,42 @@ error.
 
 > **TODO (platform):** not run on Windows yet.
 
-## A web viewer
+## The web viewer: `srl web`
 
-A web viewer is a frontend like any other, split in two:
+The web viewer is an example, not part of `srl`: an npm package in the
+repository's `examples/web-frontend/`, which puts `srl-web` on `PATH`, so
+that `srl web [SELECTOR]` starts it. Its README says how to install and
+change it. It is a frontend like any other, split in two:
 
 ```
-browser (HTML/JS)                     srl-web (small local server)       srl
-──────────────────                    ────────────────────────────       ───
+browser (React page)                  srl-web (Node.js, on localhost)    srl
+────────────────────                  ───────────────────────────────    ───
 render Markdown + ==mark==   ◄─JSON─  GET  /api/next?sel=…  ──runs──►  srl next SEL --json
-buttons, CSS theme           ◄─JSON─  GET  /api/item?id=…   ──runs──►  srl show ID --json
+buttons, keys, CSS theme     ◄─JSON─  GET  /api/find?sel=…  ──runs──►  srl find SEL --json
+                             ◄─JSON─  GET  /api/item?id=…   ──runs──►  srl show ID --json
                              ──JSON─► POST /api/review      ──runs──►  srl review --stdin
+                             ──JSON─► POST /api/suspend     ──runs──►  srl suspend id:CARD
 ```
 
-- `srl-web` is a separate program on `PATH`, so `srl web` starts it. Each route
-  runs one CLI command and returns its JSON. It contains no SRS logic.
-- The browser renders Markdown with an ordinary library (for example
-  markdown-it) and styles it with CSS. Highlights are best paired in order,
-  each `==` with the next one: Markdown plugins that treat `==` like `*`
-  nest the marks in text without spaces, such as `==[...]==を==[...]==`.
+- **The server contains no SRS logic.** Each route runs one CLI command and
+  returns its JSON; when `srl` fails, it returns `srl`'s message, which the
+  page shows. `--dir DIR` is passed to every command; without it, `srl`
+  finds the store as always.
+- **The page runs the frontend loop** of "The frontend contract" above,
+  with the keys of `srl study`: space or Enter shows the answer, `1`–`4`
+  rate, `s` suspends. The selector can be changed in the page, and the
+  counts of `srl study`'s summary are kept at the top.
+- **Card text and context are rendered as Markdown** with markdown-it. Raw
+  HTML is shown as text. Highlights are paired in order, each `==` with the
+  next one, as in the terminal frontends: Markdown plugins that treat `==`
+  like `*` nest the marks in text without spaces, such as
+  `==[...]==を==[...]==`.
+- **Only the browser on the same computer can use it.** The server listens
+  on `127.0.0.1`, and refuses requests for any host but localhost and POST
+  bodies that are not JSON, so that other web pages can't record reviews.
 
 Because scheduling lives in the core, the web viewer and the terminal behave
 identically.
-
-The repository's `examples/web-frontend/` is such a viewer, as an npm
-package: a Node.js server and a React page (see [overview.md](overview.md),
-"Examples").
 
 ## Small examples
 
