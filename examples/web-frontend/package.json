@@ -1,0 +1,40 @@
+{
+  "name": "srl-web",
+  "version": "0.1.0",
+  "description": "A web viewer for srl: a local server and a React frontend",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "srl-web": "bin/srl-web.js"
+  },
+  "files": [
+    "bin",
+    "server",
+    "dist"
+  ],
+  "scripts": {
+    "dev": "node server/dev.js",
+    "build": "tsc --noEmit && vite build",
+    "start": "node bin/srl-web.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "markdown-it": "^15.0.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.20",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}

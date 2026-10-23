@@ -18,3 +18,4 @@ Read an example before you use it, then copy it and change it to suit you.
 |---|---|
 | [`agents/`](agents/) | A system prompt and skills that turn an LLM agent into a guide to `srl`: it answers questions, writes example items and walks you through study sessions. |
 | [`bash-frontend/`](bash-frontend/) | `srl quiz`, a study frontend in Bash for Linux: keys without Enter, colors, and the context written to a file for another program to show. A starting point for a frontend of your own. |
+| [`web-frontend/`](web-frontend/) | `srl web`, the web viewer: a local server over the CLI and a React page that renders cards and context as Markdown. An npm package of its own. |

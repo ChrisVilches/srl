@@ -82,18 +82,24 @@ A web viewer is a frontend like any other, split in two:
 ```
 browser (HTML/JS)                     srl-web (small local server)       srl
 ──────────────────                    ────────────────────────────       ───
-render Markdown + ==mark==   ◄─JSON─  GET  /next?sel=…    ──runs──►  srl next SEL --json
-buttons, CSS theme           ◄─JSON─  GET  /item?id=…     ──runs──►  srl show ID --json
-                             ──JSON─► POST /review        ──runs──►  srl review --stdin
+render Markdown + ==mark==   ◄─JSON─  GET  /api/next?sel=…  ──runs──►  srl next SEL --json
+buttons, CSS theme           ◄─JSON─  GET  /api/item?id=…   ──runs──►  srl show ID --json
+                             ──JSON─► POST /api/review      ──runs──►  srl review --stdin
 ```
 
 - `srl-web` is a separate program on `PATH`, so `srl web` starts it. Each route
   runs one CLI command and returns its JSON. It contains no SRS logic.
 - The browser renders Markdown with an ordinary library (for example
-  markdown-it with a `==mark==` plugin) and styles it with CSS.
+  markdown-it) and styles it with CSS. Highlights are best paired in order,
+  each `==` with the next one: Markdown plugins that treat `==` like `*`
+  nest the marks in text without spaces, such as `==[...]==を==[...]==`.
 
 Because scheduling lives in the core, the web viewer and the terminal behave
 identically.
+
+The repository's `examples/web-frontend/` is such a viewer, as an npm
+package: a Node.js server and a React page (see [overview.md](overview.md),
+"Examples").
 
 ## Small examples
 
