@@ -135,6 +135,26 @@ person does: it writes new items (as drafts), tutors you (judging your
 free-form answers, if you ask it to), and analyzes your log. See
 [agents.md](agents.md).
 
+## Examples
+
+The repository's `examples/` folder holds things built on `srl` that are
+not part of it: ways to learn it, conveniences, starting points for your own
+tools. `examples/README.md` lists them. The first is `examples/agents/`, a
+system prompt and skills that turn an LLM agent into a guide to `srl` (see
+[agents.md](agents.md)).
+
+- **`srl` never depends on an example.** Delete `examples/` and `srl`
+  builds, tests and runs exactly as it did. Nothing in it is built, tested
+  or installed with `srl`.
+- **An example may be anything**: a program of its own, a script, or files
+  to give another program, such as prompts.
+- **The rules for `srl`'s code don't apply to it**, including platform
+  independence. An example that works on some platforms only says so in a
+  comment at its top.
+- **An example follows the specifications.** It is written against the
+  same commands and formats as anything else built on `srl`, and is updated
+  when they change.
+
 ## Documents
 
 | Document | Contents |

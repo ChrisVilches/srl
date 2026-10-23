@@ -25,6 +25,16 @@ attribution lines in the commit message.
 platform-independent yet gets a `TODO(platform):` comment above the code and
 a note in `docs/`. See [docs/rust.md](docs/rust.md), "Platform independence".
 
+### Keep examples/ out of the core
+
+`examples/` holds things built on `srl` that are not part of it (see
+[docs/overview.md](docs/overview.md), "Examples"). Nothing outside it may
+depend on it: deleting it must leave `srl` building, testing and running
+exactly as before. The rules above for `srl`'s code don't apply there; an
+example that works on some platforms only says so in a comment at its top.
+When a change to the specifications affects an example, update the example
+too.
+
 ### Keep docs/ in sync with the specifications
 
 Whenever the specifications change, update the documents in `docs/` in the

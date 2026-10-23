@@ -1,0 +1,130 @@
+---
+name: studying
+description: Run srl study sessions, in the terminal with srl study or in the chat with srl next and srl review, choose ratings, and understand which card comes next and why (study days, new-card limit, siblings). Load when the person wants to study, asks how to rate, asks why a card did or didn't appear, or wants you to quiz them.
+---
+
+# Studying
+
+## In the terminal: `srl study`
+
+The person runs it themselves; it needs a terminal, so you can't run it for
+them.
+
+```sh
+srl study                   # every active card
+srl study in:grammar        # only notes in a folder named grammar
+```
+
+For each card:
+
+1. The prompt is shown. **Enter** shows the answer, then the context (the
+   note around the item) below a `---` line. `q` quits.
+2. The rating: **`1`–`4`** records it. `e` opens the note in the editor
+   and asks again (for fixing a bad question on the spot). `s` suspends the
+   card without rating it. `q` quits without recording this card.
+
+Ctrl-D (Ctrl-Z then Enter on Windows) also quits. At the end it prints a
+summary such as `5 cards reviewed, 2 new, 1 Again.` Nothing is lost by
+quitting: every rating is recorded as it is given.
+
+## Ratings
+
+| Rating | Name | When |
+|---|---|---|
+| 1 | Again | Didn't know it, or got it wrong. |
+| 2 | Hard | Got it, with real effort or hesitation. |
+| 3 | Good | Got it. The usual rating. |
+| 4 | Easy | Got it instantly, with no effort. |
+
+Advise honesty over optimism: Again on a forgotten card brings it back
+tomorrow, which is the point. Good is the normal answer, not a compromise.
+
+## Which card comes next
+
+`srl next [SELECTOR]` (and `srl study`) picks, among active cards:
+
+1. **Due cards** first, the most overdue first.
+2. **Then new cards**, in the order they are written in the notes, until
+   `new_per_day` (default 10) new cards were started today. The limit is
+   for the whole store, not per selector.
+
+Things that explain "why didn't my card show up?":
+
+- **Days, not minutes.** Every interval is at least one day; there are no
+  repeats within a session. A card rated Again is due the next study day.
+- **The study day starts at 4:00** local time (`day_starts_at`), so a
+  late-night session counts as the day before.
+- **Siblings.** The cards of one item (its cloze numbers) are shown at most
+  one per day, so one doesn't give away another. New cloze cards of an item
+  are introduced one per day.
+- **Drafts and suspended cards are never studied.** `srl drafts` lists
+  drafts; `srl find status:suspended` lists suspended cards.
+- **Errors stop everything.** A broken note makes `srl study` fail with the
+  file and line; see the `fixing-problems` skill.
+- `srl next` exits with 1 and prints nothing when nothing is left today.
+
+To study more new cards today, the person can raise `new_per_day` in
+`.srl/config.toml`.
+
+## In the chat, with you
+
+A session in the chat records the same reviews as `srl study`, marked as
+yours. Only run one when the person asks for it. Each round:
+
+1. `srl next [SELECTOR] --json` prints the card:
+   `{"id": "k3m9q1-2", "prompt": "...", "answer": "..."}`. Exit code 1
+   means nothing is left: say so and stop.
+2. Show the prompt, and wait for the person's answer or for them to ask for
+   the answer.
+3. Show the answer, then the context: `srl show ID --json` prints the item
+   with a `context` field (`null` when there is none).
+4. Get the rating. Either the person gives it, or, if they asked you to
+   judge, you compare their answer with the card's and decide, telling them
+   the rating and why.
+5. Record it:
+
+   ```sh
+   srl review k3m9q1-2 --rating 3 --by agent
+   ```
+
+   To keep what they answered, use JSON instead:
+
+   ```sh
+   srl review --stdin <<'JSON'
+   {"card": "k3m9q1-2", "rating": 3, "response": "彼女", "by": "agent"}
+   JSON
+   ```
+
+Then go back to step 1. `==text==` in a card marks the important part:
+render it as bold, or leave it as written. A review needs a card ID such as
+`k3m9q1-2`, not an item ID such as `k3m9q1`.
+
+Useful extras while tutoring: when the person gets something wrong, ask a
+follow-up question to find the misunderstanding, and offer to write a draft
+item about it (see the `writing-items` skill).
+
+A quiz that should not touch the schedule needs no `srl review` at all:
+read cards with `srl cards ID` or `srl find`, and ask.
+
+## Other study actions
+
+| Command | Does |
+|---|---|
+| `srl review ID --rating N` | Rate a card outside a session, even if not due (treated as an early review). |
+| `srl suspend SEL` / `srl unsuspend SEL` | Stop / resume studying cards; the note doesn't change. |
+| `srl reset SEL` | Make cards new again. Their history stays in the log. |
+
+`--dry-run` shows what `srl review` or `srl reset` would write.
+
+## A study loop in a script
+
+The same loop `srl study` runs, written with the commands, for a person who
+wants their own frontend (bash with `jq`):
+
+```sh
+while card=$(srl next in:grammar --json); do
+  jq -r .prompt <<<"$card"; read -r _
+  jq -r .answer <<<"$card"; read -r -p 'rating 1-4: ' r
+  srl review "$(jq -r .id <<<"$card")" --rating "$r"
+done
+```

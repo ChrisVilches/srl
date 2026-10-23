@@ -12,6 +12,7 @@ Cargo.toml              workspace: members, shared dependencies, lint policy
 clippy.toml             clippy settings (test exceptions)
 rustfmt.toml            formatter settings
 scripts/check-windows.sh  lints the Windows build from Linux or macOS (see "Platform independence")
+examples/               not part of srl, and not built with it (see overview.md, "Examples")
 crates/
   srl-core/             the core, as a library
     src/lib.rs          the public API: re-exports only
@@ -250,6 +251,10 @@ When something can't be platform-independent yet, mark it in both places:
    the code.
 
 `grep -rn 'TODO(platform)\|TODO (platform)' crates docs` lists them all.
+
+None of this applies to `examples/` (see [overview.md](overview.md),
+"Examples"): an example that works on some platforms only says so in a
+comment at its top, and needs no `TODO(platform):`.
 Design decisions still to take are marked **TODO (design):** instead, and
 listed in [overview.md](overview.md), "Open questions".
 

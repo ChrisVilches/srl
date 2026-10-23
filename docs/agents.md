@@ -73,6 +73,22 @@ folders, usually inside a small wrapper script per role:
 agi --sys base.md --sys tutor.md --sys me.md --resources srl-agent/tutor "…"
 ```
 
+## A ready-made guide: `examples/agents/`
+
+The repository's `examples/agents/` (see [overview.md](overview.md),
+"Examples") is a base prompt and a set of skills for one role: a guide that
+teaches `srl` to someone who has never used it. It answers questions, sets
+up a store, writes example items as drafts, gives the commands for a study
+session, or runs one in the chat. The system prompt covers the common uses;
+each skill's front-matter says when to load it for the details (the item
+syntax, studying, selectors, fixing problems, progress). Its
+`README.md` shows how to start it with agi and with other agents.
+
+It assumes an agent with a shell, which is the simplest way to start, and
+asks it in its instructions to follow the rules above. With a shell, those
+are instructions and not guarantees; the tools-only setup above is the one
+that enforces them.
+
 ## Workflows
 
 ### Generate: new questions about a note
