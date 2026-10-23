@@ -146,6 +146,24 @@ do exactly that. But a card is produced by code, so repeating the answer in
 it costs nothing, and keeping it out of the prompt means any frontend, log
 viewer or `jq` can show a card without giving the answer away.
 
+## Why a built-in frontend
+
+The study loop can be written as a script around `srl next`, `srl show` and
+`srl review`, so `srl study` adds nothing a frontend couldn't do. It is built
+in anyway, for two reasons:
+
+- **A script can't be the same on every platform.** A shell loop needs `sh`
+  and `jq`, and doesn't run on Windows without extra tools; a PowerShell one
+  runs nowhere else. `srl study` is part of the binary, so studying works
+  the same on Linux, macOS and Windows.
+- **A person needs nothing but a terminal and an editor.** Without a
+  built-in frontend, `srl` would have no way to study until you wrote or
+  installed one.
+
+Trade-off: `srl` keeps one interactive command to maintain. It lives outside
+the core, and calls the same core functions as `srl next` and `srl review`,
+so it can't schedule differently from any other frontend.
+
 ## Why no LLM in the core
 
 The store should be like a notes folder: complete on its own, and open to any

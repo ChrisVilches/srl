@@ -261,7 +261,8 @@ exits with 0 if it found something, and 1 if not.
 
 ## The study loop, scripted
 
-`srl study` is a convenience. The same loop can be written with the primitives:
+`srl study` is a convenience (see [rationale.md](rationale.md), "Why a built-in
+frontend"). The same loop can be written with the primitives:
 
 ```sh
 sel='in:grammar,kanji'
