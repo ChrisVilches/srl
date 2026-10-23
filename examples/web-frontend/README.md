@@ -57,8 +57,8 @@ The server listens on `127.0.0.1` only. It refuses requests whose `Host` is
 not localhost, and POST bodies that are not `application/json`, so that
 other web pages open in the browser can't use it.
 
-Highlights are paired in order, each `==` with the next one, as the terminal
-frontends do (`src/highlight.ts`). Plugins that treat `==` like `*`, with
+Highlights are paired in order, each `==` with the next one, as `srl tui`
+does (`src/highlight.ts`). Plugins that treat `==` like `*`, with
 CommonMark's rules, get text without spaces wrong: in `==[...]==を==[...]==`
 they nest the marks.
 

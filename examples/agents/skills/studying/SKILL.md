@@ -1,6 +1,6 @@
 ---
 name: studying
-description: Run study sessions with srl, through a frontend such as srl web or srl quiz, or in the chat with srl next and srl review, choose ratings, and understand which card comes next and why (study days, new-card limit, siblings). Load when the person wants to study, asks how to rate, asks why a card did or didn't appear, or wants you to quiz them.
+description: Run study sessions with srl, through a frontend such as srl web or srl tui, or in the chat with srl next and srl review, choose ratings, and understand which card comes next and why (study days, new-card limit, siblings). Load when the person wants to study, asks how to rate, asks why a card did or didn't appear, or wants you to quiz them.
 ---
 
 # Studying
@@ -14,7 +14,7 @@ so you can't run it for them. The `srl` repository's `examples/` has two:
 | Frontend | Where | Needs |
 |---|---|---|
 | `srl web [SELECTOR]` | the browser, with Markdown rendered | Node.js; installed with npm from `examples/web-frontend/` |
-| `srl quiz [SELECTOR]` | the terminal, in color | Bash and `jq`, on Linux; a script copied from `examples/bash-frontend/` |
+| `srl tui [SELECTOR]` | the terminal, with Markdown rendered | uv; installed with `uv tool install` from `examples/python-frontend/` |
 
 ```sh
 srl web                     # every active card

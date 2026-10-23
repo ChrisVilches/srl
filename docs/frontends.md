@@ -4,9 +4,9 @@ A **frontend** is a program that shows cards to a person and records the
 results. `srl` has none built in (see [rationale.md](rationale.md), "Why no
 built-in frontend"): every frontend is a separate program, such as a web
 viewer, a shell-prompt question or a script. The repository's `examples/`
-has three, not part of `srl` (see [overview.md](overview.md), "Examples"):
-the web viewer `srl web`, the Bash frontend `srl quiz` and the Python
-terminal frontend `srl tui`. They are made to be copied and changed.
+has two, not part of `srl` (see [overview.md](overview.md), "Examples"):
+the web viewer `srl web` and the terminal frontend `srl tui`, in Python.
+They are made to be copied and changed.
 
 Frontends understand the output of `srl next --json`, and nothing else.
 They don't know about notes, kinds or cloze syntax, so any frontend can
@@ -45,7 +45,7 @@ Card text and context are Markdown; card text may also hold `==highlight==`
 (see [cards.md](cards.md)).
 
 - How highlighted text looks is a frontend setting, never card content.
-  `srl quiz` and `srl tui` use bold yellow; `srl web` uses CSS.
+  `srl tui` uses bold yellow; `srl web` uses CSS.
 - Printing the raw text must always remain acceptable. A simple frontend can
   skip rendering entirely.
 
@@ -74,7 +74,7 @@ buttons, keys, CSS theme     ──JSON─► POST /api/review      ──runs�
   among them and the Again ratings are counted at the top.
 - **Card text and context are rendered as Markdown** with markdown-it. Raw
   HTML is shown as text. Highlights are paired in order, each `==` with the
-  next one, as `srl quiz` does: Markdown plugins that treat `==` like `*`
+  next one, as `srl tui` does: Markdown plugins that treat `==` like `*`
   nest the marks in text without spaces, such as `==[...]==を==[...]==`.
 - **Only the browser on the same computer can use it.** The server listens
   on `127.0.0.1`, and refuses requests for any host but localhost and POST
@@ -102,9 +102,7 @@ while card=$(srl next "$1" --json); do
 done
 ```
 
-A fuller one, with keys that act without Enter, colors, and the context
-written to a file for another program to show, is in the repository's
-`examples/bash-frontend/` (see [overview.md](overview.md), "Examples").
-One in Python with Rich, which shows the card, the answer and the context
-rendered as Markdown on one terminal screen, is in
-`examples/python-frontend/`.
+A fuller one, in Python with Rich, is in the repository's
+`examples/python-frontend/` (see [overview.md](overview.md), "Examples"):
+keys that act without Enter, and the card, the answer and the context
+rendered as Markdown on one terminal screen.

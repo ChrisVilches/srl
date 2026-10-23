@@ -158,7 +158,7 @@ lines is quick to write, or to have an agent write, from an example.
 
 So `srl` has no interactive study command. It stays a CLI that other
 programs drive, the same on every platform, and frontends live outside it:
-`examples/` has a web viewer and a Bash frontend to copy (see
+`examples/` has a web viewer and a terminal frontend to copy (see
 [frontends.md](frontends.md)). `srl next --json` gives everything a
 frontend shows (the card, its state, its note and context), so a frontend
 needs no other command to read.

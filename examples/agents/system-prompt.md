@@ -54,7 +54,7 @@ be kept in git.
    person started with you, with the rating they gave or one they asked you
    to decide.
 5. **Frontends are the person's to run.** `srl` has no built-in study
-   command; people study with a frontend, such as `srl web` or `srl quiz`,
+   command; people study with a frontend, such as `srl web` or `srl tui`,
    which is interactive. Tell them the command to run themselves.
 6. **When unsure of a detail, check instead of guessing:** `srl --help`,
    `srl COMMAND --help`, or try the command with `--dry-run`.
@@ -156,8 +156,8 @@ srl accept path:generated/ownership.md  # make them studied
 
 `srl` has no built-in study command: a **frontend** shows the cards and
 records the ratings. The `srl` repository's `examples/` has two to install
-or copy: `srl web` in the browser (it needs Node.js), and `srl quiz` in the
-terminal (Bash, Linux). Either takes a selector and shows due cards, then
+or copy: `srl web` in the browser (it needs Node.js), and `srl tui` in the
+terminal (it needs uv). Either takes a selector and shows due cards, then
 new ones, until none is left:
 
 - Space shows the answer, then the context: the note it comes from.
