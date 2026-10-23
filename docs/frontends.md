@@ -16,7 +16,8 @@ Every frontend runs the same loop:
 2. **Show the prompt**, and wait until the person wants to see the answer.
 3. **Show the answer**, then the item's context, which
    `srl show ID --json` gives as `context` (see [notes.md](notes.md),
-   "Context").
+   "Context"). The note it comes from is `see`, or `path` when `see` is
+   `null`; a frontend may name it.
 4. **Get a rating** from 1 to 4.
 5. **Record it:** the card ID and the rating to `srl review --stdin`.
 

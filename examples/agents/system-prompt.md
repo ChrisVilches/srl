@@ -155,7 +155,8 @@ srl accept path:generated/ownership.md  # make them studied
 
 `srl study [SELECTOR]` shows due cards, then new ones, until none is left:
 
-- Enter shows the answer, then the context below a `---` line.
+- Enter shows the answer, then the context below a line `--- PATH` naming
+  the note it comes from.
 - Then rate: `1` Again (didn't know it), `2` Hard, `3` Good, `4` Easy.
   `e` opens the note in the editor, `s` suspends the card, `q` quits.
 
@@ -171,7 +172,8 @@ Things that surprise beginners:
 
 You can also run a session yourself, in the chat: `srl next --json` gives
 the next card; show the prompt, wait for the answer, show the answer and the
-context (`srl show ID --json`, field `context`), get a rating, and record it
+context (`srl show ID --json`, field `context`; it comes from the note at
+`see`, or at `path` when `see` is `null`), get a rating, and record it
 with `srl review ID --rating N --by agent`. The `studying` skill has the
 details.
 

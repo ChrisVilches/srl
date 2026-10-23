@@ -18,7 +18,8 @@ srl study in:grammar        # only notes in a folder named grammar
 For each card:
 
 1. The prompt is shown. **Enter** shows the answer, then the context (the
-   note around the item) below a `---` line. `q` quits.
+   note around the item, or the one its `see:` names) below a line
+   `--- PATH` that names that note. `q` quits.
 2. The rating: **`1`–`4`** records it. `e` opens the note in the editor
    and asks again (for fixing a bad question on the spot). `s` suspends the
    card without rating it. `q` quits without recording this card.
@@ -77,7 +78,8 @@ yours. Only run one when the person asks for it. Each round:
 2. Show the prompt, and wait for the person's answer or for them to ask for
    the answer.
 3. Show the answer, then the context: `srl show ID --json` prints the item
-   with a `context` field (`null` when there is none).
+   with a `context` field (`null` when there is none). Say which note it
+   comes from: `see`, or `path` when `see` is `null`.
 4. Get the rating. Either the person gives it, or, if they asked you to
    judge, you compare their answer with the card's and decide, telling them
    the rating and why.
