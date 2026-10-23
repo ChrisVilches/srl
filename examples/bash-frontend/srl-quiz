@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# srl-quiz: a colorful study frontend for srl, written in Bash.
+#
+# Linux only (it uses GNU sed, mktemp and ANSI colors; it may work on
+# macOS with GNU tools, but isn't tried there). Needs `srl` and `jq`.
+#
+# It is a starting point: copy it, rename it, change it. On PATH as
+# `srl-quiz`, it runs as `srl quiz [SELECTOR]`.
+#
+# How it differs from `srl study`:
+#   - keys act at once, without Enter;
+#   - the prompt, the answer and the rating keys are in color;
+#   - the context is not printed here: it is written to CONTEXT_FILE when
+#     the answer is shown, and emptied when the next prompt is shown, so
+#     that any other program can show it.
+#
+# It runs the frontend loop of docs/frontends.md: `srl next`, `srl show`
+# for the context, `srl review`.
+
+set -uo pipefail
+
+# Where the context of the card on screen is written. Always the same
+# file, so that other programs can find it.
+readonly CONTEXT_FILE=/tmp/srl-context.md
+
+if [[ ! -t 0 ]]; then
+  echo "srl-quiz: needs a terminal; in scripts, use srl next and srl review" >&2
+  exit 2
+fi
+for program in srl jq; do
+  if ! command -v "$program" >/dev/null; then
+    echo "srl-quiz: $program is not on PATH; install it first" >&2
+    exit 2
+  fi
+done
+
+# Colors, and clearing the line of the keys once one is pressed, unless
+# standard output isn't a terminal or NO_COLOR is set.
+if [[ -t 1 && -z ${NO_COLOR:-} ]]; then
+  RESET=$'\e[0m' BOLD=$'\e[1m' DIM=$'\e[2m'
+  RED=$'\e[31m' GREEN=$'\e[32m' YELLOW=$'\e[33m' BLUE=$'\e[34m' CYAN=$'\e[36m'
+  BADGE_Q=$'\e[1;30;46m' BADGE_A=$'\e[1;30;42m'
+  CLEAR_LINE=$'\r\e[K'
+else
+  RESET='' BOLD='' DIM='' RED='' GREEN='' YELLOW='' BLUE='' CYAN=''
+  BADGE_Q='' BADGE_A=''
+  CLEAR_LINE=$'\n'
+fi
+
+# Prints card text with every line indented, in COLOR, and ==highlights==
+# in bold yellow. Without colors, highlights stay ==raw==.
+show_text() { # TEXT COLOR
+  local color=$2 highlight=''
+  if [[ -n $RESET ]]; then
+    highlight="s/==(([^=]|=[^=])*)==/${BOLD}${YELLOW}\1${RESET}${color}/g;"
+  fi
+  sed -E "$highlight s/^/     /; s/^/${color}/; s/$/${RESET}/" <<<"$1"
+}
+
+# Replaces the context file with standard input, all at once, so that a
+# program reading it never sees half of it.
+write_context() {
+  local tmp
+  tmp=$(mktemp "$CONTEXT_FILE.XXXXXX") || return
+  cat >"$tmp" && mv -f "$tmp" "$CONTEXT_FILE"
+}
+
+# Reads one key into KEY; fails at the end of input (Ctrl-D).
+read_key() {
+  IFS= read -rsn1 KEY
+}
+
+reviews=0 new=0 again=0
+
+summary() {
+  printf '\n%s%d reviewed%s, %s%d new%s, %s%d Again%s.\n' \
+    "$BOLD" "$reviews" "$RESET" "$CYAN" "$new" "$RESET" "$RED" "$again" "$RESET"
+}
+
+while true; do
+  card=$(srl next "$@" --json)
+  case $? in
+    0) ;;
+    1) break ;;
+    *) exit 2 ;;
+  esac
+  id=$(jq -r .id <<<"$card")
+  state=$(srl find "id:$id" --json | jq -r .state) || exit 2
+
+  : | write_context
+  printf '\n%s── %s%s%s ──%s\n\n' "$DIM" "$RESET$BOLD" "$id" "$RESET$DIM" "$RESET"
+  printf '  %s Q %s\n' "$BADGE_Q" "$RESET"
+  show_text "$(jq -r .prompt <<<"$card")" "$CYAN"
+  printf '\n%s  space: answer   q: quit%s' "$DIM" "$RESET"
+  read_key || { echo; break; }
+  printf '%s' "$CLEAR_LINE"
+  [[ $KEY == q ]] && break
+
+  printf '  %s A %s\n' "$BADGE_A" "$RESET"
+  show_text "$(jq -r .answer <<<"$card")" "$GREEN"
+  item=$(srl show "$id" --json) || exit 2
+  if [[ $(jq -r '.context != null' <<<"$item") == true ]]; then
+    jq -j .context <<<"$item" | write_context
+    printf '\n  %scontext: %s → %s%s\n' "$DIM" "$(jq -r '.see // .path' <<<"$item")" "$CONTEXT_FILE" "$RESET"
+  else
+    printf '\n  %sno context%s\n' "$DIM" "$RESET"
+  fi
+
+  keys="${RED}1${RESET} again  ${YELLOW}2${RESET} hard  ${GREEN}3${RESET} good  ${BLUE}4${RESET} easy"
+  keys+="   ${DIM}e edit  s suspend  q quit${RESET}"
+  rating=''
+  while [[ -z $rating ]]; do
+    printf '\n  %s ' "$keys"
+    read_key || { echo; summary; exit 0; }
+    printf '%s' "$CLEAR_LINE"
+    case $KEY in
+      [1-4]) rating=$KEY ;;
+      e) srl edit "$id" ;;
+      s)
+        srl suspend "id:$id" >/dev/null || exit 2
+        printf '  %ssuspended %s%s\n' "$DIM" "$id" "$RESET"
+        continue 2
+        ;;
+      q) summary; exit 0 ;;
+    esac
+  done
+
+  jq -n --arg card "$id" --argjson rating "$rating" '{card: $card, rating: $rating}' |
+    srl review --stdin || exit 2
+  names=(again hard good easy)
+  colors=("$RED" "$YELLOW" "$GREEN" "$BLUE")
+  printf '  %s✓ %s%s\n' "${colors[rating - 1]}" "${names[rating - 1]}" "$RESET"
+  reviews=$((reviews + 1))
+  [[ $state == new ]] && new=$((new + 1))
+  [[ $rating == 1 ]] && again=$((again + 1))
+done
+
+summary

@@ -113,3 +113,7 @@ while card=$(srl next "$1" --json); do
   jq -n --argjson card "$card" --argjson rating "$r" '{card: $card.id, rating: $rating}' | srl review --stdin
 done
 ```
+
+A fuller one, with keys that act without Enter, colors, and the context
+written to a file for another program to show, is in the repository's
+`examples/bash-frontend/` (see [overview.md](overview.md), "Examples").
