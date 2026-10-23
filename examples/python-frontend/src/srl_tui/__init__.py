@@ -5,11 +5,12 @@ It is a starting point: copy it, rename it, change it. On PATH as
 
 It runs the frontend loop of docs/frontends.md: `srl next --json` for the
 card and its context, `srl review --stdin` for the rating. Keys act at
-once, without Enter: space or Enter shows the answer, 1-4 rate, e edits
-the note, s suspends the card, q quits.
+once, without Enter: space or Enter shows the answer, 1-4 rate, j/k or the
+arrows scroll the context, e edits the note, s suspends the card, q quits.
 """
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,7 @@ from rich.markdown import Markdown
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.rule import Rule
+from rich.segment import Segment
 from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
@@ -34,15 +36,14 @@ console = Console(theme=THEME, highlight=False)
 
 
 class SrlError(Exception):
-    """srl failed; its message has been printed on standard error."""
+    """srl failed; the message is what it printed on standard error."""
 
 
 def srl(*args, stdin=None):
     """Runs srl and returns its output and exit code; any code but 0 and 1 is an error."""
     result = subprocess.run(["srl", *args], input=stdin, capture_output=True, text=True)
     if result.returncode not in (0, 1):
-        sys.stderr.write(result.stderr)
-        raise SrlError
+        raise SrlError(result.stderr)
     return result.stdout, result.returncode
 
 
@@ -84,22 +85,49 @@ class CardMarkdown(Markdown):
         self.parsed = self.parser.parse(markup)
 
 
+class Lines:
+    """Lines already rendered by console.render_lines, printed as they are."""
+
+    def __init__(self, lines):
+        self.lines = lines
+
+    def __rich_console__(self, console, options):
+        for line in self.lines:
+            yield from line
+            yield Segment.line()
+
+
+ARROWS = {"\x1b[A": "up", "\x1b[B": "down"}
+
+pending = []  # keys read together, such as a held key repeating, not handled yet
+
+
 def read_key():
-    """Reads one key press, without waiting for Enter."""
+    """Reads one key press, without waiting for Enter; the arrows are "up" and "down"."""
     if sys.platform == "win32":
         import msvcrt
 
-        return msvcrt.getwch()
-    import termios
-    import tty
+        key = msvcrt.getwch()
+        if key in ("\x00", "\xe0"):
+            return {"H": "up", "P": "down"}.get(msvcrt.getwch(), "")
+        return key
+    if not pending:
+        import termios
+        import tty
 
-    fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    try:
-        tty.setraw(fd)
-        return sys.stdin.read(1)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd, termios.TCSANOW)  # not the default TCSAFLUSH, which drops keys typed ahead
+            data = os.read(fd, 64).decode(errors="replace")
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        while data:
+            arrow = next((a for a in ARROWS if data.startswith(a)), None)
+            key = arrow or data[0]
+            pending.append(ARROWS.get(key, key))
+            data = data[len(key):]
+    return pending.pop(0)
 
 
 def wait_for(keys):
@@ -138,28 +166,51 @@ class Session:
         grid.add_row(left, right)
         return grid
 
-    def show(self, card, answered):
-        console.clear()
-        console.print(self.header(card))
+    def context(self, card, height, scroll):
+        """The context panel, at most height lines tall, and the scroll it shows.
+
+        A context too long for the panel shows the lines from scroll on,
+        so that the card above it never leaves the screen.
+        """
+        if card["context"] is None:
+            return Padding(Text("no context", "dim"), (0, 2)), 0
+        width = console.width - 6  # the borders and the padding
+        lines = console.render_lines(CardMarkdown(card["context"]), console.options.update_width(width))
+        shown = max(height - 2, 3)
+        scroll = max(0, min(scroll, len(lines) - shown))
+        subtitle = None
+        if len(lines) > shown:
+            end = min(scroll + shown, len(lines))
+            subtitle = Text(f"{scroll + 1}–{end} of {len(lines)}  j/k scroll", "dim")
+        panel = Panel(Lines(lines[scroll:scroll + shown]), title=Text(card["see"] or card["path"], "dim"),
+                      title_align="left", subtitle=subtitle, subtitle_align="right",
+                      border_style="dim", padding=(0, 2))
+        return panel, scroll
+
+    def show(self, card, answered, scroll):
+        """Draws the screen for the card, and returns the scroll of its context."""
+        header = self.header(card)
         body = [CardMarkdown(card["prompt"])]
         if answered:
             body += [Padding(Rule(style="dim"), (1, 0)), CardMarkdown(card["answer"])]
-        console.print(Panel(Group(*body), border_style="green" if answered else "cyan", padding=(1, 2)))
+        panel = Panel(Group(*body), border_style="green" if answered else "cyan", padding=(1, 2))
         if answered:
-            if card["context"] is None:
-                console.print(Padding(Text("no context", "dim"), (0, 2)))
-            else:
-                title = Text(card["see"] or card["path"], "dim")
-                console.print(Panel(CardMarkdown(card["context"]), title=title, title_align="left",
-                                    border_style="dim", padding=(0, 2)))
             keys = Text("  ")
             for number, (name, color) in enumerate(RATINGS, 1):
                 keys.append(f" {number} {name} ", f"bold black on {color}").append(" ")
             keys.append("   e edit  s suspend  q quit", "dim")
+            # What is left of the screen, under the header, the card, and
+            # the blank line and the keys at the bottom.
+            height = console.height - 1 - len(console.render_lines(panel)) - 2
+            context, scroll = self.context(card, height, scroll)
+            screen = Group(header, panel, context, Text())
         else:
             keys = Text("  space answer   e edit  s suspend  q quit", "dim")
-        console.print()
-        console.print(keys)
+            screen = Group(header, panel, Text())
+        console.clear()
+        console.print(screen)
+        console.print(keys, end="")  # no newline: on the last line, it would scroll the screen
+        return scroll
 
     def run(self):
         """Studies until no card is left (returns True) or q is pressed."""
@@ -169,21 +220,30 @@ class Session:
                 return True
             card = json.loads(out)
             answered = False
+            scroll = 0
             while True:
-                self.show(card, answered)
-                key = wait_for("esq1234" if answered else " \nesq")
+                scroll = self.show(card, answered, scroll)
+                if answered:
+                    key = wait_for({"e", "s", "q", "1", "2", "3", "4", "j", "k", "up", "down"})
+                else:
+                    key = wait_for({" ", "\n", "e", "s", "q"})
                 if key == "q":
                     return False
-                if key == "e":
+                if key in ("j", "down"):
+                    scroll += 1
+                elif key in ("k", "up"):
+                    scroll -= 1
+                elif key == "e":
                     subprocess.run(["srl", "edit", card["id"]])
                     break  # the note may have changed: get the card again
-                if key == "s":
+                elif key == "s":
                     srl("suspend", f"id:{card['id']}")
                     break
-                if answered:
+                elif answered:
                     self.review(card, int(key))
                     break
-                answered = True
+                else:
+                    answered = True
 
     def review(self, card, rating):
         srl("review", "--stdin", stdin=json.dumps({"card": card["id"], "rating": rating}))
@@ -199,9 +259,12 @@ def main():
         sys.exit("srl-tui: srl is not on PATH; install it first")
     session = Session(sys.argv[1:])
     try:
-        finished = session.run()
-    except SrlError:
+        # The alternate screen: the session fills the terminal, and leaves
+        # it as it was when it ends.
+        with console.screen():
+            finished = session.run()
+    except SrlError as error:
+        sys.stderr.write(str(error))
         sys.exit(2)
-    console.clear()
     console.print(Text("Nothing left to study." if finished else "Stopped.", "bold"))
     console.print(session.stats())

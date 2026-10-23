@@ -9,8 +9,12 @@ work on Linux, macOS and Windows (it is tried on Linux only).
   counters, the card in a panel, and the keys at the bottom.
 - Card text and context are rendered as Markdown, with `==highlights==` in
   bold yellow. The context is shown under the answer, titled with its note.
+- The screen never scrolls: the question and the answer always stay in
+  view. A context too long for the space left under them scrolls on its
+  own, inside its panel.
 - Keys act at once, without Enter: space (or Enter) shows the answer,
-  `1`–`4` rate, `e` edits the note, `s` suspends the card, `q` quits.
+  `1`–`4` rate, `j`/`k` or the arrows scroll the context, `e` edits the
+  note, `s` suspends the card, `q` quits.
 - It ends with a summary: the cards reviewed, the new ones among them, and
   the Again ratings.
 
