@@ -38,6 +38,15 @@ FORMS: te past negative
 `v81k3z-past` and `v81k3z-negative`. `card` with suffix `te` prints the
 て-form question for 動く.
 
+> **TODO (design):** the wish is a kind program with **one call**, not two.
+> It is not known yet whether that is possible: card IDs are needed far
+> more often than card content, and must be stable, while content may
+> differ every time. Getting there would need a refactor and
+> restructuring of how `srl` asks a kind for cards, for example around
+> when IDs are computed and cached. To be worked on when plugin support is
+> implemented; until then, the two calls above are the design that is
+> known to work.
+
 Other rules a plugin design would need:
 
 - **Fields are checked by `ids`.** A program that exits with an error on
