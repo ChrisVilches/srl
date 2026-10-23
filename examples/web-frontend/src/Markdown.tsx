@@ -3,9 +3,10 @@ import { useMemo } from 'react';
 
 import { highlight } from './highlight';
 
-// CommonMark plus ==highlight== (docs/cards.md, "Text formatting"). Raw HTML
-// in notes is shown as text, so a note can never run scripts in the page.
-const md = new MarkdownIt('commonmark', { html: false }).use(highlight);
+// CommonMark plus ==highlight== (docs/cards.md, "Text formatting"), and GFM
+// tables, which notes use. Raw HTML in notes is shown as text, so a note can
+// never run scripts in the page.
+const md = new MarkdownIt('commonmark', { html: false }).enable('table').use(highlight);
 
 // Open links in a new tab, so that following one doesn't end the session.
 const defaultLinkOpen =

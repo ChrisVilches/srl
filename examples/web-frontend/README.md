@@ -6,8 +6,8 @@ browser that shows the cards. On `PATH`, it runs as `srl web`. It needs
 `srl` and Node.js 20 or later, and should work on Linux, macOS and Windows
 (it is tried on Linux only).
 
-- Card text and context are rendered as Markdown, with `==highlights==`
-  marked. Raw HTML in notes is shown as text.
+- Card text and context are rendered as CommonMark plus GFM tables, with
+  `==highlights==` marked. Raw HTML in notes is shown as text.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
   card without recording a review.
 - The selector can be changed in the page; the counters at the top are the
