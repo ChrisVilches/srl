@@ -11,7 +11,7 @@ script for Linux, and needs `srl` and `jq`.
   highlights in bold yellow. With `NO_COLOR` set, or when standard output
   isn't a terminal, it prints plain text.
 - The context is not printed with the answer. It is written to
-  `/tmp/srl-context.md` (the constant `CONTEXT_FILE` at the top of the
+  `/tmp/srl-quiz-context.md` (the constant `CONTEXT_FILE` at the top of the
   script) when the answer is shown, and emptied when the next prompt is
   shown. Only the note's path is printed. Whatever you want to do with the
   context, such as showing it rendered in another pane, is up to you; the
