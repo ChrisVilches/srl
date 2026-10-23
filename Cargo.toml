@@ -6,9 +6,11 @@ members = ["crates/srl", "crates/srl-core"]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.92"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ChrisVilches/srl"
 
 [workspace.dependencies]
-srl-core = { path = "crates/srl-core" }
+srl-core = { path = "crates/srl-core", version = "0.1.0" }
 anyhow = "1.0.104"
 blake3 = "1.8.7"
 clap = { version = "4.6.7", features = ["derive"] }

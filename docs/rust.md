@@ -11,6 +11,7 @@ on the code, people and agents alike.
 Cargo.toml              workspace: members, shared dependencies, lint policy
 clippy.toml             clippy settings (test exceptions)
 rustfmt.toml            formatter settings
+LICENSE-MIT, LICENSE-APACHE  the licenses (MIT OR Apache-2.0); each crate has a copy, for its package
 scripts/check-windows.sh  lints the Windows build from Linux or macOS (see "Platform independence")
 examples/               not part of srl, and not built with it (see overview.md, "Examples")
 crates/

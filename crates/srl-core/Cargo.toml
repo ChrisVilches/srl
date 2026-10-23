@@ -4,6 +4,9 @@ description = "The core of srl: store, notes, items, cards, scheduling. No CLI c
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["spaced-repetition", "flashcards", "fsrs", "markdown"]
 
 [dependencies]
 blake3.workspace = true
