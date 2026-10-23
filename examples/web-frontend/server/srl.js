@@ -32,11 +32,3 @@ export function runSrl(args, { dir, input } = {}) {
     child.stdin.end(input ?? '');
   });
 }
-
-// Parses JSONL output into an array of objects.
-export function parseLines(stdout) {
-  return stdout
-    .split('\n')
-    .filter((line) => line.trim() !== '')
-    .map((line) => JSON.parse(line));
-}

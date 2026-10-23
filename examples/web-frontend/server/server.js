@@ -6,8 +6,6 @@
 //
 //   GET  /api/config          the selector and store given on the command line
 //   GET  /api/next?sel=…      srl next SEL --json     → { card } or { card: null }
-//   GET  /api/find?sel=…      srl find SEL --json     → { cards: [...] }
-//   GET  /api/item?id=…       srl show ID --json      → { item }
 //   POST /api/review          srl review --stdin      ← { card, rating, response? }
 //   POST /api/suspend         srl suspend id:CARD     ← { card }
 //
@@ -19,7 +17,7 @@ import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
 
-import { SrlError, parseLines, runSrl } from './srl.js';
+import { SrlError, runSrl } from './srl.js';
 
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -47,17 +45,6 @@ export function createSrlServer({ dir, selector, staticDir }) {
     'GET /api/next': async (url) => {
       const { found, stdout } = await srl(['next', '--json', ...selectorArgs(url)]);
       return { card: found ? JSON.parse(stdout) : null };
-    },
-
-    'GET /api/find': async (url) => {
-      const { stdout } = await srl(['find', '--json', ...selectorArgs(url)]);
-      return { cards: parseLines(stdout) };
-    },
-
-    'GET /api/item': async (url) => {
-      const id = requireId(url.searchParams.get('id'));
-      const { stdout } = await srl(['show', id, '--json']);
-      return { item: parseLines(stdout)[0] };
     },
 
     // The body is passed to srl as it is: srl checks it.

@@ -7,15 +7,15 @@
 # It is a starting point: copy it, rename it, change it. On PATH as
 # `srl-quiz`, it runs as `srl quiz [SELECTOR]`.
 #
-# How it differs from `srl study`:
+# What it does:
 #   - keys act at once, without Enter;
 #   - the prompt, the answer and the rating keys are in color;
 #   - the context is not printed here: it is written to CONTEXT_FILE when
 #     the answer is shown, and emptied when the next prompt is shown, so
 #     that any other program can show it.
 #
-# It runs the frontend loop of docs/frontends.md: `srl next`, `srl show`
-# for the context, `srl review`.
+# It runs the frontend loop of docs/frontends.md: `srl next --json` for
+# the card and its context, `srl review` for the rating.
 
 set -uo pipefail
 
@@ -85,7 +85,7 @@ while true; do
     *) exit 2 ;;
   esac
   id=$(jq -r .id <<<"$card")
-  state=$(srl find "id:$id" --json | jq -r .state) || exit 2
+  state=$(jq -r .state <<<"$card")
 
   : | write_context
   printf '\n%s── %s%s%s ──%s\n\n' "$DIM" "$RESET$BOLD" "$id" "$RESET$DIM" "$RESET"
@@ -98,10 +98,9 @@ while true; do
 
   printf '  %s A %s\n' "$BADGE_A" "$RESET"
   show_text "$(jq -r .answer <<<"$card")" "$GREEN"
-  item=$(srl show "$id" --json) || exit 2
-  if [[ $(jq -r '.context != null' <<<"$item") == true ]]; then
-    jq -j .context <<<"$item" | write_context
-    printf '\n  %scontext: %s → %s%s\n' "$DIM" "$(jq -r '.see // .path' <<<"$item")" "$CONTEXT_FILE" "$RESET"
+  if [[ $(jq -r '.context != null' <<<"$card") == true ]]; then
+    jq -j .context <<<"$card" | write_context
+    printf '\n  %scontext: %s → %s%s\n' "$DIM" "$(jq -r '.see // .path' <<<"$card")" "$CONTEXT_FILE" "$RESET"
   else
     printf '\n  %sno context%s\n' "$DIM" "$RESET"
   fi

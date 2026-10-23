@@ -53,8 +53,9 @@ be kept in git.
    or `"by": "agent"` in JSON. Record a review only in a study session the
    person started with you, with the rating they gave or one they asked you
    to decide.
-5. **`srl study` is interactive.** It refuses to run without a terminal, so
-   you can't run it for the person: tell them the command to run themselves.
+5. **Frontends are the person's to run.** `srl` has no built-in study
+   command; people study with a frontend, such as `srl web` or `srl quiz`,
+   which is interactive. Tell them the command to run themselves.
 6. **When unsure of a detail, check instead of guessing:** `srl --help`,
    `srl COMMAND --help`, or try the command with `--dry-run`.
 
@@ -98,7 +99,7 @@ Q: A {{c1::reference}} lets you use a value without taking {{c2::ownership}}.
 ```sh
 srl id          # gives each new item an ID: <!-- srl id:x7k2m9 -->
 srl find        # lists the cards
-srl study       # studies them in the terminal
+srl web         # studies them in the browser, once srl web is installed
 ```
 
 ## Writing items
@@ -153,12 +154,15 @@ srl accept path:generated/ownership.md  # make them studied
 
 ## Studying
 
-`srl study [SELECTOR]` shows due cards, then new ones, until none is left:
+`srl` has no built-in study command: a **frontend** shows the cards and
+records the ratings. The `srl` repository's `examples/` has two to install
+or copy: `srl web` in the browser (it needs Node.js), and `srl quiz` in the
+terminal (Bash, Linux). Either takes a selector and shows due cards, then
+new ones, until none is left:
 
-- Enter shows the answer, then the context below a line `--- PATH` naming
-  the note it comes from.
+- Space shows the answer, then the context: the note it comes from.
 - Then rate: `1` Again (didn't know it), `2` Hard, `3` Good, `4` Easy.
-  `e` opens the note in the editor, `s` suspends the card, `q` quits.
+  `s` suspends the card.
 
 Things that surprise beginners:
 
@@ -167,14 +171,14 @@ Things that surprise beginners:
 - Only 10 new cards are introduced per day (`new_per_day` in
   `.srl/config.toml`), across all selectors.
 - Cards of one item (cloze 1, cloze 2, ...) are shown at most one per day.
-- When nothing is left, `srl study` stops. That means they are done for
+- When nothing is left, the frontend says so. That means they are done for
   today.
 
 You can also run a session yourself, in the chat: `srl next --json` gives
-the next card; show the prompt, wait for the answer, show the answer and the
-context (`srl show ID --json`, field `context`; it comes from the note at
-`see`, or at `path` when `see` is `null`), get a rating, and record it
-with `srl review ID --rating N --by agent`. The `studying` skill has the
+the next card with its context (field `context`; it comes from the note at
+`see`, or at `path` when `see` is `null`); show the prompt, wait for the
+answer, show the answer and the context, get a rating, and record it with
+`srl review ID --rating N --by agent`. The `studying` skill has the
 details.
 
 ## Selectors
@@ -191,7 +195,7 @@ Terms separated by spaces must all match; a comma means or; `-` means not.
 | `word` | items containing the text; quote for spaces: `'"two words"'` |
 
 ```sh
-srl study in:grammar,kanji      # grammar or kanji
+srl next in:grammar,kanji       # grammar or kanji
 srl find in:rust -state:new     # rust cards already studied
 ```
 
@@ -207,8 +211,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl add NOTE --stdin` | append items (JSONL) |
 | `srl edit ID` | open the item's note in the editor |
 | `srl drafts` / `srl accept SEL` | list drafts / accept them |
-| `srl study [SEL]` | study in the terminal |
-| `srl next [SEL]` | print the next card |
+| `srl next [SEL]` | print the next card; with `--json`, its state and context too |
 | `srl review ID --rating N` | record a rating |
 | `srl suspend SEL` / `srl unsuspend SEL` | stop / resume studying cards |
 | `srl reset SEL` | make cards new again |
@@ -231,7 +234,7 @@ Load a skill when the person needs more than the above:
 |---|---|
 | `setting-up-a-store` | Creating stores, several stores, configuration, git and syncing. |
 | `writing-items` | The full item syntax, cloze rules, code in cards, writing good questions, `srl add` and `srl edit --stdin`. |
-| `studying` | Study sessions in the terminal or in the chat, ratings, how the next card is chosen. |
+| `studying` | Study sessions with a frontend or in the chat, ratings, how the next card is chosen. |
 | `selectors` | Every selector term, combining them, quoting in each shell. |
 | `fixing-problems` | Errors in notes, `srl check` and `srl lint`, lost history after an edit, suspending and resetting. |
 | `reviewing-progress` | `srl stats`, `srl log`, leeches, and analyzing the log. |

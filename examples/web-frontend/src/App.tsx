@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { api, type Card, type Item, type Rating } from './api';
+import { api, type Card, type Rating } from './api';
 import { Markdown } from './Markdown';
 
 // Where the session is. It runs the frontend loop of docs/frontends.md:
 // get a card, show the prompt, show the answer and the context, rate it.
 type Phase =
   | { kind: 'loading' }
-  | { kind: 'prompt'; card: Card; isNew: boolean }
-  | { kind: 'answer'; card: Card; isNew: boolean; item: Item | null }
+  | { kind: 'prompt'; card: Card }
+  | { kind: 'answer'; card: Card }
   | { kind: 'done' }
   | { kind: 'error'; message: string };
 
@@ -47,8 +47,7 @@ export default function App() {
           setPhase({ kind: 'done' });
           return;
         }
-        const [found] = await api.find(`id:${card.id}`);
-        setPhase({ kind: 'prompt', card, isNew: found?.state === 'new' });
+        setPhase({ kind: 'prompt', card });
       }),
     [step],
   );
@@ -63,23 +62,18 @@ export default function App() {
 
   const reveal = useCallback(() => {
     if (phase.kind !== 'prompt') return;
-    const { card, isNew } = phase;
-    step(async () => {
-      setPhase({ kind: 'answer', card, isNew, item: null });
-      const item = await api.item(card.id);
-      setPhase({ kind: 'answer', card, isNew, item });
-    });
-  }, [phase, step]);
+    setPhase({ kind: 'answer', card: phase.card });
+  }, [phase]);
 
   const rate = useCallback(
     (rating: Rating) => {
       if (phase.kind !== 'answer' || selector === null) return;
-      const { card, isNew } = phase;
+      const { card } = phase;
       step(async () => {
         await api.review(card.id, rating);
         setStats((s) => ({
           reviewed: s.reviewed + 1,
-          new: s.new + (isNew ? 1 : 0),
+          new: s.new + (card.state === 'new' ? 1 : 0),
           again: s.again + (rating === 1 ? 1 : 0),
         }));
         await loadNext(selector);
@@ -97,7 +91,7 @@ export default function App() {
     });
   }, [phase, selector, step, loadNext]);
 
-  // Keys, as in srl study: space shows the answer, 1–4 rate, s suspends.
+  // Keys: space or Enter shows the answer, 1–4 rate, s suspends.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (busy || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -205,13 +199,13 @@ function CardView({
   onRate: (rating: Rating) => void;
   onSuspend: () => void;
 }) {
-  const { card, isNew } = phase;
+  const { card } = phase;
   return (
     <div className="flex flex-1 flex-col gap-6">
       <article className="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
         <div className="flex items-center justify-between px-6 pt-4 text-xs text-stone-400">
           <span className="font-mono">{card.id}</span>
-          {isNew && (
+          {card.state === 'new' && (
             <span className="rounded-full bg-sky-100 px-2 py-0.5 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
               new
             </span>
@@ -229,7 +223,7 @@ function CardView({
         )}
       </article>
 
-      {phase.kind === 'answer' && <ContextView item={phase.item} />}
+      {phase.kind === 'answer' && <ContextView card={card} />}
 
       <div className="sticky bottom-0 -mx-4 mt-auto border-t border-stone-200 bg-stone-50/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 dark:border-stone-800 dark:bg-stone-950/90">
         <div className="flex flex-wrap items-center gap-2">
@@ -268,17 +262,14 @@ function CardView({
 }
 
 // The item's context: the note it belongs to, or the note its see: names.
-function ContextView({ item }: { item: Item | null }) {
-  if (item === null) {
-    return <Notice>Loading the context…</Notice>;
-  }
-  if (item.context === null) {
+function ContextView({ card }: { card: Card }) {
+  if (card.context === null) {
     return <p className="text-center text-sm text-stone-400">No context.</p>;
   }
   return (
     <section className="rounded-2xl bg-stone-100 px-6 py-5 dark:bg-stone-900/50">
-      <div className="mb-3 font-mono text-xs text-stone-500">{item.see ?? item.path}</div>
-      <Markdown text={item.context} className="prose-sm prose-stone" />
+      <div className="mb-3 font-mono text-xs text-stone-500">{card.see ?? card.path}</div>
+      <Markdown text={card.context} className="prose-sm prose-stone" />
     </section>
   );
 }

@@ -1,32 +1,35 @@
 ---
 name: studying
-description: Run srl study sessions, in the terminal with srl study or in the chat with srl next and srl review, choose ratings, and understand which card comes next and why (study days, new-card limit, siblings). Load when the person wants to study, asks how to rate, asks why a card did or didn't appear, or wants you to quiz them.
+description: Run study sessions with srl, through a frontend such as srl web or srl quiz, or in the chat with srl next and srl review, choose ratings, and understand which card comes next and why (study days, new-card limit, siblings). Load when the person wants to study, asks how to rate, asks why a card did or didn't appear, or wants you to quiz them.
 ---
 
 # Studying
 
-## In the terminal: `srl study`
+## With a frontend
 
-The person runs it themselves; it needs a terminal, so you can't run it for
-them.
+`srl` has no built-in study command. A **frontend** shows the cards and
+records the ratings, and the person runs it themselves: it is interactive,
+so you can't run it for them. The `srl` repository's `examples/` has two:
+
+| Frontend | Where | Needs |
+|---|---|---|
+| `srl web [SELECTOR]` | the browser, with Markdown rendered | Node.js; installed with npm from `examples/web-frontend/` |
+| `srl quiz [SELECTOR]` | the terminal, in color | Bash and `jq`, on Linux; a script copied from `examples/bash-frontend/` |
 
 ```sh
-srl study                   # every active card
-srl study in:grammar        # only notes in a folder named grammar
+srl web                     # every active card
+srl web in:grammar          # only notes in a folder named grammar
 ```
 
-For each card:
+For each card, space shows the answer, then the context (the note around
+the item, or the one its `see:` names); `1`–`4` records the rating; `s`
+suspends the card without rating it. Each keeps a count of the cards
+reviewed, the new ones and the Again ratings. Nothing is lost by quitting:
+every rating is recorded as it is given.
 
-1. The prompt is shown. **Enter** shows the answer, then the context (the
-   note around the item, or the one its `see:` names) below a line
-   `--- PATH` that names that note. `q` quits.
-2. The rating: **`1`–`4`** records it. `e` opens the note in the editor
-   and asks again (for fixing a bad question on the spot). `s` suspends the
-   card without rating it. `q` quits without recording this card.
-
-Ctrl-D (Ctrl-Z then Enter on Windows) also quits. At the end it prints a
-summary such as `5 cards reviewed, 2 new, 1 Again.` Nothing is lost by
-quitting: every rating is recorded as it is given.
+Both are examples, made to be copied and changed. A person who wants
+something else can have you write a frontend of their own: see "A study
+loop in a script" below.
 
 ## Ratings
 
@@ -42,7 +45,7 @@ tomorrow, which is the point. Good is the normal answer, not a compromise.
 
 ## Which card comes next
 
-`srl next [SELECTOR]` (and `srl study`) picks, among active cards:
+`srl next [SELECTOR]` (and so every frontend) picks, among active cards:
 
 1. **Due cards** first, the most overdue first.
 2. **Then new cards**, in the order they are written in the notes, until
@@ -60,7 +63,7 @@ Things that explain "why didn't my card show up?":
   are introduced one per day.
 - **Drafts and suspended cards are never studied.** `srl drafts` lists
   drafts; `srl find status:suspended` lists suspended cards.
-- **Errors stop everything.** A broken note makes `srl study` fail with the
+- **Errors stop everything.** A broken note makes `srl next` fail with the
   file and line; see the `fixing-problems` skill.
 - `srl next` exits with 1 and prints nothing when nothing is left today.
 
@@ -69,17 +72,17 @@ To study more new cards today, the person can raise `new_per_day` in
 
 ## In the chat, with you
 
-A session in the chat records the same reviews as `srl study`, marked as
+A session in the chat records the same reviews as a frontend, marked as
 yours. Only run one when the person asks for it. Each round:
 
-1. `srl next [SELECTOR] --json` prints the card:
-   `{"id": "k3m9q1-2", "prompt": "...", "answer": "..."}`. Exit code 1
-   means nothing is left: say so and stop.
+1. `srl next [SELECTOR] --json` prints the card, with its state and
+   context: `{"id": "k3m9q1-2", "prompt": "...", "answer": "...",
+   "state": "due", "path": "...", "see": null, "context": "..."}`. Exit
+   code 1 means nothing is left: say so and stop.
 2. Show the prompt, and wait for the person's answer or for them to ask for
    the answer.
-3. Show the answer, then the context: `srl show ID --json` prints the item
-   with a `context` field (`null` when there is none). Say which note it
-   comes from: `see`, or `path` when `see` is `null`.
+3. Show the answer, then the context (`null` when there is none). Say
+   which note it comes from: `see`, or `path` when `see` is `null`.
 4. Get the rating. Either the person gives it, or, if they asked you to
    judge, you compare their answer with the card's and decide, telling them
    the rating and why.
@@ -120,13 +123,13 @@ read cards with `srl cards ID` or `srl find`, and ask.
 
 ## A study loop in a script
 
-The same loop `srl study` runs, written with the commands, for a person who
+The loop every frontend runs, written with the commands, for a person who
 wants their own frontend (bash with `jq`):
 
 ```sh
 while card=$(srl next in:grammar --json); do
   jq -r .prompt <<<"$card"; read -r _
-  jq -r .answer <<<"$card"; read -r -p 'rating 1-4: ' r
+  jq -r '.answer, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
   srl review "$(jq -r .id <<<"$card")" --rating "$r"
 done
 ```

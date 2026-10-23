@@ -8,7 +8,7 @@ description: Diagnose and fix srl problems - errors in notes that stop every com
 ## Errors stop every command
 
 Any error in any note stops every command that reads items (`srl find`,
-`srl study`, ...). Each error is printed on standard error as
+`srl next`, ...). Each error is printed on standard error as
 `PATH:LINE: message`, and the exit code is 2. Fix them all, then run the
 command again. `srl check` lists every problem in the store at once.
 
@@ -86,6 +86,6 @@ schedule.
   yourself.
 - **Index cache messages**: `.srl/cache/` is only a cache. `srl reindex`
   rebuilds it, and deleting it loses nothing.
-- **`srl study` needs a terminal**: it was run in a pipe or by an agent.
-  The person runs it in their terminal; scripts use `srl next` and
-  `srl review`.
+- **unknown command `study`**: `srl study` was removed; `srl` has no
+  built-in frontend. Study with a frontend such as `srl web` or `srl quiz`
+  (see the `studying` skill); scripts use `srl next` and `srl review`.

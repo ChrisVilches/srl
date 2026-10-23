@@ -19,7 +19,7 @@ Starts a web viewer for srl on http://localhost:PORT and opens it.
   --port N    the port to listen on (default 4317; 0 picks a free one)
   --dir DIR   the store, passed to srl as --dir (default: srl finds it)
   --no-open   don't open the browser
-  SELECTOR    the cards to study, as in srl study (can be changed in the page)`;
+  SELECTOR    the cards to study, as in srl next (can be changed in the page)`;
 
 const staticDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 

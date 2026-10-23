@@ -5,9 +5,9 @@ description: The complete srl selector language (in:, path:, id:, status:, state
 
 # Selectors
 
-A selector picks cards. `srl find`, `srl study`, `srl next`, `srl stats`,
-`srl log`, `srl accept`, `srl suspend`, `srl unsuspend`, `srl reset` and
-`srl drafts` all take one, and it means the same everywhere.
+A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
+`srl accept`, `srl suspend`, `srl unsuspend`, `srl reset` and `srl drafts`
+all take one, and it means the same everywhere.
 
 ## Terms
 
@@ -39,8 +39,8 @@ for text). To search for text containing a colon, quote it: `"std::move"`
 
 ## Defaults per command
 
-`srl next` and `srl study` add `status:active`: drafts and suspended cards
-are never studied. `srl drafts` adds `status:draft`. Every other command
+`srl next` adds `status:active`: drafts and suspended cards are never
+studied. `srl drafts` adds `status:draft`. Every other command
 applies the selector as written, so `srl stats` counts drafts and suspended
 cards unless told `status:active`.
 

@@ -1,9 +1,9 @@
 # A frontend of your own, in Bash
 
-`srl study` is plain on purpose: it prints card text as it is, reads a line
-at a time, and works the same everywhere. `srl-quiz` is the same loop with
-opinions, as a starting point for a frontend that suits you. It is a Bash
-script for Linux, and needs `srl` and `jq`.
+`srl` has no built-in frontend: you study with a program of your choice.
+`srl-quiz` is one for the terminal, with opinions, as a starting point for
+a frontend that suits you. It is a Bash script for Linux, and needs `srl`
+and `jq`.
 
 - Keys act at once, without Enter: space shows the answer, `1`–`4` rate,
   `e` edits the note, `s` suspends the card, `q` quits.
@@ -26,13 +26,14 @@ cp srl-quiz ~/.local/bin/
 srl quiz in:grammar
 ```
 
-It takes a selector like `srl study`, and ends with the same summary.
+It takes a selector like `srl next`, and ends with a summary: the cards
+reviewed, the new ones among them, and the Again ratings.
 
 ## Making it yours
 
 The script is one file of plain Bash, running the frontend loop of
 [docs/frontends.md](../../docs/frontends.md): `srl next --json` for a card,
-`srl show --json` for its context, `srl review --stdin` for the rating.
+its state and its context, `srl review --stdin` for the rating.
 Copy it under another name (`srl-NAME` runs as `srl NAME`) and change what
 you like: the colors at the top, the layout of a card, the keys, where the
 context goes.

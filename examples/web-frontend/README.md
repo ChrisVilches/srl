@@ -8,10 +8,10 @@ browser that shows the cards. On `PATH`, it runs as `srl web`. It needs
 
 - Card text and context are rendered as Markdown, with `==highlights==`
   marked. Raw HTML in notes is shown as text.
-- Keys as in `srl study`: space (or Enter) shows the answer, `1`–`4` rate,
-  `s` suspends the card without recording a review.
+- Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
+  card without recording a review.
 - The selector can be changed in the page; the counters at the top are the
-  same summary `srl study` prints at the end.
+  cards reviewed, the new ones among them, and the Again ratings.
 - Dark or light, as the system is set.
 
 It is an npm package of its own, kept apart from `srl` and from the other
@@ -45,9 +45,7 @@ scheduling here; that belongs to `srl`.
 
 | Route | Runs |
 |---|---|
-| `GET /api/next?sel=…` | `srl next SEL --json` |
-| `GET /api/find?sel=…` | `srl find SEL --json` |
-| `GET /api/item?id=…` | `srl show ID --json` |
+| `GET /api/next?sel=…` | `srl next SEL --json`: the card, its state, and its note and context |
 | `POST /api/review` | `srl review --stdin`, with the request body |
 | `POST /api/suspend` | `srl suspend id:CARD` |
 | `GET /api/config` | nothing: the selector and `--dir` given to `srl web` |
