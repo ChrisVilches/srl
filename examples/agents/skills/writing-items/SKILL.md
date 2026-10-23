@@ -125,26 +125,28 @@ leaves the old card's history behind; see the `fixing-problems` skill.
 ## Adding items with `srl add`
 
 ```sh
-srl add NOTE [--see PATH] [--draft] [--dry-run] --stdin
+srl add NOTE [--draft] [--dry-run] --stdin
 ```
 
 One JSON object per line on standard input; each key is a field, each value
-its text. A newline in a value (`\n` in JSON) becomes a continuation line.
+its text. The key `"see"` is the one exception: it gives that item's `see:`,
+the note shown as its context. A newline in a value (`\n` in JSON) becomes
+a continuation line.
 `NOTE` is relative to the store's folder, ends in `.md`, and is created
 with its folders if it doesn't exist. Items are appended at the end, each
 gets a new ID, and the IDs are printed. Every line is checked first: one
 bad line and nothing is added.
 
 ```sh
-srl add generated/ownership.md --see rust/ownership.md --draft --stdin <<'JSONL'
-{"Q": "Does this compile?\n```rust\nlet a = String::new();\nlet b = a;\nprintln!(\"{a}\");\n```", "A": "No. `a` was moved into `b`."}
-{"Q": "A `&mut T` reference is {{c1::exclusive}}: no other reference to the value may exist."}
+srl add generated/rust.md --draft --stdin <<'JSONL'
+{"Q": "Does this compile?\n```rust\nlet a = String::new();\nlet b = a;\nprintln!(\"{a}\");\n```", "A": "No. `a` was moved into `b`.", "see": "rust/ownership.md"}
+{"Q": "A `&mut T` reference is {{c1::exclusive}}: no other reference to the value may exist.", "see": "rust/borrowing.md"}
 JSONL
 ```
 
 As an agent, always add `--draft`, write into a note of your own (for
-example under `generated/`), and add `--see` when the items are about one
-of the person's notes. Use `--dry-run` to show the person the items before
+example under `generated/`), and give each item a `"see"` when it is about
+one of the person's notes. Items about different notes can go in one call. Use `--dry-run` to show the person the items before
 writing them. A note of your own may also hold prose: write the note with
 its explanation first, then add the items to it.
 

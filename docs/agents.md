@@ -45,7 +45,7 @@ use. For example:
 | Tool | Runs |
 |---|---|
 | `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats` | Reading |
-| `srs_add` | `srl add NOTE --see PATH --draft --stdin` (always draft) |
+| `srs_add` | `srl add NOTE --draft --stdin` (always draft) |
 | `srs_edit` | `srl edit ID --stdin` (only if you want agents to edit items) |
 | `srs_next`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
 | `read_file` | Reading source material (notes, articles) |
@@ -99,13 +99,16 @@ srl-agent generate "turn https://… into questions, at most 8"
 ```
 
 The agent reads the note, runs `srl find` and `srl show` to see which items
-already exist, and sends the new items' fields as JSONL to:
+already exist, and sends the new items as JSONL to:
 
 ```sh
-srl add generated/wo-mono-tomo-sezu.md --see japanese/grammar/wo-mono-tomo-sezu.md --draft --stdin
+srl add generated/wo-mono-tomo-sezu.md --draft --stdin
 ```
 
-`--see` makes your note the context of every new item. You read the new
+Each line has the item's fields and
+`"see": "japanese/grammar/wo-mono-tomo-sezu.md"`, which makes your note the
+context of the new item. Questions about several notes can go in one call,
+each line with the note it asks about. You read the new
 note, delete what you don't want, and run
 `srl accept path:generated/wo-mono-tomo-sezu.md`.
 

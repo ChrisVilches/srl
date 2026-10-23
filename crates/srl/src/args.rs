@@ -192,15 +192,13 @@ pub(crate) enum Command {
 pub(crate) struct AddArgs {
     /// The note, relative to the store's folder; created if it doesn't exist.
     pub(crate) note: String,
-    /// Read the items from standard input: one JSON object of fields per line.
+    /// Read the items from standard input: one JSON object of fields per
+    /// line, with an optional `see`, the note shown as the item's context.
     #[arg(long, required = true)]
     pub(crate) stdin: bool,
     /// The kind of the new items.
     #[arg(long, value_name = "NAME")]
     pub(crate) kind: Option<String>,
-    /// The note shown as the new items' context.
-    #[arg(long, value_name = "PATH")]
-    pub(crate) see: Option<String>,
     /// Add the items as drafts.
     #[arg(long)]
     pub(crate) draft: bool,
@@ -275,7 +273,8 @@ mod tests {
     #[test]
     fn add_needs_stdin() {
         assert!(parse(&["add", "a.md"]).is_err());
-        assert!(parse(&["add", "a.md", "--stdin", "--see", "b.md", "--draft"]).is_ok());
+        assert!(parse(&["add", "a.md", "--stdin", "--kind", "qa", "--draft"]).is_ok());
+        assert!(parse(&["add", "a.md", "--stdin", "--see", "b.md"]).is_err());
     }
 
     #[test]

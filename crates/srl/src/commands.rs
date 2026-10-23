@@ -352,7 +352,6 @@ fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
     let input = stdin()?;
     let header = NewHeader {
         kind: args.kind,
-        see: args.see,
         draft: args.draft,
     };
     let dry_run = args.dry_run.dry_run;

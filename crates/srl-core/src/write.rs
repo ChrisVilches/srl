@@ -28,12 +28,19 @@ pub struct Written {
     pub line: usize,
 }
 
-/// The header entries `srl add` gives every new item.
+/// The header entries `srl add` gives every new item, from its flags.
+/// `see:` is given per item, in its line of input.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct NewHeader {
     pub kind: Option<String>,
-    pub see: Option<String>,
     pub draft: bool,
+}
+
+/// One line of `srl add --stdin`: its `see` and its fields.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct NewItem {
+    see: Option<String>,
+    fields: Vec<(String, String)>,
 }
 
 /// What `srl add` did, or would do.
@@ -173,47 +180,31 @@ pub fn add(
 ) -> Result<Added> {
     refuse_problems(notes, false)?;
     check_note_path(config, path)?;
-    if let Some(see) = &header.see {
-        let see_nfc = nfc(see);
-        if !notes.paths().iter().any(|known| nfc(known) == see_nfc) {
-            return Err(Error::InvalidNotePath {
-                path: path.to_owned(),
-                reason: format!(
-                    "--see {see} doesn't name a note of the store; give a path relative to the \
-                     store's folder"
-                ),
-            });
-        }
-    }
-    let fields = input
+    let lines = input
         .lines()
         .enumerate()
         .filter(|(_, line)| !line.trim().is_empty())
         .map(|(index, line)| {
-            fields_of(line).map_err(|reason| Error::InvalidLine {
-                line: index + 1,
-                reason,
-            })
+            item_of(notes, line)
+                .map(|item| (index + 1, item))
+                .map_err(|reason| Error::InvalidLine {
+                    line: index + 1,
+                    reason,
+                })
         })
         .collect::<Result<Vec<_>>>()?;
-    let ids = fresh_ids(notes, seed)
-        .take(fields.len())
-        .collect::<Vec<_>>();
-    let items = fields
+    let ids = fresh_ids(notes, seed).take(lines.len()).collect::<Vec<_>>();
+    let items = lines
         .iter()
         .zip(&ids)
-        .enumerate()
-        .map(|(index, (fields, id))| {
-            let text = format_item(id, header, fields).map_err(|reason| Error::InvalidLine {
-                line: index + 1,
+        .map(|((line, item), id)| {
+            let invalid = |reason| Error::InvalidLine {
+                line: *line,
                 reason,
-            })?;
-            let (_, problems) = read_items(path, &text);
-            match problems.first() {
-                Some(problem) => Err(Error::InvalidLine {
-                    line: index + 1,
-                    reason: reason_of(problem),
-                }),
+            };
+            let text = format_item(id, header, item).map_err(invalid)?;
+            match read_items(path, &text).1.first() {
+                Some(problem) => Err(invalid(reason_of(problem))),
                 None => Ok(text),
             }
         })
@@ -512,30 +503,39 @@ fn check_note_path(config: &Config, path: &str) -> Result<()> {
     Ok(())
 }
 
-/// The fields of one line of `srl add --stdin`: a JSON object whose keys
-/// are field names and whose values are text. Errors are plain reasons.
-fn fields_of(line: &str) -> std::result::Result<Vec<(String, String)>, String> {
+/// One line of `srl add --stdin`: a JSON object whose keys are field names,
+/// or `see`, and whose values are text. A `see` must name a note of
+/// `notes`. Errors are plain reasons.
+fn item_of(notes: &Notes, line: &str) -> std::result::Result<NewItem, String> {
     let object = serde_json::from_str::<Map<String, Value>>(line)
         .map_err(|error| format!("it is not a JSON object ({error})"))?;
-    if object.is_empty() {
-        return Err("it has no fields".to_owned());
-    }
-    object
-        .into_iter()
-        .map(|(key, value)| {
-            if !parse::is_field_key(&key) {
+    let mut item = NewItem::default();
+    for (key, value) in object {
+        let Value::String(text) = value else {
+            return Err(format!("the value of `{key}` must be text, not {value}"));
+        };
+        if key == "see" {
+            let see_nfc = nfc(&text);
+            if !notes.paths().iter().any(|known| nfc(known) == see_nfc) {
                 return Err(format!(
-                    "`{key}` can't name a field: use uppercase letters, digits and _, starting \
-                     with a letter (header entries are flags: --kind, --see, --draft)"
+                    "`see` {text} doesn't name a note of the store; give a path relative to the \
+                     store's folder"
                 ));
             }
-            if let Value::String(text) = value {
-                Ok((key, text))
-            } else {
-                Err(format!("the value of `{key}` must be text, not {value}"))
-            }
-        })
-        .collect()
+            item.see = Some(text);
+        } else if parse::is_field_key(&key) {
+            item.fields.push((key, text));
+        } else {
+            return Err(format!(
+                "`{key}` can't name a field: use uppercase letters, digits and _, starting with \
+                 a letter (`see` is the only other key; --kind and --draft are flags)"
+            ));
+        }
+    }
+    if item.fields.is_empty() {
+        return Err("it has no fields".to_owned());
+    }
+    Ok(item)
 }
 
 /// An item as `srl add` writes it: a header, then each field, with
@@ -543,7 +543,7 @@ fn fields_of(line: &str) -> std::result::Result<Vec<(String, String)>, String> {
 fn format_item(
     id: &ItemId,
     header: &NewHeader,
-    fields: &[(String, String)],
+    item: &NewItem,
 ) -> std::result::Result<String, String> {
     let mut entries = vec![format!("id:{id}")];
     if let Some(kind) = &header.kind {
@@ -552,7 +552,7 @@ fn format_item(
         }
         entries.push(format!("kind:{kind}"));
     }
-    if let Some(see) = &header.see {
+    if let Some(see) = &item.see {
         if see.contains('"') {
             return Err("a `see:` path can't contain `\"`".to_owned());
         }
@@ -566,7 +566,7 @@ fn format_item(
         entries.push("draft".to_owned());
     }
     let mut lines = vec![format!("<!-- srl {} -->", entries.join(" "))];
-    for (key, text) in fields {
+    for (key, text) in &item.fields {
         let text = text.replace("\r\n", "\n");
         let mut parts = text.split('\n').collect::<Vec<_>>();
         while parts.len() > 1 && parts.last().is_some_and(|line| line.trim().is_empty()) {
@@ -688,31 +688,11 @@ mod tests {
     #[test]
     fn add_appends_items_after_a_blank_line_or_creates_the_note() {
         let (_tmp, store) = store(&[("a.md", "Prose.\r\n"), ("my notes/b c.md", "")]);
-        let missing = NewHeader {
-            see: Some("nowhere.md".to_owned()),
-            ..NewHeader::default()
-        };
-        let input = "{\"Q\": \"q\", \"A\": \"a\"}";
-        assert!(
-            add(
-                &store,
-                &Config::default(),
-                &notes(&store),
-                "a.md",
-                &missing,
-                input,
-                3,
-                false
-            )
-            .is_err()
-        );
         let header = NewHeader {
             kind: None,
-            see: Some("my notes/b c.md".to_owned()),
             draft: true,
         };
-        let input =
-            "{\"Q\": \"Two\\nlines\\n\\nand more\", \"A\": \"x\"}\n\n{\"Q\": \"{{c1::y}}\"}\n";
+        let input = "{\"Q\": \"Two\\nlines\\n\\nand more\", \"see\": \"my notes/b c.md\", \"A\": \"x\"}\n\n{\"Q\": \"{{c1::y}}\"}\n";
         let added = add(
             &store,
             &Config::default(),
@@ -728,7 +708,7 @@ mod tests {
             panic!("expected two IDs");
         };
         let expected = format!(
-            "<!-- srl id:{one} see:\"my notes/b c.md\" draft -->\nQ: Two\n  lines\n\n  and more\nA: x\n\n<!-- srl id:{two} see:\"my notes/b c.md\" draft -->\nQ: {{{{c1::y}}}}\n"
+            "<!-- srl id:{one} see:\"my notes/b c.md\" draft -->\nQ: Two\n  lines\n\n  and more\nA: x\n\n<!-- srl id:{two} draft -->\nQ: {{{{c1::y}}}}\n"
         );
         assert_eq!(added.text, expected);
         assert_eq!(
@@ -758,6 +738,10 @@ mod tests {
             "{\"Q\": 1, \"A\": \"a\"}",
             "[1]",
             "{}",
+            "{\"see\": \"a.md\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"see\": \"nowhere.md\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"see\": 1}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"kind\": \"qa\"}",
             "{\"Q\": \"q\", \"A\": \"a\"}\nnot json",
         ] {
             assert!(

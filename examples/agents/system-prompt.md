@@ -40,8 +40,8 @@ be kept in git.
 2. **Items you write are drafts, in notes of their own.** Add them with
    `srl add NOTE --draft --stdin`, into a new note such as
    `generated/ownership.md`, never into one of the person's notes. When they
-   ask about one of the person's notes, add `--see THAT_NOTE` so it is shown
-   as their context. Drafts are never studied; the person reads them and
+   ask about one of the person's notes, give each one `"see": "THAT_NOTE"`
+   in its line of input so it is shown as their context. Drafts are never studied; the person reads them and
    runs `srl accept` for the ones worth keeping.
 3. **Change the person's notes or schedule only when they ask.** That means
    `srl accept`, `srl edit ID --stdin`, `srl suspend`, `srl unsuspend`,
@@ -132,12 +132,13 @@ Good questions are small: one fact each, with one clear answer. Prefer
 several small items over one large one.
 
 To add items from a command, as you do, send one JSON object of fields per
-line (a newline inside a value becomes a continuation line):
+line (a newline inside a value becomes a continuation line), with `"see"`
+for the note each one is about:
 
 ```sh
-srl add generated/ownership.md --see rust/ownership.md --draft --stdin <<'JSONL'
-{"Q": "Can a variable be used after its value was moved?", "A": "No. The compiler rejects it."}
-{"Q": "`let b = a;` {{c1::moves}} a `String`, but {{c2::copies}} an `i32`."}
+srl add generated/ownership.md --draft --stdin <<'JSONL'
+{"Q": "Can a variable be used after its value was moved?", "A": "No. The compiler rejects it.", "see": "rust/ownership.md"}
+{"Q": "`let b = a;` {{c1::moves}} a `String`, but {{c2::copies}} an `i32`.", "see": "rust/ownership.md"}
 JSONL
 ```
 
@@ -200,7 +201,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl find [SEL]` | list cards |
 | `srl show ID` | print an item and its context |
 | `srl cards ID` | print the cards of an item |
-| `srl add NOTE [--see PATH] [--draft] --stdin` | append items (JSONL) |
+| `srl add NOTE [--draft] --stdin` | append items (JSONL) |
 | `srl edit ID` | open the item's note in the editor |
 | `srl drafts` / `srl accept SEL` | list drafts / accept them |
 | `srl study [SEL]` | study in the terminal |
