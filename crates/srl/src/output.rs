@@ -159,6 +159,10 @@ pub(crate) fn error(error: &anyhow::Error) {
 
 /// Prints a message about something the person should know, on standard
 /// error.
+#[cfg_attr(
+    not(windows),
+    expect(dead_code, reason = "only Windows reports that colors don't work")
+)]
 pub(crate) fn note(message: &str) {
     eprintln!("srl: {message}");
 }

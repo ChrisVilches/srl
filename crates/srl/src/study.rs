@@ -128,18 +128,13 @@ pub(crate) fn study(
     let mut first = true;
     loop {
         let notes = commands::strict(Notes::load(store, &session.config)?)?;
-        let now = commands::now()?;
-        let memories = index.memories(&session.config);
-        commands::report_cache(&mut index);
-        let (memories, log_problems) = memories?;
+        let (memories, _, log_problems) = commands::memories(&mut index, &session.config)?;
         if first {
             // Later rounds read the same files; their problems were
             // reported once already.
             log_problems.iter().for_each(output::problem);
             first = false;
         }
-        let today = session.config.schedule.study_day(now.datetime());
-        let memories = srl_core::Memories::new(memories, &session.config, today);
         let Some(card) = srl_core::next(
             &notes,
             &memories,

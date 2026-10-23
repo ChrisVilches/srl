@@ -10,6 +10,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, bail};
 use jiff::Zoned;
+use jiff::civil::Date;
 use srl_core::{
     Card, CardId, Config, ContextMode, Error, Index, Item, Log, Lookup, Memories, NewHeader, Notes,
     ReviewRequest, Selector, State, Status, Store,
@@ -86,27 +87,33 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
 
 /// What most commands work with: the configuration, every item, every
 /// card's memory today, and the time.
-pub(crate) struct Loaded {
-    pub(crate) config: Config,
-    pub(crate) notes: Notes,
-    pub(crate) memories: Memories,
-    pub(crate) now: Zoned,
+struct Loaded {
+    config: Config,
+    notes: Notes,
+    memories: Memories,
+    now: Zoned,
 }
 
-/// Reads the configuration and every note, and stops if the notes have
-/// any problem (see `docs/notes.md`, "Errors"); then the memories through
-/// the index cache.
-pub(crate) fn open(store: &Store) -> anyhow::Result<Loaded> {
-    let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
-    let mut index = Index::open(store);
-    let (memories, now) = memories(&mut index, &config)?;
+/// [`load`], then the memories through the index cache, reporting the log
+/// lines that were skipped.
+fn open(store: &Store) -> anyhow::Result<Loaded> {
+    let (config, notes) = load(store)?;
+    let (memories, now, problems) = memories(&mut Index::open(store), &config)?;
+    problems.iter().for_each(output::problem);
     Ok(Loaded {
         config,
         notes,
         memories,
         now,
     })
+}
+
+/// Reads the configuration and every note, and stops if the notes have
+/// any problem (see `docs/notes.md`, "Errors").
+fn load(store: &Store) -> anyhow::Result<(Config, Notes)> {
+    let config = Config::load(store)?;
+    let notes = strict(Notes::load(store, &config)?)?;
+    Ok((config, notes))
 }
 
 /// `notes`, if they have no problems; otherwise reports every problem and
@@ -120,21 +127,23 @@ pub(crate) fn strict(notes: Notes) -> anyhow::Result<Notes> {
     Ok(notes)
 }
 
-/// Every card's memory on today's study day, through the index cache, and
-/// the current time. Reports the log lines that were skipped and any
-/// problem with the cache.
-pub(crate) fn memories(index: &mut Index, config: &Config) -> anyhow::Result<(Memories, Zoned)> {
+/// Every card's memory on today's study day, through the index cache, the
+/// current time, and the log lines that were skipped. Reports any problem
+/// with the cache.
+pub(crate) fn memories(
+    index: &mut Index,
+    config: &Config,
+) -> anyhow::Result<(Memories, Zoned, Vec<Error>)> {
     let now = now()?;
     let memories = index.memories(config);
     report_cache(index);
     let (memories, problems) = memories?;
-    problems.iter().for_each(output::problem);
     let today = config.schedule.study_day(now.datetime());
-    Ok((Memories::new(memories, config, today), now))
+    Ok((Memories::new(memories, config, today), now, problems))
 }
 
 /// Reports the problems with the index cache since the last report.
-pub(crate) fn report_cache(index: &mut Index) {
+fn report_cache(index: &mut Index) {
     index.problems().iter().for_each(output::problem);
 }
 
@@ -159,22 +168,15 @@ fn init(flag: Option<PathBuf>, dir: Option<PathBuf>, dry_run: bool) -> anyhow::R
 fn check(store: &Store) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
     let notes = Notes::load(store, &config)?;
-    let mut index = Index::open(store);
-    let now = now()?;
-    let history = index.memories(&config);
-    report_cache(&mut index);
-    let (memories, log_problems) = history?;
-    let memories = Memories::new(memories, &config, config.schedule.study_day(now.datetime()));
+    let (memories, _, log_problems) = memories(&mut Index::open(store), &config)?;
+    let long_paths = srl_core::long_paths(store, &notes)?;
     let problems = notes
         .problems()
         .iter()
-        .chain(&srl_core::long_paths(store, &notes)?)
+        .chain(&long_paths)
         .chain(&log_problems)
-        .map(ToString::to_string)
         .collect::<Vec<_>>();
-    for problem in &problems {
-        output::note(problem);
-    }
+    problems.iter().copied().for_each(output::problem);
     srl_core::orphans(&notes, &memories)
         .iter()
         .for_each(output::problem);
@@ -203,8 +205,7 @@ fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
         .iter()
         .filter(|problem| !matches!(problem, Error::MissingId { .. }))
         .for_each(output::problem);
-    let seed = getrandom::u64().context("cannot get random numbers for new IDs")?;
-    let written = srl_core::assign_ids(store, &notes, seed, dry_run)?;
+    let written = srl_core::assign_ids(store, &notes, seed()?, dry_run)?;
     output::written(&written);
     Ok(found_anything(!written.is_empty()))
 }
@@ -295,8 +296,7 @@ fn show(
     mode: Option<crate::args::ContextMode>,
     json: bool,
 ) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
+    let (config, notes) = load(store)?;
     let mode = mode.map_or(config.study.context, |mode| match mode {
         crate::args::ContextMode::Prose => ContextMode::Prose,
         crate::args::ContextMode::Full => ContextMode::Full,
@@ -321,8 +321,7 @@ fn show(
 
 /// `srl cards ID…`: the cards of each item ID, or the card of each card ID.
 fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
+    let (_, notes) = load(store)?;
     let mut problems = Vec::new();
     let mut found = Vec::new();
     for id in ids {
@@ -349,10 +348,8 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
 /// `srl add NOTE --stdin`: appends items to a note, and prints their IDs,
 /// or with `--dry-run` the items as they would be written.
 fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
-    let input = io::read_to_string(io::stdin()).context("cannot read standard input")?;
-    let seed = getrandom::u64().context("cannot get random numbers for new IDs")?;
+    let (config, notes) = load(store)?;
+    let input = stdin()?;
     let header = NewHeader {
         kind: args.kind,
         see: args.see,
@@ -360,7 +357,14 @@ fn add(store: &Store, args: AddArgs) -> anyhow::Result<Outcome> {
     };
     let dry_run = args.dry_run.dry_run;
     let added = srl_core::add(
-        store, &config, &notes, &args.note, &header, &input, seed, dry_run,
+        store,
+        &config,
+        &notes,
+        &args.note,
+        &header,
+        &input,
+        seed()?,
+        dry_run,
     )?;
     if dry_run {
         output::text(&added.text);
@@ -376,8 +380,7 @@ fn edit_in_editor(store: &Store, id: &str) -> anyhow::Result<Outcome> {
     if !io::stdin().is_terminal() {
         bail!("`srl edit ID` needs a terminal; in scripts and pipes, use `srl edit ID --stdin`");
     }
-    let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
+    let (_, notes) = load(store)?;
     let item = notes.item_of(id)?;
     editor::open(&store.note_file(item.path()))?;
     Ok(Outcome::Done)
@@ -385,11 +388,9 @@ fn edit_in_editor(store: &Store, id: &str) -> anyhow::Result<Outcome> {
 
 /// `srl edit ID --stdin`: replaces the item with standard input.
 fn edit_stdin(store: &Store, id: &str, dry_run: bool) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
+    let (_, notes) = load(store)?;
     let item = notes.item_of(id)?;
-    let input = io::read_to_string(io::stdin()).context("cannot read standard input")?;
-    srl_core::replace(store, &notes, item, &input, dry_run)?;
+    srl_core::replace(store, &notes, item, &stdin()?, dry_run)?;
     Ok(Outcome::Done)
 }
 
@@ -467,12 +468,10 @@ fn next(store: &Store, selector: Selector, json: bool) -> anyhow::Result<Outcome
 /// `srl review`: records a review from standard input, or of cards by ID.
 /// Prints nothing, or with `--dry-run` the events it would write.
 fn review(store: &Store, args: &ReviewArgs) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
+    let (_, notes) = load(store)?;
     let dry_run = args.dry_run.dry_run;
     let requests = if args.stdin {
-        let text = io::read_to_string(io::stdin()).context("cannot read standard input")?;
-        vec![ReviewRequest::parse(&text)?]
+        vec![ReviewRequest::parse(&stdin()?)?]
     } else {
         let rating = args
             .rating
@@ -513,15 +512,13 @@ fn reset(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Result<Ou
 /// `srl stats`: cards per state, reviews today and recent retention, for
 /// the matching cards. Exit 1 if no card matches.
 fn stats(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
+    let (config, notes) = load(store)?;
     let mut index = Index::open(store);
     let history = index.history(&config);
     report_cache(&mut index);
     let (history, problems) = history?;
     problems.iter().for_each(output::problem);
-    let today = config.schedule.study_day(now()?.datetime());
-    let memories = Memories::new(history.memories, &config, today);
+    let memories = Memories::new(history.memories, &config, today(&config)?);
     let selected = selector.select(notes.cards(), &memories);
     let stats = srl_core::stats(&selected, &memories, &history.reviews);
     if json {
@@ -535,12 +532,10 @@ fn stats(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outco
 /// `srl log`: the events of the matching cards, in log order. It needs every
 /// event, so it reads the log files rather than the index cache.
 fn log(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
+    let (config, notes) = load(store)?;
     let log = Log::load(store, &config.schedule)?;
     log.problems.iter().for_each(output::problem);
-    let today = config.schedule.study_day(now()?.datetime());
-    let memories = Memories::replay(&log, &config, today)?;
+    let memories = Memories::replay(&log, &config, today(&config)?)?;
     let ids = selector
         .select(notes.cards(), &memories)
         .into_iter()
@@ -562,6 +557,21 @@ pub(crate) fn now() -> anyhow::Result<Zoned> {
         "cannot find the system's time zone, which decides the study day; set the TZ environment variable",
     )?;
     Ok(jiff::Timestamp::now().to_zoned(zone))
+}
+
+/// Today's study day.
+fn today(config: &Config) -> anyhow::Result<Date> {
+    Ok(config.schedule.study_day(now()?.datetime()))
+}
+
+/// All of standard input.
+fn stdin() -> anyhow::Result<String> {
+    io::read_to_string(io::stdin()).context("cannot read standard input")
+}
+
+/// The random seed new item IDs are made from.
+fn seed() -> anyhow::Result<u64> {
+    getrandom::u64().context("cannot get random numbers for new IDs")
 }
 
 /// Gathers what `Store::locate` needs from the flag and the environment.
