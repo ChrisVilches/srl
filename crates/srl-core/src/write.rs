@@ -16,7 +16,8 @@ use std::path::Path;
 use serde_json::{Map, Value};
 
 use crate::note::parse::{self, Field, Header, Line, RawItem};
-use crate::note::read_items;
+use crate::note::{read_items, read_note};
+use crate::store::nfc;
 use crate::{Config, Error, Item, ItemId, Notes, Result, Store, random};
 
 /// One change to a note: which item, where.
@@ -64,17 +65,10 @@ pub fn assign_ids(store: &Store, notes: &Notes, seed: u64, dry_run: bool) -> Res
                 by_note
             },
         );
-    let mut taken = notes
-        .items()
-        .iter()
-        .map(|item| item.id().clone())
-        .collect::<HashSet<_>>();
-    let mut fresh = random::numbers(seed)
-        .map(ItemId::from_number)
-        .filter(move |id| taken.insert(id.clone()));
+    let mut fresh = fresh_ids(notes, seed);
     let mut written = Vec::new();
     for (path, lines) in missing {
-        let old = crate::note::read_note(store, &path)?;
+        let old = read_note(store, &path)?;
         let ids = lines
             .iter()
             .map(|line| {
@@ -104,10 +98,7 @@ pub fn assign_ids(store: &Store, notes: &Notes, seed: u64, dry_run: bool) -> Res
                 (header, fields)
             })
             .collect::<Vec<_>>();
-        verify(&path, &new, &expected)?;
-        if !dry_run {
-            replace_file(store, &path, Some(&old), &new)?;
-        }
+        commit(store, &path, Some(&old), &new, &expected, dry_run)?;
         written.extend(ids.into_iter().map(|(line, id)| Written {
             id,
             path: path.clone(),
@@ -134,7 +125,7 @@ pub fn accept(
     );
     let mut written = Vec::new();
     for (path, drafts) in by_note {
-        let old = crate::note::read_note(store, path)?;
+        let old = read_note(store, path)?;
         let new = drafts.iter().try_fold(old.clone(), |text, item| {
             edit_line(&text, item.line(), |header| {
                 let span = parse::header(header)
@@ -154,10 +145,7 @@ pub fn accept(
                 (Header { draft, ..header }, fields)
             })
             .collect::<Vec<_>>();
-        verify(path, &new, &expected)?;
-        if !dry_run {
-            replace_file(store, path, Some(&old), &new)?;
-        }
+        commit(store, path, Some(&old), &new, &expected, dry_run)?;
         written.extend(drafts.iter().map(|item| Written {
             id: item.id().clone(),
             path: path.to_owned(),
@@ -186,12 +174,8 @@ pub fn add(
     refuse_problems(notes, false)?;
     check_note_path(config, path)?;
     if let Some(see) = &header.see {
-        let see_nfc = crate::store::nfc(see);
-        if !notes
-            .paths()
-            .iter()
-            .any(|known| crate::store::nfc(known) == see_nfc)
-        {
+        let see_nfc = nfc(see);
+        if !notes.paths().iter().any(|known| nfc(known) == see_nfc) {
             return Err(Error::InvalidNotePath {
                 path: path.to_owned(),
                 reason: format!(
@@ -212,14 +196,7 @@ pub fn add(
             })
         })
         .collect::<Result<Vec<_>>>()?;
-    let mut taken = notes
-        .items()
-        .iter()
-        .map(|item| item.id().clone())
-        .collect::<HashSet<_>>();
-    let ids = random::numbers(seed)
-        .map(ItemId::from_number)
-        .filter(|id| taken.insert(id.clone()))
+    let ids = fresh_ids(notes, seed)
         .take(fields.len())
         .collect::<Vec<_>>();
     let items = fields
@@ -241,12 +218,7 @@ pub fn add(
             }
         })
         .collect::<Result<Vec<_>>>()?;
-    let file = store.note_file(path);
-    let old = match fs::read_to_string(&file) {
-        Ok(text) => Some(text),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => return Err(Error::io(&file)(error)),
-    };
+    let old = read_if_exists(&store.note_file(path))?;
     let ending = line_ending(old.as_deref().unwrap_or_default());
     let added = format!("{}\n", items.join("\n\n"));
     let tail = added.replace('\n', ending);
@@ -266,10 +238,7 @@ pub fn add(
                 .map(|(_, header, fields)| (header, fields))
         }))
         .collect::<Vec<_>>();
-    verify(path, &new, &expected)?;
-    if !dry_run {
-        replace_file(store, path, old.as_deref(), &new)?;
-    }
+    commit(store, path, old.as_deref(), &new, &expected, dry_run)?;
     Ok(Added { ids, text: added })
 }
 
@@ -307,7 +276,7 @@ pub fn replace(
     if let Some(problem) = read_items(item.path(), input).1.first() {
         return Err(invalid(reason_of(problem)));
     }
-    let old = crate::note::read_note(store, item.path())?;
+    let old = read_note(store, item.path())?;
     let ending = line_ending(&old);
     let replacement = lines
         .get(new_item.line - 1..new_item.end)
@@ -324,11 +293,47 @@ pub fn replace(
             }
         })
         .collect::<Vec<_>>();
-    verify(item.path(), &new, &expected)?;
-    if !dry_run {
-        replace_file(store, item.path(), Some(&old), &new)?;
+    commit(store, item.path(), Some(&old), &new, &expected, dry_run)
+}
+
+/// New item IDs from `seed`, each used by no item of `notes` and given
+/// only once.
+fn fresh_ids(notes: &Notes, seed: u64) -> impl Iterator<Item = ItemId> {
+    let mut taken = notes
+        .items()
+        .iter()
+        .map(|item| item.id().clone())
+        .collect::<HashSet<_>>();
+    random::numbers(seed)
+        .map(ItemId::from_number)
+        .filter(move |id| taken.insert(id.clone()))
+}
+
+/// Verifies that `new` reads back as the `expected` items, then, unless
+/// `dry_run`, writes it over `old` (see [`verify`] and [`replace_file`]).
+fn commit(
+    store: &Store,
+    path: &str,
+    old: Option<&str>,
+    new: &str,
+    expected: &[(Header, Vec<Field>)],
+    dry_run: bool,
+) -> Result<()> {
+    verify(path, new, expected)?;
+    if dry_run {
+        Ok(())
+    } else {
+        replace_file(store, path, old, new)
     }
-    Ok(())
+}
+
+/// The text of `file`, or `None` if it doesn't exist.
+fn read_if_exists(file: &Path) -> Result<Option<String>> {
+    match fs::read_to_string(file) {
+        Ok(text) => Ok(Some(text)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(Error::io(file)(error)),
+    }
 }
 
 /// Fails if `notes` has problems, except items without an ID when
@@ -447,12 +452,7 @@ fn replace_lines(text: &str, first: usize, last: usize, replacement: &str) -> St
 // writes to notes", and docs/rust.md, "Platform independence".
 fn replace_file(store: &Store, path: &str, old: Option<&str>, new: &str) -> Result<()> {
     let file = store.note_file(path);
-    let now = match fs::read_to_string(&file) {
-        Ok(text) => Some(text),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => return Err(Error::io(&file)(error)),
-    };
-    if now.as_deref() != old {
+    if read_if_exists(&file)?.as_deref() != old {
         return Err(Error::ChangedMeanwhile {
             path: path.to_owned(),
         });
@@ -504,7 +504,7 @@ fn check_note_path(config: &Config, path: &str) -> Result<()> {
              read for notes",
         ));
     }
-    if config.notes.exclude_set().is_match(crate::store::nfc(path)) {
+    if config.notes.exclude_set().is_match(nfc(path)) {
         return Err(invalid(
             "the path is excluded by `exclude` in .srl/config.toml",
         ));

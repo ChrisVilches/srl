@@ -9,6 +9,7 @@ use crate::card::{Card, CardId};
 use crate::note::{Field, ItemId};
 
 use cloze::Piece;
+pub(crate) use cloze::has_deletion;
 
 /// A kind of item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,7 +66,7 @@ fn qa(id: &ItemId, fields: &[Field]) -> Result<Vec<Card>, String> {
         .filter(|text| !text.trim().is_empty())
         .ok_or_else(|| "a qa item needs a question in `Q:`".to_owned())?;
     let answer = answer.filter(|text| !text.trim().is_empty());
-    if answer.is_some_and(cloze::has_deletion) {
+    if answer.is_some_and(has_deletion) {
         return Err(
             "cloze deletions go in Q only; write the text of A without `{{c…::…}}`".to_owned(),
         );

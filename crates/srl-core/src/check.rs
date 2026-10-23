@@ -5,6 +5,7 @@ use std::path;
 
 use serde::Serialize;
 
+use crate::kind::has_deletion;
 use crate::note::parse::{self, Line};
 use crate::note::read_note;
 use crate::{CardId, Config, Error, Memories, Notes, Result, Store};
@@ -130,7 +131,7 @@ fn suspicion(line: &str) -> Option<&'static str> {
              before the question",
         );
     }
-    if line.contains("{{c") && has_cloze(line) {
+    if has_deletion(line) {
         return Some(
             "a cloze deletion outside an item is not studied; put it in the Q: of an item",
         );
@@ -163,18 +164,6 @@ fn without_markers(line: &str) -> &str {
             None => return rest,
         }
     }
-}
-
-/// Whether `line` has `{{c`, a number and `::`.
-fn has_cloze(line: &str) -> bool {
-    line.match_indices("{{c").any(|(start, _)| {
-        let rest = line.get(start + 3..).unwrap_or_default();
-        let digits = rest.len() - rest.trim_start_matches(|c: char| c.is_ascii_digit()).len();
-        digits > 0
-            && rest
-                .get(digits..)
-                .is_some_and(|tail| tail.starts_with("::"))
-    })
 }
 
 #[cfg(test)]

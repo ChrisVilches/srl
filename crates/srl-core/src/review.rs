@@ -62,7 +62,11 @@ pub fn review(
         .iter()
         .map(|request| {
             check_rating(request.rating)?;
-            let (item, _) = known(notes, &request.card)?;
+            let (item, _) = notes
+                .card(&request.card)
+                .ok_or_else(|| Error::UnknownCard {
+                    id: request.card.to_string(),
+                })?;
             Ok(Event::Review(Review {
                 t: log::time(now),
                 card: request.card.clone(),
@@ -91,16 +95,7 @@ pub fn reset(
         .filter(|id| memories.state(id) != State::New)
         .cloned()
         .collect::<Vec<_>>();
-    let events = ids
-        .iter()
-        .map(|id| {
-            Event::Reset(CardEvent {
-                t: log::time(now),
-                card: id.clone(),
-            })
-        })
-        .collect();
-    write(store, events, dry_run)?;
+    write(store, card_events(&ids, now, Event::Reset), dry_run)?;
     Ok(ids)
 }
 
@@ -119,22 +114,25 @@ pub fn suspend(
         .filter(|(item, card)| !item.is_draft() && memories.is_suspended(card.id()) != suspend)
         .map(|(_, card)| card.id().clone())
         .collect::<Vec<_>>();
-    let events = ids
-        .iter()
+    let kind = if suspend {
+        Event::Suspend
+    } else {
+        Event::Unsuspend
+    };
+    write(store, card_events(&ids, now, kind), dry_run)?;
+    Ok(ids)
+}
+
+/// One event made by `kind` for each card of `ids`, at `now`.
+fn card_events(ids: &[CardId], now: &Zoned, kind: fn(CardEvent) -> Event) -> Vec<Event> {
+    ids.iter()
         .map(|id| {
-            let event = CardEvent {
+            kind(CardEvent {
                 t: log::time(now),
                 card: id.clone(),
-            };
-            if suspend {
-                Event::Suspend(event)
-            } else {
-                Event::Unsuspend(event)
-            }
+            })
         })
-        .collect();
-    write(store, events, dry_run)?;
-    Ok(ids)
+        .collect()
 }
 
 /// Gives the history of the orphan `from` to the card `to`, which must have
@@ -176,12 +174,6 @@ pub fn move_history(
     });
     write(store, vec![event.clone()], dry_run)?;
     Ok(event)
-}
-
-fn known<'a>(notes: &'a Notes, id: &CardId) -> Result<(&'a Item, &'a Card)> {
-    notes
-        .card(id)
-        .ok_or_else(|| Error::UnknownCard { id: id.to_string() })
 }
 
 fn write(store: &Store, events: Vec<Event>, dry_run: bool) -> Result<Vec<Event>> {
