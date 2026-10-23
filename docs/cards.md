@@ -12,7 +12,7 @@ memory state (see [scheduling.md](scheduling.md)).
 
 ```json
 {"id": "k3m9q1-2",
- "prompt": "周囲の反対をものともせず、[...]は起業した。",
+ "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
  "answer": "周囲の反対をものともせず、==彼女==は起業した。\n\nDespite everyone's opposition, she started a company."}
 ```
 
