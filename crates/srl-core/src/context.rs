@@ -27,8 +27,7 @@ pub fn context(store: &Store, item: &Item, mode: ContextMode) -> Result<Option<S
     if mode == ContextMode::None {
         return Ok(None);
     }
-    let path = item.see().unwrap_or(item.path());
-    Ok(of_text(&read_note(store, path)?, mode))
+    Ok(of_text(&read_note(store, item.context_path())?, mode))
 }
 
 /// The context of a note whose text is `text`, in `mode`.

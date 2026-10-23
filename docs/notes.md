@@ -276,7 +276,8 @@ JSON object per line:
 ```
 
 - `line` is the line of the header, counting from 1.
-- `see` is the path given by `see:`, or `null`.
+- `see` is the path given by `see:`, or `null`. The context comes from the
+  note at `see`, or at `path` when `see` is `null`.
 - `fields` holds the fields in the order they are written.
 - `cards` lists the IDs of the item's cards, in order.
 - `context` is the context in the mode chosen, or `null` when there is

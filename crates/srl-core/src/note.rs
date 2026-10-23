@@ -134,6 +134,12 @@ impl Item {
         self.see.as_deref()
     }
 
+    /// The path of the note shown as context: `see:`, or the item's own
+    /// note (see `docs/notes.md`, "Context").
+    pub fn context_path(&self) -> &str {
+        self.see().unwrap_or(self.path())
+    }
+
     pub fn is_draft(&self) -> bool {
         self.draft
     }

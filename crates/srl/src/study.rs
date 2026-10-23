@@ -196,7 +196,7 @@ impl Session<'_, '_> {
         writeln!(self.io.out, "---\n{answer}")?;
         if let Some(context) = srl_core::context(self.store, item, self.config.study.context)? {
             let context = self.render(context.trim_end());
-            writeln!(self.io.out, "---\n{context}")?;
+            writeln!(self.io.out, "--- {}\n{context}", item.context_path())?;
         }
         loop {
             let Some(line) = self.read("Rating 1-4, e edit, s suspend, q quit: ")? else {
@@ -352,7 +352,7 @@ mod tests {
             }
         );
         assert!(out.contains("\n鮪\n"), "{out}");
-        assert!(out.contains("---\ntuna\n---\nA fish.\n"), "{out}");
+        assert!(out.contains("---\ntuna\n--- fish.md\nA fish.\n"), "{out}");
         assert!(out.ends_with("1 card reviewed, 1 new, 0 Again.\n"), "{out}");
         let Event::Review(review) = &events(&store)[0] else {
             panic!("expected a review");

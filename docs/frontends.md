@@ -49,7 +49,8 @@ standard input is not a terminal.
 Input is read a line at a time: type, then Enter.
 
 - The prompt: Enter shows the answer, followed by the context if there is
-  one, under a line `---`; `q` quits.
+  one, under a line `--- PATH` naming the note it comes from (the item's
+  `see:`, or its own note); `q` quits.
 - The rating: `1`–`4`. `e` opens the item's note in the editor (see
   [cli.md](cli.md), "Editing in the editor") and asks for the rating again.
   `s` suspends the card without recording a review. `q` quits without
