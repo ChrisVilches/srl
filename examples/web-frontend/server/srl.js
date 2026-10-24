@@ -1,6 +1,6 @@
-// Runs srl commands. Every route of the server is one call to `srl`, so this
-// is the only place that knows how srl is started and what its exit codes
-// mean (0 found, 1 nothing, 2 error; see docs/cli.md).
+// Runs srl commands. Every API route but /api/config is one call to `srl`,
+// and this is the only place that knows how srl is started and what its
+// exit codes mean (0 found, 1 nothing, 2 error; see docs/cli.md).
 
 import { spawn } from 'node:child_process';
 

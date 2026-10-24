@@ -2,11 +2,14 @@
 
 `srl-web` is a web viewer, a frontend in the sense of
 [docs/frontends.md](../../docs/frontends.md): a small server on localhost
-that runs `srl` commands, and a page in the browser that shows the cards. It needs `srl` and Node.js 20 or later, and
-should work on Linux, macOS and Windows (it is tried on Linux only).
+that runs `srl` commands, and a page in the browser that shows the cards. It
+needs `srl` on `PATH` and Node.js 20 or later, and should work on Linux,
+macOS and Windows (it is tried on Linux only).
 
 - Card text and context are rendered as CommonMark plus GFM tables, with
   `==highlights==` marked. Raw HTML in notes is shown as text.
+- After the answer it shows the context in `prose` mode, under the name of
+  its note; `CONTEXT` in `server/server.js` chooses the mode.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
   card without recording a review.
 - The selector can be changed in the page; the counters at the top are the
@@ -27,8 +30,9 @@ srl-web in:grammar
 
 `srl-web [--port N] [--dir DIR] [--no-open] [SELECTOR]` serves on
 `http://localhost:4317/` and opens the browser. `--dir` is given to every
-`srl` command it runs; without it, `srl` finds the store from the directory
-`srl-web` was started in, or `SRL_DIR`, as always.
+`srl` command it runs; without it, `srl` finds the store as always (see
+[docs/store.md](../../docs/store.md), "Finding the store"), starting from
+the directory `srl-web` was started in.
 
 ## How it works
 
@@ -39,15 +43,15 @@ server/srl.js       running srl and reading its exit codes
 src/                the frontend: React, Tailwind CSS, markdown-it
 ```
 
-Each API route runs one `srl` command and returns its JSON. There is no
+Each API route but `/api/config` runs one `srl` command. There is no
 scheduling here; that belongs to `srl`.
 
-| Route | Runs |
-|---|---|
-| `GET /api/next?sel=…` | `srl next SEL --json --context prose`: the card, its state, and its note and context (`CONTEXT` in `server/server.js` chooses the mode) |
-| `POST /api/review` | `srl review --stdin`, with the request body |
-| `POST /api/suspend` | `srl suspend id:CARD` |
-| `GET /api/config` | nothing: the selector and `--dir` given to `srl-web` |
+| Route | Runs | Answers |
+|---|---|---|
+| `GET /api/config` | nothing | `{"selector": …}`, the selector given to `srl-web` |
+| `GET /api/next?sel=…` | `srl next SEL --json --context prose` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
+| `POST /api/review` | `srl review --stdin`, with the request body | `{}` |
+| `POST /api/suspend` | `srl suspend id:CARD`, for `{"card": CARD}` | `{}` |
 
 When `srl` fails, the route answers with `{"error": MESSAGE}`, `MESSAGE`
 being what `srl` printed, and the page shows it.
@@ -69,5 +73,5 @@ npm run dev       # Vite with hot reload on :5173, the API on :4318
 
 In development the selector is the arguments (`npm run dev -- in:grammar`).
 npm runs it in this folder, so choose the store with `SRL_DIR`, or `srl`
-falls back to the default store. `npm run build` checks the types and builds
+uses the default store. `npm run build` checks the types and builds
 `dist/`.

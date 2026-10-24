@@ -1,14 +1,13 @@
 // The local server: a JSON API over the srl CLI, and the built frontend.
 //
-// Every API route runs one srl command and returns its JSON. There is no
-// SRS logic here: scheduling belongs to srl (see docs/frontends.md, "The
-// frontend contract").
+// Every API route but /api/config runs one srl command. There is no SRS
+// logic here: scheduling belongs to srl (see docs/frontends.md).
 //
-//   GET  /api/config          the selector and store given on the command line
-//   GET  /api/next?sel=…      srl next SEL --json     → { card } or { card: null }
-//                             (with --context CONTEXT, chosen below)
-//   POST /api/review          srl review --stdin      ← { card, rating, response? }
-//   POST /api/suspend         srl suspend id:CARD     ← { card }
+//   GET  /api/config       nothing                     → { selector }
+//   GET  /api/next?sel=…   srl next SEL --json --context CONTEXT
+//                                                      → { card } or { card: null }
+//   POST /api/review       srl review --stdin          ← { card, rating, response? }
+//   POST /api/suspend      srl suspend id:CARD         ← { card }
 //
 // Errors are { error: MESSAGE } with status 400 (bad request) or 500 (srl
 // failed), MESSAGE being srl's own message when it comes from srl.
@@ -19,6 +18,10 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 
 import { SrlError, runSrl } from './srl.js';
+
+// How much of the note to show after the answer: 'prose' (the note without its
+// items), 'full' (with them) or 'none' (see docs/notes.md, "Context").
+const CONTEXT = 'prose';
 
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -31,21 +34,17 @@ const CONTENT_TYPES = {
   '.woff2': 'font/woff2',
 };
 
-// How much of the note to show after the answer: 'prose' (the note without its
-// items), 'full' (with them) or 'none' (see docs/notes.md, "Context").
-const CONTEXT = 'prose';
-
 class BadRequest extends Error {}
 
 // Creates the server. DIR is the store passed to srl as --dir (or
-// undefined, to let srl find it), SELECTOR the default selector shown in the
-// frontend, and STATIC_DIR the built frontend, or undefined to serve the API
+// undefined, to let srl find it), SELECTOR the selector the page starts
+// with, and STATIC_DIR the built frontend, or undefined to serve the API
 // only (as in development, where Vite serves the frontend).
 export function createSrlServer({ dir, selector, staticDir }) {
   const srl = (args, input) => runSrl(args, { dir, input });
 
   const routes = {
-    'GET /api/config': async () => ({ selector, dir: dir ?? null }),
+    'GET /api/config': async () => ({ selector }),
 
     'GET /api/next': async (url) => {
       const { found, stdout } = await srl(['next', '--json', '--context', CONTEXT, ...selectorArgs(url)]);
@@ -59,9 +58,8 @@ export function createSrlServer({ dir, selector, staticDir }) {
     },
 
     'POST /api/suspend': async (_url, body) => {
-      const id = requireId(body.card);
-      const { found } = await srl(['suspend', `id:${id}`]);
-      return { suspended: found };
+      await srl(['suspend', `id:${requireId(body.card)}`]);
+      return {};
     },
   };
 
@@ -102,10 +100,10 @@ function selectorArgs(url) {
   return selector === '' ? [] : ['--', selector];
 }
 
-// Card and item IDs are lowercase letters, digits and `-` (docs/cards.md).
+// Card IDs are lowercase letters, digits and `-` (docs/cards.md).
 function requireId(id) {
   if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    throw new BadRequest(`not a card or item ID: ${JSON.stringify(id)}`);
+    throw new BadRequest(`not a card ID: ${JSON.stringify(id)}`);
   }
   return id;
 }

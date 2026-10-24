@@ -1,7 +1,7 @@
-// The server's API (server/server.js): each call runs one srl command.
+// The server's API (server/server.js).
 
-// What `srl next --json` prints (docs/cli.md, "Studying"): the card, its
-// state, and its item's note and context.
+// What `srl next --json` prints (docs/frontends.md, "What a frontend gets"):
+// the card, its state, and its item's note and context.
 export type Card = {
   id: string;
   prompt: string;
@@ -14,8 +14,6 @@ export type Card = {
 
 export type Rating = 1 | 2 | 3 | 4;
 
-export type Config = { selector: string; dir: string | null };
-
 async function call<T>(path: string, body?: object): Promise<T> {
   const response = await fetch(
     path,
@@ -27,19 +25,18 @@ async function call<T>(path: string, body?: object): Promise<T> {
           body: JSON.stringify(body),
         },
   );
-  const value = await response.json().catch(() => ({ error: `${path}: ${response.statusText}` }));
+  const value = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(value.error ?? `${path} failed with status ${response.status}`);
   }
   return value as T;
 }
 
-const query = (params: Record<string, string>) => new URLSearchParams(params).toString();
-
 export const api = {
-  config: () => call<Config>('/api/config'),
+  // The selector srl-web was started with.
+  selector: async () => (await call<{ selector: string }>('/api/config')).selector,
   next: async (selector: string) =>
-    (await call<{ card: Card | null }>(`/api/next?${query({ sel: selector })}`)).card,
+    (await call<{ card: Card | null }>(`/api/next?${new URLSearchParams({ sel: selector })}`)).card,
   review: (card: string, rating: Rating) => call<object>('/api/review', { card, rating }),
-  suspend: (card: string) => call<{ suspended: boolean }>('/api/suspend', { card }),
+  suspend: (card: string) => call<object>('/api/suspend', { card }),
 };

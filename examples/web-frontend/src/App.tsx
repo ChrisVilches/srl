@@ -21,6 +21,12 @@ const RATINGS: { rating: Rating; name: string; style: string }[] = [
   { rating: 4, name: 'Easy', style: 'bg-sky-600 hover:bg-sky-500' },
 ];
 
+// The phase after getting the next card: its prompt, or done if none is left.
+async function nextPhase(selector: string): Promise<Phase> {
+  const card = await api.next(selector);
+  return card ? { kind: 'prompt', card } : { kind: 'done' };
+}
+
 export default function App() {
   const [selector, setSelector] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
@@ -39,26 +45,22 @@ export default function App() {
     }
   }, []);
 
-  const loadNext = useCallback(
-    (sel: string) =>
+  // Asks for the selector srl-web was started with, then for the first card.
+  const start = useCallback(
+    () =>
       step(async () => {
-        const card = await api.next(sel);
-        if (!card) {
-          setPhase({ kind: 'done' });
-          return;
-        }
-        setPhase({ kind: 'prompt', card });
+        const sel = await api.selector();
+        setSelector(sel);
+        setPhase(await nextPhase(sel));
       }),
     [step],
   );
 
+  const loadNext = useCallback((sel: string) => step(async () => setPhase(await nextPhase(sel))), [step]);
+
   useEffect(() => {
-    step(async () => {
-      const config = await api.config();
-      setSelector(config.selector);
-      await loadNext(config.selector);
-    });
-  }, [step, loadNext]);
+    start();
+  }, [start]);
 
   const reveal = useCallback(() => {
     if (phase.kind !== 'prompt') return;
@@ -76,10 +78,10 @@ export default function App() {
           new: s.new + (card.state === 'new' ? 1 : 0),
           again: s.again + (rating === 1 ? 1 : 0),
         }));
-        await loadNext(selector);
+        setPhase(await nextPhase(selector));
       });
     },
-    [phase, selector, step, loadNext],
+    [phase, selector, step],
   );
 
   const suspend = useCallback(() => {
@@ -87,9 +89,9 @@ export default function App() {
     const { card } = phase;
     step(async () => {
       await api.suspend(card.id);
-      await loadNext(selector);
+      setPhase(await nextPhase(selector));
     });
-  }, [phase, selector, step, loadNext]);
+  }, [phase, selector, step]);
 
   // Keys: space or Enter shows the answer, 1–4 rate, s suspends.
   useEffect(() => {
@@ -123,7 +125,7 @@ export default function App() {
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
         {phase.kind === 'loading' && <Notice>Loading…</Notice>}
         {phase.kind === 'error' && (
-          <ErrorView message={phase.message} onRetry={() => selector !== null && loadNext(selector)} />
+          <ErrorView message={phase.message} onRetry={() => (selector === null ? start() : loadNext(selector))} />
         )}
         {phase.kind === 'done' && (
           <DoneView selector={selector ?? ''} stats={stats} onCheck={() => loadNext(selector ?? '')} />
