@@ -6,8 +6,7 @@ use serde::Deserialize;
 
 use crate::log;
 use crate::{
-    By, Card, CardEvent, CardId, Error, Event, Item, Memories, Move, Notes, Result, Review, State,
-    Store,
+    By, CardEvent, CardId, Error, Event, Item, Memories, Move, Notes, Result, Review, State, Store,
 };
 
 /// What `srl review --stdin` reads: a card ID, its rating, and optionally
@@ -84,14 +83,14 @@ pub fn review(
 /// event, and returns their IDs.
 pub fn reset(
     store: &Store,
-    selected: &[(&Item, &Card)],
+    selected: &[(&Item, &CardId)],
     memories: &Memories,
     now: &Zoned,
     dry_run: bool,
 ) -> Result<Vec<CardId>> {
     let ids = selected
         .iter()
-        .map(|(_, card)| card.id())
+        .map(|(_, card)| *card)
         .filter(|id| memories.state(id) != State::New)
         .cloned()
         .collect::<Vec<_>>();
@@ -103,7 +102,7 @@ pub fn reset(
 /// active, or suspended, and returns their IDs. Drafts are left alone.
 pub fn suspend(
     store: &Store,
-    selected: &[(&Item, &Card)],
+    selected: &[(&Item, &CardId)],
     memories: &Memories,
     suspend: bool,
     now: &Zoned,
@@ -111,8 +110,8 @@ pub fn suspend(
 ) -> Result<Vec<CardId>> {
     let ids = selected
         .iter()
-        .filter(|(item, card)| !item.is_draft() && memories.is_suspended(card.id()) != suspend)
-        .map(|(_, card)| card.id().clone())
+        .filter(|(item, card)| !item.is_draft() && memories.is_suspended(card) != suspend)
+        .map(|(_, card)| (*card).clone())
         .collect::<Vec<_>>();
     let kind = if suspend {
         Event::Suspend

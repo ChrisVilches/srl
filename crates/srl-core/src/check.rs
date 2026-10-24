@@ -14,10 +14,7 @@ use crate::{CardId, Config, Error, Memories, Notes, Result, Store};
 /// has no events, the notice says how to move the history there (see
 /// `docs/scheduling.md`, "Moving history").
 pub fn orphans(notes: &Notes, memories: &Memories) -> Vec<Error> {
-    let cards = notes
-        .cards()
-        .map(|(_, card)| card.id())
-        .collect::<HashSet<_>>();
+    let cards = notes.cards().map(|(_, card)| card).collect::<HashSet<_>>();
     let mut orphans = memories
         .all()
         .filter(|(id, memory)| memory.seen.is_some() && !cards.contains(id))
@@ -32,16 +29,12 @@ pub fn orphans(notes: &Notes, memories: &Memories) -> Vec<Error> {
                 .map(|item| {
                     item.cards()
                         .iter()
-                        .filter(|card| !memories.get(card.id()).touched)
+                        .filter(|card| !memories.get(card).touched)
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
             let suggestion = match fresh.as_slice() {
-                [card] => format!(
-                    "{} is new. To keep the history: srl move {id} {}",
-                    card.id(),
-                    card.id()
-                ),
+                [card] => format!("{card} is new. To keep the history: srl move {id} {card}"),
                 _ => "its history stays in the log; give it to a card with `srl move` if you \
                       want to keep it"
                     .to_owned(),

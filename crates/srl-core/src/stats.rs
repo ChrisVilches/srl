@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use jiff::Span;
 use serde::Serialize;
 
-use crate::{Card, CardId, Item, Memories, Reviewed, State};
+use crate::{CardId, Item, Memories, Reviewed, State};
 
 /// How many study days, today included, retention looks back.
 const RETENTION_DAYS: i64 = 30;
@@ -40,11 +40,11 @@ pub struct StateCounts {
 
 /// The statistics of `cards`, from their memories and every review of the
 /// log.
-pub fn stats(cards: &[(&Item, &Card)], memories: &Memories, reviews: &[Reviewed]) -> Stats {
+pub fn stats(cards: &[(&Item, &CardId)], memories: &Memories, reviews: &[Reviewed]) -> Stats {
     let states = cards
         .iter()
         .fold(StateCounts::default(), |counts, (_, card)| {
-            let id = card.id();
+            let id = card;
             let counts = StateCounts {
                 leech: counts.leech + usize::from(memories.is_leech(id)),
                 ..counts
@@ -70,7 +70,7 @@ pub fn stats(cards: &[(&Item, &Card)], memories: &Memories, reviews: &[Reviewed]
         });
     let ids = cards
         .iter()
-        .map(|(_, card)| card.id())
+        .map(|(_, card)| *card)
         .collect::<HashSet<&CardId>>();
     let today = memories.today();
     let first_day = today

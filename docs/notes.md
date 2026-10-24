@@ -258,6 +258,7 @@ on standard error, one per line, and exits with status 2. The errors are:
 - an unknown, repeated or empty header entry, or an unclosed quote;
 - an item without an ID (`srl id` fixes it), an invalid ID, or an ID that
   another item already has;
+- a field key written twice in one item, whatever its kind;
 - an unknown kind, or fields that the kind doesn't accept (see
   [cards.md](cards.md));
 - a `see:` that doesn't name a note of the store.

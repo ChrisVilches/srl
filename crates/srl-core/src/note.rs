@@ -101,7 +101,10 @@ pub struct Item {
     draft: bool,
     fields: Vec<Field>,
     text: String,
-    cards: Vec<Card>,
+    /// The card IDs in groups of siblings, as the kind gave them.
+    groups: Vec<Vec<CardId>>,
+    /// Every card ID of `groups`, in order.
+    cards: Vec<CardId>,
 }
 
 impl Item {
@@ -153,8 +156,36 @@ impl Item {
         &self.text
     }
 
-    pub fn cards(&self) -> &[Card] {
+    /// The IDs of the item's cards, in order.
+    pub fn cards(&self) -> &[CardId] {
         &self.cards
+    }
+
+    /// The group of siblings `card` belongs to, by its position among the
+    /// item's groups (see `docs/scheduling.md`, "Siblings").
+    pub(crate) fn group(&self, card: &CardId) -> usize {
+        self.groups
+            .iter()
+            .position(|group| group.contains(card))
+            .expect("a card should be in one of its item's groups")
+    }
+
+    /// The cards of the group `group`, as [`Item::group`] gives it.
+    pub(crate) fn siblings(&self, group: usize) -> &[CardId] {
+        self.groups
+            .get(group)
+            .expect("a group should be one of the item's groups")
+    }
+
+    /// The card `card` of this item, made by its kind.
+    pub fn card(&self, card: &CardId) -> Result<Card> {
+        self.kind
+            .card(card, &self.fields)
+            .map_err(|reason| Error::Note {
+                path: self.path.clone(),
+                line: self.line,
+                reason,
+            })
     }
 
     /// The first line of the first field: how listings name the item.
@@ -190,7 +221,7 @@ impl Item {
             "see": self.see,
             "draft": self.draft,
             "fields": fields,
-            "cards": self.cards.iter().map(Card::id).collect::<Vec<_>>(),
+            "cards": self.cards,
             "context": context,
         })
     }
@@ -260,16 +291,16 @@ impl Notes {
     }
 
     /// The card with this ID, and its item.
-    pub fn card(&self, id: &CardId) -> Option<(&Item, &Card)> {
+    pub fn card(&self, id: &CardId) -> Option<(&Item, &CardId)> {
         let item = self.item(id.item())?;
         item.cards
             .iter()
-            .find(|card| card.id() == id)
+            .find(|card| *card == id)
             .map(|card| (item, card))
     }
 
     /// Every card, with its item, in the order they are written.
-    pub fn cards(&self) -> impl Iterator<Item = (&Item, &Card)> {
+    pub fn cards(&self) -> impl Iterator<Item = (&Item, &CardId)> {
         self.items
             .iter()
             .flat_map(|item| item.cards.iter().map(move |card| (item, card)))
@@ -283,7 +314,7 @@ impl Notes {
         };
         let id = CardId::parse(text)?;
         let item = self.item(id.item()).ok_or_else(unknown)?;
-        if id.suffix().is_some() && !item.cards.iter().any(|card| card.id() == &id) {
+        if id.suffix().is_some() && !item.cards.contains(&id) {
             return Err(unknown());
         }
         Ok(item)
@@ -330,8 +361,12 @@ pub(crate) fn read_items(path: &str, text: &str) -> (Vec<Item>, Vec<Error>) {
             });
             continue;
         };
-        match kind.cards(&id, &raw.fields) {
-            Ok(cards) => items.push(Item {
+        if let Some(reason) = repeated_field(&raw.fields) {
+            problems.push(at(reason));
+            continue;
+        }
+        match kind.groups(&id, &raw.fields) {
+            Ok(groups) => items.push(Item {
                 id,
                 path: path.to_owned(),
                 line: raw.line,
@@ -344,12 +379,27 @@ pub(crate) fn read_items(path: &str, text: &str) -> (Vec<Item>, Vec<Error>) {
                     .get(raw.line - 1..raw.end)
                     .unwrap_or_default()
                     .join("\n"),
-                cards,
+                cards: {
+                    let mut cards = groups.concat();
+                    cards.sort();
+                    cards
+                },
+                groups,
             }),
             Err(reason) => problems.push(at(reason)),
         }
     }
     (items, problems)
+}
+
+/// Why `fields` can't be an item's fields, whatever its kind: a key
+/// written twice.
+fn repeated_field(fields: &[Field]) -> Option<String> {
+    let mut seen = HashSet::new();
+    fields
+        .iter()
+        .find(|field| !seen.insert(field.key.as_str()))
+        .map(|field| format!("the field {} appears twice; keep one", field.key))
 }
 
 /// Keeps the first item of each ID, and reports the others.
@@ -409,9 +459,19 @@ mod tests {
         let ids = items[1]
             .cards()
             .iter()
-            .map(|card| card.id().to_string())
+            .map(ToString::to_string)
             .collect::<Vec<_>>();
         assert_eq!(ids, ["k3m9q1-1", "k3m9q1-2"]);
+    }
+
+    #[test]
+    fn a_field_written_twice_is_a_problem_whatever_the_kind() {
+        let (items, problems) = read_items("n.md", "<!-- srl id:abc -->\nQ: a\nQ: b\nA: c\n");
+        assert!(items.is_empty());
+        assert_eq!(
+            problems[0].to_string(),
+            "n.md:1: the field Q appears twice; keep one"
+        );
     }
 
     #[test]

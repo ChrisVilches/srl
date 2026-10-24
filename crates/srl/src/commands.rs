@@ -222,7 +222,7 @@ fn reindex(store: &Store) -> anyhow::Result<Outcome> {
 }
 
 /// The cards that match `selector`, with their items.
-fn select<'a>(loaded: &'a Loaded, selector: &Selector) -> Vec<(&'a Item, &'a Card)> {
+fn select<'a>(loaded: &'a Loaded, selector: &Selector) -> Vec<(&'a Item, &'a CardId)> {
     selector.select(loaded.notes.cards(), &loaded.memories)
 }
 
@@ -236,13 +236,13 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
             .map(|(item, card)| {
                 let memories = &loaded.memories;
                 serde_json::json!({
-                    "id": card.id(),
+                    "id": card,
                     "item": item.id(),
                     "path": item.path(),
                     "line": item.line(),
                     "status": Status::of(item, card, memories),
-                    "state": state_name(memories.state(card.id())),
-                    "due": memories.get(card.id()).due.map(|day| day.to_string()),
+                    "state": state_name(memories.state(card)),
+                    "due": memories.get(card).due.map(|day| day.to_string()),
                 })
             })
             .collect::<Vec<_>>();
@@ -333,11 +333,16 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
             Ok((item, card_id)) => found.extend(
                 item.cards()
                     .iter()
-                    .filter(|card| card_id.suffix().is_none() || card.id() == &card_id),
+                    .filter(|card| card_id.suffix().is_none() || **card == card_id)
+                    .map(|card| (item, card)),
             ),
             Err(error) => problems.push(error),
         }
     }
+    let found = found
+        .into_iter()
+        .map(|(item, card)| item.card(card))
+        .collect::<srl_core::Result<Vec<_>>>()?;
     if json {
         output::json_lines(&found)?;
     } else {
@@ -452,6 +457,7 @@ fn next(
     else {
         return Ok(Outcome::Nothing);
     };
+    let card = item.card(card)?;
     if json {
         /// The card's own fields, then what is shown around it.
         #[derive(Serialize)]
@@ -464,7 +470,7 @@ fn next(
             context: Option<String>,
         }
         output::json_lines(&[Next {
-            card,
+            card: &card,
             state: state_name(loaded.memories.state(card.id())),
             path: item.path(),
             see: item.see(),
@@ -550,7 +556,7 @@ fn log(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome
     let ids = selector
         .select(notes.cards(), &memories)
         .into_iter()
-        .map(|(_, card)| card.id())
+        .map(|(_, card)| card)
         .collect::<Vec<_>>();
     let events = log.of(&ids).map(|entry| &entry.event).collect::<Vec<_>>();
     if json {

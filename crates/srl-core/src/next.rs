@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use crate::{Card, CardId, Config, Item, ItemId, Memories, Notes, Selector, State, Status};
+use crate::{CardId, Config, Item, ItemId, Memories, Notes, Selector, State, Status};
 
 /// The next card among those that match `selector` (plus
 /// `status:active`), with its item, if there is one.
@@ -17,60 +17,63 @@ pub fn next<'a>(
     memories: &Memories,
     selector: Selector,
     config: &Config,
-) -> Option<(&'a Item, &'a Card)> {
+) -> Option<(&'a Item, &'a CardId)> {
     let selector = selector.and_status(Status::Active);
     let limit = usize::try_from(config.schedule.new_per_day).expect("a u32 should fit in a usize");
     let new_allowed = memories.new_today() < limit;
     let eligible = selector
         .select(notes.cards(), memories)
         .into_iter()
-        .filter(|(_, card)| match memories.state(card.id()) {
+        .filter(|(_, card)| match memories.state(card) {
             State::Due => true,
             State::New => new_allowed,
             State::Young | State::Mature => false,
         })
         .collect::<Vec<_>>();
     let picks = picks(&eligible, memories);
-    let is_pick = |item: &ItemId, card: &Card| picks.get(item) == Some(&card.id());
+    let is_pick =
+        |item: &Item, card: &CardId| picks.get(&(item.id(), item.group(card))) == Some(&card);
     let mut due = eligible
         .iter()
-        .filter(|(_, card)| memories.state(card.id()) == State::Due)
+        .filter(|(_, card)| memories.state(card) == State::Due)
         .collect::<Vec<_>>();
-    due.sort_by_key(|(_, card)| (memories.get(card.id()).due, card.id().clone()));
+    due.sort_by_key(|(_, card)| (memories.get(card).due, (*card).clone()));
     let new = eligible
         .iter()
-        .filter(|(_, card)| memories.state(card.id()) == State::New);
+        .filter(|(_, card)| memories.state(card) == State::New);
     due.into_iter()
         .chain(new)
-        .find(|(item, card)| is_pick(item.id(), card))
+        .find(|(item, card)| is_pick(item, card))
         .copied()
 }
 
-/// The card each item offers today under the sibling rule: none if any of
-/// its cards was reviewed today, else its eligible card reviewed longest
-/// ago, never reviewed first, ties to the lowest card ID.
+/// The card each group of siblings offers today under the sibling rule,
+/// by item and group: none if any card of the group was reviewed today,
+/// else its eligible card reviewed longest ago, never reviewed first, ties
+/// to the lowest card ID.
 fn picks<'a>(
-    eligible: &[(&'a Item, &'a Card)],
+    eligible: &[(&'a Item, &'a CardId)],
     memories: &Memories,
-) -> HashMap<&'a ItemId, &'a CardId> {
-    let mut picks: HashMap<&ItemId, &CardId> = HashMap::new();
+) -> HashMap<(&'a ItemId, usize), &'a CardId> {
+    let mut picks: HashMap<(&ItemId, usize), &CardId> = HashMap::new();
     for (item, card) in eligible {
+        let group = item.group(card);
         let reviewed_today = item
-            .cards()
+            .siblings(group)
             .iter()
-            .any(|sibling| memories.reviewed_today(sibling.id()));
+            .any(|sibling| memories.reviewed_today(sibling));
         if reviewed_today {
             continue;
         }
         let key = |id: &CardId| (memories.get(id).seen.map(|seen| seen.position), id.clone());
         picks
-            .entry(item.id())
+            .entry((item.id(), group))
             .and_modify(|pick| {
-                if key(card.id()) < key(pick) {
-                    *pick = card.id();
+                if key(card) < key(pick) {
+                    *pick = card;
                 }
             })
-            .or_insert(card.id());
+            .or_insert(card);
     }
     picks
 }
@@ -127,7 +130,7 @@ mod tests {
         };
         let memories = Memories::replay(&log, config, DAY).unwrap();
         let selector = Selector::parse(selector).unwrap();
-        next(notes, &memories, selector, config).map(|(_, card)| card.id().to_string())
+        next(notes, &memories, selector, config).map(|(_, card)| card.to_string())
     }
 
     fn store() -> (TempDir, Notes) {

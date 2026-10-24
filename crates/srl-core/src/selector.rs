@@ -6,7 +6,7 @@ use globset::GlobSet;
 
 use crate::config::globs;
 use crate::store::nfc;
-use crate::{Card, CardId, Error, Item, Memories, Result, State};
+use crate::{CardId, Error, Item, Memories, Result, State};
 
 /// The keys of `key:value` terms.
 const KEYS: &str = "in, path, id, status, state";
@@ -59,10 +59,10 @@ impl Status {
 
     /// The status of `card` of `item`: `draft` if the item is a draft, else
     /// `suspended` if the card is suspended, else `active`.
-    pub fn of(item: &Item, card: &Card, memories: &Memories) -> Self {
+    pub fn of(item: &Item, card: &CardId, memories: &Memories) -> Self {
         if item.is_draft() {
             Self::Draft
-        } else if memories.is_suspended(card.id()) {
+        } else if memories.is_suspended(card) {
             Self::Suspended
         } else {
             Self::Active
@@ -123,7 +123,7 @@ impl Selector {
     }
 
     /// Whether `card` of `item` matches.
-    pub fn matches(&self, item: &Item, card: &Card, memories: &Memories) -> bool {
+    pub fn matches(&self, item: &Item, card: &CardId, memories: &Memories) -> bool {
         self.terms
             .iter()
             .all(|term| term.filter.matches(item, card, memories) != term.negated)
@@ -133,9 +133,9 @@ impl Selector {
     /// written.
     pub fn select<'a>(
         &self,
-        cards: impl Iterator<Item = (&'a Item, &'a Card)>,
+        cards: impl Iterator<Item = (&'a Item, &'a CardId)>,
         memories: &Memories,
-    ) -> Vec<(&'a Item, &'a Card)> {
+    ) -> Vec<(&'a Item, &'a CardId)> {
         cards
             .filter(|(item, card)| self.matches(item, card, memories))
             .collect()
@@ -158,18 +158,16 @@ fn names(path: &str) -> impl Iterator<Item = String> + '_ {
 }
 
 impl Filter {
-    fn matches(&self, item: &Item, card: &Card, memories: &Memories) -> bool {
+    fn matches(&self, item: &Item, card: &CardId, memories: &Memories) -> bool {
         match self {
             Self::In(wanted) => names(item.path()).any(|name| wanted.contains(&name)),
             Self::Path(globs) => globs.is_match(nfc(item.path())),
             Self::Id(ids) => ids.iter().any(|id| match id.suffix() {
-                Some(_) => id == card.id(),
+                Some(_) => id == card,
                 None => id.item() == item.id(),
             }),
             Self::Status(statuses) => statuses.contains(&Status::of(item, card, memories)),
-            Self::State(states) => states
-                .iter()
-                .any(|state| state.matches(card.id(), memories)),
+            Self::State(states) => states.iter().any(|state| state.matches(card, memories)),
             Self::Text(text) => item.search_text().contains(text.as_str()),
         }
     }
@@ -384,7 +382,7 @@ mod tests {
         selector
             .select(cards, &memories())
             .into_iter()
-            .map(|(_, card)| card.id().to_string())
+            .map(|(_, card)| card.to_string())
             .collect()
     }
 
@@ -463,7 +461,7 @@ mod tests {
             .flat_map(|item| item.cards().iter().map(move |card| (item, card)));
         let picked = selector.select(cards, &memories());
         assert_eq!(picked.len(), 1);
-        assert_eq!(picked[0].1.id().to_string(), "aaa3");
+        assert_eq!(picked[0].1.to_string(), "aaa3");
     }
 
     #[test]

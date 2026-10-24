@@ -10,7 +10,7 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use serde::Serialize;
-use srl_core::{By, Card, Event, Item, Lint, Stats, Written};
+use srl_core::{By, Card, CardId, Event, Item, Lint, Stats, Written};
 
 /// Prints one path per line.
 pub(crate) fn paths(paths: &[PathBuf]) {
@@ -36,11 +36,11 @@ pub(crate) fn written(written: &[Written]) {
 
 /// Prints one line per card: its ID, `PATH:LINE` of its item, and the
 /// first line of the item's first field, separated by two spaces.
-pub(crate) fn card_lines(cards: &[(&Item, &Card)]) {
+pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
     for (item, card) in cards {
         let line = format!(
             "{}  {}:{}  {}",
-            card.id(),
+            card,
             item.path(),
             item.line(),
             item.label()
@@ -69,7 +69,7 @@ pub(crate) fn items(items: &[(&Item, Option<String>)]) {
 /// Prints cards for people: for each, a line with its ID, the prompt, a
 /// line `---`, the revealed prompt, and, if there is an answer, a line `---`
 /// and the answer. Cards are separated by blank lines.
-pub(crate) fn cards(cards: &[&Card]) {
+pub(crate) fn cards(cards: &[Card]) {
     for (index, card) in cards.iter().enumerate() {
         if index > 0 {
             println!();
