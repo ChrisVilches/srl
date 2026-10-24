@@ -169,6 +169,12 @@ the log under the old ID. `srl` never guesses where they belong:
   merged or overwritten. From that event on, `TO` has `FROM`'s memory
   state, lapses, last review and status, and `FROM` has nothing.
 
+> **TODO (design):** `srl move` is hard to use by hand. To run it, a person
+> has to know what an orphan is, which new card took the old one's place,
+> and that a wrong move can't be undone. A helper that does this more
+> safely is wanted, in `srl` or in a frontend or wrapper; nothing about it
+> is decided (see [overview.md](overview.md), "Open questions").
+
 ## States
 
 Every card has one derived state, usable in selectors as `state:NAME`:

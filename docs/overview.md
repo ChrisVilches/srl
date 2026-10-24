@@ -264,3 +264,7 @@ Main design decisions still to take:
 - **A non-strict mode.** Today every error in a note stops every command
   that reads items. A `strict = false` setting could turn errors into
   warnings and skip the broken items ([notes.md](notes.md), "Errors").
+- **A helper for moving history.** Today `srl move FROM TO` is the only
+  way, and running it by hand takes more knowledge than a person should
+  need. A safer helper is wanted, in `srl` or built on top
+  ([scheduling.md](scheduling.md), "Moving history").
