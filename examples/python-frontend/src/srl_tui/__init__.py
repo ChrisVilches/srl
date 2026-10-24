@@ -241,7 +241,7 @@ class Session:
     def run(self):
         """Studies until no card is left (returns True) or q is pressed."""
         while True:
-            out, code = srl("next", *self.selector, "--json", "--context", CONTEXT)
+            out, code = srl("next", "--json", "--context", CONTEXT, "--", *self.selector)
             if code == 1:
                 return True
             card = json.loads(out)
@@ -283,12 +283,33 @@ class Session:
         self.again += rating == 1
 
 
+USAGE = "usage: srl-tui [SELECTOR]...\n"
+
+
+def selector(args):
+    """The selector terms in the arguments, the only thing srl-tui takes.
+
+    A term may start with one `-` (`-in:n5` is a negation), so only an
+    argument starting with `--` is an option, and --help is the only one.
+    The terms reach srl after `--`, so none of them is read as an option.
+    """
+    for arg in args:
+        if arg == "--help":
+            sys.stdout.write(USAGE + "Studies the cards that match SELECTOR (every card without one).\n")
+            sys.exit(0)
+        if arg.startswith("--"):
+            sys.stderr.write(f"srl-tui: unknown option {arg}; it takes only a selector\n{USAGE}")
+            sys.exit(2)
+    return args
+
+
 def main():
+    terms = selector(sys.argv[1:])
     if not sys.stdin.isatty():
         sys.exit("srl-tui: needs a terminal; in scripts, use srl next and srl review")
     if shutil.which("srl") is None:
         sys.exit("srl-tui: srl is not on PATH; install it first")
-    session = Session(sys.argv[1:])
+    session = Session(terms)
     try:
         # The alternate screen: the session fills the terminal, and leaves
         # it as it was when it ends.

@@ -70,9 +70,11 @@ srl-tui in:grammar
 With `--editable`, your changes to the code take effect without
 installing again. `uv tool uninstall srl-tui` removes it.
 
-It takes a selector like `srl next` (none means every card), and `srl`
-finds the store as always: `SRL_DIR` if it is set, otherwise the nearest
-store from the current directory up (see
+It takes a selector like `srl next` (none means every card), and nothing
+else: an argument starting with `--` is refused, except `--help`, and the
+terms reach `srl next` after `--`, so none of them is read as an option of
+`srl`'s. `srl` finds the store as always: `SRL_DIR` if it is set,
+otherwise the nearest store from the current directory up (see
 [docs/store.md](../../docs/store.md)).
 
 ## Making it yours
