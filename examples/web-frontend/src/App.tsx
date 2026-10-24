@@ -183,7 +183,7 @@ function StatsLine({ stats }: { stats: Stats }) {
     <span className="text-sm text-stone-500 tabular-nums dark:text-stone-400">
       <b className="text-stone-800 dark:text-stone-200">{stats.reviewed}</b> reviewed ·{' '}
       <b className="text-sky-600 dark:text-sky-400">{stats.new}</b> new ·{' '}
-      <b className="text-rose-600 dark:text-rose-400">{stats.again}</b> Again
+      <b className="text-rose-600 dark:text-rose-400">{stats.again}</b> again
     </span>
   );
 }
