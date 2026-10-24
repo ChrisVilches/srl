@@ -44,7 +44,7 @@ prints one on standard output. A call that exits with a status other than
 
 | Call | Input | Output | Rule |
 |---|---|---|---|
-| `ids` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | its cards, in groups: `{"groups": [{"cards": ["te", "past"]}, {"cards": ["negative"]}]}` | **Deterministic and fast**: the same fields always give the same IDs. Called for every item of the kind, on every command that reads items, so its result would need a cache: notes themselves are not cached (see [store.md](store.md), "The index cache"). |
+| `ids` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | its cards, in groups: `{"groups": [{"cards": ["te", "past"]}, {"cards": ["negative"]}]}` | **Deterministic and fast**: the same fields always give the same IDs. Called for every item of the kind, on every command that reads items (see the TODO on caching below). |
 | `card` | the same object, plus `"suffix"`, `"context"` (as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`: the card's fields of [cards.md](cards.md), "Format", without `id` | **May differ every time.** Called only when a card is about to be shown. |
 
 `fields` is as in `srl show --json`. `srl` checks first that no key is
@@ -112,9 +112,29 @@ Other rules a plugin design would need:
 - **A failing `card` call doesn't stop everything.** An LLM API can be
   down. `srl next` reports the failure and goes on to the next card, as
   if the failed card were not eligible today.
+- **`srl cards` calls `card` for every card it prints**, so a kind whose
+  content differs every time, such as the LLM kind below, gives a new
+  card each time: what `srl cards` prints is one card the kind could
+  give, not the one `srl next` will show. A failing `card` call makes
+  `srl cards` fail at once, with the program's reason and no output for
+  the other IDs.
 - **A time limit** for both calls, set in `.srl/config.toml`.
 - **`srl add` needs no change**: it takes field names from JSON, and
   `ids` checks them.
+- **Running a program is your choice.** `[kinds]` runs whatever command
+  you write there, with your rights, whenever a command reads an item of
+  that kind. It is in your own store's configuration, so `srl` neither
+  checks nor limits the programs, as with plugins in most tools. A store
+  you copy from someone else runs their programs: read its `[kinds]`
+  first.
+
+> **TODO (design):** `ids` results are **not cached**: every command
+> that reads items calls `ids` once for every item of a program kind, so
+> a store with many such items is slow. A cache would make `srl` faster
+> without changing what any command does. What it would be keyed on, and
+> what would make an entry stale (the item's text, the kind's command,
+> the program changing), is still to be analyzed. Notes themselves are not
+> cached either (see [store.md](store.md), "The index cache").
 
 ### Proof of concept: questions written by an LLM
 
