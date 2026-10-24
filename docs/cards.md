@@ -65,9 +65,11 @@ old ID; `srl check` reports it, and `srl move` gives it to another card
 
 An item's **kind**, set by `kind:` in its header, decides which fields it
 takes and how they become cards. There is one kind, `qa`, and it is the
-default. Any other `kind:` is an error. Kinds are built into `srl`; it
-never runs a program to make cards (see [rationale.md](rationale.md),
-"Why the kinds are built in").
+default. Any other `kind:` is an error.
+
+> **TODO (design):** other kinds, possibly as programs, are not specified
+> yet (see [overview.md](overview.md), "Open questions", and
+> [ideas.md](ideas.md), "Kinds").
 
 ### `qa`
 

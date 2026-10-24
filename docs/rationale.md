@@ -91,7 +91,7 @@ be sure it is noticed. Skipping it with a warning would be easy to miss
 among other output.
 
 Trade-off: a typo in one note blocks studying every note until it is
-fixed. A non-strict mode may come later.
+fixed.
 
 ## Why `srl` changes notes so little
 
@@ -142,11 +142,6 @@ deletions. Programs that turned structured data into questions could do
 little without an LLM, and with one they wrote questions that were better
 written as items. So what a question looks like is in its text: an item
 with cloze deletions behaves as cloze, with nothing to configure.
-
-Kinds are not programs that `srl` runs (`srl-kind-NAME`), for the same
-reason `srl` runs no commands of yours (see "Why a data layer and one
-mapping, and nothing else"): a program that writes questions can write
-them as items, with `srl add`, and they are then ordinary cards.
 
 Trade-off: a new kind of question needs a change to `srl`.
 
