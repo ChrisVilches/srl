@@ -191,7 +191,7 @@ Terms separated by spaces must all match; a comma means or; `-` means not.
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | notes in a folder `NAME`, or a note named `NAME.md` |
+| `in:NAME` | notes in a folder `NAME`, or a note named `NAME` plus an extension (`NAME.md`, …) |
 | `path:GLOB` | note paths: `'path:rust/*'`, `'path:japanese/**'` (quote globs in the shell) |
 | `id:ID` | a card, or every card of an item |
 | `status:S` | `active`, `draft`, `suspended` |

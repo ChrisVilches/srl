@@ -100,7 +100,7 @@ agent, or any particular note-taking app.
 
 | Term | Meaning |
 |---|---|
-| **Store** | A folder of Markdown notes with a `.srl/` folder in it, which holds the configuration, the log and caches. |
+| **Store** | A folder of notes (Markdown files by default) with a `.srl/` folder in it, which holds the configuration, the log and caches. |
 | **Note** | A file in the store that `srl` reads for items: by default, any Markdown file. A note may hold items; the rest of it is yours. |
 | **Item** | A question written in a note: a header line `<!-- srl id:x7k2m9 -->` followed by fields such as `Q:` and `A:`. It has an ID, and gives one or more cards. |
 | **Kind** | How an item's fields become cards. There is one, `qa`: a question and an answer, with optional cloze deletions. |

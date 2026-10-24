@@ -13,7 +13,7 @@ all take one, and it means the same everywhere.
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | Cards whose note has a folder named `NAME` anywhere in its path, or is itself `NAME.md`. Ignores case. `in:grammar` matches `japanese/Grammar/wo.md` and `grammar.md`, not `grammar-notes.md`. |
+| `in:NAME` | Cards whose note has a folder named `NAME` anywhere in its path, or is itself named `NAME` plus an extension (`NAME.md`, `NAME.txt`, …). Ignores case. `in:grammar` matches `japanese/Grammar/wo.md` and `grammar.md`, not `grammar-notes.md`. |
 | `path:GLOB` | The note's path, relative to the store. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is notes directly in `japanese/`, `path:japanese/**` everything below it, `path:rust/ownership.md` one note. |
 | `id:ID` | A card (`id:k3m9q1-2`), or every card of an item (`id:k3m9q1`). |
 | `status:S` | `active`, `draft` or `suspended`. |
