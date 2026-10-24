@@ -94,18 +94,11 @@ impl fmt::Display for CardId {
     }
 }
 
-/// One question, ready to show (see `docs/cards.md`, "Format").
+/// One question, ready to show (see `docs/cards.md`, "Format"). Any
+/// combination of fields is a valid card, so kinds build it by field name,
+/// which keeps `prompt` and `prompt_revealed` from being swapped.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Card {
-    id: CardId,
-    prompt: String,
-    prompt_revealed: String,
-    answer: Option<String>,
-}
-
-/// What a card is made of, given to `Card::new` by name, so that `prompt`
-/// and `prompt_revealed`, both text, can't be swapped.
-pub(crate) struct CardParts {
     pub(crate) id: CardId,
     pub(crate) prompt: String,
     pub(crate) prompt_revealed: String,
@@ -113,21 +106,6 @@ pub(crate) struct CardParts {
 }
 
 impl Card {
-    pub(crate) fn new(parts: CardParts) -> Self {
-        let CardParts {
-            id,
-            prompt,
-            prompt_revealed,
-            answer,
-        } = parts;
-        Self {
-            id,
-            prompt,
-            prompt_revealed,
-            answer,
-        }
-    }
-
     pub fn id(&self) -> &CardId {
         &self.id
     }

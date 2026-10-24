@@ -5,7 +5,7 @@ mod cloze;
 
 use std::collections::BTreeSet;
 
-use crate::card::{Card, CardId, CardParts};
+use crate::card::{Card, CardId};
 use crate::note::{Field, ItemId};
 
 use cloze::Piece;
@@ -83,27 +83,25 @@ fn qa(id: &ItemId, fields: &[Field]) -> Result<Vec<Card>, String> {
         let answer = answer.ok_or_else(|| {
             "a qa item needs an answer in `A:`, unless Q has cloze deletions".to_owned()
         })?;
-        return Ok(vec![Card::new(CardParts {
+        return Ok(vec![Card {
             id: CardId::new(id.clone(), None),
             prompt: question.to_owned(),
             prompt_revealed: question.to_owned(),
             answer: Some(answer.to_owned()),
-        })]);
+        }]);
     }
     Ok(numbers
         .into_iter()
-        .map(|number| {
-            Card::new(CardParts {
-                id: CardId::new(id.clone(), Some(number.to_string())),
-                prompt: render(&pieces, |deletion| {
-                    (deletion.number == number)
-                        .then(|| format!("==[{}]==", deletion.hint.unwrap_or("...")))
-                }),
-                prompt_revealed: render(&pieces, |deletion| {
-                    (deletion.number == number).then(|| format!("=={}==", deletion.text))
-                }),
-                answer: answer.map(str::to_owned),
-            })
+        .map(|number| Card {
+            id: CardId::new(id.clone(), Some(number.to_string())),
+            prompt: render(&pieces, |deletion| {
+                (deletion.number == number)
+                    .then(|| format!("==[{}]==", deletion.hint.unwrap_or("...")))
+            }),
+            prompt_revealed: render(&pieces, |deletion| {
+                (deletion.number == number).then(|| format!("=={}==", deletion.text))
+            }),
+            answer: answer.map(str::to_owned),
         })
         .collect())
 }
