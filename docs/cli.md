@@ -99,6 +99,10 @@ k3m9q1-1
 Despite everyone's opposition, she started a company.
 ```
 
+The cards of a kind program are made when `srl cards` prints them (see
+[cards.md](cards.md), "Kind programs"). If one can't be made, `srl cards`
+fails at once with the reason, exit 2, and prints no card at all.
+
 `srl accept`, `srl suspend` and `srl unsuspend` apply the selector exactly
 as written, and change only matching cards that have the status they start
 from: `srl suspend in:x` doesn't touch drafts. `srl accept` prints the item
@@ -200,6 +204,11 @@ item's note and context, is specified in [frontends.md](frontends.md),
 "What a frontend gets". `--context MODE` chooses the context's mode,
 `prose` without it. Only the JSON output has a context, so without
 `--json` the flag changes nothing.
+
+`srl next` makes the card it is about to print. If a kind program fails to
+make it (see [cards.md](cards.md), "Kind programs"), `srl next` reports
+the failure on standard error and goes on as if that card were not
+eligible today: it prints the next card, or nothing with exit 1.
 
 Every card given to `srl review` must be a card of the store; an item ID
 is not enough, because a review is about one card. With `--dry-run`,

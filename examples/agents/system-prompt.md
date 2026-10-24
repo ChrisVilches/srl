@@ -122,8 +122,8 @@ A: The answer.
 - An item ends at the first line that is neither a field nor a continuation
   (a heading, a paragraph, another header).
 - Header entries: `id:ID` (added by `srl id` or `srl add`), `draft`,
-  `see:PATH` (the note to show as context), `kind:qa` (the default and only
-  kind).
+  `see:PATH` (the note to show as context), `kind:NAME` (`qa`, the default,
+  or a kind program named in `[kinds]` of `.srl/config.toml`).
 - Everything else in the note is ordinary Markdown, and is shown as the
   **context** after the answer.
 

@@ -29,7 +29,8 @@ crates/
     src/stats.rs          cli.md, "Analysis": `srl stats`
     src/config.rs         store.md, "Configuration"; the study day
     src/card.rs           cards.md: the card format and card IDs
-    src/kind.rs           cards.md, "Kinds": the `qa` kind
+    src/kind.rs           cards.md, "Kinds": the `qa` kind, and which kind an item has
+    src/kind/program.rs   cards.md, "Kind programs": running them, checking what they print
     src/kind/cloze.rs     cards.md, "Cloze deletions"
     src/log.rs            log.md: reading and appending events
     src/review.rs         log.md and scheduling.md: recording reviews, resets, moves, suspensions
@@ -46,6 +47,7 @@ crates/
     src/editor.rs       opening the editor (`srl edit ID`)
     src/output.rs       the only module that prints
     tests/cli.rs        tests that run the real binary
+  srl-test-kind/        a kind program for the tests (see "Testing"); not published
 ```
 
 ### The core is a library, the CLI is a thin layer on top
@@ -287,6 +289,12 @@ Write tests for every module that has logic, which is nearly all of
 - **Integration tests** in `crates/srl/tests/` run the real binary
   (`env!("CARGO_BIN_EXE_srl")`) and check what a user or script sees: exit
   codes, standard output and standard error.
+- **Kind programs are tested with `srl-test-kind`**, a small Rust program
+  whose behaviour is set by the fields of the item it gets (its cards and
+  groups, failures, slowness, invalid output; see its `main.rs`). It needs
+  no interpreter, so the tests run the same on every platform. Tests find
+  it next to their own binary, where `cargo test --workspace` builds it;
+  with `cargo test -p srl` alone it isn't built, and those tests say so.
 - **Tests that need files** create a temporary directory with `tempfile` and
   build exactly the tree they need. They never touch a real store, the home
   directory or the current directory.
@@ -338,7 +346,7 @@ Current dependencies:
 | `anyhow` | `srl` | Error type with context in the CLI |
 | `getrandom` | `srl` | The random seed for new item IDs (the core derives IDs from it) |
 | `dirs` | `srl` | The platform's data directory, for the default store |
-| `which` | `srl` | Finding the editor on `PATH`, with `PATHEXT` on Windows |
+| `which` | both | Finding the editor and kind programs on `PATH`, with `PATHEXT` on Windows |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
 | `toml` | `srl-core` | Parsing `.srl/config.toml` |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |

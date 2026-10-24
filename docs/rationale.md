@@ -116,7 +116,9 @@ Two cloze deletions in one sentence are two things you can know or not
 know, so they are scheduled separately, as in Anki. Their IDs are made from
 the item's ID and the cloze number you wrote, so they stay stable when the
 item changes. The one thing siblings share is the sibling rule, because
-seeing one would give the other away.
+seeing one would give the other away. Cards that don't give each other
+away, such as two words of one sentence, are in different groups, and
+not held back at all.
 
 Trade-off: when you change a cloze number or an item's kind, a card's
 history is orphaned until you move it with `srl move`. `srl` never guesses.
@@ -135,15 +137,37 @@ core stays the same either way.
 
 Trade-off: nothing stops you from rating yourself too kindly.
 
-## Why the kinds are built in
+## Why `qa` is built in, and other kinds are programs
 
 Most questions are a question and an answer, sometimes with cloze
-deletions. Programs that turned structured data into questions could do
-little without an LLM, and with one they wrote questions that were better
-written as items. So what a question looks like is in its text: an item
-with cloze deletions behaves as cloze, with nothing to configure.
+deletions. So `qa` is built in, and what a question looks like is in its
+text: an item with cloze deletions behaves as cloze, with nothing to
+configure.
 
-Trade-off: a new kind of question needs a change to `srl`.
+Other kinds turn structured data into questions: the forms of a verb, the
+words of a sentence. They are programs named in `.srl/config.toml`, so
+that a new kind needs no change to `srl`, and is written in whatever
+language suits it. A kind only makes cards: it gives their IDs, in groups
+of siblings, and their content when asked. Everything else, scheduling
+included, is the same for every kind, so a program can't change how `srl`
+behaves, only what it shows. IDs and content are two calls because IDs
+are needed by nearly every command and content only when a card is shown,
+which lets a kind's content be slow or different every time.
+
+Trade-off: a program is something to install and keep working, it runs
+with your rights, and every command that reads its items runs it.
+
+## Why groups of siblings, without names
+
+Siblings are about content: two cards are siblings when seeing one gives
+the other away, and only the kind knows. So the kind says, by writing its
+cards in groups. Groups are kept out of card IDs: an ID is permanent,
+while how cards give each other away is a scheduling choice a kind may
+change, so changing it must not orphan any history. Groups have no names,
+since a name would be one more thing to invent and to mistype; the
+structure says it all.
+
+Trade-off: which cards are siblings can't be seen in a card ID.
 
 ## Why editing content never affects the schedule
 

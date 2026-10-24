@@ -915,6 +915,14 @@ dependencies = [
  "thiserror",
  "toml",
  "unicode-normalization",
+ "which",
+]
+
+[[package]]
+name = "srl-test-kind"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

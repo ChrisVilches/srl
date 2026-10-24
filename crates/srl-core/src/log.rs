@@ -364,8 +364,11 @@ mod tests {
 
     #[test]
     fn the_hash_is_the_start_of_the_items_sha256() {
-        let (items, _) =
-            crate::note::read_items("a.md", "Prose.\n<!-- srl id:abc -->\nQ: q\nA: a\n\nMore.\n");
+        let (items, _) = crate::note::read_items(
+            "a.md",
+            "Prose.\n<!-- srl id:abc -->\nQ: q\nA: a\n\nMore.\n",
+            &crate::kind::Programs::default(),
+        );
         // `printf -- '<!-- srl id:abc -->\nQ: q\nA: a' | sha256sum | cut -c1-12`
         assert_eq!(hash(&items[0]), "e99dc095da78");
     }

@@ -1,6 +1,7 @@
 //! The configuration in `.srl/config.toml` (see `docs/store.md`,
 //! "Configuration").
 
+use std::collections::BTreeMap;
 use std::fs;
 
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
@@ -18,6 +19,24 @@ use crate::{Error, Result, Store};
 pub struct Config {
     pub notes: Notes,
     pub schedule: Schedule,
+    /// The kinds that are programs: each name with its command, the
+    /// program and then its arguments (see `docs/cards.md`, "Kind
+    /// programs").
+    pub kinds: BTreeMap<String, Vec<String>>,
+    pub kind_programs: KindPrograms,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct KindPrograms {
+    /// The seconds a kind program may take to make a card.
+    pub card_timeout: u64,
+}
+
+impl Default for KindPrograms {
+    fn default() -> Self {
+        Self { card_timeout: 60 }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -132,6 +151,18 @@ impl Config {
         }
         globs(&config.notes.include).map_err(|reason| format!("`notes.include`: {reason}"))?;
         globs(&config.notes.exclude).map_err(|reason| format!("`notes.exclude`: {reason}"))?;
+        if config.kinds.contains_key("qa") {
+            return Err("`kinds.qa`: qa is built in, so it can't be a program".to_owned());
+        }
+        if let Some((name, _)) = config.kinds.iter().find(|(_, command)| command.is_empty()) {
+            return Err(format!(
+                "`kinds.{name}` is empty; give the program and its arguments, such as \
+                 [\"python3\", \"kinds/{name}.py\"]"
+            ));
+        }
+        if config.kind_programs.card_timeout == 0 {
+            return Err("`kind_programs.card_timeout` must be at least 1 second".to_owned());
+        }
         Ok(config)
     }
 }
@@ -155,6 +186,17 @@ mod tests {
         assert_eq!(config.schedule, Schedule::default());
         assert!(config.notes.exclude_set().is_match("templates/a/b.md"));
         assert_eq!(config.notes.include, ["**/*.md"]);
+    }
+
+    #[test]
+    fn kinds_name_commands() {
+        let config = Config::parse(
+            "[kinds]\nja-words = [\"python3\", \"kinds/ja_words.py\"]\n\n[kind_programs]\ncard_timeout = 5\n",
+        )
+        .unwrap();
+        assert_eq!(config.kinds["ja-words"], ["python3", "kinds/ja_words.py"]);
+        assert_eq!(config.kind_programs.card_timeout, 5);
+        assert_eq!(Config::default().kind_programs.card_timeout, 60);
     }
 
     #[test]
@@ -187,6 +229,11 @@ mod tests {
             "[schedule]\nnew_per_day = \"ten\"\n",
             "[study]\ncontext = \"prose\"\n",
             "[notes]\nexclude = [\"[\"]\n",
+            "[kinds]\nqa = [\"python3\", \"qa.py\"]\n",
+            "[kinds]\nconj = []\n",
+            "[kinds]\nconj = \"conj.py\"\n",
+            "[kind_programs]\ncard_timeout = 0\n",
+            "[kind_programs]\nids_timeout = 5\n",
             "not toml",
         ] {
             assert!(Config::parse(text).is_err(), "accepted:\n{text}");

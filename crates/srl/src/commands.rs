@@ -72,7 +72,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             json,
         } => next(
             &store()?,
-            selector(&terms.terms)?,
+            &selector(&terms.terms)?,
             context_mode(context.context),
             json.json,
         ),
@@ -322,7 +322,8 @@ fn show(store: &Store, ids: &[String], mode: ContextMode, json: bool) -> anyhow:
 
 /// `srl cards ID…`: the cards of each item ID, or the card of each card ID.
 fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
-    let (_, notes) = load(store)?;
+    let (config, notes) = load(store)?;
+    let day = today(&config)?;
     let mut problems = Vec::new();
     let mut found = Vec::new();
     for id in ids {
@@ -339,9 +340,11 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
             Err(error) => problems.push(error),
         }
     }
+    // A card that can't be made fails the whole command before anything is
+    // printed (see `docs/cli.md`, "Cards").
     let found = found
         .into_iter()
-        .map(|(item, card)| item.card(card))
+        .map(|(item, card)| notes.make_card(store, item, card, day))
         .collect::<srl_core::Result<Vec<_>>>()?;
     if json {
         output::json_lines(&found)?;
@@ -447,17 +450,23 @@ fn move_history(store: &Store, from: &str, to: &str, dry_run: bool) -> anyhow::R
 /// its context in `mode` (see `docs/cli.md`, "Studying").
 fn next(
     store: &Store,
-    selector: Selector,
+    selector: &Selector,
     mode: ContextMode,
     json: bool,
 ) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
-    let Some((item, card)) =
-        srl_core::next(&loaded.notes, &loaded.memories, selector, &loaded.config)
-    else {
+    let (next, failed) = srl_core::next(
+        store,
+        &loaded.notes,
+        &loaded.memories,
+        selector,
+        &loaded.config,
+        loaded.memories.today(),
+    );
+    failed.iter().for_each(output::problem);
+    let Some((item, card)) = next else {
         return Ok(Outcome::Nothing);
     };
-    let card = item.card(card)?;
     if json {
         /// The card's own fields, then what is shown around it.
         #[derive(Serialize)]

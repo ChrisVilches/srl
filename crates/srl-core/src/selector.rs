@@ -335,7 +335,7 @@ mod tests {
         notes
             .iter()
             .flat_map(|(path, text)| {
-                let (items, problems) = read_items(path, text);
+                let (items, problems) = read_items(path, text, &crate::kind::Programs::default());
                 assert!(problems.is_empty(), "{problems:?}");
                 items
             })
@@ -492,7 +492,11 @@ mod tests {
 
     #[test]
     fn names_match_whatever_unicode_form_they_are_in() {
-        let (items, _) = read_items("cafe\u{301}/x.md", "<!-- srl id:abc -->\nQ: q\nA: a\n");
+        let (items, _) = read_items(
+            "cafe\u{301}/x.md",
+            "<!-- srl id:abc -->\nQ: q\nA: a\n",
+            &crate::kind::Programs::default(),
+        );
         let item = &items[0];
         let card = &item.cards()[0];
         let memories = memories();

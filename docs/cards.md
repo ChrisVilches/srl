@@ -69,12 +69,10 @@ old ID; `srl check` reports it, and `srl move` gives it to another card
 ## Kinds
 
 An item's **kind**, set by `kind:` in its header, decides which fields it
-takes and how they become cards. There is one kind, `qa`, and it is the
-default. Any other `kind:` is an error.
-
-> **TODO (design):** other kinds, possibly as programs, are not specified
-> yet (see [overview.md](overview.md), "Open questions", and
-> [ideas.md](ideas.md), "Kinds").
+takes and how they become cards, and which of its cards are siblings
+(see [scheduling.md](scheduling.md), "Siblings"). `qa` is built in and
+is the default. Every other kind is a program named in `.srl/config.toml`
+(see "Kind programs" below). A `kind:` that is neither is an error.
 
 ### `qa`
 
@@ -153,9 +151,126 @@ gives two cards:
 Without the `A:` line, both cards would have `"answer": null`: the
 revealed prompt is all there is to show.
 
-The cards of one item are **siblings**: each is scheduled on its own, and
-`srl next` shows at most one of them per day (see
-[scheduling.md](scheduling.md), "Siblings").
+The cards of a `qa` item are all **siblings**, one group: seeing one would
+give away another. Each is scheduled on its own, and `srl next` shows at
+most one of them per day (see [scheduling.md](scheduling.md),
+"Siblings").
+
+### Kind programs
+
+A kind can be a program, named in `.srl/config.toml` (see
+[store.md](store.md), "Configuration"):
+
+```toml
+[kinds]
+ja-words = ["python3", "kinds/ja_words.py"]
+```
+
+An item with `kind:ja-words` gets its cards from that program.
+[examples/kind-ja-words/](../examples/kind-ja-words/) is one: one card
+per `{word}` of a Japanese sentence.
+
+- **The value is a command**: the program, then its arguments. `srl`
+  adds `ids` or `card` (see below) as the last argument. It is a list,
+  not a path, so that a script runs the same on every platform: Windows
+  can't run a script by its `#!` line, and takes
+  `["py", "kinds/ja_words.py"]`.
+- **A program path with a folder is relative to the store's folder**,
+  unless it is absolute, and the program runs in the store's folder, so
+  relative paths among its arguments work too. A program named without a
+  folder, such as `python3`, is found as the platform finds programs
+  (on `PATH`).
+- **`qa` can't be configured.**
+- **Running a program is your choice.** `srl` runs whatever command
+  `[kinds]` names, with your rights, whenever a command reads an item of
+  that kind, and neither checks nor limits it, as with plugins in most
+  tools. A store you copy from someone else runs their programs: read its
+  `[kinds]` first.
+
+**Card IDs and card content come from two separate calls.** Every command
+that reads items needs their card IDs: selectors, `srl find`, `srl
+check`, scheduling, the sibling rule. Only `srl next`, for the card it
+shows, and `srl cards` need a card's content. So a kind program answers
+two calls. Each reads one JSON object on standard input and prints one on
+standard output. A call that exits with a status other than 0 failed, and
+what it printed on standard error is the reason.
+
+| Call | Input | Output | Rule |
+|---|---|---|---|
+| `ids` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | its cards, in groups: `{"groups": [{"cards": ["te", "past"]}, {"cards": ["negative"]}]}` | **Deterministic and fast**: the same fields always give the same cards. Called for every item of the kind, on every command that reads items. It has no time limit. |
+| `card` | the same object, plus `"suffix"` (`null` for a card with the item's ID), `"context"` (the item's context in mode `prose`, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`: the card's fields of "Format" above, without `id`, every one of them present | **May differ every time.** Called only for a card about to be shown, and stopped after `kind_programs.card_timeout` seconds. |
+
+`fields` is as in `srl show --json` (see [notes.md](notes.md), "Items as
+JSON"). No key is written twice in an item, whatever its kind (see
+[notes.md](notes.md), "Errors"), so the object loses nothing.
+
+**Groups decide siblings.** The cards of one group are siblings (see
+[scheduling.md](scheduling.md), "Siblings"). A kind whose cards give
+each other away puts them in one group, as `qa` does; a kind whose cards
+are independent gives each card its own group. Groups have no names:
+they are only how the cards are written, so a kind can change them
+without touching any card's history. The output of `ids` holds:
+
+- at least one group, and no group without cards;
+- each suffix once, made as in "Card IDs" above;
+- `null` in place of a suffix only for a single card with the item's ID:
+  `{"groups": [{"cards": [null]}]}`.
+
+Example: a conjugation kind.
+
+```markdown
+<!-- srl id:v81k3z kind:conj -->
+VERB: 動く
+FORMS: te past negative
+```
+
+`ids` gives cards `v81k3z-te`, `v81k3z-past` and `v81k3z-negative`, the
+first two in one group: 動いて and 動いた share their stem, so seeing one
+gives the other away. `card` with suffix `te` prints the て-form question
+for 動く.
+
+When a call fails:
+
+- **A failing `ids` call is an error in the note**, like a `qa` item
+  without `Q`: the program checks the fields. So is output that doesn't
+  follow the rules above, and a program that can't be found or started.
+- **A failing `card` call doesn't stop studying.** An LLM API can be
+  down. `srl next` reports the failure and goes on to the next card, as
+  if the failed card were not eligible today. `srl cards` fails at once,
+  with the reason and no output for any ID (see [cli.md](cli.md)). A
+  `card` call that takes longer than `kind_programs.card_timeout` is
+  stopped, and fails.
+
+`srl cards` calls `card` for every card it prints, so a kind whose
+content differs every time gives a new card each time: what `srl cards`
+prints is one card the kind could give, not the one `srl next` will show.
+
+> **TODO (design):** `ids` results are **not cached**: every command
+> that reads items starts the program once for every item of the kind,
+> so a store with many such items is slow. A cache would make `srl`
+> faster without changing what any command does. What it would be keyed
+> on, and what would make an entry stale (the item's text, the kind's
+> command, the program changing), is still to be analyzed. Notes
+> themselves are not cached either (see [store.md](store.md), "The index
+> cache").
+
+> **TODO (design):** the wish is a kind program with **one call**, not
+> two. It is not known yet whether that is possible: card IDs are needed
+> far more often than card content, and must be stable, while content
+> may differ every time. Getting there would need a restructuring of how
+> `srl` asks a kind for cards, for example around when IDs are computed
+> and cached. Until then, the two calls are the design known to work.
+
+> **TODO (design):** the wish is for `prompt_revealed` to be **optional
+> in a kind's output**: when it is left out, `srl` would fill it in from
+> `prompt`, so that the many kinds whose question hides nothing needn't
+> repeat it. It would be done for every kind at once. It makes writing a
+> kind easier, but it goes against the wish for flat rules: a field that
+> is sometimes written by the kind and sometimes made up by `srl` is one
+> more case to know about. As long as it is required, a kind that forgets
+> it is noticed at once, because the question disappears when the answer
+> is shown. Frontends would be unaffected either way, since `srl next
+> --json` would always give the field.
 
 ## Text formatting
 

@@ -32,6 +32,46 @@ Ideas that would change `srl` itself are in [ideas.md](../ideas.md).
 - **Code exercises checked by tests.** An agent writes an exercise, runs your
   solution in a sandbox and records the rating.
 
+## Kinds
+
+### Questions written by an LLM
+
+A kind program (see [cards.md](../cards.md), "Kind programs") whose card
+is written anew by an LLM every time it is shown:
+
+```markdown
+<!-- srl id:q8w2e5 kind:llm-generated -->
+PROMPT: Ask me to use 〜をものともせず in a new sentence about everyday
+  work. The answer is a model sentence and its translation.
+```
+
+- `ids` checks that the item has exactly one field, `PROMPT`, and prints
+  `{"groups": [{"cards": [null]}]}`: one card, with the item's ID
+  `q8w2e5`. No call to the LLM.
+- `card` sends `PROMPT`, and the item's context (the note about
+  〜をものともせず), to an LLM API, and prints the question it wrote as
+  both `prompt` and `prompt_revealed`, and the answer it wrote. A new card
+  each time, under the same ID.
+
+Each part of `srl` already allows this:
+
+- **Scheduling** sees one card, `q8w2e5`, with one memory state: how well
+  you can use 〜をものともせず, asked a different way each time. Different
+  content under one ID is the kind's choice; `srl` never compares content.
+- **Prompt and answer match**, because they come out of the same `card`
+  call, and `srl next --json` gives both at once. A frontend holds the
+  card it got; it never asks for it again.
+- **Reviews record only the card ID** (and `hash`, of the item's text), so
+  a card that changes doesn't affect the log. What was actually asked is
+  not in the log. A frontend that wants it can pass it in `response`, or
+  the program can keep its own record.
+- **A failing API doesn't stop studying:** `srl next` skips the card and
+  shows the next one. A slow one is stopped after `card_timeout`.
+- **Cost:** one LLM call per card shown, and none for every other command,
+  because `ids` doesn't call the LLM. `srl cards` makes a call for every
+  card it prints. The program may cache answers by item ID and study day,
+  so the card stays the same for a day if you prefer that.
+
 ## Frontends
 
 - **Confidence calibration.** Rate your confidence before answering, and track

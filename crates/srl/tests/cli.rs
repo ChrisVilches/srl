@@ -912,3 +912,94 @@ fn notes_can_live_anywhere_under_the_store() {
     assert_eq!(lines(&output).len(), 2);
     assert!(Path::new(&cwd).is_dir());
 }
+
+/// A store whose kind `fake` is the test kind program of
+/// `crates/srl-test-kind`, which `cargo test --workspace` builds next to
+/// `srl`, with `notes`.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn store_with_kind(notes: &[(&str, &str)]) -> TempDir {
+    let program = Path::new(env!("CARGO_BIN_EXE_srl"))
+        .with_file_name(format!("srl-test-kind{}", std::env::consts::EXE_SUFFIX));
+    assert!(
+        program.exists(),
+        "{} isn't built; run `cargo test --workspace`",
+        program.display()
+    );
+    let tmp = store(notes);
+    write(
+        &tmp,
+        ".srl/config.toml",
+        &format!("[kinds]\nfake = ['{}']\n", program.to_str().unwrap()),
+    );
+    tmp
+}
+
+#[test]
+fn cards_of_a_kind_program_in_their_own_groups_are_not_siblings() {
+    let tmp = store_with_kind(&[("a.md", "<!-- srl id:abc kind:fake -->\nGROUPS: a|b c\n")]);
+    let d = dir(&tmp);
+    let first = next_card(d, &[]);
+    assert_eq!(
+        (&first["id"], &first["prompt"], &first["prompt_revealed"]),
+        (&"abc-a".into(), &"a?".into(), &"a!".into())
+    );
+    record(d, &first, 3);
+    let second = next_card(d, &[]);
+    assert_eq!(second["id"], "abc-b");
+    record(d, &second, 3);
+    // abc-c waits for tomorrow: its sibling abc-b was reviewed today.
+    assert_eq!(srl(&["next", "--dir", d]).status.code(), Some(1));
+}
+
+#[test]
+fn next_skips_a_card_its_kind_program_fails_to_make() {
+    let tmp = store_with_kind(&[(
+        "a.md",
+        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\nFAIL_CARD: a\n",
+    )]);
+    let d = dir(&tmp);
+    let output = srl(&["next", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(lines(&output)[0], "abc-b");
+    assert!(
+        stderr(&output).contains(
+            "cannot make the card abc-a: the program of kind fake failed: card a fails on purpose"
+        ),
+        "{}",
+        stderr(&output)
+    );
+    let only = srl(&["next", "id:abc-a", "--dir", d]);
+    assert_eq!(only.status.code(), Some(1));
+    assert!(only.stdout.is_empty());
+}
+
+#[test]
+fn cards_fails_at_once_if_a_kind_program_fails() {
+    let tmp = store_with_kind(&[(
+        "a.md",
+        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\nFAIL_CARD: b\n",
+    )]);
+    let d = dir(&tmp);
+    let output = srl(&["cards", "abc", "--dir", d]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    assert!(stderr(&output).contains("cannot make the card abc-b"));
+    let output = srl(&["cards", "abc-a", "--json", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(json_lines(&output)[0]["prompt"], "a?");
+}
+
+#[test]
+fn a_failing_ids_call_is_reported_like_any_error_in_a_note() {
+    let tmp = store_with_kind(&[(
+        "a.md",
+        "<!-- srl id:abc kind:fake -->\nFAIL_IDS: VERB is missing\n",
+    )]);
+    let output = srl(&["check", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("a.md:1: the program of kind fake failed: VERB is missing"),
+        "{}",
+        stderr(&output)
+    );
+}

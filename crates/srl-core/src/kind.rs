@@ -1,66 +1,108 @@
 //! Kinds: how an item's fields become cards (see `docs/cards.md`,
-//! "Kinds"). There is one, `qa`.
+//! "Kinds"): `qa`, built in, and the kind programs of `[kinds]`.
 
 mod cloze;
+mod program;
 
 use std::collections::BTreeSet;
+
+use jiff::civil::Date;
+use serde_json::{Map, Value};
 
 use crate::card::{Card, CardId};
 use crate::note::{Field, ItemId};
 
 use cloze::Piece;
 pub(crate) use cloze::has_deletion;
+pub(crate) use program::Programs;
 
 /// A kind of item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
     /// A question and an answer, with optional cloze deletions.
     Qa,
+    /// A kind program, by its name in `[kinds]`.
+    Program(String),
 }
 
 impl Kind {
-    /// The kind named `name`. Errors are plain reasons.
-    pub(crate) fn parse(name: &str) -> Result<Self, String> {
+    /// The kind named `name`: `qa`, or one of `programs`. Errors are plain
+    /// reasons.
+    pub(crate) fn parse(name: &str, programs: &Programs) -> Result<Self, String> {
         match name {
             "qa" => Ok(Self::Qa),
+            other if programs.has(other) => Ok(Self::Program(other.to_owned())),
             other => Err(format!(
-                "there is no kind `{other}`; the only kind is qa, which is also the default"
+                "there is no kind `{other}`; the kinds are qa, the default, and those named in \
+                 `[kinds]` of .srl/config.toml"
             )),
         }
     }
 
-    pub fn as_str(self) -> &'static str {
+    pub fn as_str(&self) -> &str {
         match self {
             Self::Qa => "qa",
+            Self::Program(name) => name,
         }
     }
 
     /// The card IDs of an item of this kind with ID `id` and these fields,
     /// in groups of siblings (see `docs/scheduling.md`, "Siblings"). No key
     /// is written twice in `fields`. Errors are plain reasons.
-    pub(crate) fn groups(self, id: &ItemId, fields: &[Field]) -> Result<Vec<Vec<CardId>>, String> {
+    pub(crate) fn groups(
+        &self,
+        id: &ItemId,
+        fields: &[Field],
+        programs: &Programs,
+    ) -> Result<Vec<Vec<CardId>>, String> {
         match self {
             Self::Qa => Ok(vec![
                 qa(id, fields)?.into_iter().map(|card| card.id).collect(),
             ]),
+            Self::Program(name) => programs.groups(name, id, &Value::Object(input(id, fields))),
         }
     }
 
     /// The card `card` of an item of this kind with these fields, which
-    /// [`Kind::groups`] accepted and gave `card` for.
-    #[expect(
-        clippy::unnecessary_wraps,
-        reason = "kind programs, which can fail, are about to be added"
-    )]
-    pub(crate) fn card(self, card: &CardId, fields: &[Field]) -> Result<Card, String> {
+    /// [`Kind::groups`] accepted and gave `card` for. A kind program also
+    /// gets the item's context and the study day `day`. Errors are plain
+    /// reasons.
+    pub(crate) fn card(
+        &self,
+        card: &CardId,
+        fields: &[Field],
+        programs: &Programs,
+        context: Option<&str>,
+        day: Date,
+    ) -> Result<Card, String> {
         match self {
             Self::Qa => Ok(qa(card.item(), fields)
                 .expect("the fields of a qa item should have been checked when read")
                 .into_iter()
                 .find(|made| &made.id == card)
                 .expect("a qa item should give the cards it gave when read")),
+            Self::Program(name) => {
+                let mut input = input(card.item(), fields);
+                input.insert("suffix".to_owned(), Value::from(card.suffix()));
+                input.insert("context".to_owned(), Value::from(context));
+                input.insert("day".to_owned(), Value::from(day.to_string()));
+                programs.card(name, card, &Value::Object(input))
+            }
         }
     }
+}
+
+/// What a kind program gets for an item: its ID and fields, the fields as
+/// in `srl show --json` (see `docs/cards.md`, "Kind programs").
+fn input(id: &ItemId, fields: &[Field]) -> Map<String, Value> {
+    let fields = fields
+        .iter()
+        .map(|field| (field.key.clone(), Value::from(field.text.as_str())))
+        .collect::<Map<_, _>>();
+    Map::from_iter([
+        ("id".to_owned(), Value::from(id.as_str())),
+        ("fields".to_owned(), Value::Object(fields)),
+    ])
 }
 
 /// The cards of a `qa` item (see `docs/cards.md`, "`qa`"). No key is
@@ -155,14 +197,27 @@ mod tests {
 
     /// The cards of item `k3m9q1` with these fields, as JSON (see
     /// `docs/cards.md`, "Format").
-    fn cards(pairs: &[(&str, &str)]) -> Result<Vec<serde_json::Value>, String> {
+    fn cards(pairs: &[(&str, &str)]) -> Result<Vec<Value>, String> {
         let id = ItemId::parse("k3m9q1").unwrap();
         let fields = fields(pairs);
         Ok(Kind::Qa
-            .groups(&id, &fields)?
+            .groups(&id, &fields, &Programs::default())?
             .concat()
             .iter()
-            .map(|card| serde_json::to_value(Kind::Qa.card(card, &fields).unwrap()).unwrap())
+            .map(|card| {
+                serde_json::to_value(
+                    Kind::Qa
+                        .card(
+                            card,
+                            &fields,
+                            &Programs::default(),
+                            None,
+                            jiff::civil::date(2026, 10, 27),
+                        )
+                        .unwrap(),
+                )
+                .unwrap()
+            })
             .collect())
     }
 
@@ -170,7 +225,11 @@ mod tests {
     fn the_cards_of_a_qa_item_are_one_group_of_siblings() {
         let id = ItemId::parse("k3m9q1").unwrap();
         let groups = Kind::Qa
-            .groups(&id, &fields(&[("Q", "{{c1::a}} {{c2::b}}")]))
+            .groups(
+                &id,
+                &fields(&[("Q", "{{c1::a}} {{c2::b}}")]),
+                &Programs::default(),
+            )
             .unwrap();
         let groups = groups
             .iter()

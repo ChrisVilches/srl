@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """The ja-words kind: one card per {word} of a Japanese sentence.
 
-A proof of concept of a kind program with several cards and no siblings,
-following the protocol in docs/ideas.md, "Kinds as plugins". `srl` does
-not run kind programs yet; call it by hand (see README.md).
+A proof of concept of a kind program with several cards and no siblings
+(see docs/cards.md, "Kind programs"). Name it in `[kinds]` of the
+store's .srl/config.toml, or call it by hand (see README.md).
 
 Requires MeCab and its IPA dictionary as programs on PATH; no Python
 packages. Tried on Arch Linux only, where they are installed with

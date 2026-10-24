@@ -3,20 +3,53 @@
 
 use std::collections::HashMap;
 
-use crate::{CardId, Config, Item, ItemId, Memories, Notes, Selector, State, Status};
+use jiff::civil::Date;
+
+use crate::{
+    Card, CardId, Config, Error, Item, ItemId, Memories, Notes, Selector, State, Status, Store,
+};
+
+/// The next card among those that match `selector`, made by its kind to
+/// be shown on the study day `day`, with its item, if there is one; and
+/// the failures of the cards that could not be made. A card that fails is
+/// skipped as if it were not eligible today (see `docs/cli.md`,
+/// "Studying").
+pub fn next<'a>(
+    store: &Store,
+    notes: &'a Notes,
+    memories: &Memories,
+    selector: &Selector,
+    config: &Config,
+    day: Date,
+) -> (Option<(&'a Item, Card)>, Vec<Error>) {
+    let mut failed = Vec::new();
+    let mut skipped = Vec::new();
+    while let Some((item, card)) = pick(notes, memories, selector.clone(), config, &skipped) {
+        match notes.make_card(store, item, card, day) {
+            Ok(made) => return (Some((item, made)), failed),
+            Err(error) => {
+                failed.push(error);
+                skipped.push(card.clone());
+            }
+        }
+    }
+    (None, failed)
+}
 
 /// The next card among those that match `selector` (plus
-/// `status:active`), with its item, if there is one.
+/// `status:active`), leaving out `skipped`, with its item, if there is
+/// one.
 ///
 /// Due cards come first, by due day and then card ID; then new cards, in
 /// the order they are written, if fewer than `new_per_day` cards had their
-/// first review today. The first of those that is its item's pick under the
-/// sibling rule is the one.
-pub fn next<'a>(
+/// first review today. The first of those that is its group's pick under
+/// the sibling rule is the one.
+fn pick<'a>(
     notes: &'a Notes,
     memories: &Memories,
     selector: Selector,
     config: &Config,
+    skipped: &[CardId],
 ) -> Option<(&'a Item, &'a CardId)> {
     let selector = selector.and_status(Status::Active);
     let limit = usize::try_from(config.schedule.new_per_day).expect("a u32 should fit in a usize");
@@ -24,6 +57,7 @@ pub fn next<'a>(
     let eligible = selector
         .select(notes.cards(), memories)
         .into_iter()
+        .filter(|(_, card)| !skipped.contains(card))
         .filter(|(_, card)| match memories.state(card) {
             State::Due => true,
             State::New => new_allowed,
@@ -130,7 +164,7 @@ mod tests {
         };
         let memories = Memories::replay(&log, config, DAY).unwrap();
         let selector = Selector::parse(selector).unwrap();
-        next(notes, &memories, selector, config).map(|(_, card)| card.to_string())
+        pick(notes, &memories, selector, config, &[]).map(|(_, card)| card.to_string())
     }
 
     fn store() -> (TempDir, Notes) {

@@ -15,10 +15,7 @@ the sentence: MeCab's analysis of it, one line per token, with its reading
 in hiragana, its part of speech and its base form.
 
 It is a proof of concept of a kind program with several cards and no
-siblings, following the protocol in
-[docs/ideas.md](../../docs/ideas.md), "Kinds as plugins". **`srl` does
-not run kind programs yet**: today `kind:ja-words` is an error in a note.
-You can call the program by hand.
+siblings (see [docs/cards.md](../../docs/cards.md), "Kind programs").
 
 ## Requirements
 
@@ -52,13 +49,26 @@ as best it can: 都 at the end of the sentence above comes out as と, not
 
 ## Running it
 
-The configuration it is meant for, in `.srl/config.toml` (not accepted
-by `srl` yet):
+Copy `ja_words.py` into your store, for example to `kinds/ja_words.py`,
+and name it in the store's `.srl/config.toml`:
 
 ```toml
 [kinds]
 ja-words = ["python3", "kinds/ja_words.py"]
 ```
+
+The path is relative to the store's folder; an absolute path works too,
+so you can also point at this folder instead of copying. Items with
+`kind:ja-words` then have their cards:
+
+```sh
+srl cards v81k3z     # the three cards of the sentence above
+srl next             # study as usual
+```
+
+Every command that reads items runs `ja_words.py ids` once for each
+`ja-words` item, so a store with many of them is slower. `card`, which
+runs MeCab, only runs for a card about to be shown.
 
 By hand:
 

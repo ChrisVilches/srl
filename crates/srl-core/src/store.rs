@@ -40,6 +40,12 @@ pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is opt
 # leech_lapses = 8           # a card with this many lapses is a leech
 # mature_days = 21           # a card with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
+
+[kinds]
+# ja-words = ["python3", "kinds/ja_words.py"]   # kind:ja-words runs this command
+
+[kind_programs]
+# card_timeout = 60          # seconds a kind program may take to make a card
 "#;
 
 /// Everything needed to find a store, gathered by the caller.

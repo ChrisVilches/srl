@@ -25,6 +25,7 @@ since the notes and the log can't be read without it. Fix it and run
 | unknown or repeated header entry | a typo such as `darft` | Use only `id:`, `kind:`, `see:` and `draft`. |
 | unknown field, missing `Q` or `A` | `B:`, or a `qa` item without `A` and without cloze | Use `Q` and `A` only; `A` is optional only with cloze. |
 | bad cloze | `{{c1::` without `}}`, empty text, `c0`, `c01`, nested, or cloze in `A` | Fix the deletion. |
+| a kind program failed or there is no such kind | the fields don't suit the program, or `kind:` names no kind of `[kinds]` | Fix the fields as the program's message says, or the `kind:`. |
 | `see:` doesn't name a note | the note was moved or renamed | Update the path, relative to the store. |
 | invalid configuration | a typo or out-of-range value in `.srl/config.toml` | Fix the named setting. |
 

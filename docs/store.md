@@ -89,13 +89,27 @@ new_per_day = 10             # new cards introduced per day, across all selector
 leech_lapses = 8             # a card with this many lapses is a leech
 mature_days = 21             # a card with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
+
+[kinds]
+# ja-words = ["python3", "kinds/ja_words.py"]   # kind:ja-words runs this command
+
+[kind_programs]
+card_timeout = 60            # seconds a kind program may take to make a card
 ```
 
 A key or table that is not listed here is an error, so a typo such as
-`new_per_dya = 3` fails instead of being ignored. So is a value of the
+`new_per_dya = 3` fails instead of being ignored; the keys of `[kinds]`
+are the exception, since they are names you choose. So is a value of the
 wrong type or out of range: `desired_retention` must be between 0 and 1
-(exclusive), and `day_starts_at` an hour from 0 to 23. Commands that need the configuration fail with a message
+(exclusive), `day_starts_at` an hour from 0 to 23, and `card_timeout` at
+least 1. Commands that need the configuration fail with a message
 naming the problem.
+
+`[kinds]` names the kinds that are programs: each key is a kind's name,
+as written in `kind:`, and its value the command to run, a non-empty list
+of the program and its arguments. `qa` can't be one of them. How kind
+programs are run, and what `card_timeout` limits, is in
+[cards.md](cards.md), "Kind programs".
 
 `include` and `exclude` globs match paths relative to the store's folder:
 `*` matches within one folder, `**` across folders. The notes are the files

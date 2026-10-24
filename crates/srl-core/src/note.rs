@@ -6,11 +6,13 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
 
+use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::card::{Card, CardId};
-use crate::kind::Kind;
+use crate::context::{ContextMode, context};
+use crate::kind::{Kind, Programs};
 use crate::store::nfc;
 use crate::{Config, Error, Result, Store};
 
@@ -128,8 +130,8 @@ impl Item {
         self.end
     }
 
-    pub fn kind(&self) -> Kind {
-        self.kind
+    pub fn kind(&self) -> &Kind {
+        &self.kind
     }
 
     /// The path `see:` gives, if any.
@@ -177,17 +179,6 @@ impl Item {
             .expect("a group should be one of the item's groups")
     }
 
-    /// The card `card` of this item, made by its kind.
-    pub fn card(&self, card: &CardId) -> Result<Card> {
-        self.kind
-            .card(card, &self.fields)
-            .map_err(|reason| Error::Note {
-                path: self.path.clone(),
-                line: self.line,
-                reason,
-            })
-    }
-
     /// The first line of the first field: how listings name the item.
     pub fn label(&self) -> &str {
         self.fields
@@ -233,6 +224,7 @@ pub struct Notes {
     items: Vec<Item>,
     problems: Vec<Error>,
     paths: Vec<String>,
+    programs: Programs,
 }
 
 impl Notes {
@@ -240,11 +232,12 @@ impl Notes {
     /// [`Notes::problems`]; only failing to read a file is an error here.
     pub fn load(store: &Store, config: &Config) -> Result<Self> {
         let paths = store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())?;
+        let programs = Programs::new(store, config);
         let mut items = Vec::new();
         let mut problems = Vec::new();
         for path in &paths {
             let text = read_note(store, path)?;
-            let (note_items, note_problems) = read_items(path, &text);
+            let (note_items, note_problems) = read_items(path, &text, &programs);
             items.extend(note_items);
             problems.extend(note_problems);
         }
@@ -266,7 +259,29 @@ impl Notes {
             items,
             problems,
             paths,
+            programs,
         })
+    }
+
+    /// The kind programs the items were read with.
+    pub(crate) fn programs(&self) -> &Programs {
+        &self.programs
+    }
+
+    /// The card `card` of `item`, made by its kind as it is about to be
+    /// shown on the study day `day` (see `docs/cards.md`, "Kind programs").
+    /// Only a kind program can fail here.
+    pub fn make_card(&self, store: &Store, item: &Item, card: &CardId, day: Date) -> Result<Card> {
+        let context = match item.kind {
+            Kind::Qa => None,
+            Kind::Program(_) => context(store, item, ContextMode::Prose)?,
+        };
+        item.kind
+            .card(card, &item.fields, &self.programs, context.as_deref(), day)
+            .map_err(|reason| Error::CardFailed {
+                card: card.to_string(),
+                reason,
+            })
     }
 
     /// The items, in the order they are written: by note path, then line.
@@ -328,7 +343,7 @@ pub(crate) fn read_note(store: &Store, path: &str) -> Result<String> {
 }
 
 /// The items of the note at `path` whose text is `text`, and its problems.
-pub(crate) fn read_items(path: &str, text: &str) -> (Vec<Item>, Vec<Error>) {
+pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
     let parsed = parse::parse(text);
     let lines = parse::lines(text);
     let mut problems = parsed
@@ -347,7 +362,12 @@ pub(crate) fn read_items(path: &str, text: &str) -> (Vec<Item>, Vec<Error>) {
             line: raw.line,
             reason,
         };
-        let kind = match raw.header.kind.as_deref().map_or(Ok(Kind::Qa), Kind::parse) {
+        let kind = match raw
+            .header
+            .kind
+            .as_deref()
+            .map_or(Ok(Kind::Qa), |name| Kind::parse(name, programs))
+        {
             Ok(kind) => kind,
             Err(reason) => {
                 problems.push(at(reason));
@@ -365,7 +385,7 @@ pub(crate) fn read_items(path: &str, text: &str) -> (Vec<Item>, Vec<Error>) {
             problems.push(at(reason));
             continue;
         }
-        match kind.groups(&id, &raw.fields) {
+        match kind.groups(&id, &raw.fields, programs) {
             Ok(groups) => items.push(Item {
                 id,
                 path: path.to_owned(),
@@ -445,7 +465,7 @@ mod tests {
     #[test]
     fn items_get_their_cards_and_text() {
         let text = "# Title\n\n<!-- srl id:x7k2m9 -->\nQ: What?\nA: That.\n\n<!-- srl id:k3m9q1 draft see:a.md -->\nQ: {{c1::a}} {{c2::b}}\n";
-        let (items, problems) = read_items("n.md", text);
+        let (items, problems) = read_items("n.md", text, &Programs::default());
         assert!(problems.is_empty(), "{problems:?}");
         assert_eq!(items.len(), 2);
         assert_eq!(
@@ -466,7 +486,11 @@ mod tests {
 
     #[test]
     fn a_field_written_twice_is_a_problem_whatever_the_kind() {
-        let (items, problems) = read_items("n.md", "<!-- srl id:abc -->\nQ: a\nQ: b\nA: c\n");
+        let (items, problems) = read_items(
+            "n.md",
+            "<!-- srl id:abc -->\nQ: a\nQ: b\nA: c\n",
+            &Programs::default(),
+        );
         assert!(items.is_empty());
         assert_eq!(
             problems[0].to_string(),
@@ -477,7 +501,7 @@ mod tests {
     #[test]
     fn missing_ids_unknown_kinds_and_bad_fields_are_problems() {
         let text = "<!-- srl -->\nQ: a\nA: b\n\n<!-- srl id:abc kind:conj -->\nVERB: x\n\n<!-- srl id:abd -->\nQ: only a question\n";
-        let (items, problems) = read_items("n.md", text);
+        let (items, problems) = read_items("n.md", text, &Programs::default());
         assert!(items.is_empty());
         assert!(matches!(problems[0], Error::MissingId { line: 1, .. }));
         let lines = problems
@@ -494,8 +518,16 @@ mod tests {
 
     #[test]
     fn a_duplicate_id_keeps_the_first_item() {
-        let (first, _) = read_items("a.md", "<!-- srl id:abc -->\nQ: a\nA: b\n");
-        let (second, _) = read_items("b.md", "<!-- srl id:abc -->\nQ: c\nA: d\n");
+        let (first, _) = read_items(
+            "a.md",
+            "<!-- srl id:abc -->\nQ: a\nA: b\n",
+            &Programs::default(),
+        );
+        let (second, _) = read_items(
+            "b.md",
+            "<!-- srl id:abc -->\nQ: c\nA: d\n",
+            &Programs::default(),
+        );
         let (kept, duplicates) = unique(first.into_iter().chain(second).collect());
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].path(), "a.md");

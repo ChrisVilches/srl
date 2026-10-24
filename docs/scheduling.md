@@ -95,10 +95,14 @@ If no card qualifies, `srl next` prints nothing and exits with status 1.
 
 ### Siblings
 
-The cards of one item are **siblings**. Seeing one would often give away
-another (what a cloze card hides is in the prompt of its sibling), so:
+An item's kind puts its cards in **groups**, and the cards of one group
+are **siblings** (see [cards.md](cards.md), "Kinds"). Siblings are cards
+where seeing one would often give away another: what a cloze card hides
+is in the prompt of its sibling, so a `qa` item's cards are one group. A
+kind whose cards don't give each other away puts each in a group of its
+own. For siblings:
 
-> **Each study day, an item offers at most one card. If none of its cards
+> **Each study day, a group offers at most one card. If none of its cards
 > was reviewed today, it offers the eligible card reviewed longest ago,
 > where a card never reviewed counts as longest ago, and ties go to the
 > lowest card ID** (see [cards.md](cards.md), "Card IDs", for their order).
@@ -107,13 +111,14 @@ A card is **eligible** if it is active, matches the selector, and is due,
 or is new while today's new-card limit is not reached. "Reviewed" means its
 last review in the log, whether before or after a reset.
 
-This rule never starves a card. Take an eligible card B of an item with k
-cards. Each day the item is studied, it shows one card, which then becomes
+This rule never starves a card. Take an eligible card B of a group with k
+cards. Each day the group is studied, it shows one card, which then becomes
 its most recently reviewed. A sibling shown before B is more recent than B
 from then on, so it can't be chosen ahead of B again, and B stays eligible
 until it is shown (a due card stays due until it is reviewed). So at most
 k − 1 siblings go before B: **every eligible card is shown within k days of
-study**, however short its siblings' intervals are.
+study**, however short its siblings' intervals are. A card alone in its
+group is never held back.
 
 Consequences:
 

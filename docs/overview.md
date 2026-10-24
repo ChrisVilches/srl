@@ -213,7 +213,7 @@ The specification:
 |---|---|
 | [store.md](store.md) | Store layout, how a store is found, configuration, the index cache |
 | [notes.md](notes.md) | Notes and the item syntax: headers, fields, IDs, status, context, how `srl` writes to notes |
-| [cards.md](cards.md) | The `qa` kind, cloze deletions, card IDs, the card format and its text formatting |
+| [cards.md](cards.md) | The `qa` kind, cloze deletions, kind programs and groups of siblings, card IDs, the card format and its text formatting |
 | [scheduling.md](scheduling.md) | Ratings, FSRS, days, choosing the next card, siblings, new-card limits, states |
 | [log.md](log.md) | The review log and its events |
 | [selectors.md](selectors.md) | The selector language |
@@ -250,13 +250,10 @@ finds every marked note.
 
 Main design decisions still to take:
 
-- **Kinds as plugins.** Today `qa` is the only kind, and `kind:` accepts
-  nothing else. Whether other kinds should be programs named in
-  `.srl/config.toml`, which put their cards in groups of siblings, is
-  undecided, and so is whether such a program can work with one call
-  instead of two (one for card IDs, one for card content), which would
-  need a restructuring ([cards.md](cards.md), "Kinds"; the idea is in
-  [ideas.md](ideas.md), "Kinds").
+- **Caching kind programs.** Today a kind program's `ids` call runs for
+  every item of its kind on every command; a cache would make that faster
+  without changing any result. Whether a program could answer one call
+  instead of two is open too ([cards.md](cards.md), "Kind programs").
 - **Media in cards (audio, images) and furigana markup.** Today card text is
   Markdown with `==highlight==` only ([cards.md](cards.md), "Text
   formatting").

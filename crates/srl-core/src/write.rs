@@ -192,7 +192,7 @@ pub fn add(
                 reason,
             };
             let text = format_item(id, item).map_err(invalid)?;
-            match read_items(path, &text).1.first() {
+            match read_items(path, &text, notes.programs()).1.first() {
                 Some(problem) => Err(invalid(reason_of(problem))),
                 None => Ok(text),
             }
@@ -253,7 +253,7 @@ pub fn replace(
     if stray {
         return Err(invalid("it has text outside the item".to_owned()));
     }
-    if let Some(problem) = read_items(item.path(), input).1.first() {
+    if let Some(problem) = read_items(item.path(), input, notes.programs()).1.first() {
         return Err(invalid(reason_of(problem)));
     }
     let old = read_note(store, item.path())?;

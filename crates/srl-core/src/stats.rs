@@ -132,6 +132,7 @@ mod tests {
         read_items(
             "a.md",
             "<!-- srl id:aaa1 -->\nQ: q\nA: a\n\n<!-- srl id:aaa2 -->\nQ: q\nA: a\n\n<!-- srl id:aaa3 -->\nQ: q\nA: a\n",
+            &crate::kind::Programs::default(),
         )
         .0
     }

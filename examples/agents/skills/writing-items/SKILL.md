@@ -42,7 +42,7 @@ Header entries, in any order, each at most once:
 | `id:ID` | The item's ID. `srl id` adds it; lowercase letters and digits. |
 | `draft` | Not studied until `srl accept`. |
 | `see:PATH` | The note shown as context, instead of the item's own note. Must be a note of the store. Quote paths with spaces: `see:"my notes/a b.md"`. |
-| `kind:qa` | The kind. `qa` is the default and the only one. |
+| `kind:NAME` | The kind. `qa` is the default; any other is a kind program named in `[kinds]` of `.srl/config.toml`, whose fields are its own. |
 
 An item without an ID is an error for every command except `srl id`, which
 fixes it. Two items with the same ID (usually a copied item) is an error:
