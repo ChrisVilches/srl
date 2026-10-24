@@ -143,8 +143,12 @@ little without an LLM, and with one they wrote questions that were better
 written as items. So what a question looks like is in its text: an item
 with cloze deletions behaves as cloze, with nothing to configure.
 
-Trade-off: a new kind of question needs a change to `srl`, until kinds as
-plugins are designed.
+Kinds are not programs that `srl` runs (`srl-kind-NAME`), for the same
+reason `srl` runs no commands of yours (see "Why a data layer and one
+mapping, and nothing else"): a program that writes questions can write
+them as items, with `srl add`, and they are then ordinary cards.
+
+Trade-off: a new kind of question needs a change to `srl`.
 
 ## Why editing content never affects the schedule
 
