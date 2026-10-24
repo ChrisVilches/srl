@@ -251,8 +251,9 @@ finds every marked note.
 Main design decisions still to take:
 
 - **Kinds as plugins.** Today `qa` is the only kind, and `kind:` accepts
-  nothing else. Whether other kinds should be programs (`srl-kind-NAME`)
-  is undecided, and so is whether such a program can work with one call
+  nothing else. Whether other kinds should be programs named in
+  `.srl/config.toml`, which put their cards in groups of siblings, is
+  undecided, and so is whether such a program can work with one call
   instead of two (one for card IDs, one for card content), which would
   need a restructuring ([cards.md](cards.md), "Kinds"; the idea is in
   [ideas.md](ideas.md), "Kinds").

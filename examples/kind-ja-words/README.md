@@ -1,0 +1,84 @@
+# A kind program: words of a Japanese sentence
+
+`ja_words.py` is the `ja-words` kind: a lazy way to study words in
+context. You write a sentence and put braces around the words to study:
+
+```markdown
+<!-- srl id:v81k3z kind:ja-words -->
+TEXT: 東京{都}は、日本の関東{地方}に{位置}する{都}
+```
+
+Each distinct word in braces is a card. The card shows the whole sentence
+with that word highlighted, not hidden: you say the word to yourself, look
+at the answer, and rate yourself. The answer is the same for every card of
+the sentence: MeCab's analysis of it, one line per token, with its reading
+in hiragana, its part of speech and its base form.
+
+It is a proof of concept of a kind program with several cards and no
+siblings, following the protocol in
+[docs/ideas.md](../../docs/ideas.md), "Kinds as plugins". **`srl` does
+not run kind programs yet**: today `kind:ja-words` is an error in a note.
+You can call the program by hand.
+
+## Requirements
+
+- Python 3, with nothing but its standard library.
+- MeCab and its IPA dictionary, run as the program `mecab` found on PATH.
+  On Arch Linux: `yay -S mecab mecab-ipadic`.
+
+Tried on Arch Linux only.
+
+## Cards
+
+- **One card per distinct word.** A word in braces more than once, like
+  都 above, gives one card, with every braced occurrence highlighted:
+  `東京==都==は、日本の関東地方に位置する==都==`. The same word
+  without braces is not highlighted, so 都 in 京都 is left alone.
+- **No siblings.** Each card is a group of its own, so on the same day
+  you can see every word of a sentence.
+- **The card suffix is the word's UTF-8 bytes in hex**: 都 gives
+  `v81k3z-e983bd`, 位置 gives `v81k3z-e4bd8de7bdae`. It comes from the
+  word alone, so adding, removing or moving words doesn't give one card's
+  history to another, and it can be read back with
+  `echo e983bd | xxd -r -p`. Changing a word makes a new card.
+- **Braces only go around a word.** An empty `{}`, a brace without its
+  pair, braces inside braces, and a `TEXT` without any `{word}` are
+  errors; there is no way to write a literal brace. `TEXT` is the only
+  field.
+
+MeCab's IPA dictionary is Japanese only, and it reads a word in context
+as best it can: 都 at the end of the sentence above comes out as と, not
+みやこ.
+
+## Running it
+
+The configuration it is meant for, in `.srl/config.toml` (not accepted
+by `srl` yet):
+
+```toml
+[kinds]
+ja-words = ["python3", "kinds/ja_words.py"]
+```
+
+By hand:
+
+```sh
+echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地方}に{位置}する{都}"}}' \
+  | python3 ja_words.py ids
+# {"groups": [{"cards": ["e983bd"]}, {"cards": ["e59cb0e696b9"]}, {"cards": ["e4bd8de7bdae"]}]}
+
+echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地方}に{位置}する{都}"},
+       "suffix": "e983bd", "context": null, "day": "2026-10-27"}' \
+  | python3 ja_words.py card
+```
+
+An error exits with status 1 and its reason on standard error.
+
+## Tests
+
+```sh
+python3 -m unittest
+```
+
+in this folder. The tests of cards and errors don't need MeCab; the ones
+that run it are skipped when it isn't installed.

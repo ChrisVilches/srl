@@ -17,5 +17,6 @@ Read an example before you use it, then copy it and change it to suit you.
 | Path | What it is |
 |---|---|
 | [`agents/`](agents/) | A system prompt and skills that turn an LLM agent into a guide to `srl`: it answers questions, writes example items and walks you through study sessions. |
+| [`kind-ja-words/`](kind-ja-words/) | `ja_words.py`, a kind program in Python: one card per `{word}` of a Japanese sentence, answered with MeCab's analysis. A proof of concept of the kind protocol in `docs/ideas.md`, which `srl` doesn't run yet; tried on Arch Linux only. |
 | [`python-frontend/`](python-frontend/) | `srl-tui`, a study frontend for the terminal in Python with Rich: the card, the answer and the context rendered as Markdown on one screen, with keys without Enter. A uv project of its own, meant for Linux, macOS and Windows but tried on Linux only. |
 | [`web-frontend/`](web-frontend/) | `srl-web`, the web viewer: a local server over the CLI and a React page that renders cards and context as Markdown. An npm package of its own, meant for Linux, macOS and Windows but tried on Linux only. |

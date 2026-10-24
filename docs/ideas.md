@@ -11,20 +11,58 @@ questions", once it is planned; kinds as plugins is one.
 
 ### Kinds as plugins
 
-A header with `kind:NAME` would run a program `srl-kind-NAME`. Would
-change the core: finding programs, running them, and reporting their
+A kind could be a program, named in `.srl/config.toml`:
+
+```toml
+[kinds]
+ja-words = ["python3", "kinds/ja_words.py"]
+```
+
+A header with `kind:ja-words` would then run that program. Would change
+the core: reading `[kinds]`, running programs, and reporting their
 failures.
+
+- **The value is a command**: the program, then its arguments. `srl`
+  adds `ids` or `card` (see below) as the last argument. It is a list, not
+  a path, so that a script runs the same on every platform: Windows can't
+  run a script by its `#!` line, and would take
+  `["py", "kinds/ja_words.py"]`.
+- **A relative program path is relative to the store's folder**, like
+  note paths, and the program runs in the store's folder, so relative
+  paths among its arguments work too. A program named without a folder,
+  such as `python3`, is found as the platform finds programs.
+- **`qa` can't be configured**, and a `kind:NAME` that is neither `qa`
+  nor in `[kinds]` is an error in the note, as an unknown kind is today.
 
 **Card IDs and card content come from two separate calls.** Every command
 that reads items needs their card IDs: selectors, `srl find`, `srl check`,
 scheduling, the sibling rule. Only a few need a card's content: `srl next`
 for the one card it returns, and `srl cards`. So a kind program answers
-two questions:
+two questions. Each call reads one JSON object on standard input and
+prints one on standard output. A call that exits with a status other than
+0 failed, and what it printed on standard error is the reason.
 
 | Call | Input | Output | Rule |
 |---|---|---|---|
-| `srl-kind-NAME ids` | the item's fields, as JSON | the card suffixes, one per line, or one empty line for a single card with the item's ID | **Deterministic and fast**: the same fields always give the same IDs. Called for every item of the kind, on every command that reads items, so its result would need a cache: notes themselves are not cached (see [store.md](store.md), "The index cache"). |
-| `srl-kind-NAME card` | the item's fields, the card's suffix, its context and the study day, as JSON | one card's `prompt`, `prompt_revealed` and `answer`, as JSON | **May differ every time.** Called only when a card is about to be shown. |
+| `ids` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | its cards, in groups: `{"groups": [{"cards": ["te", "past"]}, {"cards": ["negative"]}]}` | **Deterministic and fast**: the same fields always give the same IDs. Called for every item of the kind, on every command that reads items, so its result would need a cache: notes themselves are not cached (see [store.md](store.md), "The index cache"). |
+| `card` | the same object, plus `"suffix"`, `"context"` (as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`: the card's fields of [cards.md](cards.md), "Format", without `id` | **May differ every time.** Called only when a card is about to be shown. |
+
+`fields` is as in `srl show --json`. `srl` checks first that no key is
+written twice in the item, for every kind, so the object loses nothing.
+
+**Groups decide siblings.** The cards of one group are siblings, and the
+sibling rule ([scheduling.md](scheduling.md), "Siblings") applies to each
+group instead of each item: each study day, a group offers at most one
+card. A kind whose cards give each other away puts them in one group, as
+`qa` would with its cloze cards; a kind whose cards are independent gives
+each card its own group. Groups have no names: they are only how the
+cards are written, so a kind can change them without touching any card's
+history. The output of `ids` holds:
+
+- at least one group, and no group without cards;
+- each suffix once, made as in [cards.md](cards.md), "Card IDs";
+- `null` in place of a suffix only for a single card with the item's ID:
+  `{"groups": [{"cards": [null]}]}`.
 
 Example: a conjugation kind.
 
@@ -34,9 +72,14 @@ VERB: 動く
 FORMS: te past negative
 ```
 
-`ids` prints `te`, `past` and `negative`, giving cards `v81k3z-te`,
-`v81k3z-past` and `v81k3z-negative`. `card` with suffix `te` prints the
-て-form question for 動く.
+`ids` gives cards `v81k3z-te`, `v81k3z-past` and `v81k3z-negative`, the
+first two in one group: 動いて and 動いた share their stem, so seeing one
+gives the other away. `card` with suffix `te` prints the て-form question
+for 動く.
+
+Another kind with several cards, none of them siblings, is in
+[examples/kind-ja-words/](../examples/kind-ja-words/): one card per
+`{word}` of a sentence.
 
 > **TODO (design):** the wish is a kind program with **one call**, not two.
 > It is not known yet whether that is possible: card IDs are needed far
@@ -61,25 +104,6 @@ FORMS: te past negative
 > way, since `srl next --json` would always give the field. To be
 > weighed when plugin support is designed.
 
-> **TODO (design):** the output of `ids` leaves three cases open, all
-> because an empty line means a card:
->
-> - **No output at all.** Is it an error in the note, or an item with no
->   cards?
-> - **An empty line mixed with suffixes**, such as an empty line and
->   `te`. It would give cards `v81k3z` and `v81k3z-te` from one item.
->   [cards.md](cards.md), "Card IDs", implies this is not allowed (an item
->   gives either one card with its ID or suffixed cards), but the rule for
->   `ids` doesn't say so.
-> - **A trailing newline.** `te\n` and `te\n\n` differ only in
->   whitespace, but if an empty line is a card, a program that prints one
->   newline too many gets an extra card with the item's ID.
->
-> One way out is JSON output, where a single card is explicit, such as
-> `[{"suffix": null}]`: an empty array can be an error, a `null` suffix
-> can't be mixed with others, and whitespace means nothing. To be decided
-> when plugin support is designed.
-
 Other rules a plugin design would need:
 
 - **Fields are checked by `ids`.** A program that exits with an error on
@@ -102,10 +126,10 @@ PROMPT: Ask me to use 〜をものともせず in a new sentence about everyday
   work. The answer is a model sentence and its translation.
 ```
 
-- `srl-kind-llm-generated ids` checks that the item has exactly one field,
-  `PROMPT`, and prints one empty line: one card, with the item's ID
+- `ids` checks that the item has exactly one field, `PROMPT`, and prints
+  `{"groups": [{"cards": [null]}]}`: one card, with the item's ID
   `q8w2e5`. No call to the LLM.
-- `srl-kind-llm-generated card` sends `PROMPT`, and the item's context
+- `card` sends `PROMPT`, and the item's context
   (the note about 〜をものともせず), to an LLM API, and prints the question
   it wrote as both `prompt` and `prompt_revealed`, and the answer it wrote.
   A new card each time, under the same ID.
