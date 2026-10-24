@@ -6,11 +6,11 @@ Linux and macOS, msvcrt on Windows, a branch that has never run.
 
 It is a starting point: copy it, rename it, change it.
 
-It runs the frontend loop of docs/frontends.md: `srl next --json` for the
-card and its context, `srl review --stdin` for the rating. Keys act at
-once, without Enter: space or Enter shows the answer, 1-4 rate, j/k or the
-arrows scroll the context, Ctrl-D/Ctrl-U by half of it, e edits the note, s
-suspends the card, q quits.
+It runs the frontend loop of docs/frontends.md: `srl next --json --context
+CONTEXT` for the card and its context, `srl review --stdin` for the rating.
+Keys act at once, without Enter: space or Enter shows the answer, 1-4 rate,
+j/k or the arrows scroll the context, Ctrl-D/Ctrl-U by half of it, e edits
+the note, s suspends the card, q quits.
 """
 
 import json
@@ -90,7 +90,7 @@ class CardMarkdown(Markdown):
 
     def __init__(self, markup):
         super().__init__(markup)
-        self.parsed = self.parser.parse(markup)
+        self.parsed = self.parser.parse(markup)  # Rich has no way to give it a parser
 
 
 class Lines:
@@ -106,7 +106,7 @@ class Lines:
 
 
 ARROWS = {"\x1b[A": "up", "\x1b[B": "down"}
-CTRL_D, CTRL_U = "\x04", "\x15"
+CTRL_C, CTRL_D, CTRL_U = "\x03", "\x04", "\x15"
 
 pending = []  # keys read together, such as a held key repeating, not handled yet
 
@@ -132,18 +132,17 @@ def read_key():
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
         while data:
-            arrow = next((a for a in ARROWS if data.startswith(a)), None)
-            key = arrow or data[0]
+            key = next((arrow for arrow in ARROWS if data.startswith(arrow)), data[0])
             pending.append(ARROWS.get(key, key))
             data = data[len(key):]
     return pending.pop(0)
 
 
 def wait_for(keys):
-    """Waits until one of the keys is pressed; Ctrl-C gives q."""
+    """Waits until one of the keys is pressed; Enter gives "\\n", Ctrl-C gives q."""
     while True:
         key = read_key()
-        if key == "\x03":
+        if key == CTRL_C:
             return "q"
         if key == "\r":
             key = "\n"
@@ -151,12 +150,18 @@ def wait_for(keys):
             return key
 
 
+# The keys each side of the card takes, and the end of the bar that lists them.
+QUESTION_KEYS = {" ", "\n", "e", "s", "q"}
+ANSWER_KEYS = {"1", "2", "3", "4", "j", "k", "up", "down", CTRL_D, CTRL_U, "e", "s", "q"}
+OTHER_KEYS = "   e edit  s suspend  q quit"
+
+
 class Session:
     def __init__(self, selector):
         self.selector = selector  # the arguments given to srl next
         self.reviewed = self.new = self.again = 0
 
-    def stats(self):
+    def counts(self):
         return Text.assemble(
             (str(self.reviewed), "bold"), " reviewed · ",
             (str(self.new), "bold cyan"), " new · ",
@@ -168,7 +173,7 @@ class Session:
         right = Text.assemble((card["id"], "dim"), "  ")
         if card["state"] == "new":
             right.append("new  ", "bold cyan")
-        right.append_text(self.stats())
+        right.append_text(self.counts())
         grid = Table.grid(expand=True)
         grid.add_column()
         grid.add_column(justify="right")
@@ -186,12 +191,11 @@ class Session:
             return Padding(Text("no context", "dim"), (0, 2)), 0, 0
         width = console.width - 6  # the borders and the padding
         lines = console.render_lines(CardMarkdown(card["context"]), console.options.update_width(width))
-        shown = max(height - 2, 3)
+        shown = max(height - 2, 3)  # the borders take 2 lines
         scroll = max(0, min(scroll, len(lines) - shown))
         subtitle = None
         if len(lines) > shown:
-            end = min(scroll + shown, len(lines))
-            subtitle = Text(f"{scroll + 1}–{end} of {len(lines)}  j/k scroll", "dim")
+            subtitle = Text(f"{scroll + 1}–{scroll + shown} of {len(lines)}  j/k scroll", "dim")
         panel = Panel(Lines(lines[scroll:scroll + shown]), title=Text(card["see"] or card["path"], "dim"),
                       title_align="left", subtitle=subtitle, subtitle_align="right",
                       border_style="dim", padding=(0, 2))
@@ -200,25 +204,25 @@ class Session:
     def show(self, card, answered, scroll):
         """Draws the screen for the card, and returns the scroll of its context
         and how many lines of it are shown."""
-        shown = 0
-        header = self.header(card)
         body = [CardMarkdown(card["prompt"])]
         if answered:
             body += [Padding(Rule(style="dim"), (1, 0)), CardMarkdown(card["answer"])]
         panel = Panel(Group(*body), border_style="green" if answered else "cyan", padding=(1, 2))
+        screen = [self.header(card), panel]
+        shown = 0
         if answered:
+            # What is left of the screen once the header (1 line), the card,
+            # and the blank line and the keys at the bottom (2) are drawn.
+            height = console.height - 1 - len(console.render_lines(panel)) - 2
+            context, scroll, shown = self.context(card, height, scroll)
+            screen.append(context)
             keys = Text("  ")
             for number, (name, color) in enumerate(RATINGS, 1):
                 keys.append(f" {number} {name} ", f"bold black on {color}").append(" ")
-            keys.append("   e edit  s suspend  q quit", "dim")
-            # What is left of the screen, under the header, the card, and
-            # the blank line and the keys at the bottom.
-            height = console.height - 1 - len(console.render_lines(panel)) - 2
-            context, scroll, shown = self.context(card, height, scroll)
-            screen = Group(header, panel, context, Text())
+            keys.append(OTHER_KEYS, "dim")
         else:
-            keys = Text("  space answer   e edit  s suspend  q quit", "dim")
-            screen = Group(header, panel, Text())
+            keys = Text("  space answer" + OTHER_KEYS, "dim")
+        screen.append(Text())
         # The frame is written at once, between the begin and the end of a
         # synchronized update, so the terminal never shows it cleared and
         # half drawn; terminals without synchronized updates ignore them.
@@ -227,7 +231,7 @@ class Session:
             console.file.write("\x1b[?2026h")
         with console:  # Rich writes the buffer when the block ends
             console.clear()
-            console.print(screen)
+            console.print(Group(*screen))
             console.print(keys, end="")  # no newline: on the last line, it would scroll the screen
         if sync:
             console.file.write("\x1b[?2026l")
@@ -245,13 +249,15 @@ class Session:
             scroll = 0
             while True:
                 scroll, shown = self.show(card, answered, scroll)
-                if answered:
-                    key = wait_for({"e", "s", "q", "1", "2", "3", "4", "j", "k", "up", "down", CTRL_D, CTRL_U})
-                else:
-                    key = wait_for({" ", "\n", "e", "s", "q"})
+                key = wait_for(ANSWER_KEYS if answered else QUESTION_KEYS)
                 if key == "q":
                     return False
-                if key in ("j", "down"):
+                if key in (" ", "\n"):
+                    answered = True
+                elif key in ("1", "2", "3", "4"):
+                    self.review(card, int(key))
+                    break
+                elif key in ("j", "down"):
                     scroll += 1
                 elif key in ("k", "up"):
                     scroll -= 1
@@ -262,16 +268,13 @@ class Session:
                 elif key == CTRL_U:
                     scroll -= shown // 2
                 elif key == "e":
+                    # Not through srl(), which captures the output: the
+                    # editor needs the terminal.
                     subprocess.run(["srl", "edit", card["id"]])
                     break  # the note may have changed: get the card again
                 elif key == "s":
                     srl("suspend", f"id:{card['id']}")
                     break
-                elif answered:
-                    self.review(card, int(key))
-                    break
-                else:
-                    answered = True
 
     def review(self, card, rating):
         srl("review", "--stdin", stdin=json.dumps({"card": card["id"], "rating": rating}))
@@ -295,4 +298,4 @@ def main():
         sys.stderr.write(str(error))
         sys.exit(2)
     console.print(Text("Nothing left to study." if finished else "Stopped.", "bold"))
-    console.print(session.stats())
+    console.print(session.counts())

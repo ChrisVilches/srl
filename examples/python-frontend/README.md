@@ -14,16 +14,20 @@ screen needs a modern terminal such as Windows Terminal.
 - One screen per card: a header with the selector, the card's ID and the
   counters, the card in a panel, and the keys at the bottom.
 - Card text and context are rendered as Markdown by Rich (CommonMark plus
-  GFM tables and strikethrough), with `==highlights==` in bold yellow. The context is shown under the answer, titled with its note.
+  GFM tables and strikethrough), with `==highlights==` in bold yellow.
+- The context is shown under the answer, titled with its note (`see`, or
+  else `path`). It asks for the `prose` context: the note without its
+  items.
 - The screen never scrolls: the question and the answer always stay in
   view. A context too long for the space left under them scrolls on its
   own, inside its panel.
 - Keys act at once, without Enter: space (or Enter) shows the answer,
   `1`–`4` rate, `j`/`k` or the arrows scroll the context, Ctrl-D/Ctrl-U
-  by half of it, `e` edits the
-  note, `s` suspends the card, `q` quits.
+  by half of it, `e` edits the note (`srl edit`), `s` suspends the card,
+  `q` (or Ctrl-C) quits.
 - It ends with a summary: the cards reviewed, the new ones among them, and
-  the Again ratings.
+  the Again ratings. If `srl` fails, it prints what `srl` said and exits
+  with 2.
 
 It is a uv project of its own, kept apart from `srl` and from the other
 examples: everything it needs is in this folder.
@@ -74,12 +78,13 @@ store from the current directory up (see
 ## Making it yours
 
 It is one file, `src/srl_tui/__init__.py`, running the frontend loop of
-[docs/frontends.md](../../docs/frontends.md): `srl next --json` for a card,
-its state and its context, `srl review --stdin` for the rating. Change what
-you like: the colors in `THEME` and `RATINGS` and the context mode in
-`CONTEXT` at the top, the layout in `Session.show`, the keys in
-`Session.run`.
+[docs/frontends.md](../../docs/frontends.md): `srl next --json --context
+CONTEXT` for a card, its state and its context, `srl review --stdin` for
+the rating. Change what you like: the colors in `THEME` and `RATINGS`, the
+context mode in `CONTEXT` (`prose`, `full` or `none`), the layout in
+`Session.show`, the keys in `QUESTION_KEYS` and `ANSWER_KEYS` and what
+they do in `Session.run`.
 
-Highlights are paired in order, each `==` with the next one, as the other
-frontends do (`highlight`): plugins that treat `==` like `*` nest the marks
+Highlights are paired in order, each `==` with the next one, as `srl-web`
+does (`highlight`): plugins that treat `==` like `*` nest the marks
 in text without spaces, such as `==[...]==を==[...]==`.
