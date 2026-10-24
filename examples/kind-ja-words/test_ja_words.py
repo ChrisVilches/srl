@@ -63,7 +63,7 @@ class Card(unittest.TestCase):
     def test_every_braced_occurrence_of_the_word_is_highlighted(self):
         made = card(item(SENTENCE, "e983bd"), self.analyze)
         self.assertEqual(made["prompt"], "東京==都==は、日本の関東地方に位置する==都==")
-        self.assertEqual(made["prompt_revealed"], made["prompt"])
+        self.assertNotIn("prompt_revealed", made)
 
     def test_only_the_cards_word_is_highlighted(self):
         made = card(item(SENTENCE, "e4bd8de7bdae"), self.analyze)

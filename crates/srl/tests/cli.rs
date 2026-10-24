@@ -455,7 +455,7 @@ fn next_json_gives_the_card_with_its_state_note_and_context() {
         serde_json::json!({
             "id": "x7k2m9",
             "prompt": "What does 〜をものともせず mean?",
-            "prompt_revealed": "What does 〜をものともせず mean?",
+            "prompt_revealed": null,
             "answer": "Undeterred by (adversity), braving.",
             "state": "new",
             "path": "japanese/grammar/wo.md",

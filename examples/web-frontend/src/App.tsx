@@ -216,7 +216,7 @@ function CardView({
         <section className="px-6 pt-2 pb-6">
           <Label>Question</Label>
           <Markdown
-            text={phase.kind === 'answer' ? card.prompt_revealed : card.prompt}
+            text={phase.kind === 'answer' ? (card.prompt_revealed ?? card.prompt) : card.prompt}
             className="prose-lg"
           />
         </section>

@@ -86,9 +86,10 @@ without it.
 `srl cards` prints cards in the format of [cards.md](cards.md) with
 `--json`, one per line. Without it, each card is printed for people: a line
 with its ID, the prompt, a line `---`, the revealed prompt, and, if the
-answer is not `null`, a line `---` and the answer. Every field is printed
-even when two are the same, as the prompt and the revealed prompt of a card
-without cloze deletions are. Cards are separated by blank lines:
+answer is not `null`, a line `---` and the answer. The revealed prompt is
+printed even when it is the prompt again, because `prompt_revealed` is
+`null` (see [cards.md](cards.md), "Format"). Cards are separated by blank
+lines:
 
 ```
 k3m9q1-1

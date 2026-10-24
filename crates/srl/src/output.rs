@@ -67,8 +67,9 @@ pub(crate) fn items(items: &[(&Item, Option<String>)]) {
 }
 
 /// Prints cards for people: for each, a line with its ID, the prompt, a
-/// line `---`, the revealed prompt, and, if there is an answer, a line `---`
-/// and the answer. Cards are separated by blank lines.
+/// line `---`, the revealed prompt (the prompt again when there is none),
+/// and, if there is an answer, a line `---` and the answer. Cards are
+/// separated by blank lines.
 pub(crate) fn cards(cards: &[Card]) {
     for (index, card) in cards.iter().enumerate() {
         if index > 0 {
@@ -77,7 +78,8 @@ pub(crate) fn cards(cards: &[Card]) {
         println!("{}", card.id());
         println!("{}", card.prompt().trim_end());
         println!("---");
-        println!("{}", card.prompt_revealed().trim_end());
+        let revealed = card.prompt_revealed().unwrap_or(card.prompt());
+        println!("{}", revealed.trim_end());
         if let Some(answer) = card.answer() {
             println!("---");
             println!("{}", answer.trim_end());

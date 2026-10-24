@@ -101,7 +101,7 @@ impl fmt::Display for CardId {
 pub struct Card {
     pub(crate) id: CardId,
     pub(crate) prompt: String,
-    pub(crate) prompt_revealed: String,
+    pub(crate) prompt_revealed: Option<String>,
     pub(crate) answer: Option<String>,
 }
 
@@ -114,8 +114,10 @@ impl Card {
         &self.prompt
     }
 
-    pub fn prompt_revealed(&self) -> &str {
-        &self.prompt_revealed
+    /// The prompt as shown with the answer, or `None` when that is the
+    /// prompt itself (see `docs/cards.md`, "Format").
+    pub fn prompt_revealed(&self) -> Option<&str> {
+        self.prompt_revealed.as_deref()
     }
 
     pub fn answer(&self) -> Option<&str> {

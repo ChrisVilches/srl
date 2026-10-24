@@ -11,7 +11,7 @@ where to find fuller ones to copy.
 ```sh
 while card=$(srl next --json --context prose -- "$1"); do
   jq -r .prompt <<<"$card"; read -r _
-  jq -r '.prompt_revealed, .answer // empty, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
+  jq -r '.prompt_revealed // .prompt, .answer // empty, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
   jq -n --argjson card "$card" --argjson rating "$r" '{card: $card.id, rating: $rating}' | srl review --stdin
 done
 ```

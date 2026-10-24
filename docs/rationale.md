@@ -276,3 +276,11 @@ learning steps, one global new-card limit, one card per item per day. The
 result is behaviour you can predict without reading code. Because the log
 records everything, a smarter rule can always be introduced later and
 applied to the whole history.
+
+One exception is accepted on purpose: `prompt_revealed` may be `null`,
+meaning "the same as `prompt`" (see [cards.md](cards.md), "Format"). It
+is one more case for kinds and frontends to know, but forgetting it costs
+little: a kind that never writes the field, or a frontend that only
+falls back to `prompt`, still shows every card correctly, without the
+answer's highlights in the question. Kinds whose question hides nothing,
+which are most of them, never need to know the field exists.

@@ -50,7 +50,7 @@ PROMPT: Ask me to use 〜をものともせず in a new sentence about everyday
   `q8w2e5`. No call to the LLM.
 - `card` sends `PROMPT`, and the item's context (the note about
   〜をものともせず), to an LLM API, and prints the question it wrote as
-  both `prompt` and `prompt_revealed`, and the answer it wrote. A new card
+  `prompt`, and the answer it wrote. A new card
   each time, under the same ID.
 
 Each part of `srl` already allows this:

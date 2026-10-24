@@ -5,7 +5,7 @@
 export type Card = {
   id: string;
   prompt: string;
-  prompt_revealed: string;
+  prompt_revealed: string | null;
   answer: string | null;
   state: 'new' | 'due';
   path: string;

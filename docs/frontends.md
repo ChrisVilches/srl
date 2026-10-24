@@ -22,8 +22,9 @@ Every frontend runs the same loop:
 1. **Get a card:** `srl next SELECTOR --json --context MODE`. It prints the
    card (see "What a frontend gets" below); exit 1 means nothing is left.
 2. **Show the prompt**, and wait until the person wants to see the answer.
-3. **Show the answer:** `prompt_revealed` in place of `prompt`, then
-   `answer` and the context, each if it is not `null`. The note the context
+3. **Show the answer:** `prompt_revealed` in place of `prompt`, or
+   `prompt` again when `prompt_revealed` is `null`; then `answer` and the
+   context, each if it is not `null`. The note the context
    comes from is `see`, or `path` when `see` is `null`; a frontend may name
    it.
 4. **Get a rating** from 1 to 4.
@@ -59,7 +60,7 @@ context:
 
 | Field | Meaning |
 |---|---|
-| `id`, `prompt`, `prompt_revealed`, `answer` | The card (see [cards.md](cards.md)). |
+| `id`, `prompt`, `prompt_revealed`, `answer` | The card (see [cards.md](cards.md)). `prompt_revealed` and `answer` may be `null`. |
 | `state` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Choosing the next card"). |
 | `path` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "Items as JSON"). |
 | `see` | The note its `see:` names, or `null`. |

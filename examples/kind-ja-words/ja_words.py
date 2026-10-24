@@ -117,7 +117,6 @@ def card(item, analyze=None):
     plain = "".join(piece if not isinstance(piece, tuple) else piece[1] for piece in found)
     return {
         "prompt": prompt,
-        "prompt_revealed": prompt,
         "answer": answer(plain, analyze or mecab),
     }
 

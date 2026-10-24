@@ -147,7 +147,7 @@ fn qa(id: &ItemId, fields: &[Field]) -> Result<Vec<Card>, String> {
         return Ok(vec![Card {
             id: CardId::new(id.clone(), None),
             prompt: question.to_owned(),
-            prompt_revealed: question.to_owned(),
+            prompt_revealed: None,
             answer: Some(answer.to_owned()),
         }]);
     }
@@ -159,9 +159,9 @@ fn qa(id: &ItemId, fields: &[Field]) -> Result<Vec<Card>, String> {
                 (deletion.number == number)
                     .then(|| format!("==[{}]==", deletion.hint.unwrap_or("...")))
             }),
-            prompt_revealed: render(&pieces, |deletion| {
+            prompt_revealed: Some(render(&pieces, |deletion| {
                 (deletion.number == number).then(|| format!("=={}==", deletion.text))
-            }),
+            })),
             answer: answer.map(str::to_owned),
         })
         .collect())
@@ -243,7 +243,7 @@ mod tests {
         assert_eq!(
             cards(&[("Q", "What?"), ("A", "That.")]).unwrap(),
             [serde_json::json!({
-                "id": "k3m9q1", "prompt": "What?", "prompt_revealed": "What?", "answer": "That.",
+                "id": "k3m9q1", "prompt": "What?", "prompt_revealed": null, "answer": "That.",
             })]
         );
     }

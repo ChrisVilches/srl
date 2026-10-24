@@ -93,7 +93,7 @@ yours. Only run one when the person asks for it. Each round:
 2. Show the prompt, and wait for the person's answer or for them to ask for
    the answer.
 3. Show the answer: `prompt_revealed` (the prompt with a cloze's blanks
-   filled in), then `answer` (`null` when there is none: the revealed
+   filled in), or `prompt` again when it is `null`, then `answer` (`null` when there is none: the revealed
    prompt is the whole answer), then the context (`null` when there is
    none). Say which note it comes from: `see`, or `path` when `see` is
    `null`.
@@ -143,7 +143,7 @@ wants their own frontend (bash with `jq`):
 ```sh
 while card=$(srl next in:grammar --json); do
   jq -r .prompt <<<"$card"; read -r _
-  jq -r '.prompt_revealed, .answer // empty, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
+  jq -r '.prompt_revealed // .prompt, .answer // empty, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
   srl review "$(jq -r .id <<<"$card")" --rating "$r"
 done
 ```

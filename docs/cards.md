@@ -23,13 +23,20 @@ memory state (see [scheduling.md](scheduling.md)).
 |---|---|
 | `id` | The card ID (see "Card IDs"). |
 | `prompt` | The question, as shown before the answer. |
-| `prompt_revealed` | The question as shown with the answer, in place of `prompt`. It is the same as `prompt` unless the question hides part of itself, as a cloze deletion does. |
-| `answer` | The answer, or `null` when there is nothing to show beyond `prompt_revealed`. |
+| `prompt_revealed` | The question as shown with the answer, in place of `prompt`, or `null` when it is `prompt` itself. It is only needed when the question hides part of itself, as a cloze deletion does. |
+| `answer` | The answer, or `null` when there is nothing to show beyond the revealed prompt. |
 
-Every field is always present. You always rate a card yourself (see
-[scheduling.md](scheduling.md), "Ratings"): a frontend shows `prompt`, then
-`prompt_revealed` in its place, the answer and the item's context, and
-records the rating you give.
+Every field is always present in what `srl` prints. You always rate a card
+yourself (see [scheduling.md](scheduling.md), "Ratings"): a frontend shows
+`prompt`, then the revealed prompt in its place, the answer and the item's
+context, and records the rating you give.
+
+**The revealed prompt is `prompt_revealed`, or `prompt` when it is
+`null`.** Everyone who handles a card follows this: a kind may leave
+`prompt_revealed` out, `srl` passes it on as `null`, and a frontend shows
+`prompt` again when the answer is revealed. A kind whose question hides
+nothing never needs to know the field, and one that forgets it still gives
+a usable card: the question just stays as it was.
 
 ## Rules
 
@@ -86,7 +93,7 @@ Fields:
 Each field may appear once, and any other field is an error.
 
 **Without cloze deletions**, the item gives one card, with the item's ID:
-the prompt and the revealed prompt are `Q`, and the answer is `A`.
+the prompt is `Q`, `prompt_revealed` is `null`, and the answer is `A`.
 
 ```markdown
 <!-- srl id:x7k2m9 -->
@@ -96,7 +103,7 @@ A: Undeterred by (adversity), braving.
 
 ```json
 {"id": "x7k2m9", "prompt": "What does 〜をものともせず mean?",
- "prompt_revealed": "What does 〜をものともせず mean?",
+ "prompt_revealed": null,
  "answer": "Undeterred by (adversity), braving."}
 ```
 
@@ -198,7 +205,7 @@ what it printed on standard error is the reason.
 | Call | Input | Output | Rule |
 |---|---|---|---|
 | `ids` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | its cards, in groups: `{"groups": [{"cards": ["te", "past"]}, {"cards": ["negative"]}]}` | **Deterministic and fast**: the same fields always give the same cards. Called for every item of the kind, on every command that reads items. It has no time limit. |
-| `card` | the same object, plus `"suffix"` (`null` for a card with the item's ID), `"context"` (the item's context in mode `prose`, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`: the card's fields of "Format" above, without `id`, every one of them present | **May differ every time.** Called only for a card about to be shown, and stopped after `kind_programs.card_timeout` seconds. |
+| `card` | the same object, plus `"suffix"` (`null` for a card with the item's ID), `"context"` (the item's context in mode `prose`, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`: the card's fields of "Format" above, without `id`. `prompt` and `answer` must be present; `prompt_revealed` may be left out, which is the same as `null` | **May differ every time.** Called only for a card about to be shown, and stopped after `kind_programs.card_timeout` seconds. |
 
 `fields` is as in `srl show --json` (see [notes.md](notes.md), "Items as
 JSON"). No key is written twice in an item, whatever its kind (see
@@ -260,17 +267,6 @@ prints is one card the kind could give, not the one `srl next` will show.
 > may differ every time. Getting there would need a restructuring of how
 > `srl` asks a kind for cards, for example around when IDs are computed
 > and cached. Until then, the two calls are the design known to work.
-
-> **TODO (design):** the wish is for `prompt_revealed` to be **optional
-> in a kind's output**: when it is left out, `srl` would fill it in from
-> `prompt`, so that the many kinds whose question hides nothing needn't
-> repeat it. It would be done for every kind at once. It makes writing a
-> kind easier, but it goes against the wish for flat rules: a field that
-> is sometimes written by the kind and sometimes made up by `srl` is one
-> more case to know about. As long as it is required, a kind that forgets
-> it is noticed at once, because the question disappears when the answer
-> is shown. Frontends would be unaffected either way, since `srl next
-> --json` would always give the field.
 
 ## Text formatting
 

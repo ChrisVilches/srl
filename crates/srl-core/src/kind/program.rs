@@ -46,13 +46,14 @@ struct GroupOutput {
     cards: Vec<Option<String>>,
 }
 
-/// What `card` prints: the fields of a card, without its ID. Every field
-/// must be there, `answer` too, even when it is `null`.
+/// What `card` prints: the fields of a card, without its ID. `answer` must
+/// be there, even when it is `null`; `prompt_revealed` may be left out.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CardOutput {
     prompt: String,
-    prompt_revealed: String,
+    #[serde(default)]
+    prompt_revealed: Option<String>,
     #[serde(deserialize_with = "Option::deserialize")]
     answer: Option<String>,
 }
@@ -425,6 +426,24 @@ mod tests {
                 "answer": format!("day \"2026-10-27\"; context \"# Verbs\\n\"; in {folder}"),
             })
         );
+    }
+
+    #[test]
+    fn a_card_may_leave_out_its_revealed_prompt() {
+        let (_tmp, store, notes) = store(
+            &config(""),
+            "<!-- srl id:abc kind:fake -->\nCARD: {\"prompt\": \"p\", \"answer\": null}\n\n<!-- srl id:abd kind:fake -->\nCARD: {\"prompt\": \"p\", \"prompt_revealed\": null, \"answer\": null}\n",
+        );
+        for id in ["abc", "abd"] {
+            let (item, card) = notes.card(&CardId::parse(id).unwrap()).unwrap();
+            let made = notes
+                .make_card(&store, item, card, date(2026, 10, 27))
+                .unwrap();
+            assert_eq!(
+                serde_json::to_value(&made).unwrap(),
+                serde_json::json!({"id": id, "prompt": "p", "prompt_revealed": null, "answer": null})
+            );
+        }
     }
 
     #[test]
