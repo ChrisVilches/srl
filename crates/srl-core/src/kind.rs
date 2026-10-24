@@ -33,7 +33,7 @@ impl Kind {
             "qa" => Ok(Self::Qa),
             other if programs.has(other) => Ok(Self::Program(other.to_owned())),
             other => Err(format!(
-                "there is no kind `{other}`; the kinds are qa, the default, and those named in \
+                "there is no kind `{other}`; the kinds are qa (default) and those named in \
                  `[kinds]` of .srl/config.toml"
             )),
         }
