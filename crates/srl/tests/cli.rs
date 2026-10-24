@@ -652,6 +652,122 @@ fn excluded_notes_and_dot_folders_are_not_read() {
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(0));
 }
 
+const TEXT_NOTE: &str = "<!-- srl id:txt001 -->\nQ: From a text file?\nA: Yes.\n";
+
+#[test]
+fn only_md_files_are_notes_by_default() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(&tmp, "plain.txt", "<!-- srl -->\nbroken\n");
+    write(&tmp, "page.html", "<!-- srl -->\nbroken\n");
+    let output = srl(&["find", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(!stdout(&output).contains("plain.txt"));
+}
+
+#[test]
+fn include_makes_other_files_notes() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(&tmp, "kanji/extra.txt", TEXT_NOTE);
+    write(&tmp, "lint.txt", "Q: forgot the header\nA: here\n");
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[notes]\ninclude = [\"**/*.md\", \"**/*.txt\"]\n",
+    );
+    let output = srl(&["find", "--json", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let paths: Vec<_> = json_lines(&output)
+        .iter()
+        .map(|card| card["path"].as_str().unwrap_or_default().to_owned())
+        .collect();
+    assert!(paths.contains(&"kanji/extra.txt".to_owned()), "{paths:?}");
+    assert!(
+        paths.contains(&"japanese/grammar/wo.md".to_owned()),
+        "{paths:?}"
+    );
+    // in: drops the .txt extension like any other.
+    assert_eq!(lines(&srl(&["find", "in:extra", "--dir", d])).len(), 1);
+    // srl lint reads the same files as every other command.
+    assert!(stdout(&srl(&["lint", "--dir", d])).starts_with("lint.txt:1: "));
+}
+
+#[test]
+fn include_replaces_the_default_rather_than_adding_to_it() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(&tmp, "extra.txt", TEXT_NOTE);
+    write(&tmp, ".srl/config.toml", "[notes]\ninclude = [\"*.txt\"]\n");
+    let output = srl(&["find", "--json", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let cards = json_lines(&output);
+    assert_eq!(cards.len(), 1);
+    assert_eq!(cards[0]["path"], "extra.txt");
+}
+
+#[test]
+fn exclude_wins_over_include() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(&tmp, "drafts/broken.txt", "<!-- srl -->\nbroken\n");
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[notes]\ninclude = [\"**/*.md\", \"**/*.txt\"]\n",
+    );
+    assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(2));
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[notes]\ninclude = [\"**/*.md\", \"**/*.txt\"]\nexclude = [\"drafts/**\"]\n",
+    );
+    assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(0));
+}
+
+#[test]
+fn an_invalid_include_glob_is_a_configuration_error() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(&tmp, ".srl/config.toml", "[notes]\ninclude = [\"[\"]\n");
+    let output = srl(&["find", "--dir", d]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("notes.include"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn add_takes_paths_that_include_matches_and_exclude_does_not() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let item = "{\"Q\": \"q\", \"A\": \"a\"}\n";
+
+    let output = srl_with_input(&["add", "new.txt", "--stdin", "--dir", d], item);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("`include`"), "{}", stderr(&output));
+    assert!(!tmp.path().join("new.txt").exists());
+
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[notes]\ninclude = [\"**/*.md\", \"**/*.txt\"]\nexclude = [\"drafts/**\"]\n",
+    );
+    let output = srl_with_input(&["add", "drafts/a.txt", "--stdin", "--dir", d], item);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("`exclude`"), "{}", stderr(&output));
+    assert!(!tmp.path().join("drafts").exists());
+
+    let output = srl_with_input(&["add", "new.txt", "--stdin", "--dir", d], item);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let id = stdout(&output).trim().to_owned();
+    assert!(read(&tmp, "new.txt").contains(&format!("<!-- srl id:{id} -->")));
+    assert_eq!(lines(&srl(&["find", "in:new", "--dir", d])).len(), 1);
+}
+
 /// What every command that reads memories prints: standard output,
 /// standard error and the exit code of each.
 fn snapshot(d: &str) -> Vec<(String, String, Option<i32>)> {
