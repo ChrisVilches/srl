@@ -464,12 +464,6 @@ fn check_note_path(config: &Config, path: &str) -> Result<()> {
         path: path.to_owned(),
         reason: reason.to_owned(),
     };
-    if Path::new(path)
-        .extension()
-        .is_none_or(|extension| extension != "md")
-    {
-        return Err(invalid("a note's name ends in .md"));
-    }
     if path.starts_with('/') || path.contains('\\') || path.contains(':') {
         return Err(invalid(
             "give a path relative to the store's folder, with / between folders",
@@ -482,6 +476,11 @@ fn check_note_path(config: &Config, path: &str) -> Result<()> {
         return Err(invalid(
             "the path has an empty part, `.`, `..`, or a folder starting with `.`, which is not \
              read for notes",
+        ));
+    }
+    if !config.notes.include_set().is_match(nfc(path)) {
+        return Err(invalid(
+            "the path is not matched by `include` in .srl/config.toml",
         ));
     }
     if config.notes.exclude_set().is_match(nfc(path)) {
@@ -776,6 +775,17 @@ mod tests {
             );
         }
         assert_eq!(read(&store, "a.md"), "Prose.\n");
+    }
+
+    #[test]
+    fn add_takes_any_path_include_matches() {
+        let (_tmp, store) = store(&[]);
+        let mut config = Config::default();
+        config.notes.include = vec!["**/*.txt".to_owned()];
+        let item = "{\"Q\": \"q\", \"A\": \"a\"}";
+        assert!(add(&store, &config, &notes(&store), "a.md", item, 3, false).is_err());
+        add(&store, &config, &notes(&store), "new/a.txt", item, 3, false).unwrap();
+        assert!(read(&store, "new/a.txt").contains("Q: q"));
     }
 
     #[test]

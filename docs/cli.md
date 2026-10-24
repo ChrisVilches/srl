@@ -135,8 +135,9 @@ JSONL
   the order given. Multi-line text is written with continuation lines.
   Which fields are accepted is up to the kind, so `srl add` works the same
   for every kind there is.
-- `NOTE` is a path relative to the store's folder, ending in `.md`, and must
-  be a note (see [notes.md](notes.md), "Which files are notes"). If it
+- `NOTE` is a path relative to the store's folder, and must be a note:
+  matched by `include`, not by `exclude`, and not in a folder that starts
+  with `.` (see [notes.md](notes.md), "Which files are notes"). If it
   doesn't exist, it is created, with its folders.
 - The items are appended to the end of the note, each after a blank line,
   following the rules of [notes.md](notes.md), "How srl writes to notes".

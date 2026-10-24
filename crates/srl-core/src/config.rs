@@ -20,14 +20,32 @@ pub struct Config {
     pub schedule: Schedule,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Notes {
-    /// Globs of notes to ignore, relative to the store's folder.
+    /// Globs of notes, relative to the store's folder.
+    pub include: Vec<String>,
+    /// Globs of notes to ignore, relative to the store's folder. They win
+    /// over `include`.
     pub exclude: Vec<String>,
 }
 
+impl Default for Notes {
+    fn default() -> Self {
+        Self {
+            include: vec!["**/*.md".to_owned()],
+            exclude: Vec::new(),
+        }
+    }
+}
+
 impl Notes {
+    /// The `include` globs, compiled. They were checked when the
+    /// configuration was read.
+    pub fn include_set(&self) -> GlobSet {
+        globs(&self.include).expect("the include globs should have been checked when read")
+    }
+
     /// The `exclude` globs, compiled. They were checked when the
     /// configuration was read.
     pub fn exclude_set(&self) -> GlobSet {
@@ -112,6 +130,7 @@ impl Config {
         if schedule.day_starts_at > 23 {
             return Err("`schedule.day_starts_at` must be an hour from 0 to 23".to_owned());
         }
+        globs(&config.notes.include).map_err(|reason| format!("`notes.include`: {reason}"))?;
         globs(&config.notes.exclude).map_err(|reason| format!("`notes.exclude`: {reason}"))?;
         Ok(config)
     }
@@ -135,6 +154,15 @@ mod tests {
         assert_eq!(config.notes.exclude, ["templates/**"]);
         assert_eq!(config.schedule, Schedule::default());
         assert!(config.notes.exclude_set().is_match("templates/a/b.md"));
+        assert_eq!(config.notes.include, ["**/*.md"]);
+    }
+
+    #[test]
+    fn include_replaces_the_default_globs() {
+        let config = Config::parse("[notes]\ninclude = [\"**/*.txt\"]\n").unwrap();
+        assert!(config.notes.include_set().is_match("a/b.txt"));
+        assert!(!config.notes.include_set().is_match("a/b.md"));
+        assert!(Config::parse("[notes]\ninclude = [\"[\"]\n").is_err());
     }
 
     #[test]

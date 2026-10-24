@@ -1,6 +1,7 @@
 # Notes and items
 
-A **note** is any Markdown file in the store. An **item** is a question
+A **note** is a file in the store that `srl` reads for items: by default,
+any Markdown file (see "Which files are notes"). An **item** is a question
 written inside a note. Everything else in a note is yours: `srl` reads it
 only to show it as context, and never changes it.
 
@@ -23,13 +24,16 @@ read the same, with a short comment above each.
 
 ## Which files are notes
 
-Every file whose name ends in `.md`, in the store's folder or any folder
-below it, is a note, except:
+**A file is a note when a glob in `include` matches its path, no glob in
+`exclude` does, and it is not in a folder whose name starts with `.`**
+(`.srl/`, `.git/`, `.obsidian/`, …). Both are set in `.srl/config.toml`
+(see [store.md](store.md), "Configuration"). By default `include` is
+`["**/*.md"]` and `exclude` is empty: every Markdown file is a note.
 
-- files in folders whose name starts with `.` (`.srl/`, `.git/`,
-  `.obsidian/`, …);
-- files matched by a glob in `exclude` in `.srl/config.toml` (see
-  [store.md](store.md), "Configuration").
+Every note is read the same way, whatever its name: a `.txt` note has the
+same item syntax, fenced code blocks and context as a `.md` note, and its
+fields are formatted as in [cards.md](cards.md), "Text formatting". Which
+files make sense as notes is up to you.
 
 A note's **path** is relative to the store's folder, with `/` between
 folders. Files are UTF-8. Both `\n` and `\r\n` line endings are read, and a

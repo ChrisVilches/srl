@@ -208,7 +208,7 @@ impl Notes {
     /// Reads every note of the store. Problems in notes are collected in
     /// [`Notes::problems`]; only failing to read a file is an error here.
     pub fn load(store: &Store, config: &Config) -> Result<Self> {
-        let paths = store.note_paths(&config.notes.exclude_set())?;
+        let paths = store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())?;
         let mut items = Vec::new();
         let mut problems = Vec::new();
         for path in &paths {

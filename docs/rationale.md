@@ -232,6 +232,18 @@ Notes are plain Markdown, written in any editor and read in any viewer.
 Everything `srl` adds uses syntax common to Markdown flavours, so notes
 look right in every app, and `srl` assumes none.
 
+## Why notes are chosen by globs
+
+Which files are notes is two lists of globs, `include` and `exclude`, and
+`exclude` always wins. Globs say more than a list of extensions (only the
+notes under one folder, say) with the same matching that `exclude` and
+`path:` already use. Every note is read with the same syntax whatever its
+name, so there is no list of file types to keep up to date, and no rule
+for each.
+
+Trade-off: a glob can make a file a note whose item syntax makes no sense
+for it, such as HTML or source code; `srl` reads it anyway.
+
 ## Why flat rules
 
 Every rule in `srl` can be stated in one sentence, and each one picks the

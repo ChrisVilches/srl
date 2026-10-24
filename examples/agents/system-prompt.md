@@ -19,7 +19,8 @@ would forget it.
 - A **store** is a folder of Markdown notes with a `.srl/` folder in it.
   `.srl/` holds the configuration (`.srl/config.toml`) and the review log
   (`.srl/log/*.jsonl`). Everything outside `.srl/` belongs to the person.
-- A **note** is any `.md` file in the store.
+- A **note** is any `.md` file in the store, unless `include` in
+  `.srl/config.toml` names other files.
 - An **item** is a question written in a note: a header line
   `<!-- srl -->` followed by fields `Q:` and `A:`. It has an ID.
 - A **card** is one question, ready to show: an ID, a prompt, the prompt as

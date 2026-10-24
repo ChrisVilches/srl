@@ -134,7 +134,8 @@ item's header entries: `"kind"` (text, default `qa`), `"see"` (text, the
 note shown as its context) and `"draft"` (`true` or `false`). Every other
 key is a field, and its value the field's text. A newline in a value (`\n`
 in JSON) becomes a continuation line.
-`NOTE` is relative to the store's folder, ends in `.md`, and is created
+`NOTE` is relative to the store's folder, must be a note (by default, end
+in `.md`; see `include` in `.srl/config.toml`), and is created
 with its folders if it doesn't exist. Items are appended at the end, each
 gets a new ID, and the IDs are printed. Every line is checked first: one
 bad line and nothing is added.

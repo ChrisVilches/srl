@@ -41,9 +41,10 @@ and the message says which folder it looked at.
 
 ## Which files are notes
 
-Every `.md` file in the store, in any folder, except files in folders whose
-name starts with `.` (`.srl/`, `.git/`, `.obsidian/`) and files matched by
-`exclude` in the configuration. Files must be UTF-8.
+Every file in the store matched by `include` in the configuration (by
+default, every `.md` file), except files in folders whose name starts with
+`.` (`.srl/`, `.git/`, `.obsidian/`) and files matched by `exclude`, which
+always wins. Files must be UTF-8.
 
 ## Configuration
 
@@ -51,6 +52,7 @@ name starts with `.` (`.srl/`, `.git/`, `.obsidian/`) and files matched by
 
 ```toml
 [notes]
+include = ["**/*.md"]        # globs of notes, e.g. ["**/*.md", "**/*.txt"]; replaces the default
 exclude = []                 # globs of notes to ignore, e.g. ["templates/**", "inbox.md"]
 
 [schedule]

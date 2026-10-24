@@ -1,5 +1,7 @@
 //! The selector language (see `docs/selectors.md`).
 
+use std::path::Path;
+
 use globset::GlobSet;
 
 use crate::config::globs;
@@ -141,10 +143,18 @@ impl Selector {
 }
 
 /// The names `in:` matches for a note path: each folder, and the file name
-/// without `.md`, in NFC and lowercased.
+/// without its extension, in NFC and lowercased.
 fn names(path: &str) -> impl Iterator<Item = String> + '_ {
-    path.split('/')
-        .map(|part| nfc(part.strip_suffix(".md").unwrap_or(part)).to_lowercase())
+    let (folders, file) = path.rsplit_once('/').unwrap_or(("", path));
+    let stem = Path::new(file)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or(file);
+    folders
+        .split('/')
+        .filter(|folder| !folder.is_empty())
+        .chain([stem])
+        .map(|name| nfc(name).to_lowercase())
 }
 
 impl Filter {
@@ -390,6 +400,15 @@ mod tests {
         assert_eq!(pick("in:food"), ["aaa3"]);
         assert_eq!(pick("in:foo"), Vec::<String>::new());
         assert_eq!(pick("in:wo.md"), Vec::<String>::new());
+    }
+
+    #[test]
+    fn in_drops_only_the_file_names_extension() {
+        assert_eq!(
+            names("v1.2/Grammar.notes.TXT").collect::<Vec<_>>(),
+            ["v1.2", "grammar.notes"]
+        );
+        assert_eq!(names("wo").collect::<Vec<_>>(), ["wo"]);
     }
 
     #[test]

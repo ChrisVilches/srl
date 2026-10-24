@@ -67,7 +67,7 @@ pub struct Lint {
 /// they are never errors.
 pub fn lint(store: &Store, config: &Config) -> Result<Vec<Lint>> {
     let mut found = Vec::new();
-    for path in store.note_paths(&config.notes.exclude_set())? {
+    for path in store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())? {
         let text = read_note(store, &path)?;
         found.extend(lint_text(&text).into_iter().map(|(line, message)| Lint {
             path: path.clone(),

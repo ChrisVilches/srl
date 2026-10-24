@@ -82,7 +82,7 @@ agent, or any particular note-taking app.
 ```
  Your study folder (the store): the data layer
  ┌──────────────────────────────────────────────────────────────────────┐
- │   **/*.md            your notes; items inside them                   │
+ │   **/*.md            your notes (by default); items inside them      │
  │   .srl/config.toml   configuration                                   │
  │   .srl/log/*.jsonl   append-only review events                       │
  └──────────────────────────────────────────────────────────────────────┘
@@ -101,7 +101,7 @@ agent, or any particular note-taking app.
 | Term | Meaning |
 |---|---|
 | **Store** | A folder of Markdown notes with a `.srl/` folder in it, which holds the configuration, the log and caches. |
-| **Note** | Any Markdown file in the store. A note may hold items; the rest of it is ordinary Markdown. |
+| **Note** | A file in the store that `srl` reads for items: by default, any Markdown file. A note may hold items; the rest of it is yours. |
 | **Item** | A question written in a note: a header line `<!-- srl id:x7k2m9 -->` followed by fields such as `Q:` and `A:`. It has an ID, and gives one or more cards. |
 | **Kind** | How an item's fields become cards. There is one, `qa`: a question and an answer, with optional cloze deletions. |
 | **Card** | One question, ready to show: an ID, a prompt, the prompt as revealed with the answer, and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |

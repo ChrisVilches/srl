@@ -1,8 +1,8 @@
 # The store
 
-A **store** is a folder of Markdown notes that `srl` studies from: usually
-your study folder. What makes it a store is a `.srl/` folder in it, which
-holds everything that belongs to `srl`. Everything outside `.srl/` is yours.
+A **store** is a folder of notes, Markdown files by default, that `srl`
+studies from: usually your study folder. What makes it a store is a `.srl/`
+folder in it, which holds everything that belongs to `srl`. Everything outside `.srl/` is yours.
 
 You can have several stores, for example one per language or one for work.
 
@@ -23,7 +23,7 @@ study/
 
 | Path | Source of truth? | Written by |
 |---|---|---|
-| notes (`**/*.md`) | yes | you, any editor; `srl id`, `srl accept`, `srl add` and `srl edit ID --stdin` (see [notes.md](notes.md), "How srl writes to notes") |
+| notes (`**/*.md` by default) | yes | you, any editor; `srl id`, `srl accept`, `srl add` and `srl edit ID --stdin` (see [notes.md](notes.md), "How srl writes to notes") |
 | `.srl/config.toml` | yes | you |
 | `.srl/log/` | yes | `srl review`, `srl reset`, `srl move`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |
 | `.srl/cache/` | no | `srl`, automatically |
@@ -79,7 +79,8 @@ Every key is optional. These are the defaults:
 
 ```toml
 [notes]
-exclude = []                 # globs of notes to ignore, relative to the store's folder
+include = ["**/*.md"]        # globs of notes, relative to the store's folder
+exclude = []                 # globs of notes to ignore; they win over include
 
 [schedule]
 desired_retention = 0.9      # FSRS target probability of recall
@@ -96,9 +97,17 @@ wrong type or out of range: `desired_retention` must be between 0 and 1
 (exclusive), and `day_starts_at` an hour from 0 to 23. Commands that need the configuration fail with a message
 naming the problem.
 
-`exclude` globs match note paths: `*` matches within one folder, `**`
-across folders. `exclude = ["templates/**", "inbox.md"]` ignores every note
-under `templates/` and the note `inbox.md`.
+`include` and `exclude` globs match paths relative to the store's folder:
+`*` matches within one folder, `**` across folders. The notes are the files
+`include` matches, minus those `exclude` matches (see
+[notes.md](notes.md), "Which files are notes"):
+
+- `include` replaces the default rather than adding to it:
+  `include = ["**/*.md", "**/*.txt"]` reads Markdown and text files,
+  `include = ["notes/**/*.md"]` only the Markdown files under `notes/`.
+- `exclude` always wins: `exclude = ["templates/**", "inbox.md"]` ignores
+  every file under `templates/` and the file `inbox.md`, whatever
+  `include` says.
 
 ## The index cache
 
