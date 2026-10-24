@@ -43,8 +43,7 @@ pub struct StateCounts {
 pub fn stats(cards: &[(&Item, &CardId)], memories: &Memories, reviews: &[Reviewed]) -> Stats {
     let states = cards
         .iter()
-        .fold(StateCounts::default(), |counts, (_, card)| {
-            let id = card;
+        .fold(StateCounts::default(), |counts, (_, id)| {
             let counts = StateCounts {
                 leech: counts.leech + usize::from(memories.is_leech(id)),
                 ..counts

@@ -226,24 +226,16 @@ fn groups(item: &ItemId, output: &str) -> Result<Vec<Vec<CardId>>, String> {
     if suffixes.len() > 1 && suffixes.contains(&&None) {
         return Err("`null` is only for an item's single card, not one of several".to_owned());
     }
-    if let Some(bad) = suffixes
-        .iter()
-        .copied()
-        .flatten()
-        .find(|suffix| !is_id_text(suffix))
-    {
-        return Err(format!(
-            "`{bad}` is not a card suffix; a suffix is 1 to 32 characters a-z and 0-9"
-        ));
-    }
     let mut seen = HashSet::new();
-    if let Some(twice) = suffixes
-        .iter()
-        .copied()
-        .flatten()
-        .find(|suffix| !seen.insert(*suffix))
-    {
-        return Err(format!("the card suffix `{twice}` is given twice"));
+    for suffix in suffixes.into_iter().flatten() {
+        if !is_id_text(suffix) {
+            return Err(format!(
+                "`{suffix}` is not a card suffix; a suffix is 1 to 32 characters a-z and 0-9"
+            ));
+        }
+        if !seen.insert(suffix) {
+            return Err(format!("the card suffix `{suffix}` is given twice"));
+        }
     }
     Ok(output
         .groups
