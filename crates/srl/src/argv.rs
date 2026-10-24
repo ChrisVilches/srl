@@ -23,6 +23,8 @@ pub(crate) fn parse() -> Cli {
 enum Token {
     Option(Vec<OsString>),
     Other(OsString),
+    /// A `--` given on the command line.
+    Separator,
 }
 
 fn separate_selector(args: Vec<OsString>) -> Vec<OsString> {
@@ -53,6 +55,7 @@ fn separate_selector(args: Vec<OsString>) -> Vec<OsString> {
     let sub = tokens(subcommand, rest.iter().skip(1).flat_map(flatten));
     let (sub_options, terms): (Vec<_>, Vec<_>) = sub
         .into_iter()
+        .filter(|token| !matches!(token, Token::Separator))
         .partition(|token| matches!(token, Token::Option(_)));
     iter::once(program.clone())
         .chain(top_options.iter().flat_map(flatten))
@@ -70,12 +73,14 @@ fn takes_selector(command: &clap::Command) -> bool {
 }
 
 /// Splits arguments into tokens, as seen by `command`. Everything after a
-/// `--` is an `Other`.
+/// `--` is an `Other`; the `--` itself is kept, so that splitting the
+/// tokens again, for the subcommand, still sees it.
 fn tokens(command: &clap::Command, args: impl Iterator<Item = OsString>) -> Vec<Token> {
     let mut args = args;
     let mut tokens = Vec::new();
     while let Some(arg) = args.next() {
         if arg == "--" {
+            tokens.push(Token::Separator);
             tokens.extend(args.by_ref().map(Token::Other));
         } else if let Some(takes_value) = option_takes_value(command, &arg) {
             let value = if takes_value { args.next() } else { None };
@@ -116,6 +121,7 @@ fn flatten(token: &Token) -> Vec<OsString> {
     match token {
         Token::Option(args) => args.clone(),
         Token::Other(arg) => vec![arg.clone()],
+        Token::Separator => vec![OsString::from("--")],
     }
 }
 
@@ -169,6 +175,14 @@ mod tests {
         };
         assert_eq!(selector.terms, ["-state:new", "in:a"]);
         assert_eq!(cli.dir, Some(PathBuf::from("/store")));
+    }
+
+    #[test]
+    fn everything_after_a_separator_is_a_term() {
+        let (terms, json, dir) = find(&["find", "--json", "--", "-h", "--dir", "/s"]);
+        assert_eq!(terms, ["-h", "--dir", "/s"]);
+        assert!(json);
+        assert_eq!(dir, None);
     }
 
     #[test]

@@ -427,11 +427,11 @@ through one module, `write.rs`, with these rules:
   option. `argv.rs` applies one rule before clap parses: on a command that
   takes a selector, every argument that is not one of that command's options
   (or an option's value) is a selector term. It moves the options first and
-  the terms after `--`. The option list comes from the clap definition, so
-  nothing is duplicated.
+  the terms after `--`. Arguments after a `--` given on the command line
+  are terms. The option list comes from the clap definition, so nothing is
+  duplicated.
 - `commands.rs` matches on the command, gathers inputs from the environment,
-  calls `srl-core` and passes the result to `output.rs`. Commands that are
-  not implemented yet return an error that says so.
+  calls `srl-core` and passes the result to `output.rs`.
 - Unknown commands are usage errors, reported by clap.
 
 ## The index cache

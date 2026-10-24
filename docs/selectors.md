@@ -14,7 +14,10 @@ srl accept status:draft in:generated
 
 A selector is a list of **terms** separated by spaces. Command-line arguments
 are joined with spaces, so `srl find in:a in:b` and `srl find "in:a in:b"`
-mean the same.
+mean the same. Every argument that is not one of the command's options is a
+term, even when it starts with `-` (`-in:n5`), and every argument after a
+`--` is a term, even when it looks like an option. A program that passes a
+selector it didn't write puts it after `--`.
 
 | Term | Matches |
 |---|---|

@@ -9,7 +9,7 @@ where to find fuller ones to copy.
 ## A frontend in a few lines of shell
 
 ```sh
-while card=$(srl next "$1" --json --context prose); do
+while card=$(srl next --json --context prose -- "$1"); do
   jq -r .prompt <<<"$card"; read -r _
   jq -r '.answer, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
   jq -n --argjson card "$card" --argjson rating "$r" '{card: $card.id, rating: $rating}' | srl review --stdin
