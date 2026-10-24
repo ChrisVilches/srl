@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use crate::{Card, CardId, Config, Item, ItemId, Memories, Notes, Selector, State, Status};
 
 /// The next card among those that match `selector` (plus
-/// `status:active`), if there is one.
+/// `status:active`), with its item, if there is one.
 ///
 /// Due cards come first, by due day and then card ID; then new cards, in
 /// the order they are written, if fewer than `new_per_day` cards had their
@@ -17,7 +17,7 @@ pub fn next<'a>(
     memories: &Memories,
     selector: Selector,
     config: &Config,
-) -> Option<&'a Card> {
+) -> Option<(&'a Item, &'a Card)> {
     let selector = selector.and_status(Status::Active);
     let limit = usize::try_from(config.schedule.new_per_day).expect("a u32 should fit in a usize");
     let new_allowed = memories.new_today() < limit;
@@ -43,7 +43,7 @@ pub fn next<'a>(
     due.into_iter()
         .chain(new)
         .find(|(item, card)| is_pick(item.id(), card))
-        .map(|(_, card)| *card)
+        .copied()
 }
 
 /// The card each item offers today under the sibling rule: none if any of
@@ -127,7 +127,7 @@ mod tests {
         };
         let memories = Memories::replay(&log, config, DAY).unwrap();
         let selector = Selector::parse(selector).unwrap();
-        next(notes, &memories, selector, config).map(|card| card.id().to_string())
+        next(notes, &memories, selector, config).map(|(_, card)| card.id().to_string())
     }
 
     fn store() -> (TempDir, Notes) {

@@ -574,18 +574,6 @@ fn editing_in_the_editor_refuses_without_a_terminal() {
 }
 
 #[test]
-fn removed_study_is_an_unknown_command() {
-    let tmp = japanese();
-    let output = srl(&["study", "--dir", dir(&tmp)]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(
-        stderr(&output).contains("unrecognized subcommand 'study'"),
-        "{}",
-        stderr(&output)
-    );
-}
-
-#[test]
 fn orphans_are_reported_and_their_history_moves() {
     let tmp = japanese();
     let d = dir(&tmp);

@@ -361,7 +361,7 @@ fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
 }
 
 /// `srl edit ID`: opens the item's note in the editor. Refuses without a
-/// terminal, like every interactive command.
+/// terminal, as the one interactive command.
 fn edit_in_editor(store: &Store, id: &str) -> anyhow::Result<Outcome> {
     if !io::stdin().is_terminal() {
         bail!("`srl edit ID` needs a terminal; in scripts and pipes, use `srl edit ID --stdin`");
@@ -446,15 +446,12 @@ fn next(
     json: bool,
 ) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
-    let Some(card) = srl_core::next(&loaded.notes, &loaded.memories, selector, &loaded.config)
+    let Some((item, card)) =
+        srl_core::next(&loaded.notes, &loaded.memories, selector, &loaded.config)
     else {
         return Ok(Outcome::Nothing);
     };
     if json {
-        let item = loaded
-            .notes
-            .item(card.id().item())
-            .context("a card's item should be in the notes")?;
         let context = srl_core::context(store, item, mode)?;
         output::json_lines(&[serde_json::json!({
             "id": card.id(),
