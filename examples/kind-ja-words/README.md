@@ -111,5 +111,5 @@ They are in `test_ja_words.py`, in three classes:
   PATH.
 
 To try a change by hand, run the calls of "Running it" above with your own
-sentence. Running the tests leaves a `__pycache__` folder here, which can
-be deleted.
+sentence. Running the tests leaves a `__pycache__` folder here, which git
+ignores and which can be deleted.
