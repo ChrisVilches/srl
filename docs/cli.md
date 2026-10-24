@@ -261,6 +261,11 @@ from. A `move` event belongs to the card it moved history to.
 Each problem is reported on standard error, one per line. Orphans are
 notices: the exit code is 2 if there is any other problem, and 0 otherwise.
 
+The configuration is read first, because the notes and the log can't be
+read without it (it says which notes to exclude, and the study day). So an
+invalid configuration is reported alone, and `srl check` stops there; run
+it again once the configuration is fixed to see the other problems.
+
 `srl check` checks only what `srl` needs. Whether other programs can open
 the notes, for example paths too long for some programs on Windows, is not
 its concern.
