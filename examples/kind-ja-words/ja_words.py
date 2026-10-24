@@ -95,6 +95,19 @@ def card(item, analyze=None):
     chosen = next((word for word in words if suffix(word) == item["suffix"]), None)
     if chosen is None:
         raise KindError(f"no `{{word}}` in {FIELD} has the suffix {item['suffix']}")
+    # NOTE: the same word twice in a row, `{都}{都}`, gives `==都====都==`,
+    # which most Markdown renderers don't show as two highlights. Left as is
+    # for this proof of concept. Ways to fix it:
+    # - Separate the marks while building the string: when a highlight ends
+    #   right where the next begins, put a space between them, giving
+    #   `==都== ==都==`. Hacky, and it adds a space that isn't in the
+    #   sentence, but it works.
+    # - Always wrap the word in a marker that isolates it, such as
+    #   `==[都]==`. A hardcoded decoration on every card, not only on the
+    #   ones that need it; and `==[…]==` is also how a qa cloze shows its
+    #   blank, so it could read as a hidden word.
+    # - Merge highlights in a row into one, `==都都==`: adds nothing to the
+    #   sentence, but no longer shows where one word ends.
     prompt = "".join(
         piece if not isinstance(piece, tuple)
         else f"=={piece[1]}==" if piece[1] == chosen

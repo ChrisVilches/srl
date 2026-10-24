@@ -76,9 +76,30 @@ An error exits with status 1 and its reason on standard error.
 
 ## Tests
 
+The tests use Python's own `unittest`, so there is nothing to install.
+Run them from this folder, because they import `ja_words.py` from it:
+
 ```sh
-python3 -m unittest
+cd examples/kind-ja-words
+python3 -m unittest            # all tests, a dot per test
+python3 -m unittest -v         # each test by name
+python3 -m unittest test_ja_words.Ids                                  # one class
+python3 -m unittest test_ja_words.Ids.test_a_repeated_word_gives_one_card  # one test
 ```
 
-in this folder. The tests of cards and errors don't need MeCab; the ones
-that run it are skipped when it isn't installed.
+They are in `test_ja_words.py`, in three classes:
+
+- `Ids`: one card per distinct word, a repeated word giving one card,
+  every card in a group of its own, the hex suffix and that it doesn't
+  depend on where the word is, and every invalid `TEXT` or field.
+- `Card`: which occurrences are highlighted, the answer being the analysis
+  of the whole sentence, and how each token becomes a line. They give the
+  program a made-up MeCab output, so they don't need MeCab.
+- `WithMecab`: runs `ja_words.py` as `srl` would, with JSON on standard
+  input, and checks its output, its exit status and the real analysis of
+  a sentence. Skipped, and reported as skipped, when `mecab` isn't on
+  PATH.
+
+To try a change by hand, run the calls of "Running it" above with your own
+sentence. Running the tests leaves a `__pycache__` folder here, which can
+be deleted.
