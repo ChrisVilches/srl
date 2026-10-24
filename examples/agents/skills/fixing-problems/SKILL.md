@@ -86,6 +86,12 @@ schedule.
   yourself.
 - **Index cache messages**: `.srl/cache/` is only a cache. `srl reindex`
   rebuilds it, and deleting it loses nothing.
-- **unknown command `study`**: `srl study` was removed; `srl` has no
-  built-in frontend. Study with a frontend such as `srl-web` or `srl-tui`
-  (see the `studying` skill); scripts use `srl next` and `srl review`.
+- **unrecognized subcommand `study`, `web` or `tui`**: `srl` has no
+  built-in frontend, and doesn't run other programs. Study with a frontend
+  run by its own name, such as `srl-web` or `srl-tui` (see the `studying`
+  skill); scripts use `srl next` and `srl review`.
+- **An invalid configuration naming `study`**: `.srl/config.toml` has a
+  `[study]` section, which stores made by older versions have. It is no
+  longer a setting: each frontend chooses the context with `--context`.
+  Delete the `[study]` line and the `context` line under it, telling the
+  person why.
