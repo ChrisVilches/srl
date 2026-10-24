@@ -99,7 +99,7 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Print the cards of items or cards.
+    /// Print cards by ID: a card ID gives that card, an item ID all of its cards.
     Cards {
         /// Card or item IDs.
         #[arg(required = true)]
