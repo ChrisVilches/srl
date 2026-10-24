@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use anyhow::{Context, bail};
 use jiff::Zoned;
 use jiff::civil::Date;
+use serde::Serialize;
 use srl_core::{
     Card, CardId, Config, ContextMode, Error, Index, Item, Log, Lookup, Memories, Notes,
     ReviewRequest, Selector, State, Status, Store,
@@ -452,17 +453,23 @@ fn next(
         return Ok(Outcome::Nothing);
     };
     if json {
-        let context = srl_core::context(store, item, mode)?;
-        output::json_lines(&[serde_json::json!({
-            "id": card.id(),
-            "prompt": card.prompt(),
-            "prompt_revealed": card.prompt_revealed(),
-            "answer": card.answer(),
-            "state": state_name(loaded.memories.state(card.id())),
-            "path": item.path(),
-            "see": item.see(),
-            "context": context,
-        })])?;
+        /// The card's own fields, then what is shown around it.
+        #[derive(Serialize)]
+        struct Next<'a> {
+            #[serde(flatten)]
+            card: &'a Card,
+            state: &'static str,
+            path: &'a str,
+            see: Option<&'a str>,
+            context: Option<String>,
+        }
+        output::json_lines(&[Next {
+            card,
+            state: state_name(loaded.memories.state(card.id())),
+            path: item.path(),
+            see: item.see(),
+            context: srl_core::context(store, item, mode)?,
+        }])?;
     } else {
         output::cards(&[card]);
     }

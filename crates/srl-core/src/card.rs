@@ -97,27 +97,13 @@ impl fmt::Display for CardId {
 /// One question, ready to show (see `docs/cards.md`, "Format").
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Card {
-    id: CardId,
-    prompt: String,
-    prompt_revealed: String,
-    answer: Option<String>,
+    pub(crate) id: CardId,
+    pub(crate) prompt: String,
+    pub(crate) prompt_revealed: String,
+    pub(crate) answer: Option<String>,
 }
 
 impl Card {
-    pub(crate) fn new(
-        id: CardId,
-        prompt: String,
-        prompt_revealed: String,
-        answer: Option<String>,
-    ) -> Self {
-        Self {
-            id,
-            prompt,
-            prompt_revealed,
-            answer,
-        }
-    }
-
     pub fn id(&self) -> &CardId {
         &self.id
     }

@@ -83,29 +83,25 @@ fn qa(id: &ItemId, fields: &[Field]) -> Result<Vec<Card>, String> {
         let answer = answer.ok_or_else(|| {
             "a qa item needs an answer in `A:`, unless Q has cloze deletions".to_owned()
         })?;
-        return Ok(vec![Card::new(
-            CardId::new(id.clone(), None),
-            question.to_owned(),
-            question.to_owned(),
-            Some(answer.to_owned()),
-        )]);
+        return Ok(vec![Card {
+            id: CardId::new(id.clone(), None),
+            prompt: question.to_owned(),
+            prompt_revealed: question.to_owned(),
+            answer: Some(answer.to_owned()),
+        }]);
     }
     Ok(numbers
         .into_iter()
-        .map(|number| {
-            let prompt = render(&pieces, |deletion| {
+        .map(|number| Card {
+            id: CardId::new(id.clone(), Some(number.to_string())),
+            prompt: render(&pieces, |deletion| {
                 (deletion.number == number)
                     .then(|| format!("==[{}]==", deletion.hint.unwrap_or("...")))
-            });
-            let prompt_revealed = render(&pieces, |deletion| {
+            }),
+            prompt_revealed: render(&pieces, |deletion| {
                 (deletion.number == number).then(|| format!("=={}==", deletion.text))
-            });
-            Card::new(
-                CardId::new(id.clone(), Some(number.to_string())),
-                prompt,
-                prompt_revealed,
-                answer.map(str::to_owned),
-            )
+            }),
+            answer: answer.map(str::to_owned),
         })
         .collect())
 }
@@ -138,22 +134,14 @@ mod tests {
             .collect()
     }
 
-    /// A card's ID, prompt, revealed prompt and answer.
-    type Made = (String, String, String, Option<String>);
-
-    fn cards(pairs: &[(&str, &str)]) -> Result<Vec<Made>, String> {
+    /// The cards of item `k3m9q1` with these fields, as JSON (see
+    /// `docs/cards.md`, "Format").
+    fn cards(pairs: &[(&str, &str)]) -> Result<Vec<serde_json::Value>, String> {
         let id = ItemId::parse("k3m9q1").unwrap();
         Ok(Kind::Qa
             .cards(&id, &fields(pairs))?
-            .into_iter()
-            .map(|card| {
-                (
-                    card.id().to_string(),
-                    card.prompt().to_owned(),
-                    card.prompt_revealed().to_owned(),
-                    card.answer().map(str::to_owned),
-                )
-            })
+            .iter()
+            .map(|card| serde_json::to_value(card).unwrap())
             .collect())
     }
 
@@ -161,12 +149,9 @@ mod tests {
     fn a_question_and_an_answer_give_one_card_with_the_item_id() {
         assert_eq!(
             cards(&[("Q", "What?"), ("A", "That.")]).unwrap(),
-            [(
-                "k3m9q1".into(),
-                "What?".into(),
-                "What?".into(),
-                Some("That.".into())
-            )]
+            [serde_json::json!({
+                "id": "k3m9q1", "prompt": "What?", "prompt_revealed": "What?", "answer": "That.",
+            })]
         );
     }
 
@@ -183,18 +168,18 @@ mod tests {
         assert_eq!(
             made,
             [
-                (
-                    "k3m9q1-1".into(),
-                    "==[...]==を==[...]==、彼女は起業した。".into(),
-                    "==周囲の反対==を==ものともせず==、彼女は起業した。".into(),
-                    Some("Despite everyone's opposition, she started a company.".into())
-                ),
-                (
-                    "k3m9q1-2".into(),
-                    "周囲の反対をものともせず、==[who]==は起業した。".into(),
-                    "周囲の反対をものともせず、==彼女==は起業した。".into(),
-                    Some("Despite everyone's opposition, she started a company.".into())
-                ),
+                serde_json::json!({
+                    "id": "k3m9q1-1",
+                    "prompt": "==[...]==を==[...]==、彼女は起業した。",
+                    "prompt_revealed": "==周囲の反対==を==ものともせず==、彼女は起業した。",
+                    "answer": "Despite everyone's opposition, she started a company.",
+                }),
+                serde_json::json!({
+                    "id": "k3m9q1-2",
+                    "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
+                    "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
+                    "answer": "Despite everyone's opposition, she started a company.",
+                }),
             ]
         );
     }
@@ -202,10 +187,17 @@ mod tests {
     #[test]
     fn a_cloze_item_needs_no_answer_and_numbers_are_in_order() {
         let made = cards(&[("Q", "{{c10::a}} {{c2::b}}")]).unwrap();
-        let ids = made.iter().map(|card| card.0.as_str()).collect::<Vec<_>>();
+        let ids = made
+            .iter()
+            .map(|card| card["id"].clone())
+            .collect::<Vec<_>>();
         assert_eq!(ids, ["k3m9q1-2", "k3m9q1-10"]);
-        assert_eq!(made[0].2, "a ==b==");
-        assert_eq!(made[0].3, None);
+        assert_eq!(
+            made[0],
+            serde_json::json!({
+                "id": "k3m9q1-2", "prompt": "a ==[...]==", "prompt_revealed": "a ==b==", "answer": null,
+            })
+        );
     }
 
     #[test]
