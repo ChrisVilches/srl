@@ -169,6 +169,14 @@ do exactly that. But a card is produced by code, so repeating the answer in
 it costs nothing, and keeping it out of the prompt means any frontend, log
 viewer or `jq` can show a card without giving the answer away.
 
+The revealed prompt does contain the answer, on purpose: a card also
+carries the question as it reads once the answer is shown, so a cloze's
+blanks can be filled in where they are, and the answer holds only what you
+wrote in `A`, not the question again.
+
+Trade-off: a frontend has a third field to show, and one that shows only
+`answer` shows nothing for a cloze card without `A`.
+
 ## Why no built-in frontend
 
 The study loop is `srl next --json`, showing what it prints, and

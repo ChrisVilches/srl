@@ -85,15 +85,17 @@ without it.
 
 `srl cards` prints cards in the format of [cards.md](cards.md) with
 `--json`, one per line. Without it, each card is printed for people: a line
-with its ID, the prompt, a line `---`, and the answer. Cards are separated
-by blank lines:
+with its ID, the prompt, a line `---`, the revealed prompt, and, if the
+answer is not `null`, a line `---` and the answer. Every field is printed
+even when two are the same, as the prompt and the revealed prompt of a card
+without cloze deletions are. Cards are separated by blank lines:
 
 ```
 k3m9q1-1
 ==[...]==を==[...]==、彼女は起業した。
 ---
 ==周囲の反対==を==ものともせず==、彼女は起業した。
-
+---
 Despite everyone's opposition, she started a company.
 ```
 

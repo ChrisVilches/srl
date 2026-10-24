@@ -82,15 +82,19 @@ A session in the chat records the same reviews as a frontend, marked as
 yours. Only run one when the person asks for it. Each round:
 
 1. `srl next [SELECTOR] --json` prints the card, with its state and
-   context: `{"id": "k3m9q1-2", "prompt": "...", "answer": "...",
-   "state": "due", "path": "...", "see": null, "context": "..."}`. Exit
+   context: `{"id": "k3m9q1-2", "prompt": "...", "prompt_revealed": "...",
+   "answer": "...", "state": "due", "path": "...", "see": null,
+   "context": "..."}`. Exit
    code 1 means nothing is left: say so and stop. `--context MODE` chooses
    how much of the note comes along: `prose` (the default) without its
    items, `full` with them, `none` nothing.
 2. Show the prompt, and wait for the person's answer or for them to ask for
    the answer.
-3. Show the answer, then the context (`null` when there is none). Say
-   which note it comes from: `see`, or `path` when `see` is `null`.
+3. Show the answer: `prompt_revealed` (the prompt with a cloze's blanks
+   filled in), then `answer` (`null` when there is none: the revealed
+   prompt is the whole answer), then the context (`null` when there is
+   none). Say which note it comes from: `see`, or `path` when `see` is
+   `null`.
 4. Get the rating. Either the person gives it, or, if they asked you to
    judge, you compare their answer with the card's and decide, telling them
    the rating and why.
@@ -137,7 +141,7 @@ wants their own frontend (bash with `jq`):
 ```sh
 while card=$(srl next in:grammar --json); do
   jq -r .prompt <<<"$card"; read -r _
-  jq -r '.answer, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
+  jq -r '.prompt_revealed, .answer // empty, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
   srl review "$(jq -r .id <<<"$card")" --rating "$r"
 done
 ```

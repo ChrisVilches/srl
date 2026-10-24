@@ -204,8 +204,8 @@ class Session:
     def show(self, card, answered, scroll):
         """Draws the screen for the card, and returns the scroll of its context
         and how many lines of it are shown."""
-        body = [CardMarkdown(card["prompt"])]
-        if answered:
+        body = [CardMarkdown(card["prompt_revealed"] if answered else card["prompt"])]
+        if answered and card["answer"] is not None:
             body += [Padding(Rule(style="dim"), (1, 0)), CardMarkdown(card["answer"])]
         panel = Panel(Group(*body), border_style="green" if answered else "cyan", padding=(1, 2))
         screen = [self.header(card), panel]

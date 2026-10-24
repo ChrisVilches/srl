@@ -86,7 +86,8 @@ fn qa(id: &ItemId, fields: &[Field]) -> Result<Vec<Card>, String> {
         return Ok(vec![Card::new(
             CardId::new(id.clone(), None),
             question.to_owned(),
-            answer.to_owned(),
+            question.to_owned(),
+            Some(answer.to_owned()),
         )]);
     }
     Ok(numbers
@@ -96,17 +97,14 @@ fn qa(id: &ItemId, fields: &[Field]) -> Result<Vec<Card>, String> {
                 (deletion.number == number)
                     .then(|| format!("==[{}]==", deletion.hint.unwrap_or("...")))
             });
-            let revealed = render(&pieces, |deletion| {
+            let prompt_revealed = render(&pieces, |deletion| {
                 (deletion.number == number).then(|| format!("=={}==", deletion.text))
             });
-            let answer = match answer {
-                Some(answer) => format!("{revealed}\n\n{answer}"),
-                None => revealed,
-            };
             Card::new(
                 CardId::new(id.clone(), Some(number.to_string())),
                 prompt,
-                answer,
+                prompt_revealed,
+                answer.map(str::to_owned),
             )
         })
         .collect())
@@ -140,7 +138,10 @@ mod tests {
             .collect()
     }
 
-    fn cards(pairs: &[(&str, &str)]) -> Result<Vec<(String, String, String)>, String> {
+    /// A card's ID, prompt, revealed prompt and answer.
+    type Made = (String, String, String, Option<String>);
+
+    fn cards(pairs: &[(&str, &str)]) -> Result<Vec<Made>, String> {
         let id = ItemId::parse("k3m9q1").unwrap();
         Ok(Kind::Qa
             .cards(&id, &fields(pairs))?
@@ -149,7 +150,8 @@ mod tests {
                 (
                     card.id().to_string(),
                     card.prompt().to_owned(),
-                    card.answer().to_owned(),
+                    card.prompt_revealed().to_owned(),
+                    card.answer().map(str::to_owned),
                 )
             })
             .collect())
@@ -159,7 +161,12 @@ mod tests {
     fn a_question_and_an_answer_give_one_card_with_the_item_id() {
         assert_eq!(
             cards(&[("Q", "What?"), ("A", "That.")]).unwrap(),
-            [("k3m9q1".into(), "What?".into(), "That.".into())]
+            [(
+                "k3m9q1".into(),
+                "What?".into(),
+                "What?".into(),
+                Some("That.".into())
+            )]
         );
     }
 
@@ -179,12 +186,14 @@ mod tests {
                 (
                     "k3m9q1-1".into(),
                     "==[...]==を==[...]==、彼女は起業した。".into(),
-                    "==周囲の反対==を==ものともせず==、彼女は起業した。\n\nDespite everyone's opposition, she started a company.".into()
+                    "==周囲の反対==を==ものともせず==、彼女は起業した。".into(),
+                    Some("Despite everyone's opposition, she started a company.".into())
                 ),
                 (
                     "k3m9q1-2".into(),
                     "周囲の反対をものともせず、==[who]==は起業した。".into(),
-                    "周囲の反対をものともせず、==彼女==は起業した。\n\nDespite everyone's opposition, she started a company.".into()
+                    "周囲の反対をものともせず、==彼女==は起業した。".into(),
+                    Some("Despite everyone's opposition, she started a company.".into())
                 ),
             ]
         );
@@ -196,6 +205,7 @@ mod tests {
         let ids = made.iter().map(|card| card.0.as_str()).collect::<Vec<_>>();
         assert_eq!(ids, ["k3m9q1-2", "k3m9q1-10"]);
         assert_eq!(made[0].2, "a ==b==");
+        assert_eq!(made[0].3, None);
     }
 
     #[test]

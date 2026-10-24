@@ -22,7 +22,8 @@ Every frontend runs the same loop:
 1. **Get a card:** `srl next SELECTOR --json --context MODE`. It prints the
    card (see "What a frontend gets" below); exit 1 means nothing is left.
 2. **Show the prompt**, and wait until the person wants to see the answer.
-3. **Show the answer**, then the context, if it is not `null`. The note it
+3. **Show the answer:** `prompt_revealed` in place of `prompt`, then
+   `answer` and the context, each if it is not `null`. The note the context
    comes from is `see`, or `path` when `see` is `null`; a frontend may name
    it.
 4. **Get a rating** from 1 to 4.
@@ -50,14 +51,15 @@ context:
 
 ```json
 {"id": "k3m9q1-2", "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
- "answer": "周囲の反対をものともせず、==彼女==は起業した。\n\nDespite everyone's opposition, she started a company.",
+ "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
+ "answer": "Despite everyone's opposition, she started a company.",
  "state": "due", "path": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
 ```
 
 | Field | Meaning |
 |---|---|
-| `id`, `prompt`, `answer` | The card (see [cards.md](cards.md)). |
+| `id`, `prompt`, `prompt_revealed`, `answer` | The card (see [cards.md](cards.md)). |
 | `state` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Choosing the next card"). |
 | `path` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "Items as JSON"). |
 | `see` | The note its `see:` names, or `null`. |

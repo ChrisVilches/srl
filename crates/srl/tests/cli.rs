@@ -305,12 +305,20 @@ fn cards_prints_the_cards_of_items_and_cards() {
     let output = srl(&["cards", "k3m9q1", "--dir", dir(&tmp)]);
     assert_eq!(
         stdout(&output),
-        "k3m9q1-1\n==[...]==を==[...]==、彼女は起業した。\n---\n==周囲の反対==を==ものともせず==、彼女は起業した。\n\nDespite everyone's opposition, she started a company.\n\nk3m9q1-2\n周囲の反対をものともせず、==[who]==は起業した。\n---\n周囲の反対をものともせず、==彼女==は起業した。\n\nDespite everyone's opposition, she started a company.\n"
+        "k3m9q1-1\n==[...]==を==[...]==、彼女は起業した。\n---\n==周囲の反対==を==ものともせず==、彼女は起業した。\n---\nDespite everyone's opposition, she started a company.\n\nk3m9q1-2\n周囲の反対をものともせず、==[who]==は起業した。\n---\n周囲の反対をものともせず、==彼女==は起業した。\n---\nDespite everyone's opposition, she started a company.\n"
     );
     let one = srl(&["cards", "k3m9q1-2", "--json", "--dir", dir(&tmp)]);
     let cards = json_lines(&one);
     assert_eq!(cards.len(), 1);
-    assert_eq!(cards[0]["id"], "k3m9q1-2");
+    assert_eq!(
+        cards[0],
+        serde_json::json!({
+            "id": "k3m9q1-2",
+            "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
+            "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
+            "answer": "Despite everyone's opposition, she started a company.",
+        })
+    );
 }
 
 #[test]
@@ -447,6 +455,7 @@ fn next_json_gives_the_card_with_its_state_note_and_context() {
         serde_json::json!({
             "id": "x7k2m9",
             "prompt": "What does 〜をものともせず mean?",
+            "prompt_revealed": "What does 〜をものともせず mean?",
             "answer": "Undeterred by (adversity), braving.",
             "state": "new",
             "path": "japanese/grammar/wo.md",

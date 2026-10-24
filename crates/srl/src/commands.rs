@@ -456,6 +456,7 @@ fn next(
         output::json_lines(&[serde_json::json!({
             "id": card.id(),
             "prompt": card.prompt(),
+            "prompt_revealed": card.prompt_revealed(),
             "answer": card.answer(),
             "state": state_name(loaded.memories.state(card.id())),
             "path": item.path(),

@@ -11,13 +11,15 @@ where to find fuller ones to copy.
 ```sh
 while card=$(srl next --json --context prose -- "$1"); do
   jq -r .prompt <<<"$card"; read -r _
-  jq -r '.answer, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
+  jq -r '.prompt_revealed, .answer // empty, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
   jq -n --argjson card "$card" --argjson rating "$r" '{card: $card.id, rating: $rating}' | srl review --stdin
 done
 ```
 
-It runs the whole contract: get a card, show the prompt, show the answer
-and the context, get a rating, record it. The loop ends when `srl next`
+It runs the whole contract: get a card, show the prompt, show the revealed
+prompt, the answer and the context, get a rating, record it. A terminal
+can't replace the prompt it printed, so it prints the revealed prompt below
+it. The loop ends when `srl next`
 exits with 1, because nothing is left. `--context` is this frontend's
 choice; `full` would show the items of the note too, and `none` nothing.
 

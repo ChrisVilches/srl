@@ -24,7 +24,7 @@ two questions:
 | Call | Input | Output | Rule |
 |---|---|---|---|
 | `srl-kind-NAME ids` | the item's fields, as JSON | the card suffixes, one per line, or one empty line for a single card with the item's ID | **Deterministic and fast**: the same fields always give the same IDs. Called for every item of the kind, on every command that reads items, so its result would need a cache: notes themselves are not cached (see [store.md](store.md), "The index cache"). |
-| `srl-kind-NAME card` | the item's fields, the card's suffix, its context and the study day, as JSON | one card's `prompt` and `answer`, as JSON | **May differ every time.** Called only when a card is about to be shown. |
+| `srl-kind-NAME card` | the item's fields, the card's suffix, its context and the study day, as JSON | one card's `prompt`, `prompt_revealed` and `answer`, as JSON | **May differ every time.** Called only when a card is about to be shown. |
 
 Example: a conjugation kind.
 
@@ -74,7 +74,8 @@ PROMPT: Ask me to use 〜をものともせず in a new sentence about everyday
   `q8w2e5`. No call to the LLM.
 - `srl-kind-llm-generated card` sends `PROMPT`, and the item's context
   (the note about 〜をものともせず), to an LLM API, and prints the question
-  and the answer it wrote. A new card each time, under the same ID.
+  it wrote as both `prompt` and `prompt_revealed`, and the answer it wrote.
+  A new card each time, under the same ID.
 
 Each part of the design already allows this:
 

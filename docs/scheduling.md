@@ -96,7 +96,7 @@ If no card qualifies, `srl next` prints nothing and exits with status 1.
 ### Siblings
 
 The cards of one item are **siblings**. Seeing one would often give away
-another (the answer of a cloze card is in the prompt of its sibling), so:
+another (what a cloze card hides is in the prompt of its sibling), so:
 
 > **Each study day, an item offers at most one card. If none of its cards
 > was reviewed today, it offers the eligible card reviewed longest ago,

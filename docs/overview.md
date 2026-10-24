@@ -104,7 +104,7 @@ agent, or any particular note-taking app.
 | **Note** | Any Markdown file in the store. A note may hold items; the rest of it is ordinary Markdown. |
 | **Item** | A question written in a note: a header line `<!-- srl id:x7k2m9 -->` followed by fields such as `Q:` and `A:`. It has an ID, and gives one or more cards. |
 | **Kind** | How an item's fields become cards. There is one, `qa`: a question and an answer, with optional cloze deletions. |
-| **Card** | One question, ready to show: an ID, a prompt and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
+| **Card** | One question, ready to show: an ID, a prompt, the prompt as revealed with the answer, and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
 | **Context** | The note an item belongs to, or the note its `see:` names, which frontends show after the answer of its cards. |
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
 | **Frontend** | A program outside `srl` that shows cards to a person and records the ratings, through the frontend contract. `srl` has none built in. |
@@ -119,8 +119,9 @@ agent, or any particular note-taking app.
 2. A frontend runs `srl next in:grammar --json`, which replays the log
    through FSRS, finds the most overdue card matching the selector, and
    prints it with its context.
-3. The frontend shows the card's prompt. When you're ready, it shows the
-   answer and the context: the note the item is in.
+3. The frontend shows the card's prompt. When you're ready, it reveals the
+   prompt (the blanks of a cloze filled in) and shows the answer and the
+   context: the note the item is in.
 4. You rate yourself from 1 (Again) to 4 (Easy).
 5. The frontend runs `srl review`, which appends a review event to the
    log. The card's next due date follows from replaying the log again.

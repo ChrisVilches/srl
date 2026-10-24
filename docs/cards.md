@@ -15,23 +15,27 @@ memory state (see [scheduling.md](scheduling.md)).
 ```json
 {"id": "k3m9q1-2",
  "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
- "answer": "周囲の反対をものともせず、==彼女==は起業した。\n\nDespite everyone's opposition, she started a company."}
+ "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
+ "answer": "Despite everyone's opposition, she started a company."}
 ```
 
 | Field | Meaning |
 |---|---|
 | `id` | The card ID (see "Card IDs"). |
-| `prompt` | The question. |
-| `answer` | The answer. |
+| `prompt` | The question, as shown before the answer. |
+| `prompt_revealed` | The question as shown with the answer, in place of `prompt`. It is the same as `prompt` unless the question hides part of itself, as a cloze deletion does. |
+| `answer` | The answer, or `null` when there is nothing to show beyond `prompt_revealed`. |
 
-Every field is required. You always rate a card yourself (see
-[scheduling.md](scheduling.md), "Ratings"): a frontend shows the prompt, then
-the answer and the item's context, and records the rating you give.
+Every field is always present. You always rate a card yourself (see
+[scheduling.md](scheduling.md), "Ratings"): a frontend shows `prompt`, then
+`prompt_revealed` in its place, the answer and the item's context, and
+records the rating you give.
 
 ## Rules
 
-1. **The prompt never contains the answer.** A card must be safe to display
-   as-is, by the simplest frontend, in a log viewer or with `jq`.
+1. **The prompt never contains the answer.** `prompt` must be safe to
+   display as-is, by the simplest frontend, in a log viewer or with `jq`.
+   `prompt_revealed` and `answer` are both shown only with the answer.
 2. **Cards describe meaning, frontends decide appearance.** A card can say
    "this part is important"; it never says "this part is yellow".
 3. **The format is extended for everyone or not at all.** If a kind needs
@@ -83,7 +87,7 @@ Fields:
 Each field may appear once, and any other field is an error.
 
 **Without cloze deletions**, the item gives one card, with the item's ID:
-the prompt is `Q` and the answer is `A`.
+the prompt and the revealed prompt are `Q`, and the answer is `A`.
 
 ```markdown
 <!-- srl id:x7k2m9 -->
@@ -92,7 +96,9 @@ A: Undeterred by (adversity), braving.
 ```
 
 ```json
-{"id": "x7k2m9", "prompt": "What does 〜をものともせず mean?", "answer": "Undeterred by (adversity), braving."}
+{"id": "x7k2m9", "prompt": "What does 〜をものともせず mean?",
+ "prompt_revealed": "What does 〜をものともせず mean?",
+ "answer": "Undeterred by (adversity), braving."}
 ```
 
 **With cloze deletions**, the item gives one card per cloze number, as in
@@ -115,12 +121,12 @@ The rules:
 2. **The prompt** is `Q` with every deletion of the card's number replaced
    by `==[...]==`, or by `==[hint]==` if it has a hint, and every other
    deletion replaced by its text.
-3. **The answer** is `Q` with every deletion of the card's number replaced
-   by `==text==`, every other deletion by its text, and, if the item has an
-   `A`, a blank line and `A`.
-4. **Only `{{c` followed by a number and `::` starts a deletion.** Any other
+3. **The revealed prompt** is `Q` with every deletion of the card's number
+   replaced by `==text==`, and every other deletion by its text.
+4. **The answer** is `A`, or `null` if the item has no `A`.
+5. **Only `{{c` followed by a number and `::` starts a deletion.** Any other
    `{{`, such as in code (`format!("{{}}")`), is ordinary text.
-5. **These are errors:** a deletion without its closing `}}`, a deletion
+6. **These are errors:** a deletion without its closing `}}`, a deletion
    with empty text, a deletion inside another, a number with leading zeros
    or `c0`, and deletions in `A`.
 
@@ -135,11 +141,16 @@ gives two cards:
 ```json
 {"id": "k3m9q1-1",
  "prompt": "==[...]==を==[...]==、彼女は起業した。",
- "answer": "==周囲の反対==を==ものともせず==、彼女は起業した。\n\nDespite everyone's opposition, she started a company."}
+ "prompt_revealed": "==周囲の反対==を==ものともせず==、彼女は起業した。",
+ "answer": "Despite everyone's opposition, she started a company."}
 {"id": "k3m9q1-2",
  "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
- "answer": "周囲の反対をものともせず、==彼女==は起業した。\n\nDespite everyone's opposition, she started a company."}
+ "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
+ "answer": "Despite everyone's opposition, she started a company."}
 ```
+
+Without the `A:` line, both cards would have `"answer": null`: the
+revealed prompt is all there is to show.
 
 The cards of one item are **siblings**: each is scheduled on its own, and
 `srl next` shows at most one of them per day (see
@@ -147,11 +158,11 @@ The cards of one item are **siblings**: each is scheduled on its own, and
 
 ## Text formatting
 
-The text fields `prompt` and `answer` are **CommonMark Markdown plus one
-extension: `==highlight==`.**
+The text fields `prompt`, `prompt_revealed` and `answer` are **CommonMark
+Markdown plus one extension: `==highlight==`.**
 
 - `==…==` marks the important part: the blank in a cloze prompt, the
-  revealed text in its answer.
+  revealed text in its revealed prompt.
 - Each frontend decides how to render it: bold yellow in a terminal, `<mark>`
   with CSS in a browser, or the raw `==…==` in a plain frontend.
 - Printing the raw text must always be an acceptable rendering. A frontend may

@@ -22,7 +22,8 @@ would forget it.
 - A **note** is any `.md` file in the store.
 - An **item** is a question written in a note: a header line
   `<!-- srl -->` followed by fields `Q:` and `A:`. It has an ID.
-- A **card** is one question, ready to show: an ID, a prompt and an answer.
+- A **card** is one question, ready to show: an ID, a prompt, the prompt as
+  revealed with the answer (a cloze's blanks filled in), and an answer.
   An item gives one card, or one per cloze number if it has cloze deletions.
   Each card is scheduled on its own.
 - A **review** is one line in the log: this card was rated this way, at this
@@ -179,9 +180,9 @@ Things that surprise beginners:
 You can also run a session yourself, in the chat: `srl next --json` gives
 the next card with its context (field `context`; it comes from the note at
 `see`, or at `path` when `see` is `null`); show the prompt, wait for the
-answer, show the answer and the context, get a rating, and record it with
-`srl review ID --rating N --by agent`. The `studying` skill has the
-details.
+answer, show the revealed prompt, the answer and the context, get a rating,
+and record it with `srl review ID --rating N --by agent`. The `studying`
+skill has the details.
 
 ## Selectors
 

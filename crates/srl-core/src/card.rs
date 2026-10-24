@@ -99,12 +99,23 @@ impl fmt::Display for CardId {
 pub struct Card {
     id: CardId,
     prompt: String,
-    answer: String,
+    prompt_revealed: String,
+    answer: Option<String>,
 }
 
 impl Card {
-    pub(crate) fn new(id: CardId, prompt: String, answer: String) -> Self {
-        Self { id, prompt, answer }
+    pub(crate) fn new(
+        id: CardId,
+        prompt: String,
+        prompt_revealed: String,
+        answer: Option<String>,
+    ) -> Self {
+        Self {
+            id,
+            prompt,
+            prompt_revealed,
+            answer,
+        }
     }
 
     pub fn id(&self) -> &CardId {
@@ -115,8 +126,12 @@ impl Card {
         &self.prompt
     }
 
-    pub fn answer(&self) -> &str {
-        &self.answer
+    pub fn prompt_revealed(&self) -> &str {
+        &self.prompt_revealed
+    }
+
+    pub fn answer(&self) -> Option<&str> {
+        self.answer.as_deref()
     }
 }
 

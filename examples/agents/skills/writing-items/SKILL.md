@@ -93,7 +93,8 @@ Written in `Q`, as in Anki:
   `c1` and `c2` gives cards `k3m9q1-1` and `k3m9q1-2`.
 - Deletions with the same number are hidden together in one card.
 - The prompt shows the hidden parts as `==[...]==` (or `==[hint]==`), the
-  answer shows them as `==text==`, followed by `A` if there is one.
+  revealed prompt shows them as `==text==`, and the answer is `A`, or
+  `null` if there is none.
 - Errors: a deletion without `}}`, empty text, a deletion inside another,
   `c0` or leading zeros (`c01`), and deletions in `A`.
 - Any other `{{` (as in code) is ordinary text.

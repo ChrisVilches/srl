@@ -215,9 +215,12 @@ function CardView({
         </div>
         <section className="px-6 pt-2 pb-6">
           <Label>Question</Label>
-          <Markdown text={card.prompt} className="prose-lg" />
+          <Markdown
+            text={phase.kind === 'answer' ? card.prompt_revealed : card.prompt}
+            className="prose-lg"
+          />
         </section>
-        {phase.kind === 'answer' && (
+        {phase.kind === 'answer' && card.answer !== null && (
           <section className="border-t border-dashed border-stone-200 px-6 py-6 dark:border-stone-700">
             <Label>Answer</Label>
             <Markdown text={card.answer} className="prose-lg" />
