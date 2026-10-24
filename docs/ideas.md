@@ -47,6 +47,20 @@ FORMS: te past negative
 > implemented; until then, the two calls above are the design that is
 > known to work.
 
+> **TODO (design):** the wish is for `prompt_revealed` to be **optional
+> in a kind program's output**: when `card` leaves it out, `srl` would
+> fill it in from `prompt`, so that the many kinds whose question hides
+> nothing, such as the LLM kind below, needn't repeat it. Nothing is
+> decided. It makes writing a plugin easier, but it goes against the
+> wish for flat rules: a field that is sometimes written by the kind and
+> sometimes made up by `srl` is one more case to know about. As long as
+> it is required, a kind that forgets it is noticed at once, because the
+> question disappears when the answer is shown; once it is optional,
+> forgetting it is never an error, even for a kind that hides part of its
+> question and meant to reveal it. Frontends would be unaffected either
+> way, since `srl next --json` would always give the field. To be
+> weighed when plugin support is designed.
+
 Other rules a plugin design would need:
 
 - **Fields are checked by `ids`.** A program that exits with an error on
