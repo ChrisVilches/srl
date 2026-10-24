@@ -118,7 +118,19 @@ Other rules a plugin design would need:
   give, not the one `srl next` will show. A failing `card` call makes
   `srl cards` fail at once, with the program's reason and no output for
   the other IDs.
-- **A time limit** for both calls, set in `.srl/config.toml`.
+- **`card` has a time limit; `ids` has none.** `card` may wait on
+  something slow, such as an LLM API, so it gets a time limit, one for
+  every kind, in `.srl/config.toml`:
+
+  ```toml
+  [kind_programs]
+  card_timeout = 60            # seconds a card call may take
+  ```
+
+  A `card` call that takes longer is stopped and counts as a failing
+  call, as above. `ids` must be fast, and no kind is known that needs it
+  to be slow, so it runs as long as it takes: a program whose `ids`
+  hangs makes `srl` hang.
 - **`srl add` needs no change**: it takes field names from JSON, and
   `ids` checks them.
 - **Running a program is your choice.** `[kinds]` runs whatever command
