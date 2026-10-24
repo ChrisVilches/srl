@@ -10,7 +10,10 @@ description: Diagnose and fix srl problems - errors in notes that stop every com
 Any error in any note stops every command that reads items (`srl find`,
 `srl next`, ...). Each error is printed on standard error as
 `PATH:LINE: message`, and the exit code is 2. Fix them all, then run the
-command again. `srl check` lists every problem in the store at once.
+command again. `srl check` lists every problem in the store at once,
+except after an invalid configuration: it reports that alone and stops,
+since the notes and the log can't be read without it. Fix it and run
+`srl check` again.
 
 | Error | Usual cause | Fix |
 |---|---|---|

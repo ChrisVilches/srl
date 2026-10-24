@@ -24,8 +24,8 @@ document, listed at the end.
    frontend implements.
 
 Studying happens in a **frontend**: a separate program of your choice that
-runs the frontend contract, such as the web viewer in this repository's
-`examples/`. Frontends, scripts and LLM agents are all built on top of the
+runs the frontend contract, such as the web viewer or the terminal
+frontend in this repository's `examples/`. Frontends, scripts and LLM agents are all built on top of the
 CLI, outside `srl`. No part of `srl` depends on a frontend, an LLM, an
 agent, or any particular note-taking app.
 

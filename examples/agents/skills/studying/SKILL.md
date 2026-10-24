@@ -21,11 +21,11 @@ srl-web                     # every active card
 srl-web in:grammar          # only notes in a folder named grammar
 ```
 
-For each card, space shows the answer, then the context (the note around
-the item, or the one its `see:` names); `1`–`4` records the rating; `s`
-suspends the card without rating it. In `srl-tui`, `j`/`k` or the arrows
-scroll a context too long for the screen, `e` opens the note in the editor
-and `q` quits. Each keeps a count of the cards reviewed, the new ones and
+For each card, space or Enter shows the answer, then the context (the
+note around the item, or the one its `see:` names); `1`–`4` records the
+rating; `s` suspends the card without rating it. In `srl-tui`, `j`/`k` or
+the arrows scroll a context too long for the screen (Ctrl-D/Ctrl-U by half
+a screen), `e` opens the note in the editor and `q` quits. Each keeps a count of the cards reviewed, the new ones and
 the Again ratings. Nothing is lost by quitting: every rating is recorded
 as it is given.
 

@@ -161,7 +161,8 @@ terminal (it needs uv). Both are meant for Linux, macOS and Windows, but
 are tried on Linux only. Either takes a selector and shows due cards, then
 new ones, until none is left:
 
-- Space shows the answer, then the context: the note it comes from.
+- Space or Enter shows the answer, then the context: the note it comes
+  from.
 - Then rate: `1` Again (didn't know it), `2` Hard, `3` Good, `4` Easy.
   `s` suspends the card.
 

@@ -78,12 +78,13 @@ agi --sys base.md --sys tutor.md --sys me.md --resources srl-agent/tutor "…"
 
 The repository's `examples/agents/` (see [overview.md](../overview.md),
 "Specification, guides and examples") is a base prompt and a set of skills
-for one role: a guide that teaches `srl` to someone who has never used it. It answers questions, sets
-up a store, writes example items as drafts, gives the commands for a study
-session, or runs one in the chat. The system prompt covers the common uses;
-each skill's front-matter says when to load it for the details (the item
-syntax, studying, selectors, fixing problems, progress). Its
-`README.md` shows how to start it with agi and with other agents.
+for one role: a guide that teaches `srl` to someone who has never used it.
+It answers questions, sets up a store, writes example items as drafts,
+tells the person which frontend to run, or runs a study session in the
+chat. The system prompt covers the common uses; each skill's front-matter
+says when to load it for the details (the item syntax, studying,
+selectors, fixing problems, progress). Its `README.md` shows how to start
+it with agi and with other agents.
 
 It assumes an agent with a shell, which is the simplest way to start, and
 asks it in its instructions to follow the rules above. With a shell, those
@@ -120,7 +121,8 @@ ones worth keeping.
 ### Tutor: an interactive session
 
 With agi, each of your replies is one turn in a saved session (for example
-through `agi-repl`). The agent calls `srl next` and asks. What happens next is
+through `agi-repl`). The agent calls `srl next --json`, which gives the
+card with its context, and asks. What happens next is
 up to your instructions, for example:
 
 - you answer in your own words, the agent judges the answer and records its
