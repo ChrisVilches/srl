@@ -174,7 +174,8 @@ prints it too.
 - `see:` is a path relative to the store's folder, to a note of the store.
   A `see:` that names anything else is an error.
 - `see:` is meant for items that ask about another note, such as items an
-  agent wrote in a file of their own (see [agents.md](agents.md)).
+  agent wrote in a file of their own (see
+  [guides/agents.md](guides/agents.md)).
 
 The context is given in one of three **modes**. How much of the note to
 show is a choice of whoever shows it, so the mode is not a setting of the

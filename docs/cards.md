@@ -3,7 +3,9 @@
 A **card** is one question, ready to show. An item gives one or more cards,
 and every card has the same format, so any frontend can show any card.
 Cards are produced from the item whenever they are needed, and are never
-stored.
+stored. `srl cards` prints them, and frontends get them inside
+`srl next --json`, together with what is shown around them (see
+[frontends.md](frontends.md)).
 
 The card is also the unit that gets scheduled: every card has its own
 memory state (see [scheduling.md](scheduling.md)).

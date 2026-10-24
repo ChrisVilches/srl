@@ -1,8 +1,8 @@
 # A web viewer
 
-`srl-web` is the web viewer of [docs/frontends.md](../../docs/frontends.md):
-a small server on localhost that runs `srl` commands, and a page in the
-browser that shows the cards. It needs `srl` and Node.js 20 or later, and
+`srl-web` is a web viewer, a frontend in the sense of
+[docs/frontends.md](../../docs/frontends.md): a small server on localhost
+that runs `srl` commands, and a page in the browser that shows the cards. It needs `srl` and Node.js 20 or later, and
 should work on Linux, macOS and Windows (it is tried on Linux only).
 
 - Card text and context are rendered as CommonMark plus GFM tables, with

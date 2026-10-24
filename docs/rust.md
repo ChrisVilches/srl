@@ -14,7 +14,7 @@ rustfmt.toml            formatter settings
 LICENSE-MIT, LICENSE-APACHE  the licenses (MIT OR Apache-2.0); each crate has a copy, for its package
 README.md               the repository's and the srl crate's page; srl-core has its own README.md
 scripts/check-windows.sh  lints the Windows build from Linux or macOS (see "Platform independence")
-examples/               not part of srl, and not built with it (see overview.md, "Examples")
+examples/               not part of srl, and not built with it (see overview.md, "Specification, guides and examples")
 crates/
   srl-core/             the core, as a library
     src/lib.rs          the public API: re-exports only
@@ -253,10 +253,11 @@ When something can't be platform-independent yet, mark it in both places:
 `grep -rn 'TODO(platform)\|TODO (platform)' crates docs` lists them all.
 
 None of this applies to `examples/` (see [overview.md](overview.md),
-"Examples"): an example that works on some platforms only says so in a
-comment at its top, and needs no `TODO(platform):`.
-Design decisions still to take are marked **TODO (design):** instead, and
-listed in [overview.md](overview.md), "Open questions".
+"Specification, guides and examples"): an example that works on some
+platforms only says so in a comment at its top, and needs no
+`TODO(platform):`. Design decisions still to take are marked
+**TODO (design):** instead (see [overview.md](overview.md), "Open
+questions").
 
 Code behind `cfg(windows)` isn't compiled on Linux or macOS, so it can
 break unnoticed. `scripts/check-windows.sh` runs clippy for a Windows

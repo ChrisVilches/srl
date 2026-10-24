@@ -78,8 +78,8 @@ Multi-line fields, code blocks and drafts are supported too.
 shows it. Any program that calls `srl next --json` and `srl review` is one.
 The repository has two to start from:
 
-- `srl web`: a local web viewer that renders cards and context as Markdown.
-- `srl tui`: a terminal frontend in Python with Rich.
+- `srl-web`: a local web viewer that renders cards and context as Markdown.
+- `srl-tui`: a terminal frontend in Python with Rich.
 
 This shell loop is a frontend too:
 
@@ -96,6 +96,9 @@ done
 The full specification is in
 [docs/](https://github.com/ChrisVilches/srl/tree/main/docs). Start with
 [overview.md](https://github.com/ChrisVilches/srl/blob/main/docs/overview.md).
+Guides to using `srl` and building on it, such as writing a frontend or
+operating `srl` with an agent, are in
+[docs/guides/](https://github.com/ChrisVilches/srl/tree/main/docs/guides).
 
 ## License
 

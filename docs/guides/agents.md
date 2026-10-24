@@ -6,8 +6,9 @@ analyze it, but the store is complete without it.
 
 This document describes how an agent fits around `srl`, using
 [agi](https://blog.chrisvilches.com/custom-ai-agent/) as the example. Any other
-agent that can run programs works the same way. Nothing here is part of `srl`
-itself.
+agent that can run programs works the same way. This is a guide, not part of
+the specification (see [overview.md](../overview.md), "Specification,
+guides and examples"): nothing here is part of `srl` itself.
 
 ## How an LLM touches `srl`
 
@@ -75,9 +76,9 @@ agi --sys base.md --sys tutor.md --sys me.md --resources srl-agent/tutor "…"
 
 ## A ready-made guide: `examples/agents/`
 
-The repository's `examples/agents/` (see [overview.md](overview.md),
-"Examples") is a base prompt and a set of skills for one role: a guide that
-teaches `srl` to someone who has never used it. It answers questions, sets
+The repository's `examples/agents/` (see [overview.md](../overview.md),
+"Specification, guides and examples") is a base prompt and a set of skills
+for one role: a guide that teaches `srl` to someone who has never used it. It answers questions, sets
 up a store, writes example items as drafts, gives the commands for a study
 session, or runs one in the chat. The system prompt covers the common uses;
 each skill's front-matter says when to load it for the details (the item
@@ -143,7 +144,7 @@ cards keep lapsing, or adds cloze deletions to existing items with
 Adding the first cloze deletion to an item changes its card ID (`x7k2m9`
 becomes `x7k2m9-1`), which leaves the old card's history orphaned. The job
 should run `srl check` afterwards and report the `srl move` commands it
-suggests, for you to run (see [scheduling.md](scheduling.md), "Moving
+suggests, for you to run (see [scheduling.md](../scheduling.md), "Moving
 history").
 
 ### Analyze

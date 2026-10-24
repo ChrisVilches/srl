@@ -19,6 +19,26 @@ give you spacing and repetition:
 So the minimum database is **questions with stable IDs and a log of
 reviews.** Everything else must justify itself.
 
+## Why a data layer and one mapping, and nothing else
+
+`srl` is a CLI over its data (notes with items, the log, the
+configuration) plus one fixed mapping from that data to frontends:
+`srl next --json` and `srl review` (see [overview.md](overview.md), "The
+idea"). Everything around it, such as showing cards, launching programs,
+choosing how things look, or calling an LLM, is left to programs built on
+top.
+
+What only `srl` can do well is keep the data correct: parse notes
+strictly, never damage them, replay the log the same way every time, and
+apply one schedule for every frontend. What people want to vary is
+everything else. Keeping the two apart means a frontend, a script or an
+agent can be replaced without touching `srl`, and `srl` can change inside
+without breaking them, as long as the contracts hold.
+
+Trade-off: a feature that would be convenient inside `srl`, such as
+running your frontend as `srl web`, is left to you: a shell alias or a
+script does it.
+
 ## Why questions live inside notes
 
 Writing a question should take seconds, next to the knowledge it asks
@@ -159,15 +179,24 @@ lines is quick to write, or to have an agent write, from an example.
 So `srl` has no interactive study command. It stays a CLI that other
 programs drive, the same on every platform, and frontends live outside it:
 `examples/` has a web viewer and a terminal frontend to copy (see
-[frontends.md](frontends.md)). `srl next --json` gives everything a
-frontend shows (the card, its state, its note and context), so a frontend
-needs no other command to read.
+[guides/frontends.md](guides/frontends.md)). `srl next --json` gives
+everything a frontend shows (the card, its state, its note and context),
+so a frontend needs no other command to read (see
+[frontends.md](frontends.md)).
 
 Trade-off: `srl` alone has no comfortable way to study. You install or
 write a frontend first, and one that is not a shell script, such as the
 web viewer, needs more than `srl` to run. In exchange there is no terminal
 handling to keep working on every platform, and no frontend that is more
 official than yours.
+
+## Why the frontend chooses the context mode
+
+Whether to show the whole note after the answer, the note without its
+items, or nothing, depends on the screen and on the person: a terminal
+frontend may want less than a browser. That is presentation, so it is a
+flag of `srl next` that each frontend sets, not a setting of the store
+that every frontend would have to share.
 
 ## Why no LLM in the core
 

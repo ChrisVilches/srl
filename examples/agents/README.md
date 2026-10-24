@@ -78,7 +78,7 @@ skills can be given the `SKILL.md` files to read when needed.
 
 ## What it will and won't do
 
-The prompt has the agent follow the rules in `docs/agents.md`:
+The prompt has the agent follow the rules in `docs/guides/agents.md`:
 
 - Items it writes are drafts, in notes of their own, with `see:` pointing
   at the note they are about. You read them and `srl accept` the ones you
@@ -91,4 +91,4 @@ The prompt has the agent follow the rules in `docs/agents.md`:
 These are instructions, not guarantees: an agent with a shell can do
 anything the shell allows. For an agent you don't fully trust, give it
 tools that each run one `srl` command instead of a shell, as
-`docs/agents.md` describes, and drop the instructions about the shell.
+`docs/guides/agents.md` describes, and drop the instructions about the shell.

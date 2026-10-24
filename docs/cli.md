@@ -3,6 +3,13 @@
 The CLI is the only interface to a store. People, scripts, frontends and
 agents all use the same commands. There is no separate API.
 
+Every command reads or changes the store's data: its notes and their
+items, the log and the configuration. Two of them, `srl next --json` and
+`srl review`, are also the frontend contract (see
+[frontends.md](frontends.md)). No command shows cards interactively or
+runs other programs for you, except `srl edit ID`, which opens a note in
+your editor.
+
 ## Conventions
 
 - **`--json` everywhere.** Every command that prints data can print JSON
@@ -188,25 +195,12 @@ review wants to keep it, such as an answer typed to an agent (see
 [log.md](log.md)). `by` says who recorded the review, not how the rating
 was decided.
 
-`srl next --json` prints one object: the card's fields (see
-[cards.md](cards.md)), then the card's state and its item's note and
-context, everything a frontend needs to show the card (see
-[frontends.md](frontends.md)):
-
-```json
-{"id": "k3m9q1-2", "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
- "answer": "周囲の反対をものともせず、==彼女==は起業した。\n\nDespite everyone's opposition, she started a company.",
- "state": "due", "path": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
- "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
-```
-
-`state` is as in `srl find --json`: `new` or `due`, since `srl next` only
-gives cards that are due or new (see [scheduling.md](scheduling.md),
-"Choosing the next card"). `path`, `see` and `context` are as in
-`srl show --json` (see [notes.md](notes.md), "Items as JSON"), with
-`context` in the mode chosen by `--context MODE`: `prose` without it. Only
-the JSON output has a context, so without `--json` the flag changes
-nothing.
+`srl next --json` and `srl review` are the frontend contract: what
+`srl next --json` prints, one object with the card, its state, and its
+item's note and context, is specified in [frontends.md](frontends.md),
+"What a frontend gets". `--context MODE` chooses the context's mode,
+`prose` without it. Only the JSON output has a context, so without
+`--json` the flag changes nothing.
 
 Every card given to `srl review` must be a card of the store; an item ID
 is not enough, because a review is about one card. With `--dry-run`,
@@ -284,18 +278,3 @@ reports, as `PATH:LINE: message` on standard output:
 
 These are guesses, so `srl lint` never fails because of what it finds: it
 exits with 0 if it found something, and 1 if not.
-
-## The study loop, scripted
-
-`srl` has no built-in frontend (see [rationale.md](rationale.md), "Why no
-built-in frontend"). The loop every frontend runs is written with the
-commands:
-
-```sh
-sel='in:grammar,kanji'
-while card=$(srl next "$sel" --json); do
-  # show the prompt, then the answer and the context,
-  # ask for a rating, then record it:
-  jq -n --argjson card "$card" --argjson rating 3 '{card: $card.id, rating: $rating}' | srl review --stdin
-done
-```
