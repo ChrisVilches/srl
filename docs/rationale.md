@@ -37,7 +37,10 @@ without breaking them, as long as the contracts hold.
 
 Trade-off: a feature that would be convenient inside `srl`, such as
 running your frontend as `srl web`, is left to you: a shell alias or a
-script does it.
+script does it. For the same reason `srl` has no commands of your own,
+whether found on `PATH` (`srl-NAME`) or listed in the configuration:
+your shell already runs programs, and `srl` would only be launching
+them.
 
 ## Why questions live inside notes
 

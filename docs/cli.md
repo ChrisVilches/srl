@@ -35,14 +35,10 @@ your editor.
   Windows. Where it can't, the document says so in a note marked
   **TODO (platform)** (see [overview.md](overview.md), "Open questions").
 - **Only built-in commands.** Any other command name is a usage error.
-
-> **TODO (design):** extension like git, where `srl NAME` runs a program
-> `srl-NAME` from `PATH` when `NAME` is not built in, was specified and
-> implemented, then removed from the implementation. It only launched
-> programs, which is not `srl`'s job: a frontend or tool runs under its own
-> name (`srl-web`), and a shell alias gives it any other. It needs a
-> redesign, with a real use case, before it comes back, and may be removed
-> from the specification for good.
+  `srl` doesn't launch other programs: a frontend or tool runs under its
+  own name (`srl-web`), and your shell's aliases and scripts give it any
+  other (see [rationale.md](rationale.md), "Why a data layer and one
+  mapping, and nothing else").
 
 ## Commands
 
