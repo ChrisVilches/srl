@@ -1,11 +1,12 @@
 // The local server: a JSON API over the srl CLI, and the built frontend.
 //
 // Every API route runs one srl command and returns its JSON. There is no
-// SRS logic here: scheduling belongs to srl (see docs/frontends.md, "A web
-// viewer").
+// SRS logic here: scheduling belongs to srl (see docs/frontends.md, "The
+// frontend contract").
 //
 //   GET  /api/config          the selector and store given on the command line
 //   GET  /api/next?sel=…      srl next SEL --json     → { card } or { card: null }
+//                             (with --context CONTEXT, chosen below)
 //   POST /api/review          srl review --stdin      ← { card, rating, response? }
 //   POST /api/suspend         srl suspend id:CARD     ← { card }
 //
@@ -30,6 +31,10 @@ const CONTENT_TYPES = {
   '.woff2': 'font/woff2',
 };
 
+// How much of the note to show after the answer: 'prose' (the note without its
+// items), 'full' (with them) or 'none' (see docs/notes.md, "Context").
+const CONTEXT = 'prose';
+
 class BadRequest extends Error {}
 
 // Creates the server. DIR is the store passed to srl as --dir (or
@@ -43,7 +48,7 @@ export function createSrlServer({ dir, selector, staticDir }) {
     'GET /api/config': async () => ({ selector, dir: dir ?? null }),
 
     'GET /api/next': async (url) => {
-      const { found, stdout } = await srl(['next', '--json', ...selectorArgs(url)]);
+      const { found, stdout } = await srl(['next', '--json', '--context', CONTEXT, ...selectorArgs(url)]);
       return { card: found ? JSON.parse(stdout) : null };
     },
 

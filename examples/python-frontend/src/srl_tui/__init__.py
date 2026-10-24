@@ -4,8 +4,7 @@ Meant for Linux, macOS and Windows, but tried on Linux only. All of it is
 portable except reading one key without Enter (read_key): termios on
 Linux and macOS, msvcrt on Windows, a branch that has never run.
 
-It is a starting point: copy it, rename it, change it. On PATH as
-`srl-tui`, it runs as `srl tui [SELECTOR]`.
+It is a starting point: copy it, rename it, change it.
 
 It runs the frontend loop of docs/frontends.md: `srl next --json` for the
 card and its context, `srl review --stdin` for the rating. Keys act at
@@ -36,6 +35,10 @@ from rich.theme import Theme
 THEME = Theme({"markdown.mark": "bold yellow", "markdown.h1": "bold magenta"})
 
 RATINGS = [("again", "red"), ("hard", "yellow"), ("good", "green"), ("easy", "blue")]
+
+# How much of the note to show after the answer: "prose" (the note without its
+# items), "full" (with them) or "none" (see docs/notes.md, "Context").
+CONTEXT = "prose"
 
 console = Console(theme=THEME, highlight=False)
 
@@ -234,7 +237,7 @@ class Session:
     def run(self):
         """Studies until no card is left (returns True) or q is pressed."""
         while True:
-            out, code = srl("next", *self.selector, "--json")
+            out, code = srl("next", *self.selector, "--json", "--context", CONTEXT)
             if code == 1:
                 return True
             card = json.loads(out)

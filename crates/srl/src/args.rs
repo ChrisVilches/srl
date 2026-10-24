@@ -50,6 +50,13 @@ pub(crate) struct Json {
 }
 
 #[derive(Debug, Args)]
+pub(crate) struct Context {
+    /// How to show the context: the note without its items, with them, or nothing.
+    #[arg(long, value_enum, value_name = "MODE", default_value_t = ContextMode::Prose)]
+    pub(crate) context: ContextMode,
+}
+
+#[derive(Debug, Args)]
 pub(crate) struct DryRun {
     /// Show what would change, and change nothing.
     #[arg(long)]
@@ -87,9 +94,8 @@ pub(crate) enum Command {
         /// Card or item IDs.
         #[arg(required = true)]
         ids: Vec<String>,
-        /// How to show the context (default: `context` in .srl/config.toml).
-        #[arg(long, value_enum, value_name = "MODE")]
-        context: Option<ContextMode>,
+        #[command(flatten)]
+        context: Context,
         #[command(flatten)]
         json: Json,
     },
@@ -153,6 +159,8 @@ pub(crate) enum Command {
         #[command(flatten)]
         selector: Selector,
         #[command(flatten)]
+        context: Context,
+        #[command(flatten)]
         json: Json,
     },
     /// Record a review, from JSON on standard input or for cards by ID.
@@ -178,9 +186,6 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// `srl NAME ARGS…` runs `srl-NAME ARGS…` from PATH.
-    #[command(external_subcommand)]
-    External(Vec<String>),
 }
 
 #[derive(Debug, Args)]
@@ -267,11 +272,15 @@ mod tests {
     }
 
     #[test]
-    fn unknown_commands_are_external() {
-        let cli = parse(&["web", "--port", "8080"]).unwrap();
-        let Command::External(args) = cli.command else {
-            panic!("expected an external command, got {:?}", cli.command);
+    fn unknown_commands_are_usage_errors() {
+        assert!(parse(&["web", "--port", "8080"]).is_err());
+    }
+
+    #[test]
+    fn context_is_prose_unless_given() {
+        let Command::Next { context, .. } = parse(&["next"]).unwrap().command else {
+            panic!("expected next");
         };
-        assert_eq!(args, ["web", "--port", "8080"]);
+        assert_eq!(context.context, ContextMode::Prose);
     }
 }

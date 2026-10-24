@@ -44,7 +44,6 @@ crates/
     src/argv.rs         lets selector terms start with `-`
     src/commands.rs     one function per command: gather inputs, call the core, print
     src/editor.rs       opening the editor (`srl edit ID`)
-    src/external.rs     `srl NAME` runs `srl-NAME`
     src/output.rs       the only module that prints
     tests/cli.rs        tests that run the real binary
 ```
@@ -272,12 +271,10 @@ Known places:
 | Where | What differs | Status |
 |---|---|---|
 | `store.rs`, `note_paths`, `nfc`; [store.md](store.md) | macOS often lists file names in Unicode NFD, so paths could sort and match differently | Handled: paths are sorted and matched against `path:`, `in:` and `exclude` in NFC, on every platform |
-| `check.rs`, `long_paths`; [cli.md](cli.md) | Windows' 260-character path limit | Handled: `srl check` reports notes over 259 UTF-16 units, on every platform. **TODO in code and spec**: not run on Windows |
 | `write.rs`; [notes.md](notes.md) | Replacing a note atomically: a rename over an existing file, which Windows refuses while another program holds the file open without sharing | Handled: the rename's error is reported and the note left as it was. **TODO in code and spec**: not run on Windows |
 | `editor.rs`, `DEFAULT_EDITOR`; [cli.md](cli.md) | `EDITOR`/`VISUAL` are rarely set on Windows, and editor paths there often contain spaces | Handled: the default is `notepad` on Windows and `vi` elsewhere, and a quoted program may contain spaces. **TODO in code and spec**: not run on Windows; Windows 11's Notepad may return at once |
 | `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `.srl/log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
 | `index.rs`, `connect`; [store.md](store.md) | SQLite's file locking is unreliable on network file systems (NFS, SMB) on every platform: concurrent updates could damage the index cache | **TODO in code and spec**: damage is usually detected and the cache rebuilt; keep stores on a local disk for now |
-| `external.rs` | A process killed by a signal has no exit code (Unix only) | Handled: reported as an error |
 
 ## Testing
 
@@ -340,7 +337,7 @@ Current dependencies:
 | `anyhow` | `srl` | Error type with context in the CLI |
 | `getrandom` | `srl` | The random seed for new item IDs (the core derives IDs from it) |
 | `dirs` | `srl` | The platform's data directory, for the default store |
-| `which` | `srl` | Finding `srl-NAME` programs, with `PATHEXT` on Windows |
+| `which` | `srl` | Finding the editor on `PATH`, with `PATHEXT` on Windows |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
 | `toml` | `srl-core` | Parsing `.srl/config.toml` |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |
@@ -434,8 +431,7 @@ through one module, `write.rs`, with these rules:
 - `commands.rs` matches on the command, gathers inputs from the environment,
   calls `srl-core` and passes the result to `output.rs`. Commands that are
   not implemented yet return an error that says so.
-- Unknown commands run `srl-NAME` from `PATH` (`external.rs`). Its exit codes
-  0 and 1 pass through, and anything else becomes an error.
+- Unknown commands are usage errors, reported by clap.
 
 ## The index cache
 

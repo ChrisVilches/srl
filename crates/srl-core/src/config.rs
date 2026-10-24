@@ -8,7 +8,7 @@ use jiff::civil::{Date, DateTime};
 use serde::Deserialize;
 
 use crate::store::nfc;
-use crate::{ContextMode, Error, Result, Store};
+use crate::{Error, Result, Store};
 
 /// Every setting of `config.toml`. A key the file leaves out has its
 /// default; a key the file has but `srl` doesn't know is an error, so that
@@ -18,7 +18,6 @@ use crate::{ContextMode, Error, Result, Store};
 pub struct Config {
     pub notes: Notes,
     pub schedule: Schedule,
-    pub study: Study,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
@@ -95,13 +94,6 @@ impl Schedule {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct Study {
-    /// How context is shown (see `docs/notes.md`, "Context").
-    pub context: ContextMode,
-}
-
 impl Config {
     /// Reads the store's `config.toml`.
     pub fn load(store: &Store) -> Result<Self> {
@@ -139,11 +131,8 @@ mod tests {
 
     #[test]
     fn given_keys_replace_defaults() {
-        let config =
-            Config::parse("[notes]\nexclude = [\"templates/**\"]\n[study]\ncontext = \"full\"\n")
-                .unwrap();
+        let config = Config::parse("[notes]\nexclude = [\"templates/**\"]\n").unwrap();
         assert_eq!(config.notes.exclude, ["templates/**"]);
-        assert_eq!(config.study.context, ContextMode::Full);
         assert_eq!(config.schedule, Schedule::default());
         assert!(config.notes.exclude_set().is_match("templates/a/b.md"));
     }
@@ -168,7 +157,7 @@ mod tests {
             "[schedule]\nday_starts_at = 24\n",
             "[schedule]\ndesired_retention = 1.5\n",
             "[schedule]\nnew_per_day = \"ten\"\n",
-            "[study]\ncontext = \"some\"\n",
+            "[study]\ncontext = \"prose\"\n",
             "[notes]\nexclude = [\"[\"]\n",
             "not toml",
         ] {

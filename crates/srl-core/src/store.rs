@@ -27,7 +27,7 @@ const DEFAULT_STORE: &str = "srl";
 
 /// The `config.toml` that `srl init` writes: every key at its default,
 /// commented out (see `docs/store.md`, "Configuration").
-pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is optional; these are the defaults.
+pub(crate) const DEFAULT_CONFIG: &str = r"# srl configuration. Every key is optional; these are the defaults.
 
 [notes]
 # exclude = []               # globs of notes to ignore, relative to the store's folder
@@ -39,10 +39,7 @@ pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is opt
 # leech_lapses = 8           # a card with this many lapses is a leech
 # mature_days = 21           # a card with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
-
-[study]
-# context = "prose"          # how context is shown: prose, full or none
-"#;
+";
 
 /// Everything needed to find a store, gathered by the caller.
 ///

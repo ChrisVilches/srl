@@ -78,7 +78,7 @@ fn usage_errors_exit_with_2() {
 fn unknown_commands_exit_with_2_and_explain() {
     let output = srl(&["no-such-command-for-srl-tests"]);
     assert_eq!(output.status.code(), Some(2));
-    assert!(stderr(&output).contains("srl-no-such-command-for-srl-tests"));
+    assert!(stderr(&output).contains("no-such-command-for-srl-tests"));
     assert!(output.stdout.is_empty());
 }
 
@@ -454,8 +454,16 @@ fn next_json_gives_the_card_with_its_state_note_and_context() {
             "context": "# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n",
         })
     );
-    write(&tmp, ".srl/config.toml", "[study]\ncontext = \"none\"\n");
-    assert_eq!(next_card(d, &[])["context"], serde_json::Value::Null);
+    assert_eq!(
+        next_card(d, &["--context", "none"])["context"],
+        serde_json::Value::Null
+    );
+    assert!(
+        next_card(d, &["--context", "full"])["context"]
+            .as_str()
+            .unwrap()
+            .contains("Q: What does")
+    );
 }
 
 #[test]
@@ -571,7 +579,7 @@ fn removed_study_is_an_unknown_command() {
     let output = srl(&["study", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
-        stderr(&output).contains("unknown command `study`"),
+        stderr(&output).contains("unrecognized subcommand 'study'"),
         "{}",
         stderr(&output)
     );

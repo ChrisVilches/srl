@@ -17,13 +17,12 @@ use srl_core::{
 };
 
 use crate::args::{AddArgs, By, Cli, Command, ReviewArgs};
-use crate::{Outcome, editor, external, output};
+use crate::{Outcome, editor, output};
 
 pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
     let store = || -> anyhow::Result<Store> { Ok(Store::open(&lookup(cli.dir.clone())?)?) };
     let selector = |terms: &[String]| Selector::parse(&terms.join(" "));
     match cli.command {
-        Command::External(args) => external::run(&args),
         Command::Init { dir, dry_run } => init(cli.dir, dir, dry_run.dry_run),
         Command::Check => check(&store()?),
         Command::Lint => lint(&store()?),
@@ -41,7 +40,9 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             &selector(&terms.terms)?.and_status(Status::Draft),
             json.json,
         ),
-        Command::Show { ids, context, json } => show(&store()?, &ids, context, json.json),
+        Command::Show { ids, context, json } => {
+            show(&store()?, &ids, context_mode(context.context), json.json)
+        }
         Command::Cards { ids, json } => cards(&store()?, &ids, json.json),
         Command::Add(args) => add(&store()?, &args),
         Command::Edit { id, stdin, dry_run } => match (stdin, dry_run.dry_run) {
@@ -66,8 +67,14 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Move { from, to, dry_run } => move_history(&store()?, &from, &to, dry_run.dry_run),
         Command::Next {
             selector: terms,
+            context,
             json,
-        } => next(&store()?, selector(&terms.terms)?, json.json),
+        } => next(
+            &store()?,
+            selector(&terms.terms)?,
+            context_mode(context.context),
+            json.json,
+        ),
         Command::Review(args) => review(&store()?, &args),
         Command::Reset {
             selector: terms,
@@ -165,11 +172,9 @@ fn check(store: &Store) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
     let notes = Notes::load(store, &config)?;
     let (memories, _, log_problems) = memories(&mut Index::open(store), &config)?;
-    let long_paths = srl_core::long_paths(store, &notes)?;
     let problems = notes
         .problems()
         .iter()
-        .chain(&long_paths)
         .chain(&log_problems)
         .collect::<Vec<_>>();
     problems.iter().copied().for_each(output::problem);
@@ -285,19 +290,18 @@ fn reported(problems: &[Error]) -> Outcome {
     }
 }
 
-/// `srl show ID…`: prints each item with its context.
-fn show(
-    store: &Store,
-    ids: &[String],
-    mode: Option<crate::args::ContextMode>,
-    json: bool,
-) -> anyhow::Result<Outcome> {
-    let (config, notes) = load(store)?;
-    let mode = mode.map_or(config.study.context, |mode| match mode {
+/// The core's context mode for the one given with `--context`.
+fn context_mode(mode: crate::args::ContextMode) -> ContextMode {
+    match mode {
         crate::args::ContextMode::Prose => ContextMode::Prose,
         crate::args::ContextMode::Full => ContextMode::Full,
         crate::args::ContextMode::None => ContextMode::None,
-    });
+    }
+}
+
+/// `srl show ID…`: prints each item with its context in `mode`.
+fn show(store: &Store, ids: &[String], mode: ContextMode, json: bool) -> anyhow::Result<Outcome> {
+    let (_, notes) = load(store)?;
     let (items, problems) = items_of(&notes, ids);
     let shown = items
         .into_iter()
@@ -434,8 +438,13 @@ fn move_history(store: &Store, from: &str, to: &str, dry_run: bool) -> anyhow::R
 
 /// `srl next`: the next card, if there is one. With `--json`, the card
 /// with what a frontend shows around it: its state, and its item's note and
-/// context (see `docs/cli.md`, "Studying").
-fn next(store: &Store, selector: Selector, json: bool) -> anyhow::Result<Outcome> {
+/// its context in `mode` (see `docs/cli.md`, "Studying").
+fn next(
+    store: &Store,
+    selector: Selector,
+    mode: ContextMode,
+    json: bool,
+) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
     let Some(card) = srl_core::next(&loaded.notes, &loaded.memories, selector, &loaded.config)
     else {
@@ -446,7 +455,7 @@ fn next(store: &Store, selector: Selector, json: bool) -> anyhow::Result<Outcome
             .notes
             .item(card.id().item())
             .context("a card's item should be in the notes")?;
-        let context = srl_core::context(store, item, loaded.config.study.context)?;
+        let context = srl_core::context(store, item, mode)?;
         output::json_lines(&[serde_json::json!({
             "id": card.id(),
             "prompt": card.prompt(),

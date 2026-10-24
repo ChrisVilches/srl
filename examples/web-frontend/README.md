@@ -2,9 +2,8 @@
 
 `srl-web` is the web viewer of [docs/frontends.md](../../docs/frontends.md):
 a small server on localhost that runs `srl` commands, and a page in the
-browser that shows the cards. On `PATH`, it runs as `srl web`. It needs
-`srl` and Node.js 20 or later, and should work on Linux, macOS and Windows
-(it is tried on Linux only).
+browser that shows the cards. It needs `srl` and Node.js 20 or later, and
+should work on Linux, macOS and Windows (it is tried on Linux only).
 
 - Card text and context are rendered as CommonMark plus GFM tables, with
   `==highlights==` marked. Raw HTML in notes is shown as text.
@@ -23,13 +22,13 @@ examples: everything it needs is in this folder.
 npm install
 npm run build
 npm link          # puts srl-web on PATH
-srl web in:grammar
+srl-web in:grammar
 ```
 
-`srl web [--port N] [--dir DIR] [--no-open] [SELECTOR]` serves on
+`srl-web [--port N] [--dir DIR] [--no-open] [SELECTOR]` serves on
 `http://localhost:4317/` and opens the browser. `--dir` is given to every
 `srl` command it runs; without it, `srl` finds the store from the directory
-`srl web` was started in, or `SRL_DIR`, as always.
+`srl-web` was started in, or `SRL_DIR`, as always.
 
 ## How it works
 
@@ -45,10 +44,10 @@ scheduling here; that belongs to `srl`.
 
 | Route | Runs |
 |---|---|
-| `GET /api/next?sel=…` | `srl next SEL --json`: the card, its state, and its note and context |
+| `GET /api/next?sel=…` | `srl next SEL --json --context prose`: the card, its state, and its note and context (`CONTEXT` in `server/server.js` chooses the mode) |
 | `POST /api/review` | `srl review --stdin`, with the request body |
 | `POST /api/suspend` | `srl suspend id:CARD` |
-| `GET /api/config` | nothing: the selector and `--dir` given to `srl web` |
+| `GET /api/config` | nothing: the selector and `--dir` given to `srl-web` |
 
 When `srl` fails, the route answers with `{"error": MESSAGE}`, `MESSAGE`
 being what `srl` printed, and the page shows it.
@@ -57,7 +56,7 @@ The server listens on `127.0.0.1` only. It refuses requests whose `Host` is
 not localhost, and POST bodies that are not `application/json`, so that
 other web pages open in the browser can't use it.
 
-Highlights are paired in order, each `==` with the next one, as `srl tui`
+Highlights are paired in order, each `==` with the next one, as `srl-tui`
 does (`src/highlight.ts`). Plugins that treat `==` like `*`, with
 CommonMark's rules, get text without spaces wrong: in `==[...]==を==[...]==`
 they nest the marks.

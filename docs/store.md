@@ -88,16 +88,12 @@ new_per_day = 10             # new cards introduced per day, across all selector
 leech_lapses = 8             # a card with this many lapses is a leech
 mature_days = 21             # a card with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
-
-[study]
-context = "prose"            # context in srl next and srl show: prose, full or none (see notes.md)
 ```
 
 A key or table that is not listed here is an error, so a typo such as
 `new_per_dya = 3` fails instead of being ignored. So is a value of the
 wrong type or out of range: `desired_retention` must be between 0 and 1
-(exclusive), `day_starts_at` an hour from 0 to 23, and `context` one of the
-three modes. Commands that need the configuration fail with a message
+(exclusive), and `day_starts_at` an hour from 0 to 23. Commands that need the configuration fail with a message
 naming the problem.
 
 `exclude` globs match note paths: `*` matches within one folder, `**`

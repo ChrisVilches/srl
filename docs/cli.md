@@ -24,14 +24,18 @@ agents all use the same commands. There is no separate API.
   [store.md](store.md)).
 - **IDs** given to commands are card IDs or item IDs. An item ID stands for
   every card of the item, as in the selector `id:`.
-- **Extension like git.** `srl NAME` runs `srl-NAME` from `PATH` if `NAME` is
-  not a built-in command. Frontends and other tools plug in this way. `PATH`
-  is searched the way the platform's shell searches it: on Windows,
-  `srl-NAME` may have any extension listed in `PATHEXT` (`.exe`, `.cmd`,
-  `.bat`, …).
 - **Platform independence.** `srl` behaves the same on Linux, macOS and
   Windows. Where it can't, the document says so in a note marked
   **TODO (platform)** (see [overview.md](overview.md), "Open questions").
+- **Only built-in commands.** Any other command name is a usage error.
+
+> **TODO (design):** extension like git, where `srl NAME` runs a program
+> `srl-NAME` from `PATH` when `NAME` is not built in, was specified and
+> implemented, then removed from the implementation. It only launched
+> programs, which is not `srl`'s job: a frontend or tool runs under its own
+> name (`srl-web`), and a shell alias gives it any other. It needs a
+> redesign, with a real use case, before it comes back, and may be removed
+> from the specification for good.
 
 ## Commands
 
@@ -72,8 +76,9 @@ agents all use the same commands. There is no separate API.
 --json` prints items as described in [notes.md](notes.md), "Items as JSON".
 Without `--json`, `srl show` prints, for each item: a line `PATH:LINE`, the
 item's lines as written, and, if there is a context, a line `---` and
-the context. Items are separated by blank lines. `--context` overrides
-`context` in the configuration.
+the context. Items are separated by blank lines. `--context MODE` chooses
+the context's mode (see [notes.md](notes.md), "Context"); it is `prose`
+without it.
 
 `srl cards` prints cards in the format of [cards.md](cards.md) with
 `--json`, one per line. Without it, each card is printed for people: a line
@@ -171,7 +176,7 @@ items it would write, as they would appear in the note, and writes nothing.
 
 | Command | Does |
 |---|---|
-| `srl next [SELECTOR] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`; with `--json`, with what a frontend shows around it (see below). Exit 1 if there is none. |
+| `srl next [SELECTOR] [--context MODE] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`; with `--json`, with what a frontend shows around it (see below). Exit 1 if there is none. |
 | `srl review --stdin` | Record a review: `{"card": "k3m9q1-2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
 | `srl review ID… --rating N [--by agent]` | Record the same rating for each card. Prints nothing. |
 | `srl reset SELECTOR` | Make matching cards new again. Only cards that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
@@ -199,7 +204,9 @@ context, everything a frontend needs to show the card (see
 gives cards that are due or new (see [scheduling.md](scheduling.md),
 "Choosing the next card"). `path`, `see` and `context` are as in
 `srl show --json` (see [notes.md](notes.md), "Items as JSON"), with
-`context` in the mode set by `context` in the configuration.
+`context` in the mode chosen by `--context MODE`: `prose` without it. Only
+the JSON output has a context, so without `--json` the flag changes
+nothing.
 
 Every card given to `srl review` must be a card of the store; an item ID
 is not enough, because a review is about one card. With `--dry-run`,
@@ -251,9 +258,6 @@ from. A `move` event belongs to the card it moved history to.
 `srl check` reads every note, the configuration and the log, and reports:
 
 - every error in notes (see [notes.md](notes.md), "Errors");
-- notes whose full path is longer than 259 characters, counted in UTF-16
-  units as Windows counts them, since some programs on Windows can't open
-  them;
 - an invalid configuration;
 - log lines that are not valid events;
 - orphans, with the `srl move` command that would keep their history when
@@ -263,10 +267,9 @@ from. A `move` event belongs to the card it moved history to.
 Each problem is reported on standard error, one per line. Orphans are
 notices: the exit code is 2 if there is any other problem, and 0 otherwise.
 
-> **TODO (platform):** not run on Windows yet. `srl` itself can read and
-> write longer paths there (Rust's standard library uses Windows' long path
-> form), so the limit is for other programs: Explorer, many editors, git
-> without `core.longpaths`.
+`srl check` checks only what `srl` needs. Whether other programs can open
+the notes, for example paths too long for some programs on Windows, is not
+its concern.
 
 `srl lint` looks for mistakes `srl check` can't call errors, because only
 headers make items (see [notes.md](notes.md), "The item syntax"). It

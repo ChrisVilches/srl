@@ -55,12 +55,12 @@ uv run srl-tui in:grammar
 The first run creates `.venv/` here and installs the versions locked in
 `uv.lock`; later runs start at once.
 
-To use it from anywhere, as `srl tui`, install it as a uv tool:
+To use it from anywhere, install it as a uv tool:
 
 ```sh
 uv tool install --editable .    # puts srl-tui in ~/.local/bin
 uv tool update-shell            # only if ~/.local/bin is not on PATH yet
-srl tui in:grammar
+srl-tui in:grammar
 ```
 
 With `--editable`, your changes to the code take effect without
@@ -76,8 +76,9 @@ store from the current directory up (see
 It is one file, `src/srl_tui/__init__.py`, running the frontend loop of
 [docs/frontends.md](../../docs/frontends.md): `srl next --json` for a card,
 its state and its context, `srl review --stdin` for the rating. Change what
-you like: the colors in `THEME` and `RATINGS` at the top, the layout in
-`Session.show`, the keys in `Session.run`.
+you like: the colors in `THEME` and `RATINGS` and the context mode in
+`CONTEXT` at the top, the layout in `Session.show`, the keys in
+`Session.run`.
 
 Highlights are paired in order, each `==` with the next one, as the other
 frontends do (`highlight`): plugins that treat `==` like `*` nest the marks

@@ -1,18 +1,14 @@
 //! An item's context: the note shown after the answer of its cards (see
 //! `docs/notes.md`, "Context").
 
-use serde::{Deserialize, Serialize};
-
 use crate::note::parse::{self, Line};
 use crate::note::read_note;
 use crate::{Item, Result, Store};
 
-/// How the context is shown.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+/// How the context is shown. Each frontend chooses it, with `--context`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContextMode {
     /// The note without its items.
-    #[default]
     Prose,
     /// The note with its items, without their header lines.
     Full,

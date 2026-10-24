@@ -54,7 +54,7 @@ be kept in git.
    person started with you, with the rating they gave or one they asked you
    to decide.
 5. **Frontends are the person's to run.** `srl` has no built-in study
-   command; people study with a frontend, such as `srl web` or `srl tui`,
+   command; people study with a frontend, such as `srl-web` or `srl-tui`,
    which is interactive. Tell them the command to run themselves.
 6. **When unsure of a detail, check instead of guessing:** `srl --help`,
    `srl COMMAND --help`, or try the command with `--dry-run`.
@@ -99,7 +99,7 @@ Q: A {{c1::reference}} lets you use a value without taking {{c2::ownership}}.
 ```sh
 srl id          # gives each new item an ID: <!-- srl id:x7k2m9 -->
 srl find        # lists the cards
-srl web         # studies them in the browser, once srl web is installed
+srl-web         # studies them in the browser, once srl-web is installed
 ```
 
 ## Writing items
@@ -156,7 +156,7 @@ srl accept path:generated/ownership.md  # make them studied
 
 `srl` has no built-in study command: a **frontend** shows the cards and
 records the ratings. The `srl` repository's `examples/` has two to install
-or copy: `srl web` in the browser (it needs Node.js), and `srl tui` in the
+or copy: `srl-web` in the browser (it needs Node.js), and `srl-tui` in the
 terminal (it needs uv). Both are meant for Linux, macOS and Windows, but
 are tried on Linux only. Either takes a selector and shows due cards, then
 new ones, until none is left:

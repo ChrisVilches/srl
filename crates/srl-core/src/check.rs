@@ -1,7 +1,6 @@
 //! `srl check` and `srl lint` (see `docs/cli.md`, "Checking").
 
 use std::collections::HashSet;
-use std::path;
 
 use serde::Serialize;
 
@@ -9,32 +8,6 @@ use crate::kind::has_deletion;
 use crate::note::parse::{self, Line};
 use crate::note::read_note;
 use crate::{CardId, Config, Error, Memories, Notes, Result, Store};
-
-/// The longest full path, in UTF-16 units, that Windows allows without long
-/// paths (260 including a final NUL).
-const MAX_PATH: usize = 259;
-
-/// The notes whose full path is longer than [`MAX_PATH`], as problems.
-///
-// TODO(platform): Not run on Windows yet. `srl` itself copes with longer
-// paths there (Rust's standard library uses the long path form), so the
-// limit is for other programs. See docs/cli.md, "Checking".
-pub fn long_paths(store: &Store, notes: &Notes) -> Result<Vec<Error>> {
-    let root = path::absolute(store.root()).map_err(Error::io(store.root()))?;
-    // Lossy only for counting: a part that isn't valid Unicode becomes one
-    // replacement character. Such names only occur on Unix, where the limit
-    // doesn't apply anyway.
-    let used = root.to_string_lossy().encode_utf16().count() + 1;
-    Ok(notes
-        .paths()
-        .iter()
-        .filter(|path| used + path.encode_utf16().count() > MAX_PATH)
-        .map(|path| Error::PathOverLimit {
-            path: path.clone(),
-            limit: MAX_PATH,
-        })
-        .collect())
-}
 
 /// Every orphan: an ID with reviews in the log, not moved away, but no
 /// card in the store. When its item still exists with exactly one card that

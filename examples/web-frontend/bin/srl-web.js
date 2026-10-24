@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// srl-web: a web viewer for srl. On PATH, it runs as `srl web [SELECTOR]`.
+// srl-web: a web viewer for srl: `srl-web [SELECTOR]`.
 //
 // Starts a server on localhost that runs srl commands for a frontend in the
 // browser, and opens the browser on it.
@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 
 import { createSrlServer } from '../server/server.js';
 
-const USAGE = `usage: srl web [--port N] [--dir DIR] [--no-open] [SELECTOR]
+const USAGE = `usage: srl-web [--port N] [--dir DIR] [--no-open] [SELECTOR]
 
 Starts a web viewer for srl on http://localhost:PORT and opens it.
 

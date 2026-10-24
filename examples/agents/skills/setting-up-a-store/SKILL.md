@@ -60,9 +60,6 @@ new_per_day = 10             # new cards introduced per day, across all selector
 leech_lapses = 8             # a card forgotten this many times is a leech
 mature_days = 21             # a card with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights; leave out to use the defaults
-
-[study]
-context = "prose"            # context after the answer: prose, full or none
 ```
 
 - An unknown setting, a typo or a value out of range is an error, so a
@@ -75,8 +72,6 @@ context = "prose"            # context after the answer: prose, full or none
   low (5–10) at first.
 - `day_starts_at`: a session after midnight but before this hour counts as
   the day before.
-- `context`: `prose` shows the note without its items, `full` with them,
-  `none` nothing. `srl show --context MODE` overrides it for one command.
 - Changing `desired_retention` or `weights` applies to the whole history
   at once: schedules are always recomputed from the log.
 

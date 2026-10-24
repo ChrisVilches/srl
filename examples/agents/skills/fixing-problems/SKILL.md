@@ -87,5 +87,5 @@ schedule.
 - **Index cache messages**: `.srl/cache/` is only a cache. `srl reindex`
   rebuilds it, and deleting it loses nothing.
 - **unknown command `study`**: `srl study` was removed; `srl` has no
-  built-in frontend. Study with a frontend such as `srl web` or `srl tui`
+  built-in frontend. Study with a frontend such as `srl-web` or `srl-tui`
   (see the `studying` skill); scripts use `srl next` and `srl review`.

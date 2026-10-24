@@ -5,7 +5,7 @@ results. `srl` has none built in (see [rationale.md](rationale.md), "Why no
 built-in frontend"): every frontend is a separate program, such as a web
 viewer, a shell-prompt question or a script. The repository's `examples/`
 has two, not part of `srl` (see [overview.md](overview.md), "Examples"):
-the web viewer `srl web` and the terminal frontend `srl tui`, in Python.
+the web viewer `srl-web` and the terminal frontend `srl-tui`, in Python.
 They are made to be copied and changed. Both are meant for Linux, macOS
 and Windows, but are tried on Linux only; their READMEs say what may
 differ elsewhere.
@@ -18,9 +18,11 @@ show any card.
 
 Every frontend runs the same loop:
 
-1. **Get a card:** `srl next SELECTOR --json`. It prints the card, its
-   state, and its item's note and context (see [cli.md](cli.md),
-   "Studying"); exit 1 means nothing is left.
+1. **Get a card:** `srl next SELECTOR --json --context MODE`. It prints
+   the card, its state, and its item's note and context (see
+   [cli.md](cli.md), "Studying"); exit 1 means nothing is left. The
+   frontend chooses the context's mode: `prose`, `full` or `none` (see
+   [notes.md](notes.md), "Context").
 2. **Show the prompt**, and wait until the person wants to see the answer.
 3. **Show the answer**, then the context, if it is not `null` (see
    [notes.md](notes.md), "Context"). The note it comes from is `see`, or
@@ -48,18 +50,18 @@ Card text and context are Markdown; card text may also hold `==highlight==`
 
 - The context is the note as written, so it may use syntax beyond
   CommonMark that notes commonly have, such as GFM tables. A frontend may
-  render it; both `srl tui` and `srl web` render GFM tables.
+  render it; both `srl-tui` and `srl-web` render GFM tables.
 - How highlighted text looks is a frontend setting, never card content.
-  `srl tui` uses bold yellow; `srl web` uses CSS.
+  `srl-tui` uses bold yellow; `srl-web` uses CSS.
 - Printing the raw text must always remain acceptable. A simple frontend can
   skip rendering entirely.
 
-## The web viewer: `srl web`
+## The web viewer: `srl-web`
 
 The web viewer is an example, not part of `srl`: an npm package in the
-repository's `examples/web-frontend/`, which puts `srl-web` on `PATH`, so
-that `srl web [SELECTOR]` starts it. Its README says how to install and
-change it. It is a frontend like any other, split in two:
+repository's `examples/web-frontend/`, which puts `srl-web` on `PATH`:
+`srl-web [SELECTOR]` starts it. Its README says how to install and change
+it. It is a frontend like any other, split in two:
 
 ```
 browser (React page)                  srl-web (Node.js, on localhost)    srl
@@ -79,7 +81,7 @@ buttons, keys, CSS theme     ──JSON─► POST /api/review      ──runs�
   among them and the Again ratings are counted at the top.
 - **Card text and context are rendered as CommonMark plus GFM tables**
   with markdown-it. Raw HTML is shown as text. Highlights are paired in order, each `==` with the
-  next one, as `srl tui` does: Markdown plugins that treat `==` like `*`
+  next one, as `srl-tui` does: Markdown plugins that treat `==` like `*`
   nest the marks in text without spaces, such as `==[...]==を==[...]==`.
 - **Only the browser on the same computer can use it.** The server listens
   on `127.0.0.1`, and refuses requests for any host but localhost and POST

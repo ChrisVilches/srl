@@ -7,7 +7,7 @@ import type { MarkdownIt } from 'markdown-it';
 // flanking rules, which fail on text without spaces: in the cloze prompt
 // `==[...]==を==[...]==`, the `==` between `]` and `を` can only open a
 // highlight, so the marks come out nested. Pairing them in order, as
-// `srl tui` does, gets every card right.
+// `srl-tui` does, gets every card right.
 export function highlight(md: MarkdownIt) {
   md.inline.ruler.before('emphasis', 'srl_highlight', (state, silent) => {
     const start = state.pos;

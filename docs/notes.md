@@ -176,9 +176,10 @@ prints it too.
 - `see:` is meant for items that ask about another note, such as items an
   agent wrote in a file of their own (see [agents.md](agents.md)).
 
-The context is shown in one of three **modes**, set by `context` in
-`.srl/config.toml` (default `prose`), which `srl next --json` and
-`srl show` follow; `--context` on `srl show` overrides it:
+The context is given in one of three **modes**. How much of the note to
+show is a choice of whoever shows it, so the mode is not a setting of the
+store: each frontend chooses it with `--context MODE` on `srl next`, and
+`srl show` takes the same flag. Without it, the mode is `prose`.
 
 | Mode | Shows |
 |---|---|
@@ -191,8 +192,7 @@ one, and blank lines at the start and the end are removed.
 
 **A context with nothing but blank space left is no context**, exactly as
 in mode `none`: frontends show nothing, and `context` is `null` in JSON. So
-a note that holds only items, studied in `prose` mode, needs no setting to
-have no context.
+a note that holds only items has no context in `prose` mode.
 
 ## How srl writes to notes
 

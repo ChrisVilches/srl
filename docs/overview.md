@@ -85,7 +85,7 @@ document, listed at the end.
 | **Card** | One question, ready to show: an ID, a prompt and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
 | **Context** | The note an item belongs to, or the note its `see:` names, shown after the answer of its cards. |
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
-| **Frontend** | A program that shows cards to a person and records the ratings: the web viewer `srl web` and the terminal `srl tui` (both examples), a shell prompt. `srl` has none built in. |
+| **Frontend** | A program that shows cards to a person and records the ratings: the web viewer `srl-web` and the terminal `srl-tui` (both examples), a shell prompt. `srl` has none built in. |
 | **Review event** | One line in the log: this card was rated this way, at this time. |
 | **Selector** | A short filter expression that picks cards, such as `in:grammar state:due`. |
 | **Memory state** | What FSRS knows about a card (stability, difficulty, due date). Always computed from the log, never stored as truth. |
@@ -128,7 +128,7 @@ extensions.
 | Card format | Agents and their prompts, tools and skills |
 | Review event format, FSRS scheduling | Judging answers, by you or an agent |
 | Selector language | Writing notes and items: by hand, by script, by agent |
-| CLI commands and their JSON output | Commands of your own, as `srl-NAME` programs |
+| CLI commands and their JSON output | Scripts and tools that run the CLI |
 
 ## Where LLMs fit
 
@@ -145,10 +145,10 @@ tools. `examples/README.md` lists them:
 
 - `examples/agents/`: a system prompt and skills that turn an LLM agent
   into a guide to `srl` (see [agents.md](agents.md)).
-- `examples/python-frontend/`: `srl tui`, a study frontend for the
+- `examples/python-frontend/`: `srl-tui`, a study frontend for the
   terminal in Python with Rich, a uv project, meant for every platform but
   tried on Linux only (see [frontends.md](frontends.md), "Small examples").
-- `examples/web-frontend/`: `srl web`, the web viewer, an npm package with
+- `examples/web-frontend/`: `srl-web`, the web viewer, an npm package with
   a local server and a React page, meant for every platform but tried on
   Linux only (see [frontends.md](frontends.md), "The web viewer").
 

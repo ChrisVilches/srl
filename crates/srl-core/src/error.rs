@@ -68,12 +68,6 @@ pub enum Error {
     #[error("invalid selector term `{term}`: {reason}")]
     BadSelector { term: String, reason: String },
 
-    #[error(
-        "the full path of {path} is longer than {limit} characters, the most Windows allows \
-         without long paths; give it a shorter name, or move the store to a shorter path"
-    )]
-    PathOverLimit { path: String, limit: usize },
-
     #[error("line {line} of standard input is not a valid item: {reason}; nothing was added")]
     InvalidLine { line: usize, reason: String },
 
