@@ -2,7 +2,8 @@
 
 `srl` schedules **cards**. Every card has its own memory state, and every
 rating goes to the card it was given for. The cards of one item are
-scheduled separately, and only meet in one rule: siblings (see below).
+scheduled separately; the only rule they can share is the sibling rule (see
+below).
 
 ## Ratings
 

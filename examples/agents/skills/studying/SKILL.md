@@ -64,9 +64,11 @@ Things that explain "why didn't my card show up?":
   repeats within a session. A card rated Again is due the next study day.
 - **The study day starts at 4:00** local time (`day_starts_at`), so a
   late-night session counts as the day before.
-- **Siblings.** The cards of one item (its cloze numbers) are shown at most
-  one per day, so one doesn't give away another. New cloze cards of an item
-  are introduced one per day.
+- **Siblings.** The cloze cards of one `qa` item are siblings: they are shown
+  at most one per day, so one doesn't give away another, and new ones are
+  introduced one per day. A kind program decides which of its cards are
+  siblings; cards that don't give each other away, such as two words of one
+  sentence, can all be shown the same day.
 - **Drafts and suspended cards are never studied.** `srl drafts` lists
   drafts; `srl find status:suspended` lists suspended cards.
 - **Errors stop everything.** A broken note makes `srl next` fail with the

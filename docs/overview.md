@@ -88,8 +88,8 @@ agent, or any particular note-taking app.
  └──────────────────────────────────────────────────────────────────────┘
           │ item                                  ▲ review event
           ▼                                       │
-   Kind (built in) ──► Card ──► srl next --json   srl review
-   qa                           └────── frontend contract ──────┘
+   Kind ─────────────► Card ──► srl next --json   srl review
+   qa, or a program             └────── frontend contract ──────┘
                                           │       ▲
                                           ▼       │ rating
                                   Frontends (outside srl): terminal,
@@ -103,7 +103,7 @@ agent, or any particular note-taking app.
 | **Store** | A folder of notes (Markdown files by default) with a `.srl/` folder in it, which holds the configuration, the log and caches. |
 | **Note** | A file in the store that `srl` reads for items: by default, any Markdown file. A note may hold items; the rest of it is yours. |
 | **Item** | A question written in a note: a header line `<!-- srl id:x7k2m9 -->` followed by fields such as `Q:` and `A:`. It has an ID, and gives one or more cards. |
-| **Kind** | How an item's fields become cards. There is one, `qa`: a question and an answer, with optional cloze deletions. |
+| **Kind** | How an item's fields become cards. `qa`, a question and an answer with optional cloze deletions, is built in and the default; any other kind is a program named in `.srl/config.toml`. A kind also decides which of an item's cards are siblings. |
 | **Card** | One question, ready to show: an ID, a prompt, the prompt as revealed with the answer, and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
 | **Context** | The note an item belongs to, or the note its `see:` names, which frontends show after the answer of its cards. |
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
@@ -149,11 +149,12 @@ extensions.
 
 | Fixed (in the core) | Pluggable (outside the core) |
 |---|---|
-| Store layout, item syntax, kinds | Frontends (terminal, web, ambient, …) |
+| Store layout, item syntax, the `qa` kind | Frontends (terminal, web, ambient, …) |
 | Card format, frontend contract | Agents and their prompts, tools and skills |
-| Review event format, FSRS scheduling | Judging answers, by you or an agent |
+| Review event format, FSRS scheduling, the sibling rule | Judging answers, by you or an agent |
 | Selector language | Writing notes and items: by hand, by script, by agent |
 | CLI commands and their JSON output | Scripts and tools that run the CLI |
+| How kind programs are called | Kind programs: every kind but `qa` |
 
 ## Where LLMs fit
 

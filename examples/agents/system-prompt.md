@@ -174,7 +174,9 @@ Things that surprise beginners:
   not in the same session. A study day starts at 4:00 local time.
 - Only 10 new cards are introduced per day (`new_per_day` in
   `.srl/config.toml`), across all selectors.
-- Cards of one item (cloze 1, cloze 2, ...) are shown at most one per day.
+- The cloze cards of one `qa` item (cloze 1, cloze 2, ...) are shown at most
+  one per day. A kind program decides which of its cards are held back
+  that way.
 - When nothing is left, the frontend says so. That means they are done for
   today.
 
