@@ -61,6 +61,25 @@ FORMS: te past negative
 > way, since `srl next --json` would always give the field. To be
 > weighed when plugin support is designed.
 
+> **TODO (design):** the output of `ids` leaves three cases open, all
+> because an empty line means a card:
+>
+> - **No output at all.** Is it an error in the note, or an item with no
+>   cards?
+> - **An empty line mixed with suffixes**, such as an empty line and
+>   `te`. It would give cards `v81k3z` and `v81k3z-te` from one item.
+>   [cards.md](cards.md), "Card IDs", implies this is not allowed (an item
+>   gives either one card with its ID or suffixed cards), but the rule for
+>   `ids` doesn't say so.
+> - **A trailing newline.** `te\n` and `te\n\n` differ only in
+>   whitespace, but if an empty line is a card, a program that prints one
+>   newline too many gets an extra card with the item's ID.
+>
+> One way out is JSON output, where a single card is explicit, such as
+> `[{"suffix": null}]`: an empty array can be an error, a `null` suffix
+> can't be mixed with others, and whitespace means nothing. To be decided
+> when plugin support is designed.
+
 Other rules a plugin design would need:
 
 - **Fields are checked by `ids`.** A program that exits with an error on
