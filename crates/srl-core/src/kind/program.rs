@@ -46,15 +46,15 @@ struct GroupOutput {
     cards: Vec<Option<String>>,
 }
 
-/// What `card` prints: the fields of a card, without its ID. `answer` must
-/// be there, even when it is `null`; `prompt_revealed` may be left out.
+/// What `card` prints: the fields of a card, without its ID. A field that
+/// may be `null` may also be left out.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CardOutput {
     prompt: String,
     #[serde(default)]
     prompt_revealed: Option<String>,
-    #[serde(deserialize_with = "Option::deserialize")]
+    #[serde(default)]
     answer: Option<String>,
 }
 
@@ -429,10 +429,10 @@ mod tests {
     }
 
     #[test]
-    fn a_card_may_leave_out_its_revealed_prompt() {
+    fn a_card_may_leave_out_its_revealed_prompt_and_answer() {
         let (_tmp, store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nCARD: {\"prompt\": \"p\", \"answer\": null}\n\n<!-- srl id:abd kind:fake -->\nCARD: {\"prompt\": \"p\", \"prompt_revealed\": null, \"answer\": null}\n",
+            "<!-- srl id:abc kind:fake -->\nCARD: {\"prompt\": \"p\"}\n\n<!-- srl id:abd kind:fake -->\nCARD: {\"prompt\": \"p\", \"prompt_revealed\": null, \"answer\": null}\n",
         );
         for id in ["abc", "abd"] {
             let (item, card) = notes.card(&CardId::parse(id).unwrap()).unwrap();
@@ -450,7 +450,7 @@ mod tests {
     fn a_failing_slow_or_invalid_card_call_is_an_error() {
         let (_tmp, store, notes) = store(
             &config("[kind_programs]\ncard_timeout = 1\n"),
-            "<!-- srl id:aaa kind:fake -->\nFAIL_CARD: _\n\n<!-- srl id:aab kind:fake -->\nSLEEP_CARD: 5\n\n<!-- srl id:aac kind:fake -->\nCARD: {\"prompt\": \"p\", \"prompt_revealed\": \"p\"}\n",
+            "<!-- srl id:aaa kind:fake -->\nFAIL_CARD: _\n\n<!-- srl id:aab kind:fake -->\nSLEEP_CARD: 5\n\n<!-- srl id:aac kind:fake -->\nCARD: {\"prompt_revealed\": \"p\", \"answer\": \"a\"}\n",
         );
         let made = |id: &str| {
             let (item, card) = notes.card(&CardId::parse(id).unwrap()).unwrap();

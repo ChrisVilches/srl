@@ -277,10 +277,13 @@ result is behaviour you can predict without reading code. Because the log
 records everything, a smarter rule can always be introduced later and
 applied to the whole history.
 
-One exception is accepted on purpose: `prompt_revealed` may be `null`,
-meaning "the same as `prompt`" (see [cards.md](cards.md), "Format"). It
-is one more case for kinds and frontends to know, but forgetting it costs
-little: a kind that never writes the field, or a frontend that only
-falls back to `prompt`, still shows every card correctly, without the
-answer's highlights in the question. Kinds whose question hides nothing,
-which are most of them, never need to know the field exists.
+One exception is accepted on purpose: a card's fields other than `prompt`
+may not exist (see [cards.md](cards.md), "Format"). A missing
+`prompt_revealed` means "the same as `prompt`", and a missing `answer`
+means there is nothing to show. It is one more case for kinds and
+frontends to know, but forgetting it costs little: a kind that never
+writes `prompt_revealed` still shows every card correctly, without the
+answer's highlights in the question, and kinds whose question hides
+nothing, which are most of them, never need to know the field exists.
+The cost is that a kind which forgets its `answer` isn't stopped: its
+cards show no answer, which is a valid card, not an error.

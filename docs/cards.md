@@ -24,19 +24,30 @@ memory state (see [scheduling.md](scheduling.md)).
 | `id` | The card ID (see "Card IDs"). |
 | `prompt` | The question, as shown before the answer. |
 | `prompt_revealed` | The question as shown with the answer, in place of `prompt`, or `null` when it is `prompt` itself. It is only needed when the question hides part of itself, as a cloze deletion does. |
-| `answer` | The answer, or `null` when there is nothing to show beyond the revealed prompt. |
+| `answer` | The answer, or `null` when there is none: nothing is shown beyond the revealed prompt. |
 
-Every field is always present in what `srl` prints. You always rate a card
-yourself (see [scheduling.md](scheduling.md), "Ratings"): a frontend shows
-`prompt`, then the revealed prompt in its place, the answer and the item's
-context, and records the rating you give.
+You always rate a card yourself (see [scheduling.md](scheduling.md),
+"Ratings"): a frontend shows `prompt`, then the revealed prompt in its
+place, the answer and the item's context, and records the rating you give.
 
-**The revealed prompt is `prompt_revealed`, or `prompt` when it is
-`null`.** Everyone who handles a card follows this: a kind may leave
-`prompt_revealed` out, `srl` passes it on as `null`, and a frontend shows
-`prompt` again when the answer is revealed. A kind whose question hides
-nothing never needs to know the field, and one that forgets it still gives
-a usable card: the question just stays as it was.
+**A field that may be `null` may also not exist, and then it shows its
+fallback, or nothing if it has none.** `prompt_revealed` falls back to
+`prompt`; `answer` has no fallback, so a card without one shows nothing
+after the revealed prompt. Everyone who handles a card follows this:
+
+- **A kind** may leave either field out, or give it as `null`; the two
+  mean the same.
+- **`srl`** always prints every field, giving `null` for one that doesn't
+  exist.
+- **A frontend** shows `prompt` again when `prompt_revealed` is `null`,
+  and shows nothing for an `answer` that is `null`: no empty box, no
+  divider.
+
+So a kind needs to know only `prompt`. A kind whose question hides nothing
+never needs `prompt_revealed`, and one that forgets it still gives a usable
+card: the question just stays as it was. A kind may even give no answer at
+all, for studying where you only see the question and rate how well you
+feel you could answer it.
 
 ## Rules
 
@@ -205,7 +216,7 @@ what it printed on standard error is the reason.
 | Call | Input | Output | Rule |
 |---|---|---|---|
 | `ids` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | its cards, in groups: `{"groups": [{"cards": ["te", "past"]}, {"cards": ["negative"]}]}` | **Deterministic and fast**: the same fields always give the same cards. Called for every item of the kind, on every command that reads items. It has no time limit. |
-| `card` | the same object, plus `"suffix"` (`null` for a card with the item's ID), `"context"` (the item's context in mode `prose`, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`: the card's fields of "Format" above, without `id`. `prompt` and `answer` must be present; `prompt_revealed` may be left out, which is the same as `null` | **May differ every time.** Called only for a card about to be shown, and stopped after `kind_programs.card_timeout` seconds. |
+| `card` | the same object, plus `"suffix"` (`null` for a card with the item's ID), `"context"` (the item's context in mode `prose`, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`: the card's fields of "Format" above, without `id`. Only `prompt` must be present; `prompt_revealed` and `answer` may be left out, which is the same as `null` | **May differ every time.** Called only for a card about to be shown, and stopped after `kind_programs.card_timeout` seconds. |
 
 `fields` is as in `srl show --json` (see [notes.md](notes.md), "Items as
 JSON"). No key is written twice in an item, whatever its kind (see
