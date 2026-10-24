@@ -8,6 +8,8 @@ macOS and Windows (it is tried on Linux only).
 
 - Card text and context are rendered as CommonMark plus GFM tables, with
   `==highlights==` marked. Raw HTML in notes is shown as text.
+- Showing the answer turns the question into its revealed prompt, with a
+  cloze's blanks filled in, and adds the answer below it when there is one.
 - After the answer it shows the context in `prose` mode, under the name of
   its note; `CONTEXT` in `server/server.js` chooses the mode.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the

@@ -35,7 +35,8 @@ records the rating you give.
 
 1. **The prompt never contains the answer.** `prompt` must be safe to
    display as-is, by the simplest frontend, in a log viewer or with `jq`.
-   `prompt_revealed` and `answer` are both shown only with the answer.
+   `prompt_revealed` and `answer` are shown only once the person asks to
+   see the answer.
 2. **Cards describe meaning, frontends decide appearance.** A card can say
    "this part is important"; it never says "this part is yellow".
 3. **The format is extended for everyone or not at all.** If a kind needs
