@@ -362,12 +362,9 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
             line: raw.line,
             reason,
         };
-        let kind = match raw
-            .header
-            .kind
-            .as_deref()
-            .map_or(Ok(Kind::Qa), |name| Kind::parse(name, programs))
-        {
+        let kind = match raw.header.kind.as_deref().map_or(Ok(Kind::Qa), |name| {
+            Kind::parse(name, |name| programs.has(name))
+        }) {
             Ok(kind) => kind,
             Err(reason) => {
                 problems.push(at(reason));

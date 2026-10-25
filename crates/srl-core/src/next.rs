@@ -163,7 +163,7 @@ mod tests {
             problems: Vec::new(),
         };
         let memories = Memories::replay(&log, config, DAY).unwrap();
-        let selector = Selector::parse(selector).unwrap();
+        let selector = Selector::parse(selector, &Config::default()).unwrap();
         pick(notes, &memories, selector, config, &[]).map(|(_, card)| card.to_string())
     }
 

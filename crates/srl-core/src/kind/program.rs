@@ -512,7 +512,7 @@ mod tests {
             &store,
             &notes,
             &memories,
-            &Selector::parse("").unwrap(),
+            &Selector::parse("", &Config::default()).unwrap(),
             &config,
             day,
         );

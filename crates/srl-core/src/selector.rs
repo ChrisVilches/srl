@@ -6,10 +6,10 @@ use globset::GlobSet;
 
 use crate::config::globs;
 use crate::store::nfc;
-use crate::{CardId, Error, Item, Memories, Result, State};
+use crate::{CardId, Config, Error, Item, Kind, Memories, Result, State};
 
 /// The keys of `key:value` terms.
-const KEYS: &str = "in, path, id, status, state";
+const KEYS: &str = "in, path, id, kind, status, state";
 
 /// A parsed selector: cards match when they match every term.
 #[derive(Debug, Clone)]
@@ -31,6 +31,7 @@ enum Filter {
     Path(GlobSet),
     /// Card IDs, or item IDs that stand for all their cards.
     Id(Vec<CardId>),
+    Kind(Vec<Kind>),
     Status(Vec<Status>),
     State(Vec<StateTerm>),
     /// Lowercased.
@@ -100,11 +101,11 @@ impl StateTerm {
 
 impl Selector {
     /// Parses a selector. Command-line arguments are joined with spaces
-    /// before they get here.
-    pub fn parse(text: &str) -> Result<Self> {
+    /// before they get here. `config` names the kinds that `kind:` accepts.
+    pub fn parse(text: &str, config: &Config) -> Result<Self> {
         let terms = words(text)?
             .into_iter()
-            .map(Word::into_term)
+            .map(|word| word.into_term(config))
             .collect::<Result<_>>()?;
         Ok(Self { terms })
     }
@@ -166,6 +167,7 @@ impl Filter {
                 Some(_) => id == card,
                 None => id.item() == item.id(),
             }),
+            Self::Kind(kinds) => kinds.contains(item.kind()),
             Self::Status(statuses) => statuses.contains(&Status::of(item, card, memories)),
             Self::State(states) => states.iter().any(|state| state.matches(card, memories)),
             Self::Text(text) => item.search_text().contains(text.as_str()),
@@ -184,7 +186,7 @@ struct Word {
 }
 
 impl Word {
-    fn into_term(self) -> Result<Term> {
+    fn into_term(self, config: &Config) -> Result<Term> {
         let invalid = |reason: &str| Error::BadSelector {
             term: self.written.clone(),
             reason: reason.to_owned(),
@@ -194,7 +196,7 @@ impl Word {
         }
         let filter = match self.body.split_once(':') {
             Some((key, values)) if !self.quoted && is_key(key) => {
-                keyed(key, values).map_err(|reason| invalid(&reason))?
+                keyed(key, values, config).map_err(|reason| invalid(&reason))?
             }
             Some(_) | None => Filter::Text(self.body.to_lowercase()),
         };
@@ -210,7 +212,7 @@ fn is_key(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|character| character.is_ascii_lowercase())
 }
 
-fn keyed(key: &str, values: &str) -> std::result::Result<Filter, String> {
+fn keyed(key: &str, values: &str, config: &Config) -> std::result::Result<Filter, String> {
     let values = values.split(',').collect::<Vec<_>>();
     if values.iter().any(|value| value.is_empty()) {
         return Err("it has an empty value".to_owned());
@@ -227,6 +229,10 @@ fn keyed(key: &str, values: &str) -> std::result::Result<Filter, String> {
             CardId::parse(value).map_err(|error| error.to_string())
         })
         .map(Filter::Id),
+        "kind" => each(&values, |value| {
+            Kind::parse(value, |name| config.kinds.contains_key(name))
+        })
+        .map(Filter::Kind),
         "status" => each(&values, |value| {
             Status::parse(value)
                 .ok_or_else(|| format!("`{value}` is not a status; use active, draft or suspended"))
@@ -374,7 +380,7 @@ mod tests {
 
     /// The IDs of the cards that `selector` picks.
     fn pick(selector: &str) -> Vec<String> {
-        let selector = Selector::parse(selector).unwrap();
+        let selector = Selector::parse(selector, &Config::default()).unwrap();
         let items = items();
         let cards = items
             .iter()
@@ -451,8 +457,31 @@ mod tests {
     }
 
     #[test]
+    fn kind_qa_matches_items_without_a_kind() {
+        assert_eq!(
+            pick("kind:qa"),
+            ["aaa1", "aaa2-1", "aaa2-2", "aaa3", "aaa4"]
+        );
+        assert_eq!(pick("-kind:qa"), Vec::<String>::new());
+    }
+
+    #[test]
+    fn kind_accepts_only_qa_and_the_kind_programs() {
+        let mut config = Config::default();
+        config
+            .kinds
+            .insert("conj".to_owned(), vec!["conj".to_owned()]);
+        assert!(Selector::parse("kind:qa,conj", &config).is_ok());
+        let error = Selector::parse("kind:conj", &Config::default()).unwrap_err();
+        assert!(
+            error.to_string().contains("there is no kind `conj`"),
+            "{error}"
+        );
+    }
+
+    #[test]
     fn and_status_adds_a_term() {
-        let selector = Selector::parse("in:food,rust")
+        let selector = Selector::parse("in:food,rust", &Config::default())
             .unwrap()
             .and_status(Status::Draft);
         let items = items();
@@ -466,9 +495,9 @@ mod tests {
 
     #[test]
     fn unknown_selector_key_is_an_error() {
-        let error = Selector::parse("ni:x").unwrap_err();
+        let error = Selector::parse("ni:x", &Config::default()).unwrap_err();
         assert!(error.to_string().contains("in, path"), "{error}");
-        assert!(Selector::parse("tag:x").is_err());
+        assert!(Selector::parse("tag:x", &Config::default()).is_err());
     }
 
     #[test]
@@ -486,7 +515,10 @@ mod tests {
             "\"open",
             "\"closed\"glued",
         ] {
-            assert!(Selector::parse(text).is_err(), "accepted {text}");
+            assert!(
+                Selector::parse(text, &Config::default()).is_err(),
+                "accepted {text}"
+            );
         }
     }
 
@@ -506,7 +538,7 @@ mod tests {
             "path:caf\u{e9}/*",
             "path:CAFE\u{301}/*",
         ] {
-            let matched = Selector::parse(selector)
+            let matched = Selector::parse(selector, &Config::default())
                 .unwrap()
                 .matches(item, card, &memories);
             assert_eq!(matched, !selector.starts_with("path:CAFE"), "{selector}");

@@ -952,6 +952,29 @@ fn cards_of_a_kind_program_in_their_own_groups_are_not_siblings() {
 }
 
 #[test]
+fn kind_selects_items_by_their_kind() {
+    let tmp = store_with_kind(&[(
+        "a.md",
+        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\n\n<!-- srl id:def -->\nQ: q\nA: a\n",
+    )]);
+    let d = dir(&tmp);
+    let ids = |selector: &[&str]| -> Vec<String> {
+        let output = srl(&[&["find", "--dir", d], selector].concat());
+        lines(&output)
+            .iter()
+            .map(|line| line.split("  ").next().unwrap_or_default().to_owned())
+            .collect()
+    };
+    assert_eq!(ids(&[]), ["abc-a", "abc-b", "def"]);
+    assert_eq!(ids(&["kind:fake"]), ["abc-a", "abc-b"]);
+    assert_eq!(ids(&["kind:qa"]), ["def"]);
+    assert_eq!(ids(&["-kind:fake"]), ["def"]);
+    let output = srl(&["find", "kind:nope", "--dir", d]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("there is no kind `nope`"));
+}
+
+#[test]
 fn next_skips_a_card_its_kind_program_fails_to_make() {
     let tmp = store_with_kind(&[(
         "a.md",

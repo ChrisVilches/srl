@@ -22,7 +22,12 @@ use crate::{Outcome, editor, output};
 
 pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
     let store = || -> anyhow::Result<Store> { Ok(Store::open(&lookup(cli.dir.clone())?)?) };
-    let selector = |terms: &[String]| Selector::parse(&terms.join(" "));
+    let selector = |terms: &[String]| -> anyhow::Result<Selector> {
+        Ok(Selector::parse(
+            &terms.join(" "),
+            &Config::load(&store()?)?,
+        )?)
+    };
     match cli.command {
         Command::Init { dir, dry_run } => init(cli.dir, dir, dry_run.dry_run),
         Command::Check => check(&store()?),
