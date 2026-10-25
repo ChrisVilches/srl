@@ -122,7 +122,7 @@ export function Browse({ active }: { active: boolean }) {
   }, [active, cards, selected, made, make]);
 
   return (
-    <div className="flex min-h-screen flex-col lg:h-screen">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar view="browse" wide>
         <SelectorInput
           selector={selector}
@@ -138,8 +138,8 @@ export function Browse({ active }: { active: boolean }) {
           </span>
         )}
       </TopBar>
-      <main className="mx-auto grid w-full max-w-7xl flex-1 lg:min-h-0 lg:grid-cols-[26rem_minmax(0,1fr)]">
-        <div className="max-h-[40vh] overflow-y-auto border-b border-stone-200 lg:max-h-none lg:border-r lg:border-b-0 dark:border-stone-800">
+      <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-cols-[26rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+        <div className="overflow-y-auto border-b border-stone-200 [scrollbar-gutter:stable] lg:border-r lg:border-b-0 dark:border-stone-800">
           {list.kind === 'loading' && <p className="p-6 text-stone-400">Finding cards…</p>}
           {list.kind === 'error' && (
             <div className="p-6">
@@ -151,7 +151,7 @@ export function Browse({ active }: { active: boolean }) {
             <CardList cards={cards} selected={selected} made={made} onChoose={setSelected} />
           )}
         </div>
-        <div className="flex flex-col px-4 py-6 sm:px-6 lg:overflow-y-auto">
+        <div className="overflow-y-auto px-4 py-6 [scrollbar-gutter:stable] sm:px-6">
           <Preview
             found={cards.find((c) => c.id === selected) ?? null}
             made={selected === null ? undefined : made[selected]}
