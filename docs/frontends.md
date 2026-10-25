@@ -10,7 +10,8 @@ and back: `srl next --json` turns the store into one card ready to show,
 and `srl review` turns a rating into a review event. Frontends understand
 this and nothing else. They don't know about notes, kinds or cloze syntax,
 so any frontend can show any card, and a change to the notes or to a kind
-never changes a frontend.
+never changes a frontend. A kind reaches a frontend only as its name, a
+label to show.
 
 How to write a frontend, and the ones in the repository's `examples/`, are
 in [guides/frontends.md](guides/frontends.md).
@@ -38,6 +39,10 @@ The person rates every card; nothing is judged automatically. A frontend may
 also collect an answer before step 3 and pass it as `response`, which is
 only kept in the log.
 
+A frontend may name the card's `kind` at any step, so that the person
+knows where the card came from, such as a kind whose program asks an LLM
+to write the question.
+
 A frontend may offer more, with the commands everyone has: suspending the
 card (`srl suspend id:ID`), opening its note (`srl edit ID`, or the file at
 `path` in an editor of its own), or a summary at the end, counting the
@@ -50,14 +55,15 @@ every time, edits and reviews made elsewhere count at once.
 ## What a frontend gets
 
 `srl next --json` prints one object: the card's fields (see
-[cards.md](cards.md)), then the card's state and its item's note and
+[cards.md](cards.md)), then the card's state and its item's kind, note and
 context:
 
 ```json
 {"id": "k3m9q1-2", "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
  "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
  "answer": "Despite everyone's opposition, she started a company.",
- "state": "due", "path": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
+ "state": "due", "kind": "qa",
+ "path": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
 ```
 
@@ -65,6 +71,7 @@ context:
 |---|---|
 | `id`, `prompt`, `prompt_revealed`, `answer` | The card (see [cards.md](cards.md)). `prompt_revealed` and `answer` may be `null`. |
 | `state` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Choosing the next card"). |
+| `kind` | The item's kind: `qa`, or the name of a kind program in `.srl/config.toml`, as in `srl show --json` (see [cards.md](cards.md), "Kinds"). |
 | `path` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "Items as JSON"). |
 | `see` | The note its `see:` names, or `null`. |
 | `context` | The context, in the mode the frontend chose, or `null` when there is none (see [notes.md](notes.md), "Context"). |

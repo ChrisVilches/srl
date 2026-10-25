@@ -201,7 +201,7 @@ was decided.
 
 `srl next --json` and `srl review` are the frontend contract: what
 `srl next --json` prints, one object with the card, its state, and its
-item's note and context, is specified in [frontends.md](frontends.md),
+item's kind, note and context, is specified in [frontends.md](frontends.md),
 "What a frontend gets". `--context MODE` chooses the context's mode,
 `prose` without it. Only the JSON output has a context, so without
 `--json` the flag changes nothing.

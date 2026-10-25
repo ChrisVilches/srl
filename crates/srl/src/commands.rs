@@ -451,8 +451,8 @@ fn move_history(store: &Store, from: &str, to: &str, dry_run: bool) -> anyhow::R
 }
 
 /// `srl next`: the next card, if there is one. With `--json`, the card
-/// with what a frontend shows around it: its state, and its item's note and
-/// its context in `mode` (see `docs/cli.md`, "Studying").
+/// with what a frontend shows around it: its state, and its item's kind,
+/// note and context in `mode` (see `docs/cli.md`, "Studying").
 fn next(
     store: &Store,
     selector: &Selector,
@@ -478,6 +478,7 @@ fn next(
             #[serde(flatten)]
             card: &'a Card,
             state: &'static str,
+            kind: &'a str,
             path: &'a str,
             see: Option<&'a str>,
             context: Option<String>,
@@ -485,6 +486,7 @@ fn next(
         output::json_lines(&[Next {
             card: &card,
             state: state_name(loaded.memories.state(card.id())),
+            kind: item.kind().as_str(),
             path: item.path(),
             see: item.see(),
             context: srl_core::context(store, item, mode)?,

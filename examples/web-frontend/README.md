@@ -12,6 +12,8 @@ macOS and Windows (it is tried on Linux only).
   cloze's blanks filled in (or leaves it as it is when the card has none,
   `prompt_revealed` being `null`), and adds the answer below it when there
   is one.
+- Each card is labelled with its ID and kind, the kind in violet when it
+  isn't `qa`, such as a kind that asks an LLM.
 - After the answer it shows the context in `prose` mode, under the name of
   its note; `CONTEXT` in `server/server.js` chooses the mode.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the

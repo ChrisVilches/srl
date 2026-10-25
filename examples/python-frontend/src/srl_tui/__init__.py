@@ -171,6 +171,8 @@ class Session:
     def header(self, card):
         left = Text.assemble(("srl", "bold"), "  ", (" ".join(self.selector) or "every card", "dim"))
         right = Text.assemble((card["id"], "dim"), "  ")
+        # qa is the default kind; any other is a program, such as one that asks an LLM
+        right.append(card["kind"] + "  ", "dim" if card["kind"] == "qa" else "bold magenta")
         if card["state"] == "new":
             right.append("new  ", "bold cyan")
         right.append_text(self.counts())

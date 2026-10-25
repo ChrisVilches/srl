@@ -458,6 +458,7 @@ fn next_json_gives_the_card_with_its_state_note_and_context() {
             "prompt_revealed": null,
             "answer": "Undeterred by (adversity), braving.",
             "state": "new",
+            "kind": "qa",
             "path": "japanese/grammar/wo.md",
             "see": null,
             "context": "# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n",
@@ -943,6 +944,7 @@ fn cards_of_a_kind_program_in_their_own_groups_are_not_siblings() {
         (&first["id"], &first["prompt"], &first["prompt_revealed"]),
         (&"abc-a".into(), &"a?".into(), &"a!".into())
     );
+    assert_eq!(first["kind"], "fake");
     record(d, &first, 3);
     let second = next_card(d, &[]);
     assert_eq!(second["id"], "abc-b");

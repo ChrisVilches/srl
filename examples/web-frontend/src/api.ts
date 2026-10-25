@@ -1,13 +1,14 @@
 // The server's API (server/server.js).
 
 // What `srl next --json` prints (docs/frontends.md, "What a frontend gets"):
-// the card, its state, and its item's note and context.
+// the card, its state, and its item's kind, note and context.
 export type Card = {
   id: string;
   prompt: string;
   prompt_revealed: string | null;
   answer: string | null;
   state: 'new' | 'due';
+  kind: string;
   path: string;
   see: string | null;
   context: string | null;

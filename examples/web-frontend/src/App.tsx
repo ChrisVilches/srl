@@ -207,11 +207,23 @@ function CardView({
       <article className="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
         <div className="flex items-center justify-between px-6 pt-4 text-xs text-stone-400">
           <span className="font-mono">{card.id}</span>
-          {card.state === 'new' && (
-            <span className="rounded-full bg-sky-100 px-2 py-0.5 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-              new
+          <span className="flex gap-2">
+            <span
+              title="The kind that made this card"
+              className={
+                card.kind === 'qa'
+                  ? 'rounded-full px-2 py-0.5 font-mono'
+                  : 'rounded-full bg-violet-100 px-2 py-0.5 font-mono font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300'
+              }
+            >
+              {card.kind}
             </span>
-          )}
+            {card.state === 'new' && (
+              <span className="rounded-full bg-sky-100 px-2 py-0.5 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                new
+              </span>
+            )}
+          </span>
         </div>
         <section className="px-6 pt-2 pb-6">
           <Label>Question</Label>

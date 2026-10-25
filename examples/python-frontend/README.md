@@ -11,7 +11,8 @@ and macOS, `msvcrt` on Windows. On Windows that part has never run, so the
 arrow keys may not scroll there (`j`/`k` do the same), and the alternate
 screen needs a modern terminal such as Windows Terminal.
 
-- One screen per card: a header with the selector, the card's ID and the
+- One screen per card: a header with the selector, the card's ID and kind
+  (in magenta when it isn't `qa`, such as a kind that asks an LLM) and the
   counters, the card in a panel, and the keys at the bottom.
 - Card text and context are rendered as Markdown by Rich (CommonMark plus
   GFM tables and strikethrough), with `==highlights==` in bold yellow.

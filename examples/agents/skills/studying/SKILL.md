@@ -88,10 +88,11 @@ To study more new cards today, the person can raise `new_per_day` in
 A session in the chat records the same reviews as a frontend, marked as
 yours. Only run one when the person asks for it. Each round:
 
-1. `srl next [SELECTOR] --json` prints the card, with its state and
+1. `srl next [SELECTOR] --json` prints the card, with its state, kind and
    context: `{"id": "k3m9q1-2", "prompt": "...", "prompt_revealed": "...",
-   "answer": "...", "state": "due", "path": "...", "see": null,
-   "context": "..."}`. Exit
+   "answer": "...", "state": "due", "kind": "qa", "path": "...",
+   "see": null, "context": "..."}`. Mention the kind when it isn't `qa`:
+   it says which program made the card. Exit
    code 1 means nothing is left: say so and stop. Exit code 2 is an
    error: tell the person what it says, and stop. `--context MODE` chooses
    how much of the note comes along: `prose` (the default) without its
