@@ -47,6 +47,7 @@ way every time, because nothing changes until someone acts:
   ask them first.
 
 `srl cards ID` makes the card too, so it shows whether the fix worked.
+The person can also see it rendered in the Browse tab of `srl-web`.
 
 ## Text that should be an item but isn't
 

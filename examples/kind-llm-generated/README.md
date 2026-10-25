@@ -129,6 +129,10 @@ srl next             # study as usual
 srl next kind:llm-generated   # study only these items
 ```
 
+The Browse tab of `srl-web` (see [web-frontend/](../web-frontend/README.md))
+shows such a card as a frontend shows it, without studying it: choose a
+card and it is made, with an API call, while the page counts the seconds.
+
 By hand:
 
 ```sh

@@ -75,6 +75,11 @@ srl next             # study as usual
 srl next kind:ja-words   # study only ja-words items
 ```
 
+To see the cards as a frontend shows them, with the words highlighted,
+open the Browse tab of `srl-web` (see
+[web-frontend/](../web-frontend/README.md)) with the selector
+`kind:ja-words`, and choose a card.
+
 Every command that reads items runs `ja_words.py ids` once for each
 `ja-words` item, so a store with many of them is slower. `card`, which
 runs MeCab, only runs for a card about to be shown.
