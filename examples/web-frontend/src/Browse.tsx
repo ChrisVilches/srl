@@ -138,7 +138,7 @@ export function Browse({ active }: { active: boolean }) {
           </span>
         )}
       </TopBar>
-      <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-cols-[26rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+      <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-4 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-cols-[26rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
         <div className="overflow-y-auto border-b border-stone-200 [scrollbar-gutter:stable] lg:border-r lg:border-b-0 dark:border-stone-800">
           {list.kind === 'loading' && <p className="p-6 text-stone-400">Finding cards…</p>}
           {list.kind === 'error' && (
