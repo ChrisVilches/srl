@@ -6,7 +6,10 @@ agents all use the same commands. There is no separate API.
 Every command reads or changes the store's data: its notes and their
 items, the log and the configuration. One of them, `srl next --json`, is
 also the frontend contract: the mapping from that data to what a frontend
-shows (see [frontends.md](frontends.md)). No command shows cards
+shows (see [frontends.md](frontends.md)). `srl cards --json` prints cards
+in the same format, the one a frontend shows (see [cards.md](cards.md)),
+without what `srl next --json` adds around them; frontends rely on
+`srl next` only. No command shows cards
 interactively or runs other programs for you, except `srl edit ID`, which
 opens a note in your editor.
 
@@ -58,7 +61,7 @@ opens a note in your editor.
 |---|---|
 | `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by note path, line, then card ID): one line each with the card ID, `PATH:LINE` and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
-| `srl cards ID… [--json]` | Print cards by ID: a card ID gives that card, an item ID all of its cards (see below). |
+| `srl cards ID… [--json]` | Print cards by ID: a card ID gives that card, an item ID all of its cards, made in the format a frontend shows (see below). |
 | `srl add NOTE --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
 | `srl edit ID` | Open the note of the item in the editor (see "Editing in the editor" below). |
 | `srl edit ID --stdin` | Replace the item's lines in its note with standard input, which must be exactly one item with the same ID. The rest of the note is unchanged. Prints nothing; with `--dry-run`, only checks the input. |
