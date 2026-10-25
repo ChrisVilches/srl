@@ -24,16 +24,6 @@ exits with 1, because nothing is left, or with 2 on an error, such as a
 card its kind couldn't make; `srl` prints the reason on standard error. `--context` is this frontend's
 choice; `full` would show the items of the note too, and `none` nothing.
 
-## A question in the shell prompt
-
-```sh
-# in .zshrc: show one due card before each prompt, if any
-precmd() { srl next --json 2>/dev/null | jq -r '"srl: " + .prompt' }
-```
-
-This shows the prompt only and records nothing. Rate the card later, with
-`srl review ID --rating N`, after looking up the answer with `srl cards ID`.
-
 ## The examples
 
 The repository's `examples/` has two fuller frontends (see

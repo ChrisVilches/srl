@@ -79,8 +79,6 @@ Each part of `srl` already allows this:
 
 - **Confidence calibration.** Rate your confidence before answering, and track
   how well confidence predicts correctness.
-- **Ambient review.** One question at a time in the shell prompt, the tmux
-  status line or a git hook.
 
 ## Importing
 
