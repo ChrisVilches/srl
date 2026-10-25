@@ -10,7 +10,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from ja_words import KindError, card, ids
+from ja_words import KindError, card, describe, ids
 
 SENTENCE = "東京{都}は、日本の関東{地方}に{位置}する{都}"
 
@@ -20,6 +20,11 @@ def item(text, suffix=None, **fields):
     if suffix is not None:
         made.update(suffix=suffix, context=None, day="2026-10-27")
     return made
+
+
+class Describe(unittest.TestCase):
+    def test_it_names_the_field_that_ids_checks(self):
+        self.assertEqual([field["name"] for field in describe({})["fields"]], ["TEXT"])
 
 
 class Ids(unittest.TestCase):

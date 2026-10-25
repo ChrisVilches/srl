@@ -53,7 +53,7 @@ Tried on Arch Linux only.
 - **Braces only go around a word.** An empty `{}`, a brace without its
   pair, braces inside braces, and a `TEXT` without any `{word}` are
   errors; there is no way to write a literal brace. `TEXT` is the only
-  field.
+  field, and `describe` says so, for `srl kinds` and editors.
 
 MeCab's IPA dictionary is Japanese only, and it reads a word in context
 as best it can: 都 at the end of the sentence above comes out as と, not
@@ -98,6 +98,8 @@ echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地�
 echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地方}に{位置}する{都}"},
        "suffix": "e983bd", "context": null, "day": "2026-10-27"}' \
   | python3 ja_words.py card
+
+echo '{}' | python3 ja_words.py describe
 ```
 
 An error exits with status 1 and its reason on standard error.

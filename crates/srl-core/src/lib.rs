@@ -30,7 +30,7 @@ pub use config::Config;
 pub use context::{ContextMode, context};
 pub use error::{Error, Result};
 pub use index::Index;
-pub use kind::Kind;
+pub use kind::{FieldDescription, Kind, KindDescription, kinds};
 pub use log::{By, CardEvent, Entry, Event, Log, Move, Review};
 pub use next::next;
 pub use note::{Field, Item, ItemId, Notes};

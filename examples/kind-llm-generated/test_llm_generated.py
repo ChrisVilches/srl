@@ -174,6 +174,12 @@ class AsSrlRunsIt(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertEqual(json.loads(run.stdout), {"groups": [{"cards": [None]}]})
 
+    def test_describe_names_the_field_that_ids_checks(self):
+        run = self.run_call("describe", {})
+        self.assertEqual(run.returncode, 0, run.stderr)
+        fields = json.loads(run.stdout)["fields"]
+        self.assertEqual([field["name"] for field in fields], ["PROMPT"])
+
     def test_card_without_a_key_fails_loudly_and_logs_nothing(self):
         with tempfile.TemporaryDirectory() as folder:
             env = {key: value for key, value in os.environ.items() if key != "OPENAI_API_KEY"}

@@ -10,7 +10,7 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use serde::Serialize;
-use srl_core::{By, Card, CardId, Event, Item, Lint, Stats, Written};
+use srl_core::{By, Card, CardId, Event, Item, KindDescription, Lint, Stats, Written};
 
 /// Prints one path per line.
 pub(crate) fn paths(paths: &[PathBuf]) {
@@ -138,6 +138,19 @@ pub(crate) fn stats(report: &Stats) {
             report.retention_reviews
         ),
         None => println!("retention  -"),
+    }
+}
+
+/// Prints kinds for people: for each, a line with its name and
+/// description, then a line per field, indented by two spaces, with its
+/// name and description. Names and descriptions are separated by two
+/// spaces.
+pub(crate) fn kinds(kinds: &[KindDescription]) {
+    for kind in kinds {
+        println!("{}  {}", kind.name, kind.description);
+        for field in &kind.fields {
+            println!("  {}  {}", field.name, field.description);
+        }
     }
 }
 

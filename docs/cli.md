@@ -55,6 +55,7 @@ opens a note in your editor.
 | `srl id` | Give an ID to every item without one (see [notes.md](notes.md), "How srl writes to notes"). Prints `ID  PATH:LINE` per item; exit 1 if every item already had one. |
 | `srl reindex` | Delete the index cache and build it again from the files (see [store.md](store.md), "The index cache"). Prints nothing. |
 | `srl notes [--json]` | List the notes of the store (see [notes.md](notes.md), "Which files are notes"): one path per line, relative to the store's folder, sorted as `srl find` sorts notes. With `--json`, one object per note: `{"path": "japanese/grammar/wo.md"}`. It doesn't read the notes, so errors in them don't stop it. Exit 1 if the store has none. |
+| `srl kinds [--json]` | Describe the kinds of the store: `qa`, then the kind programs of `[kinds]` sorted by name (see [cards.md](cards.md), "Describing a kind"). For each, a line with its name and description, then a line per field, indented by two spaces, with its name and description; names and descriptions are separated by two spaces. With `--json`, one object per kind: `{"name": "qa", "description": "…", "fields": [{"name": "Q", "description": "…"}, …]}`. It doesn't read the notes. If a kind program can't describe its kind, it fails at once with the reason, and prints nothing. |
 
 ### Items and cards
 
@@ -143,7 +144,7 @@ JSONL
 - **Every other key is a field name, and its value the field's text**, in
   the order given. Multi-line text is written with continuation lines.
   Which fields are accepted is up to the kind, so `srl add` works the same
-  for every kind there is.
+  for every kind there is; `srl kinds` describes them.
 - `NOTE` is a path relative to the store's folder, and must be a note:
   matched by `include`, not by `exclude`, and not in a folder that starts
   with `.` (see [notes.md](notes.md), "Which files are notes"). If it

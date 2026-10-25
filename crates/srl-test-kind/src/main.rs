@@ -11,6 +11,10 @@
 //! - `SLEEP_CARD`: `card` waits this many seconds first.
 //! - `CARD`: printed as is for `card`, in place of the card.
 //!
+//! `describe` has no item, so an argument before the call decides it
+//! instead: `fail` makes it fail, and any other text is printed as is, in
+//! place of the description of the fields above.
+//!
 //! The card made for suffix `S` has the prompt `S?`, the revealed prompt
 //! `S!`, and an answer that tells what the program got: the study day, the
 //! context, and the name of the folder it ran in.
@@ -28,7 +32,10 @@ use serde_json::{Value, json};
     reason = "a kind program answers on standard output and standard error"
 )]
 fn main() -> ExitCode {
-    let call = std::env::args().nth(1).unwrap_or_default();
+    // srl adds the call last, after the arguments of `[kinds]`.
+    let mut args = std::env::args().skip(1).collect::<Vec<_>>();
+    let call = args.pop().unwrap_or_default();
+    let describe = args.first().map(String::as_str);
     let mut input = String::new();
     if let Err(error) = io::stdin().read_to_string(&mut input) {
         eprintln!("cannot read standard input: {error}");
@@ -41,7 +48,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match answer(&call, &input) {
+    match answer(&call, &input, describe) {
         Ok(output) => {
             println!("{output}");
             ExitCode::SUCCESS
@@ -53,8 +60,9 @@ fn main() -> ExitCode {
     }
 }
 
-/// What the call `call` prints for `input`, or why it fails.
-fn answer(call: &str, input: &Value) -> Result<String, String> {
+/// What the call `call` prints for `input`, or why it fails. `describe` is
+/// the argument that decides the `describe` call, if there is one.
+fn answer(call: &str, input: &Value, describe: Option<&str>) -> Result<String, String> {
     let get = |key: &str| input.get(key).unwrap_or(&Value::Null);
     let field = |key: &str| get("fields").get(key).and_then(Value::as_str);
     match call {
@@ -110,6 +118,18 @@ fn answer(call: &str, input: &Value) -> Result<String, String> {
             })
             .to_string())
         }
+        "describe" => match describe {
+            Some("fail") => Err("describe fails on purpose".to_owned()),
+            Some(raw) => Ok(raw.to_owned()),
+            None => Ok(json!({
+                "description": "A kind for srl's tests.",
+                "fields": [
+                    {"name": "GROUPS", "description": "The cards, groups separated by |."},
+                    {"name": "FAIL_CARD", "description": "The suffixes whose card fails."},
+                ],
+            })
+            .to_string()),
+        },
         other => Err(format!("unknown call `{other}`")),
     }
 }

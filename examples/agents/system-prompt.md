@@ -216,6 +216,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl id` | give IDs to new items |
 | `srl find [SEL]` | list cards |
 | `srl notes` | list the notes, also those without items (for `see:` and `srl add NOTE`) |
+| `srl kinds` | describe each kind and its fields, before writing an item of it |
 | `srl show ID` | print an item and its context |
 | `srl cards ID` | print the cards of an item |
 | `srl add NOTE --stdin` | append items (JSONL) |

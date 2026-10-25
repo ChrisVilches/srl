@@ -55,3 +55,10 @@ fn a_card_tells_what_the_program_got() {
     let input = r#"{"id": "abc", "fields": {"FAIL_CARD": "a"}, "suffix": "a", "context": null, "day": "2026-10-27"}"#;
     assert_eq!(run("card", input), (false, String::new()));
 }
+
+#[test]
+fn describe_names_the_fields_above() {
+    let (ok, output) = run("describe", "{}");
+    assert!(ok);
+    assert!(output.contains(r#""name":"GROUPS""#), "{output}");
+}

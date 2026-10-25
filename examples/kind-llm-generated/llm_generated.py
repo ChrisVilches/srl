@@ -13,6 +13,7 @@ macOS and Windows; tried on Linux only.
 
     python3 llm_generated.py ids  < item.json
     python3 llm_generated.py card < item-with-suffix.json
+    echo '{}' | python3 llm_generated.py describe
 """
 
 import json
@@ -74,6 +75,20 @@ def topic_of(item):
     if not fields[FIELD].strip():
         raise KindError(f"{FIELD} is empty; say what the question should be about")
     return fields[FIELD]
+
+
+def describe(_input):
+    """The output of `describe`: what the kind is for, and its field."""
+    return {
+        "description": "One card, whose question and answer an LLM writes anew each time.",
+        "fields": [
+            {
+                "name": FIELD,
+                "description": "What the question should be about, as you would tell a "
+                "tutor. The item's note is sent too, as background.",
+            }
+        ],
+    }
 
 
 def ids(item):
@@ -201,9 +216,9 @@ def parse(response):
 
 
 def main(argv):
-    calls = {"ids": ids, "card": card}
+    calls = {"ids": ids, "card": card, "describe": describe}
     if len(argv) != 2 or argv[1] not in calls:
-        print("usage: llm_generated.py ids|card < ITEM.json", file=sys.stderr)
+        print("usage: llm_generated.py ids|card|describe < INPUT.json", file=sys.stderr)
         return 2
     try:
         output = calls[argv[1]](json.load(sys.stdin))

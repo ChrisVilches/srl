@@ -7,10 +7,12 @@ mod program;
 use std::collections::BTreeSet;
 
 use jiff::civil::Date;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::card::{Card, CardId};
 use crate::note::{Field, ItemId};
+use crate::{Config, Error, Store};
 
 use cloze::Piece;
 pub(crate) use cloze::has_deletion;
@@ -89,6 +91,69 @@ impl Kind {
                 programs.card(name, card, &Value::Object(input))
             }
         }
+    }
+}
+
+/// What a kind is for and which fields it takes, for people and editors
+/// (see `docs/cards.md`, "Describing a kind"). It only informs: an item is
+/// checked by its kind, never against its description.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct KindDescription {
+    pub name: String,
+    pub description: String,
+    pub fields: Vec<FieldDescription>,
+}
+
+/// One field of a [`KindDescription`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FieldDescription {
+    pub name: String,
+    pub description: String,
+}
+
+/// Every kind of the store, described: `qa`, then the kind programs by
+/// name. Fails at the first program that can't describe its kind.
+pub fn kinds(store: &Store, config: &Config) -> crate::Result<Vec<KindDescription>> {
+    let programs = Programs::new(store, config);
+    let mut described = vec![qa_description()];
+    for name in programs.names() {
+        let (description, fields) =
+            programs
+                .describe(name)
+                .map_err(|reason| Error::DescribeFailed {
+                    kind: name.to_owned(),
+                    reason,
+                })?;
+        described.push(KindDescription {
+            name: name.to_owned(),
+            description,
+            fields,
+        });
+    }
+    Ok(described)
+}
+
+/// The description of `qa` (see `docs/cards.md`, "`qa`").
+fn qa_description() -> KindDescription {
+    let field = |name: &str, description: &str| FieldDescription {
+        name: name.to_owned(),
+        description: description.to_owned(),
+    };
+    KindDescription {
+        name: "qa".to_owned(),
+        description: "A question and an answer, with optional cloze deletions.".to_owned(),
+        fields: vec![
+            field(
+                "Q",
+                "The question. May contain cloze deletions, {{c1::text}} or \
+                 {{c1::text::hint}}: one card per number.",
+            ),
+            field(
+                "A",
+                "The answer. Optional when Q has cloze deletions, and never contains any.",
+            ),
+        ],
     }
 }
 

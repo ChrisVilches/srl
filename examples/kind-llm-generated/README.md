@@ -35,6 +35,7 @@ Meant for Linux, macOS and Windows; tried on Linux only.
 - **`ids` never calls the LLM.** It only checks that `PROMPT` is the
   item's only field and isn't empty. Every command that reads items calls
   it, so `srl find`, `srl check`, selectors and scheduling cost nothing.
+  `describe`, for `srl kinds` and editors, names the same field.
 - **`card` calls the LLM**, and srl calls it only for a card that is about to
   be shown: the one `srl next` (and so every frontend) gives, and each
   card `srl cards` prints. No question is written that nobody sees.
@@ -143,6 +144,8 @@ echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}}' \
 echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"},
        "suffix": null, "context": null, "day": "2026-10-27"}' \
   | python3 llm_generated.py card
+
+echo '{}' | python3 llm_generated.py describe
 ```
 
 ## Tests

@@ -11,6 +11,7 @@ packages. Tried on Arch Linux only, where they are installed with
 
     python3 ja_words.py ids  < item.json
     python3 ja_words.py card < item-with-suffix.json
+    echo '{}' | python3 ja_words.py describe
 """
 
 import json
@@ -83,6 +84,20 @@ def suffix(word):
     か followed by a combining ゛, the same card as the word typed with
     precomposed characters, が."""
     return unicodedata.normalize("NFC", word).encode("utf-8").hex()
+
+
+def describe(_input):
+    """The output of `describe`: what the kind is for, and its field."""
+    return {
+        "description": "One card per {word} of a Japanese sentence, the word highlighted.",
+        "fields": [
+            {
+                "name": FIELD,
+                "description": "A Japanese sentence, with braces around each word to study: "
+                "東京{都}は、日本の関東{地方}にある。",
+            }
+        ],
+    }
 
 
 def ids(item):
@@ -172,9 +187,9 @@ def hiragana(katakana):
 
 
 def main(argv):
-    calls = {"ids": ids, "card": card}
+    calls = {"ids": ids, "card": card, "describe": describe}
     if len(argv) != 2 or argv[1] not in calls:
-        print("usage: ja_words.py ids|card < ITEM.json", file=sys.stderr)
+        print("usage: ja_words.py ids|card|describe < INPUT.json", file=sys.stderr)
         return 2
     try:
         output = calls[argv[1]](json.load(sys.stdin))

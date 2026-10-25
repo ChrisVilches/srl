@@ -687,6 +687,24 @@ fn notes_lists_every_note_without_reading_it() {
     assert_eq!(srl(&["notes", "--dir", dir(&empty)]).status.code(), Some(1));
 }
 
+#[test]
+fn kinds_describes_qa_without_reading_the_notes() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(&tmp, "broken.md", "<!-- srl -->\nbroken\n");
+    let output = srl(&["kinds", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let lines = lines(&output);
+    assert!(lines[0].starts_with("qa  "), "{lines:?}");
+    assert!(lines[1].starts_with("  Q  "), "{lines:?}");
+    assert!(lines[2].starts_with("  A  "), "{lines:?}");
+    let output = srl(&["kinds", "--json", "--dir", d]);
+    let kinds = json_lines(&output);
+    assert_eq!(kinds.len(), 1);
+    assert_eq!(kinds[0]["name"], "qa");
+    assert_eq!(kinds[0]["fields"][0]["name"], "Q");
+}
+
 const TEXT_NOTE: &str = "<!-- srl id:txt001 -->\nQ: From a text file?\nA: Yes.\n";
 
 #[test]

@@ -35,6 +35,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Id { dry_run } => id(&store()?, dry_run.dry_run),
         Command::Reindex => reindex(&store()?),
         Command::Notes { json } => notes(&store()?, json.json),
+        Command::Kinds { json } => kinds(&store()?, json.json),
         Command::Find {
             selector: terms,
             json,
@@ -242,6 +243,18 @@ fn notes(store: &Store, json: bool) -> anyhow::Result<Outcome> {
         output::note_paths(&paths);
     }
     Ok(found_anything(!paths.is_empty()))
+}
+
+/// `srl kinds`: describes every kind, `qa` first, without reading the
+/// notes. Fails at once if a kind program can't describe its kind.
+fn kinds(store: &Store, json: bool) -> anyhow::Result<Outcome> {
+    let described = srl_core::kinds(store, &Config::load(store)?)?;
+    if json {
+        output::json_lines(&described)?;
+    } else {
+        output::kinds(&described);
+    }
+    Ok(Outcome::Done)
 }
 
 /// The cards that match `selector`, with their items.

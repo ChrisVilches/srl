@@ -191,7 +191,7 @@ An item with `kind:ja-words` gets its cards from that program.
 per `{word}` of a Japanese sentence.
 
 - **The value is a command**: the program, then its arguments. `srl`
-  adds `ids` or `card` (see below) as the last argument. It is a list,
+  adds `ids`, `card` or `describe` (see below) as the last argument. It is a list,
   not a path, so that a script runs the same on every platform: Windows
   can't run a script by its `#!` line, and takes
   `["py", "kinds/ja_words.py"]`.
@@ -216,7 +216,9 @@ under its ID, and are asked for all the time; content is asked for one
 card at a time, and may be slow to make (a program that asks an LLM to
 write the question) or differ every time. Kept apart, a command that only
 needs IDs never waits for content (see [rationale.md](rationale.md), "Why
-a kind program answers two calls"). Each call reads one JSON object on
+a kind program answers two calls"). A third call, `describe`, says what
+the kind is for and which fields it takes, for people and editors (see
+"Describing a kind" below). Every program answers all three. Each call reads one JSON object on
 standard input and prints one on standard output. A call that exits with a status other than 0 failed, and
 what it printed on standard error is the reason.
 
@@ -224,6 +226,7 @@ what it printed on standard error is the reason.
 |---|---|---|---|
 | `ids` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | its cards, in groups: `{"groups": [{"cards": ["te", "past"]}, {"cards": ["negative"]}]}` | **Deterministic and fast**: the same fields always give the same cards. Called for every item of the kind, on every command that reads items. It has no time limit. |
 | `card` | the same object, plus `"suffix"` (`null` for a card with the item's ID), `"context"` (the item's context in mode `prose`, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`: the card's fields of "Format" above, without `id`. Only `prompt` must be present; `prompt_revealed` and `answer` may be left out, which is the same as `null` | **May differ every time.** Called only for a card about to be shown, and stopped after `kind_programs.card_timeout` seconds. |
+| `describe` | `{}` | the kind and its fields: `{"description": "…", "fields": [{"name": "VERB", "description": "…"}]}` (see "Describing a kind") | **Only informs.** Called only by `srl kinds`. It has no time limit. |
 
 `fields` is as in `srl show --json` (see [notes.md](notes.md), "Items as
 JSON"). No key is written twice in an item, whatever its kind (see
@@ -268,10 +271,14 @@ When a call fails:
   failing on that card; `srl suspend` sets it aside (see
   [rationale.md](rationale.md), "Why a card that can't be made stops
   studying").
+- **A failing `describe` call fails `srl kinds`**, at once, with the
+  reason, and so does output that doesn't follow "Describing a kind"
+  below. No other command calls it.
 
 > **TODO (design):** `ids` has two jobs, and its name says only one.
 > Besides giving the item's card IDs, it is the only place a kind program
-> checks an item's fields: srl knows nothing of a program's fields, so an
+> checks an item's fields: srl never checks an item against what
+> `describe` says (see "Describing a kind"), so an
 > item the program can't use is an error only if `ids` fails on it (this
 > is what makes `srl check` and `srl add --dry-run` find a missing or
 > misspelled field). Nothing in the call's name, nor in its row of the
@@ -294,6 +301,39 @@ prints is one card the kind could give, not the one `srl next` will show.
 > command, the program changing), is still to be analyzed. Notes
 > themselves are not cached either (see [store.md](store.md), "The index
 > cache").
+
+### Describing a kind
+
+Every kind describes itself, so that a person, an editor or an agent
+can write an item of a kind without reading its program (see
+[rationale.md](rationale.md), "Why a kind describes itself, and the
+description only informs"). `srl kinds` prints the descriptions (see
+[cli.md](cli.md)); a kind program gives its own with `describe`, and
+`qa`'s is built in.
+
+```json
+{"description": "Conjugation questions about a verb, one card per form.",
+ "fields": [{"name": "VERB", "description": "The verb, in its dictionary form."},
+            {"name": "FORMS", "description": "The forms to ask, separated by spaces: te, past, negative."}]}
+```
+
+- `description` says what the kind is for, in a sentence.
+- `fields` lists the fields the kind takes, in the order an item usually
+  writes them, each with its `name` and a `description`. Whatever an item
+  needs to know about a field goes in its description, such as when it
+  may be left out: "The answer. Optional when Q has cloze deletions."
+- The output holds a description that isn't blank, at least one field,
+  each field once with a name made as in [notes.md](notes.md), "The item
+  syntax", and descriptions that aren't blank. Any other key is invalid.
+
+**A description only informs.** It doesn't say which fields are required
+or how they depend on each other, and `srl` never checks an item against
+it: the kind checks its items, `qa` in `srl` and a program in `ids`, as
+as when a call fails (see above). So an editor shows the fields of
+`describe`, and learns whether an item is valid from `srl add --dry-run`.
+Rules such as "A may be left out when Q has cloze deletions" are written
+once, in the kind, and a description that falls behind them misleads
+people but never accepts or refuses an item.
 
 ## Text formatting
 

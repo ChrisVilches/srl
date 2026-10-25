@@ -71,6 +71,9 @@ pub enum Error {
     )]
     CardFailed { card: String, reason: String },
 
+    #[error("cannot describe the kind {kind}: {reason}")]
+    DescribeFailed { kind: String, reason: String },
+
     #[error("invalid selector term `{term}`: {reason}")]
     BadSelector { term: String, reason: String },
 

@@ -212,6 +212,27 @@ every miss.
 Trade-off: a kind program has two calls to write instead of one, and the
 two must agree on the item's cards.
 
+## Why a kind describes itself, and the description only informs
+
+To write an item you need to know its kind's fields, and only the kind
+knows them. So every kind program answers a third call, `describe`, and
+`srl kinds` prints what it says: a person, an editor or an agent learns
+the fields from `srl`, not from the program's source or from a template
+kept somewhere else. It is required, not optional, so that every kind can
+be written the same way, and a program that can't describe its kind
+fails loudly instead of leaving an editor with nothing to show.
+
+A description is text for people, never a schema `srl` checks items
+against. The rules of a kind are often conditional, as `qa`'s "A may be
+left out when Q has cloze deletions", and a schema able to state them
+would be a second, partial copy of the kind's own checks, bound to drift
+from them. With one place that checks, the kind, a description that
+falls behind only misleads, and `srl add --dry-run` still gives the right
+answer.
+
+Trade-off: a kind program has a third call to write, and nothing makes
+its description agree with what `ids` accepts.
+
 ## Why groups of siblings, without names
 
 Siblings are about content: two cards are siblings when seeing one gives

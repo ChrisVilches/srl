@@ -1,8 +1,8 @@
 //! Kinds that are programs (see `docs/cards.md`, "Kind programs").
 //!
-//! A kind program answers two calls, `ids` and `card`. Each reads one JSON
-//! object on standard input and prints one on standard output; a status
-//! other than 0 is a failure, and standard error says why.
+//! A kind program answers three calls, `ids`, `card` and `describe`. Each
+//! reads one JSON object on standard input and prints one on standard
+//! output; a status other than 0 is a failure, and standard error says why.
 
 use std::collections::{BTreeMap, HashSet};
 use std::io::{self, Read, Write as _};
@@ -12,9 +12,11 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Map, Value};
 
+use super::FieldDescription;
 use crate::card::{Card, CardId};
+use crate::note::parse::is_field_key;
 use crate::note::{ItemId, is_id_text};
 use crate::{Config, Store};
 
@@ -58,6 +60,14 @@ struct CardOutput {
     answer: Option<String>,
 }
 
+/// What `describe` prints.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DescribeOutput {
+    description: String,
+    fields: Vec<FieldDescription>,
+}
+
 impl Programs {
     /// The programs named in `[kinds]` of the store's configuration.
     pub(crate) fn new(store: &Store, config: &Config) -> Self {
@@ -71,6 +81,18 @@ impl Programs {
     /// Whether `name` is a kind program.
     pub(crate) fn has(&self, name: &str) -> bool {
         self.commands.contains_key(name)
+    }
+
+    /// The names of the kind programs, sorted.
+    pub(crate) fn names(&self) -> impl Iterator<Item = &str> {
+        self.commands.keys().map(String::as_str)
+    }
+
+    /// What the program of kind `name` says its kind is for, and its
+    /// fields. Errors are plain reasons.
+    pub(crate) fn describe(&self, name: &str) -> Result<(String, Vec<FieldDescription>), String> {
+        let output = self.run(name, "describe", &Value::Object(Map::new()), None)?;
+        description(&output).map_err(|reason| invalid_output(name, "describe", &reason))
     }
 
     /// The card IDs the program of kind `name` gives for the item `input`,
@@ -251,6 +273,38 @@ fn groups(item: &ItemId, output: &str) -> Result<Vec<Vec<CardId>>, String> {
         .collect())
 }
 
+/// The description and fields in what `describe` printed. Errors are plain
+/// reasons.
+fn description(output: &str) -> Result<(String, Vec<FieldDescription>), String> {
+    let output =
+        serde_json::from_str::<DescribeOutput>(output).map_err(|error| error.to_string())?;
+    if output.description.trim().is_empty() {
+        return Err("its description is empty".to_owned());
+    }
+    if output.fields.is_empty() {
+        return Err("it has no fields".to_owned());
+    }
+    let mut seen = HashSet::new();
+    for field in &output.fields {
+        if !is_field_key(&field.name) {
+            return Err(format!(
+                "`{}` is not a field name; a field name is A-Z, 0-9 and _, starting with a letter",
+                field.name
+            ));
+        }
+        if !seen.insert(&field.name) {
+            return Err(format!("the field {} is given twice", field.name));
+        }
+        if field.description.trim().is_empty() {
+            return Err(format!(
+                "the description of the field {} is empty",
+                field.name
+            ));
+        }
+    }
+    Ok((output.description, output.fields))
+}
+
 /// Writes `input` to a program's standard input, and closes it.
 fn write_input(mut stdin: ChildStdin, input: &str) -> io::Result<()> {
     match stdin.write_all(input.as_bytes()) {
@@ -404,6 +458,70 @@ mod tests {
             groups(&item, r#"{"groups": [{"cards": [null]}]}"#).unwrap(),
             [[CardId::new(item.clone(), None)]]
         );
+    }
+
+    #[test]
+    fn describe_output_must_follow_the_protocol() {
+        for bad in [
+            r#"{"description": "", "fields": [{"name": "X", "description": "x"}]}"#,
+            r#"{"description": "d", "fields": []}"#,
+            r#"{"description": "d", "fields": [{"name": "x", "description": "x"}]}"#,
+            r#"{"description": "d", "fields": [{"name": "X", "description": " "}]}"#,
+            r#"{"description": "d", "fields": [{"name": "X", "description": "x"}, {"name": "X", "description": "y"}]}"#,
+            r#"{"description": "d", "fields": [{"name": "X", "description": "x", "required": true}]}"#,
+            r#"{"description": "d", "fields": [{"name": "X", "description": "x"}], "more": 1}"#,
+            "",
+        ] {
+            assert!(description(bad).is_err(), "accepted {bad}");
+        }
+        let (text, fields) = description(
+            r#"{"description": "d", "fields": [{"name": "VERB_1", "description": "x"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(text, "d");
+        assert_eq!(fields[0].name, "VERB_1");
+    }
+
+    #[test]
+    fn kinds_are_qa_then_the_programs_by_name() {
+        let (_tmp, store, _notes) = store(
+            &format!(
+                "[kinds]\nzz = ['{0}']\nfake = ['{0}']\n",
+                test_kind().display()
+            ),
+            "",
+        );
+        let described = crate::kinds(&store, &Config::load(&store).unwrap()).unwrap();
+        let names = described
+            .iter()
+            .map(|kind| kind.name.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["qa", "fake", "zz"]);
+        assert_eq!(described[0].fields[1].name, "A");
+        assert_eq!(described[1].description, "A kind for srl's tests.");
+        assert_eq!(described[1].fields[0].name, "GROUPS");
+    }
+
+    #[test]
+    fn a_failing_or_invalid_describe_call_fails() {
+        let kinds = |argument: &str| {
+            let (_tmp, store, _notes) = store(
+                &format!(
+                    "[kinds]\nfake = ['{}', '{argument}']\n",
+                    test_kind().display()
+                ),
+                "",
+            );
+            crate::kinds(&store, &Config::load(&store).unwrap())
+                .unwrap_err()
+                .to_string()
+        };
+        assert_eq!(
+            kinds("fail"),
+            "cannot describe the kind fake: the program of kind fake failed: describe fails on \
+             purpose"
+        );
+        assert!(kinds("{}").contains("printed invalid output for `describe`"));
     }
 
     #[test]

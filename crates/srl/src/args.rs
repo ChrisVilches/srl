@@ -87,6 +87,11 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
+    /// Describe the kinds of the store and their fields.
+    Kinds {
+        #[command(flatten)]
+        json: Json,
+    },
     /// List matching cards.
     Find {
         #[command(flatten)]
