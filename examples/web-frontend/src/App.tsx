@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type Card, type Rating } from './api';
-import { Markdown } from './Markdown';
+import { Browse } from './Browse';
+import { CardFace, ContextView, ErrorView, Key, Notice } from './CardParts';
+import { SelectorInput, TopBar, type View } from './TopBar';
+
+const viewOfHash = (): View => (window.location.hash === '#browse' ? 'browse' : 'study');
 
 // Where the session is. It runs the frontend loop of docs/frontends.md:
 // get a card, show the prompt, show the answer and the context, rate it.
@@ -27,7 +31,29 @@ async function nextPhase(selector: string): Promise<Phase> {
   return card ? { kind: 'prompt', card } : { kind: 'done' };
 }
 
+// Both views stay mounted, so that switching keeps the session and the
+// browser where they were; only the one shown takes keys.
 export default function App() {
+  const [view, setView] = useState<View>(viewOfHash);
+  useEffect(() => {
+    const onHash = () => setView(viewOfHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
+      <div className={view === 'study' ? 'contents' : 'hidden'}>
+        <Study active={view === 'study'} />
+      </div>
+      <div className={view === 'browse' ? 'contents' : 'hidden'}>
+        <Browse active={view === 'browse'} />
+      </div>
+    </div>
+  );
+}
+
+function Study({ active }: { active: boolean }) {
   const [selector, setSelector] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const [stats, setStats] = useState<Stats>({ reviewed: 0, new: 0, again: 0 });
@@ -58,9 +84,13 @@ export default function App() {
 
   const loadNext = useCallback((sel: string) => step(async () => setPhase(await nextPhase(sel))), [step]);
 
+  // Starts when first shown: a page opened on the browser makes no card.
+  const started = useRef(false);
   useEffect(() => {
+    if (!active || started.current) return;
+    started.current = true;
     start();
-  }, [start]);
+  }, [active, start]);
 
   const reveal = useCallback(() => {
     if (phase.kind !== 'prompt') return;
@@ -95,6 +125,7 @@ export default function App() {
 
   // Keys: space or Enter shows the answer, 1–4 rate, s suspends.
   useEffect(() => {
+    if (!active) return;
     const onKey = (event: KeyboardEvent) => {
       if (busy || event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.target instanceof HTMLInputElement) return;
@@ -110,18 +141,21 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [busy, phase, reveal, rate, suspend]);
+  }, [active, busy, phase, reveal, rate, suspend]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      <Header
-        selector={selector}
-        stats={stats}
-        onSelector={(sel) => {
-          setSelector(sel);
-          loadNext(sel);
-        }}
-      />
+    <div className="flex min-h-screen flex-col">
+      <TopBar view="study">
+        <SelectorInput
+          selector={selector}
+          placeholder="selector, e.g. in:grammar (empty: every card)"
+          onSelector={(sel) => {
+            setSelector(sel);
+            loadNext(sel);
+          }}
+        />
+        <StatsLine stats={stats} />
+      </TopBar>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
         {phase.kind === 'loading' && <Notice>Loading…</Notice>}
         {phase.kind === 'error' && (
@@ -135,46 +169,6 @@ export default function App() {
         )}
       </main>
     </div>
-  );
-}
-
-function Header({
-  selector,
-  stats,
-  onSelector,
-}: {
-  selector: string | null;
-  stats: Stats;
-  onSelector: (selector: string) => void;
-}) {
-  const [draft, setDraft] = useState(selector ?? '');
-  const input = useRef<HTMLInputElement>(null);
-  useEffect(() => setDraft(selector ?? ''), [selector]);
-
-  return (
-    <header className="border-b border-stone-200 bg-white/70 backdrop-blur dark:border-stone-800 dark:bg-stone-900/70">
-      <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
-        <span className="font-mono text-lg font-bold tracking-tight">srl</span>
-        <form
-          className="min-w-48 flex-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            input.current?.blur();
-            onSelector(draft.trim());
-          }}
-        >
-          <input
-            ref={input}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="selector, e.g. in:grammar (empty: every card)"
-            spellCheck={false}
-            className="w-full rounded-md border border-stone-300 bg-transparent px-3 py-1.5 font-mono text-sm outline-none placeholder:text-stone-400 focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
-          />
-        </form>
-        <StatsLine stats={stats} />
-      </div>
-    </header>
   );
 }
 
@@ -204,41 +198,17 @@ function CardView({
   const { card } = phase;
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <article className="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
-        <div className="flex items-center justify-between px-6 pt-4 text-xs text-stone-400">
-          <span className="font-mono">{card.id}</span>
-          <span className="flex gap-2">
-            <span
-              title="The kind that made this card"
-              className={
-                card.kind === 'qa'
-                  ? 'rounded-full px-2 py-0.5 font-mono'
-                  : 'rounded-full bg-violet-100 px-2 py-0.5 font-mono font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300'
-              }
-            >
-              {card.kind}
+      <CardFace
+        card={card}
+        revealed={phase.kind === 'answer'}
+        badges={
+          card.state === 'new' && (
+            <span className="rounded-full bg-sky-100 px-2 py-0.5 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+              new
             </span>
-            {card.state === 'new' && (
-              <span className="rounded-full bg-sky-100 px-2 py-0.5 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-                new
-              </span>
-            )}
-          </span>
-        </div>
-        <section className="px-6 pt-2 pb-6">
-          <Label>Question</Label>
-          <Markdown
-            text={phase.kind === 'answer' ? (card.prompt_revealed ?? card.prompt) : card.prompt}
-            className="prose-lg"
-          />
-        </section>
-        {phase.kind === 'answer' && card.answer !== null && (
-          <section className="border-t border-dashed border-stone-200 px-6 py-6 dark:border-stone-700">
-            <Label>Answer</Label>
-            <Markdown text={card.answer} className="prose-lg" />
-          </section>
-        )}
-      </article>
+          )
+        }
+      />
 
       {phase.kind === 'answer' && <ContextView card={card} />}
 
@@ -278,19 +248,6 @@ function CardView({
   );
 }
 
-// The item's context: the note it belongs to, or the note its see: names.
-function ContextView({ card }: { card: Card }) {
-  if (card.context === null) {
-    return <p className="text-center text-sm text-stone-400">No context.</p>;
-  }
-  return (
-    <section className="rounded-2xl bg-stone-100 px-6 py-5 dark:bg-stone-900/50">
-      <div className="mb-3 font-mono text-xs text-stone-500">{card.see ?? card.path}</div>
-      <Markdown text={card.context} className="prose-sm prose-stone" />
-    </section>
-  );
-}
-
 function DoneView({ selector, stats, onCheck }: { selector: string; stats: Stats; onCheck: () => void }) {
   return (
     <div className="m-auto flex flex-col items-center gap-4 text-center">
@@ -314,33 +271,4 @@ function DoneView({ selector, stats, onCheck }: { selector: string; stats: Stats
       </button>
     </div>
   );
-}
-
-function ErrorView({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="m-auto flex w-full flex-col gap-4">
-      <h1 className="font-semibold text-rose-600 dark:text-rose-400">srl reported an error</h1>
-      <pre className="overflow-x-auto rounded-lg bg-rose-50 p-4 text-sm whitespace-pre-wrap text-rose-950 dark:bg-rose-950/40 dark:text-rose-200">
-        {message}
-      </pre>
-      <button
-        onClick={onRetry}
-        className="self-start rounded-lg border border-stone-300 px-4 py-2 text-sm hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-900"
-      >
-        Try again
-      </button>
-    </div>
-  );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return <div className="mb-2 text-xs font-semibold tracking-widest text-stone-400 uppercase">{children}</div>;
-}
-
-function Key({ children }: { children: React.ReactNode }) {
-  return <kbd className="ml-1 rounded bg-black/15 px-1.5 py-0.5 font-mono text-xs opacity-80">{children}</kbd>;
-}
-
-function Notice({ children }: { children: React.ReactNode }) {
-  return <p className="m-auto text-stone-400">{children}</p>;
 }

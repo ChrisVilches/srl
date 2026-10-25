@@ -2,7 +2,8 @@
 
 `srl-web` is a web viewer, a frontend in the sense of
 [docs/frontends.md](../../docs/frontends.md): a small server on localhost
-that runs `srl` commands, and a page in the browser that shows the cards. It
+that runs `srl` commands, and a page in the browser that shows the cards
+to study, and a browser of any card. It
 needs `srl` on `PATH` and Node.js 20 or later, and should work on Linux,
 macOS and Windows (it is tried on Linux only).
 
@@ -21,6 +22,29 @@ macOS and Windows (it is tried on Linux only).
 - The selector can be changed in the page; the counters at the top are the
   cards reviewed, the new ones among them, and the Again ratings.
 - Dark or light, as the system is set.
+
+It also has a **card browser** (the Browse tab, or `#browse` in the
+address), for seeing what a store holds and how a kind's cards look, such
+as how `ja_word` marks words, without studying:
+
+- It lists the cards of a selector as `srl find` does, in the order they
+  are written and under the name of each note: each card's ID, line,
+  kind, status (when not active) and state, and the first line of its
+  item's first field.
+- Choosing a card makes it with `srl cards`, running its kind program, and
+  shows it as studying does: the prompt, or, turned, the revealed prompt,
+  the answer and the context. The JSON side shows the card as `srl cards
+  --json` prints it.
+- A kind program can take a while (one that asks an LLM, say): the page
+  says so and counts the seconds. A card is made once it has stayed chosen
+  for a moment, so moving through the list makes no card on the way, and
+  choosing another card stops the one being made (see "How it works").
+- Each card is made once and kept; **Make again** (`r`) runs its kind
+  program again, and submitting the selector forgets every card made.
+- Keys: ↑/↓ (or `k`/`j`) choose a card, space (or Enter) turns it.
+- It records nothing: no review, no suspension. Studying starts only when
+  the Study tab is first shown, so a page opened on `#browse` runs no
+  `srl next`.
 
 It is an npm package of its own, kept apart from `srl` and from the other
 examples: everything it needs is in this folder.
@@ -49,7 +73,7 @@ server/srl.js       running srl and reading its exit codes
 src/                the frontend: React, Tailwind CSS, markdown-it
 ```
 
-Each API route but `/api/config` runs one `srl` command. There is no
+Each API route but `/api/config` runs `srl` commands. There is no
 scheduling here; that belongs to `srl`.
 
 | Route | Runs | Answers |
@@ -58,6 +82,14 @@ scheduling here; that belongs to `srl`.
 | `GET /api/next?sel=…` | `srl next SEL --json --context prose` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
 | `POST /api/review` | `srl review --stdin`, with the request body | `{}` |
 | `POST /api/suspend` | `srl suspend id:CARD`, for `{"card": CARD}` | `{}` |
+| `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --context none` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind` and `excerpt`, the first line of its first field |
+| `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json --context prose` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `path`, `see` and `context`, as `srl next --json` gives them |
+
+`/api/find` gives `srl show` at most 500 item IDs at a time, to keep its
+command line short enough for Windows. When the page stops waiting for
+`/api/card`, the server kills `srl`; the kind program `srl` started is not
+killed with it, and runs until it ends on its own (an LLM's answer, say,
+is still paid for).
 
 When `srl` fails, the route answers with `{"error": MESSAGE}`, `MESSAGE`
 being what `srl` printed, and the page shows it.

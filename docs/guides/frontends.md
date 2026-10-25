@@ -45,7 +45,8 @@ them, what they need and what may differ elsewhere.
 - **`srl-web`**, in `examples/web-frontend/`: a web viewer. A small
   Node.js server on localhost runs `srl next`, `srl review` and
   `srl suspend` for a React page, which renders card text and context as
-  Markdown.
+  Markdown. Its card browser lists cards with `srl find` and makes any of
+  them with `srl cards`, to see how a kind's cards look without studying.
 - **`srl-tui`**, in `examples/python-frontend/`: a terminal frontend in
   Python with Rich, with keys that act without Enter, and the card, the
   answer and the context rendered as Markdown on one screen.

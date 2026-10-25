@@ -78,7 +78,8 @@ Multi-line fields, code blocks and drafts are supported too.
 shows it. Any program that calls `srl next --json` and `srl review` is one.
 The repository has two to start from:
 
-- `srl-web`: a local web viewer that renders cards and context as Markdown.
+- `srl-web`: a local web viewer that renders cards and context as Markdown,
+  with a card browser to see how any card looks.
 - `srl-tui`: a terminal frontend in Python with Rich.
 
 This shell loop is a frontend too:
