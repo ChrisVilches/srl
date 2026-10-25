@@ -86,7 +86,7 @@ otherwise the nearest store from the current directory up (see
 
 It is one file, `src/srl_tui/__init__.py`, running the frontend loop of
 [docs/frontends.md](../../docs/frontends.md): `srl next --json --context
-CONTEXT` for a card, its state and its context, `srl review --stdin` for
+CONTEXT` for a card, its state, kind and context, `srl review --stdin` for
 the rating. Change what you like: the colors in `THEME` and `RATINGS`, the
 context mode in `CONTEXT` (`prose`, `full` or `none`), the layout in
 `Session.show`, the keys in `QUESTION_KEYS` and `ANSWER_KEYS` and what

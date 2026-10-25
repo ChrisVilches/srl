@@ -7,10 +7,10 @@ meet `srl` at one fixed contract, described here.
 
 The contract is `srl next --json`, the one mapping from `srl`'s data to
 what a frontend shows: it turns the store into one card ready to show.
-Frontends understand this and nothing else. They don't know about notes, kinds or cloze syntax,
-so any frontend can show any card, and a change to the notes or to a kind
-never changes a frontend. A kind reaches a frontend only as its name, a
-label to show.
+Frontends understand this and nothing else. They don't know about notes,
+kinds or cloze syntax, so any frontend can show any card, and a change to
+the notes or to a kind never changes a frontend. A kind reaches a frontend
+only as its name, a label to show.
 
 Recording the rating is not part of the contract. `srl review` takes only
 a card ID and a rating, which belong to the log, not to what a frontend

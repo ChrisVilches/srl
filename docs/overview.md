@@ -18,17 +18,18 @@ document, listed at the end.
    resetting, checking, analyzing. Scheduling is part of the data layer
    too: a card's memory state is computed from the log.
 2. **One fixed mapping from that data to frontends.** `srl next --json`
-   turns the store into one card ready to show, with its state and context.
-   This is the **frontend contract** (see [frontends.md](frontends.md)),
-   which every frontend reads. The rating goes back with `srl review`, an
-   ordinary command of the data layer: it takes a card ID and a rating,
-   nothing that belongs to frontends.
+   turns the store into one card ready to show, with its state, kind and
+   context. This is the **frontend contract** (see
+   [frontends.md](frontends.md)), which every frontend reads. The rating
+   goes back with `srl review`, an ordinary command of the data layer: it
+   takes a card ID and a rating, nothing that belongs to frontends.
 
 Studying happens in a **frontend**: a separate program of your choice that
-reads the frontend contract and records ratings, such as the web viewer or the terminal
-frontend in this repository's `examples/`. Frontends, scripts and LLM agents are all built on top of the
-CLI, outside `srl`. No part of `srl` depends on a frontend, an LLM, an
-agent, or any particular note-taking app.
+reads the frontend contract and records ratings, such as the web viewer or
+the terminal frontend in this repository's `examples/`. Frontends, scripts
+and LLM agents are all built on top of the CLI, outside `srl`. No part of
+`srl` depends on a frontend, an LLM, an agent, or any particular
+note-taking app.
 
 ## Goals
 

@@ -23,9 +23,9 @@ reviews.** Everything else must justify itself.
 
 `srl` is a CLI over its data (notes with items, the log, the
 configuration) plus one fixed mapping from that data to frontends:
-`srl next --json` (see [overview.md](overview.md), "The idea"). Everything around it, such as showing cards, launching programs,
-choosing how things look, or calling an LLM, is left to programs built on
-top.
+`srl next --json` (see [overview.md](overview.md), "The idea").
+Everything around it, such as showing cards, launching programs, choosing
+how things look, or calling an LLM, is left to programs built on top.
 
 What only `srl` can do well is keep the data correct: parse notes
 strictly, never damage them, replay the log the same way every time, and
@@ -254,7 +254,7 @@ So `srl` has no interactive study command. It stays a CLI that other
 programs drive, the same on every platform, and frontends live outside it:
 `examples/` has a web viewer and a terminal frontend to copy (see
 [guides/frontends.md](guides/frontends.md)). `srl next --json` gives
-everything a frontend shows (the card, its state, its note and context),
+everything a frontend shows (the card, its state, its kind, note and context),
 so a frontend needs no other command to read (see
 [frontends.md](frontends.md)).
 
