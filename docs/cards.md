@@ -91,6 +91,8 @@ takes and how they become cards, and which of its cards are siblings
 (see [scheduling.md](scheduling.md), "Siblings"). `qa` is built in and
 is the default. Every other kind is a program named in `.srl/config.toml`
 (see "Kind programs" below). A `kind:` that is neither is an error.
+The selector term `kind:` picks the cards of items of a kind (see
+[selectors.md](selectors.md)).
 
 ### `qa`
 

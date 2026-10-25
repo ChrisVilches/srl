@@ -75,6 +75,7 @@ Then:
 ```sh
 srl cards q4n8w2     # one question the LLM could ask (an API call)
 srl next             # study as usual
+srl next kind:llm-generated   # study only these items
 ```
 
 By hand:

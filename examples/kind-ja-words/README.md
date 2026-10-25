@@ -67,6 +67,7 @@ so you can also point at this folder instead of copying. Items with
 ```sh
 srl cards v81k3z     # the three cards of the sentence above
 srl next             # study as usual
+srl next kind:ja-words   # study only ja-words items
 ```
 
 Every command that reads items runs `ja_words.py ids` once for each
