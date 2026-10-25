@@ -159,7 +159,10 @@ JSONL
   a field name, a value of the wrong type, an unknown kind, a `see` that
   doesn't name a note of the store, fields the kind doesn't accept),
   `srl add` reports the first such line and adds nothing. Blank lines are
-  ignored.
+  ignored. The lines are checked together, as items of one note, so each
+  kind program is asked once about all of its items (see
+  [cards.md](cards.md), "How srl calls them"); a kind program that fails
+  as a whole is reported as itself, not as a line.
 
 It prints the new item IDs, one per line. With `--dry-run` it prints the
 items it would write, as they would appear in the note, and writes nothing.

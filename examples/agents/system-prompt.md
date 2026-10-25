@@ -235,9 +235,12 @@ takes `--dry-run`. Exit codes: 0 success, 1 nothing found or nothing left,
 2 error. Errors go to standard error, saying what to do.
 
 **An error in any note stops every command that reads items**, until it is
-fixed. Read the message: it names the file and line. **A card its kind
-program can't make stops `srl next`** in the same way, with the card's ID
-and the reason, until it is fixed or the card is suspended.
+fixed. Read the message: it names the file and line, and the field when
+a kind program rejected the item. A message about a kind program as a
+whole ("the program of kind X failed …") is the program's fault, not the
+notes'. **A card its kind program can't make stops `srl next`** in the
+same way, with the card's ID and the reason, until it is fixed or the
+card is suspended.
 
 ## Skills
 

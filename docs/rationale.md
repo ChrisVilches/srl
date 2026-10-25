@@ -183,8 +183,9 @@ configure.
 Other kinds turn structured data into questions: the forms of a verb, the
 words of a sentence. They are programs named in `.srl/config.toml`, so
 that a new kind needs no change to `srl`, and is written in whatever
-language suits it. A kind only makes cards: it gives their IDs, in groups
-of siblings, and their content when asked. Everything else, scheduling
+language suits it. A kind only makes cards: it checks its items, gives
+their card IDs, in groups of siblings, and their content when asked, and
+describes its fields. Everything else, scheduling
 included, is the same for every kind, so a program can't change how `srl`
 behaves, only what it shows.
 
@@ -209,11 +210,11 @@ IDs never waits for content, and a program that generates its cards does
 the slow work only for the cards about to be shown.
 
 Checking is a call of its own, apart from `groups`, because it is the
-kind's only check: an item is an error only if the kind says so. When
-checking only happened inside the call that gives card IDs, a program
-that just computed IDs and accepted any fields was easy to write, and
-its broken items passed every check, failing only when studied. A call
-named `validate` can't be forgotten that way.
+kind's only check: an item is an error only if the kind says so. If
+checking happened only inside the call that gives card IDs, a program
+that just computes IDs and accepts any fields would be easy to write,
+and its broken items would pass every check and fail only when studied.
+A call named `validate` can't be forgotten that way.
 
 Trade-off: a program has four calls to write, and `validate` and
 `groups` must agree on which items they can handle.
@@ -226,8 +227,8 @@ has to check, and when it fails on an item `validate` accepted, the
 fault is the program's, not the item's. Each failure then points at whoever
 can fix it: an error `validate` gives is your note's, a call that fails as
 a whole is the program's, and a card `make` can't make is a problem when
-studying, such as an API that is down. When one call did both, a program
-that crashed looked exactly like a mistake in your note.
+studying, such as an API that is down. If one call did both, a program
+that crashed would look exactly like a mistake in your note.
 
 This is still "parse, don't validate" (see [rust.md](rust.md)): the
 check and the structure don't drift apart, because `srl`, not the
@@ -236,8 +237,8 @@ program, decides that nothing reaches `groups` unchecked.
 ## Why calls are batches
 
 Every command that reads items needs the card IDs of every item. With
-one process per item, a store with many items of a kind started that many
-programs on every command. Each call is a batch instead, so a command
+one process per item, a store with many items of a kind would start that
+many programs on every command. Each call is a batch instead, so a command
 starts at most two processes per kind program (`validate` and
 `groups`), however many items it has. A single input is a batch of one
 line, so there is one way to write a program, not two.
@@ -288,8 +289,8 @@ from them. With one place that checks, the kind, a description that
 falls behind only misleads, and `srl add --dry-run` still gives the right
 answer.
 
-Trade-off: a kind program has one more call to write, and nothing makes
-its description agree with what `validate` accepts.
+Trade-off: a kind program has a call to write that only informs, and
+nothing makes its description agree with what `validate` accepts.
 
 ## Why groups of siblings, without names
 
