@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
-import { CardFace, ContextView, ErrorView, Key, Notice } from './CardParts';
+import { CardFace, Counts, ErrorView, Key, Notice, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges } from './CardParts';
+import { useKeys, useStartWhenShown } from './hooks';
 import { SelectorInput, TopBar, type View } from './TopBar';
 
 const viewOfHash = (): View => (window.location.hash === '#browse' ? 'browse' : 'study');
@@ -43,12 +44,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      <div className={view === 'study' ? 'contents' : 'hidden'}>
-        <Study active={view === 'study'} />
-      </div>
-      <div className={view === 'browse' ? 'contents' : 'hidden'}>
-        <Browse active={view === 'browse'} />
-      </div>
+      {(['study', 'browse'] as const).map((v) => {
+        const Pane = v === 'study' ? Study : Browse;
+        return (
+          <div key={v} className={view === v ? 'contents' : 'hidden'}>
+            <Pane active={view === v} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -85,12 +88,7 @@ function Study({ active }: { active: boolean }) {
   const loadNext = useCallback((sel: string) => step(async () => setPhase(await nextPhase(sel))), [step]);
 
   // Starts when first shown: a page opened on the browser makes no card.
-  const started = useRef(false);
-  useEffect(() => {
-    if (!active || started.current) return;
-    started.current = true;
-    start();
-  }, [active, start]);
+  useStartWhenShown(active, start);
 
   const reveal = useCallback(() => {
     if (phase.kind !== 'prompt') return;
@@ -124,24 +122,18 @@ function Study({ active }: { active: boolean }) {
   }, [phase, selector, step]);
 
   // Keys: space or Enter shows the answer, 1–4 rate, s suspends.
-  useEffect(() => {
-    if (!active) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (busy || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.target instanceof HTMLInputElement) return;
-      if (event.key === ' ' || event.key === 'Enter') {
-        if (phase.kind !== 'prompt') return;
-        event.preventDefault();
-        reveal();
-      } else if (['1', '2', '3', '4'].includes(event.key)) {
-        rate(Number(event.key) as Rating);
-      } else if (event.key === 's') {
-        suspend();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [active, busy, phase, reveal, rate, suspend]);
+  useKeys(active, (event) => {
+    if (busy) return;
+    if (event.key === ' ' || event.key === 'Enter') {
+      if (phase.kind !== 'prompt') return;
+      event.preventDefault();
+      reveal();
+    } else if (['1', '2', '3', '4'].includes(event.key)) {
+      rate(Number(event.key) as Rating);
+    } else if (event.key === 's') {
+      suspend();
+    }
+  });
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -174,11 +166,13 @@ function Study({ active }: { active: boolean }) {
 
 function StatsLine({ stats }: { stats: Stats }) {
   return (
-    <span className="text-sm text-stone-500 tabular-nums dark:text-stone-400">
-      <b className="text-stone-800 dark:text-stone-200">{stats.reviewed}</b> reviewed ·{' '}
-      <b className="text-sky-600 dark:text-sky-400">{stats.new}</b> new ·{' '}
-      <b className="text-rose-600 dark:text-rose-400">{stats.again}</b> again
-    </span>
+    <Counts
+      counts={[
+        [stats.reviewed, 'reviewed'],
+        [stats.new, 'new', 'text-sky-600 dark:text-sky-400'],
+        [stats.again, 'again', 'text-rose-600 dark:text-rose-400'],
+      ]}
+    />
   );
 }
 
@@ -198,19 +192,7 @@ function CardView({
   const { card } = phase;
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <CardFace
-        card={card}
-        revealed={phase.kind === 'answer'}
-        badges={
-          card.state === 'new' && (
-            <span className="rounded-full bg-sky-100 px-2 py-0.5 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-              new
-            </span>
-          )
-        }
-      />
-
-      {phase.kind === 'answer' && <ContextView card={card} />}
+      <CardFace card={card} revealed={phase.kind === 'answer'} badges={<StateBadges state={card.state} />} />
 
       <div className="sticky bottom-0 -mx-4 mt-auto border-t border-stone-200 bg-stone-50/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 dark:border-stone-800 dark:bg-stone-950/90">
         <div className="flex flex-wrap items-center gap-2">
@@ -238,7 +220,7 @@ function CardView({
             onClick={onSuspend}
             disabled={busy}
             title="Suspend this card without recording a review"
-            className="rounded-lg px-3 py-3 text-sm text-stone-500 hover:bg-stone-200 disabled:opacity-50 dark:hover:bg-stone-800"
+            className={`py-3 text-sm ${QUIET_BUTTON}`}
           >
             Suspend <Key>s</Key>
           </button>
@@ -263,10 +245,7 @@ function DoneView({ selector, stats, onCheck }: { selector: string; stats: Stats
         )}
       </p>
       <StatsLine stats={stats} />
-      <button
-        onClick={onCheck}
-        className="rounded-lg border border-stone-300 px-4 py-2 text-sm hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-900"
-      >
+      <button onClick={onCheck} className={OUTLINE_BUTTON}>
         Check again
       </button>
     </div>

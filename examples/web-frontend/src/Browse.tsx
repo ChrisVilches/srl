@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type FoundCard, type ShownCard } from './api';
-import { CardFace, ContextView, ErrorView, KindBadge, Key, Notice } from './CardParts';
+import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, StateBadges } from './CardParts';
+import { useKeys, useStartWhenShown } from './hooks';
 import { SelectorInput, TopBar } from './TopBar';
 
 // The card browser: the cards of a selector as `srl find` lists them, and any
@@ -21,6 +22,9 @@ type Made =
 type Side = 'prompt' | 'revealed' | 'json';
 
 const MAKE_DELAY = 300; // ms
+
+// The keys that choose the card below or above.
+const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 };
 
 export function Browse({ active }: { active: boolean }) {
   const [selector, setSelector] = useState<string | null>(null);
@@ -44,21 +48,18 @@ export function Browse({ active }: { active: boolean }) {
   }, []);
 
   // Starts when first shown, with the selector srl-web was started with.
-  const started = useRef(false);
-  const start = useCallback(async () => {
-    try {
-      const sel = await api.selector();
-      setSelector(sel);
-      await find(sel);
-    } catch (error) {
-      setList({ kind: 'error', message: (error as Error).message });
-    }
-  }, [find]);
-  useEffect(() => {
-    if (!active || started.current) return;
-    started.current = true;
-    start();
-  }, [active, start]);
+  const start = useCallback(
+    () =>
+      api.selector().then(
+        (sel) => {
+          setSelector(sel);
+          find(sel);
+        },
+        (error: Error) => setList({ kind: 'error', message: error.message }),
+      ),
+    [find],
+  );
+  useStartWhenShown(active, start);
 
   // Makes card ID with srl cards, stopping the card being made, if any.
   // Each card is made once, when first chosen, and again only when asked.
@@ -98,28 +99,19 @@ export function Browse({ active }: { active: boolean }) {
   const cards = list.kind === 'ready' ? list.cards : [];
 
   // Keys: ↑/↓ (or k/j) choose a card, space or Enter turns it, r makes it again.
-  useEffect(() => {
-    if (!active) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.target instanceof HTMLInputElement) return;
-      const at = cards.findIndex((c) => c.id === selected);
-      if (event.key === 'ArrowDown' || event.key === 'j') {
-        event.preventDefault();
-        if (cards.length > 0) setSelected(cards[Math.min(at + 1, cards.length - 1)].id);
-      } else if (event.key === 'ArrowUp' || event.key === 'k') {
-        event.preventDefault();
-        if (cards.length > 0) setSelected(cards[Math.max(at - 1, 0)].id);
-      } else if (event.key === ' ' || event.key === 'Enter') {
-        event.preventDefault();
-        setSide((s) => (s === 'prompt' ? 'revealed' : 'prompt'));
-      } else if (event.key === 'r' && selected !== null && made[selected]?.kind !== 'making') {
-        make(selected);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [active, cards, selected, made, make]);
+  useKeys(active, (event) => {
+    const at = cards.findIndex((c) => c.id === selected);
+    const move = MOVES[event.key];
+    if (move !== undefined) {
+      event.preventDefault();
+      if (cards.length > 0) setSelected(cards[Math.max(0, Math.min(at + move, cards.length - 1))].id);
+    } else if (event.key === ' ' || event.key === 'Enter') {
+      event.preventDefault();
+      setSide((s) => (s === 'prompt' ? 'revealed' : 'prompt'));
+    } else if (event.key === 'r' && selected !== null && made[selected]?.kind !== 'making') {
+      make(selected);
+    }
+  });
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
@@ -132,11 +124,7 @@ export function Browse({ active }: { active: boolean }) {
             find(sel);
           }}
         />
-        {list.kind === 'ready' && (
-          <span className="text-sm text-stone-500 tabular-nums dark:text-stone-400">
-            <b className="text-stone-800 dark:text-stone-200">{cards.length}</b> {cards.length === 1 ? 'card' : 'cards'}
-          </span>
-        )}
+        {list.kind === 'ready' && <Counts counts={[[cards.length, cards.length === 1 ? 'card' : 'cards']]} />}
       </TopBar>
       <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-4 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-cols-[26rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
         <div className="overflow-y-auto border-b border-stone-200 [scrollbar-gutter:stable] lg:border-r lg:border-b-0 dark:border-stone-800">
@@ -203,7 +191,7 @@ function CardList({
             <div className="flex items-center gap-2 text-xs text-stone-400">
               <span className="font-mono text-stone-600 dark:text-stone-300">{card.id}</span>
               <KindBadge kind={card.kind} />
-              <StatusBadges card={card} />
+              <StateBadges status={card.status} state={card.state} />
               {made[card.id]?.kind === 'making' && <span className="text-amber-600">making…</span>}
               <span className="ml-auto font-mono">:{card.line}</span>
             </div>
@@ -212,20 +200,6 @@ function CardList({
         </li>
       ))}
     </ul>
-  );
-}
-
-// The card's status when it isn't active, and its state.
-function StatusBadges({ card }: { card: FoundCard }) {
-  return (
-    <>
-      {card.status !== 'active' && (
-        <span className="rounded-full bg-stone-200 px-2 py-0.5 font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-300">
-          {card.status}
-        </span>
-      )}
-      <span className={card.state === 'new' ? 'text-sky-600 dark:text-sky-400' : ''}>{card.state}</span>
-    </>
   );
 }
 
@@ -278,7 +252,7 @@ function Preview({
           onClick={onMake}
           disabled={made?.kind === 'making'}
           title="Make the card again: its kind program runs again"
-          className="rounded-lg px-3 py-1 text-stone-500 hover:bg-stone-200 disabled:opacity-50 dark:hover:bg-stone-800"
+          className={`py-1 ${QUIET_BUTTON}`}
         >
           Make again <Key>r</Key>
         </button>
@@ -308,10 +282,9 @@ function Preview({
             <CardFace
               card={made.card}
               revealed={side === 'revealed'}
-              badges={<StatusBadges card={found} />}
+              badges={<StateBadges status={found.status} state={found.state} />}
             />
           )}
-          {side === 'revealed' && <ContextView card={made.card} />}
           <p className="text-center text-xs text-stone-400">
             made by srl cards in {(made.ms / 1000).toFixed(1)} s
           </p>
