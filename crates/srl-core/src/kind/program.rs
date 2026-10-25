@@ -1,8 +1,10 @@
 //! Kinds that are programs (see `docs/cards.md`, "Kind programs").
 //!
-//! A kind program answers three calls, `ids`, `card` and `describe`. Each
-//! reads one JSON object on standard input and prints one on standard
-//! output; a status other than 0 is a failure, and standard error says why.
+//! A kind program answers four calls, `describe`, `validate`, `groups` and
+//! `make`, each for a batch: it reads one JSON object per line on standard
+//! input, up to its end, and prints one JSON object per line on standard
+//! output, in the same order. A status other than 0 is a failure of the
+//! whole call, and standard error says why.
 
 use std::collections::{BTreeMap, HashSet};
 use std::io::{self, Read, Write as _};
@@ -20,9 +22,12 @@ use crate::note::parse::is_field_key;
 use crate::note::{ItemId, is_id_text};
 use crate::{Config, Store};
 
-/// How often a `card` call is checked for having finished, while it may
+/// How often a `make` call is checked for having finished, while it may
 /// still run out of time.
 const POLL: Duration = Duration::from_millis(10);
+
+/// An item's card IDs, in groups of siblings.
+type Groups = Vec<Vec<CardId>>;
 
 /// The kinds that are programs, and where they run.
 #[derive(Debug, Clone, Default)]
@@ -35,21 +40,42 @@ pub(crate) struct Programs {
     card_timeout: Duration,
 }
 
-/// What `ids` prints (see `docs/cards.md`, "Kind programs").
+/// What `describe` prints.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct IdsOutput {
-    groups: Vec<GroupOutput>,
+struct DescribeOutput {
+    description: String,
+    fields: Vec<FieldDescription>,
 }
 
+/// What `validate` prints for an item: why it is invalid, nothing if it is
+/// valid.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct GroupOutput {
-    cards: Vec<Option<String>>,
+struct ValidateOutput {
+    errors: Vec<ErrorOutput>,
 }
 
-/// What `card` prints: the fields of a card, without its ID. A field that
-/// may be `null` may also be left out.
+/// One reason an item is invalid, about one of its fields, or about the
+/// whole item when `field` is `null` or left out.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ErrorOutput {
+    #[serde(default)]
+    field: Option<String>,
+    message: String,
+}
+
+/// What `groups` prints for an item: its card suffixes in groups of
+/// siblings, `null` for a single card with the item's ID.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GroupsOutput {
+    groups: Vec<Vec<Option<String>>>,
+}
+
+/// What `make` prints for a card it made: the fields of a card, without its
+/// ID. A field that may be `null` may also be left out.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CardOutput {
@@ -60,12 +86,11 @@ struct CardOutput {
     answer: Option<String>,
 }
 
-/// What `describe` prints.
+/// What `make` prints for a card it can't make.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct DescribeOutput {
-    description: String,
-    fields: Vec<FieldDescription>,
+struct FailedOutput {
+    error: String,
 }
 
 impl Programs {
@@ -91,46 +116,87 @@ impl Programs {
     /// What the program of kind `name` says its kind is for, and its
     /// fields. Errors are plain reasons.
     pub(crate) fn describe(&self, name: &str) -> Result<(String, Vec<FieldDescription>), String> {
-        let output = self.run(name, "describe", &Value::Object(Map::new()), None)?;
-        description(&output).map_err(|reason| invalid_output(name, "describe", &reason))
+        let line = self
+            .run(name, "describe", &[Value::Object(Map::new())], None)?
+            .pop()
+            .expect("a call should give one line for its one input");
+        description(&line).map_err(|reason| invalid_output(name, "describe", &reason))
     }
 
-    /// The card IDs the program of kind `name` gives for the item `input`,
-    /// whose ID is `item`, in groups of siblings. Errors are plain reasons.
+    /// Why the program of kind `name` says each item of `inputs` is
+    /// invalid, in order: nothing for a valid item. An answer that doesn't
+    /// follow the protocol is a reason too, about that item. Errors are
+    /// plain reasons, and fail the whole call.
+    pub(crate) fn validate(
+        &self,
+        name: &str,
+        inputs: &[Value],
+    ) -> Result<Vec<Vec<String>>, String> {
+        let lines = self.run(name, "validate", inputs, None)?;
+        Ok(lines
+            .iter()
+            .map(|line| {
+                reasons(line)
+                    .unwrap_or_else(|reason| vec![invalid_output(name, "validate", &reason)])
+            })
+            .collect())
+    }
+
+    /// The card IDs the program of kind `name` gives for each item of
+    /// `items`, whose input is the one of `inputs` at the same place, in
+    /// groups of siblings; or why its answer about the item doesn't follow
+    /// the protocol. Errors are plain reasons, and fail the whole call.
     pub(crate) fn groups(
         &self,
         name: &str,
-        item: &ItemId,
-        input: &Value,
-    ) -> Result<Vec<Vec<CardId>>, String> {
-        let output = self.run(name, "ids", input, None)?;
-        groups(item, &output).map_err(|reason| invalid_output(name, "ids", &reason))
+        items: &[&ItemId],
+        inputs: &[Value],
+    ) -> Result<Vec<Result<Groups, String>>, String> {
+        let lines = self.run(name, "groups", inputs, None)?;
+        Ok(items
+            .iter()
+            .zip(&lines)
+            .map(|(item, line)| {
+                groups(item, line).map_err(|reason| invalid_output(name, "groups", &reason))
+            })
+            .collect())
     }
 
-    /// The card `card` as the program of kind `name` makes it from `input`.
-    /// Errors are plain reasons.
-    pub(crate) fn card(&self, name: &str, card: &CardId, input: &Value) -> Result<Card, String> {
-        let output = self.run(name, "card", input, Some(self.card_timeout))?;
-        let made = serde_json::from_str::<CardOutput>(&output)
-            .map_err(|error| invalid_output(name, "card", &error.to_string()))?;
-        Ok(Card {
-            id: card.clone(),
-            prompt: made.prompt,
-            prompt_revealed: made.prompt_revealed,
-            answer: made.answer,
-        })
+    /// Each card of `cards` as the program of kind `name` makes it from the
+    /// input of `inputs` at the same place, or why it can't. The call is
+    /// stopped after `kind_programs.card_timeout` for each card. Errors are
+    /// plain reasons, and fail the whole call.
+    pub(crate) fn make(
+        &self,
+        name: &str,
+        cards: &[&CardId],
+        inputs: &[Value],
+    ) -> Result<Vec<Result<Card, String>>, String> {
+        let count = u32::try_from(inputs.len()).unwrap_or(u32::MAX);
+        let lines = self.run(name, "make", inputs, Some(self.card_timeout * count))?;
+        Ok(cards
+            .iter()
+            .zip(&lines)
+            .map(|(card, line)| match made(card, line) {
+                Ok(Ok(made)) => Ok(made),
+                Ok(Err(error)) => Err(format!(
+                    "the program of kind {name} couldn't make it: {error}"
+                )),
+                Err(reason) => Err(invalid_output(name, "make", &reason)),
+            })
+            .collect())
     }
 
-    /// Runs the call `call` of the program of kind `name` with `input` on
-    /// its standard input, and gives what it printed. It is stopped after
-    /// `timeout`, if there is one.
+    /// Runs the call `call` of the program of kind `name` with `inputs`, one
+    /// per line, on its standard input, and gives the lines it printed, one
+    /// per input. It is stopped after `timeout`, if there is one.
     fn run(
         &self,
         name: &str,
         call: &str,
-        input: &Value,
+        inputs: &[Value],
         timeout: Option<Duration>,
-    ) -> Result<String, String> {
+    ) -> Result<Vec<String>, String> {
         let command = self
             .commands
             .get(name)
@@ -158,7 +224,11 @@ impl Programs {
             .stdin
             .take()
             .expect("a program's stdin should be piped");
-        let input = input.to_string();
+        let mut input = String::new();
+        for line in inputs {
+            input.push_str(&line.to_string());
+            input.push('\n');
+        }
         let writer = thread::spawn(move || write_input(stdin, &input));
         let stdout = reader(
             child
@@ -175,11 +245,15 @@ impl Programs {
         let failed =
             |error: io::Error| format!("running the program of kind {name} failed: {error}");
         let Some(status) = wait(&mut child, timeout).map_err(failed)? else {
+            let what = match inputs.len() {
+                1 => "a card".to_owned(),
+                count => format!("{count} cards"),
+            };
             return Err(format!(
-                "the program of kind {name} took longer than {} seconds to make a card, so it \
+                "the program of kind {name} took longer than {} seconds to make {what}, so it \
                  was stopped; make it faster, or raise `kind_programs.card_timeout` in \
                  .srl/config.toml",
-                self.card_timeout.as_secs()
+                timeout.unwrap_or_default().as_secs()
             ));
         };
         let joined = |handle: JoinHandle<io::Result<Vec<u8>>>| {
@@ -202,8 +276,22 @@ impl Programs {
                 format!("the program of kind {name} failed: {reason}")
             });
         }
-        String::from_utf8(stdout)
-            .map_err(|error| invalid_output(name, call, &format!("it is not UTF-8 ({error})")))
+        let stdout = String::from_utf8(stdout)
+            .map_err(|error| invalid_output(name, call, &format!("it is not UTF-8 ({error})")))?;
+        let lines = stdout.lines().map(str::to_owned).collect::<Vec<_>>();
+        if lines.len() != inputs.len() {
+            return Err(invalid_output(
+                name,
+                call,
+                &format!(
+                    "it printed {} lines for {} input lines; it must print one line per input \
+                     line, in order",
+                    lines.len(),
+                    inputs.len()
+                ),
+            ));
+        }
+        Ok(lines)
     }
 
     /// The file of `program`: a path with a folder is relative to the
@@ -229,48 +317,6 @@ fn invalid_output(name: &str, call: &str, reason: &str) -> String {
         "the program of kind {name} printed invalid output for `{call}`: {reason}; see \
          docs/cards.md, \"Kind programs\""
     )
-}
-
-/// The card IDs of item `item` in what `ids` printed, in groups. Errors are
-/// plain reasons.
-fn groups(item: &ItemId, output: &str) -> Result<Vec<Vec<CardId>>, String> {
-    let output = serde_json::from_str::<IdsOutput>(output).map_err(|error| error.to_string())?;
-    if output.groups.is_empty() {
-        return Err("it has no group of cards".to_owned());
-    }
-    if output.groups.iter().any(|group| group.cards.is_empty()) {
-        return Err("it has a group without cards".to_owned());
-    }
-    let suffixes = output
-        .groups
-        .iter()
-        .flat_map(|group| &group.cards)
-        .collect::<Vec<_>>();
-    if suffixes.len() > 1 && suffixes.contains(&&None) {
-        return Err("`null` is only for an item's single card, not one of several".to_owned());
-    }
-    let mut seen = HashSet::new();
-    for suffix in suffixes.into_iter().flatten() {
-        if !is_id_text(suffix) {
-            return Err(format!(
-                "`{suffix}` is not a card suffix; a suffix is 1 to 32 characters a-z and 0-9"
-            ));
-        }
-        if !seen.insert(suffix) {
-            return Err(format!("the card suffix `{suffix}` is given twice"));
-        }
-    }
-    Ok(output
-        .groups
-        .into_iter()
-        .map(|group| {
-            group
-                .cards
-                .into_iter()
-                .map(|suffix| CardId::new(item.clone(), suffix))
-                .collect()
-        })
-        .collect())
 }
 
 /// The description and fields in what `describe` printed. Errors are plain
@@ -303,6 +349,88 @@ fn description(output: &str) -> Result<(String, Vec<FieldDescription>), String> 
         }
     }
     Ok((output.description, output.fields))
+}
+
+/// The reasons in what `validate` printed for an item, each `FIELD:
+/// message` when it is about a field. Errors are plain reasons.
+fn reasons(output: &str) -> Result<Vec<String>, String> {
+    let output =
+        serde_json::from_str::<ValidateOutput>(output).map_err(|error| error.to_string())?;
+    output
+        .errors
+        .into_iter()
+        .map(|error| {
+            if error.message.trim().is_empty() {
+                return Err("an error has an empty message".to_owned());
+            }
+            match error.field {
+                Some(field) if !is_field_key(&field) => Err(format!(
+                    "`{field}` is not a field name; a field name is A-Z, 0-9 and _, starting \
+                     with a letter"
+                )),
+                Some(field) => Ok(format!("{field}: {}", error.message)),
+                None => Ok(error.message),
+            }
+        })
+        .collect()
+}
+
+/// The card IDs of item `item` in what `groups` printed, in groups. Errors
+/// are plain reasons.
+fn groups(item: &ItemId, output: &str) -> Result<Vec<Vec<CardId>>, String> {
+    let output = serde_json::from_str::<GroupsOutput>(output).map_err(|error| error.to_string())?;
+    if output.groups.is_empty() {
+        return Err("it has no group of cards".to_owned());
+    }
+    if output.groups.iter().any(Vec::is_empty) {
+        return Err("it has a group without cards".to_owned());
+    }
+    let suffixes = output.groups.iter().flatten().collect::<Vec<_>>();
+    if suffixes.len() > 1 && suffixes.contains(&&None) {
+        return Err("`null` is only for an item's single card, not one of several".to_owned());
+    }
+    let mut seen = HashSet::new();
+    for suffix in suffixes.into_iter().flatten() {
+        if !is_id_text(suffix) {
+            return Err(format!(
+                "`{suffix}` is not a card suffix; a suffix is 1 to 32 characters a-z and 0-9"
+            ));
+        }
+        if !seen.insert(suffix) {
+            return Err(format!("the card suffix `{suffix}` is given twice"));
+        }
+    }
+    Ok(output
+        .groups
+        .into_iter()
+        .map(|group| {
+            group
+                .into_iter()
+                .map(|suffix| CardId::new(item.clone(), suffix))
+                .collect()
+        })
+        .collect())
+}
+
+/// The card `card` in what `make` printed for it, or the error the program
+/// gave for it. Errors are plain reasons.
+fn made(card: &CardId, output: &str) -> Result<Result<Card, String>, String> {
+    let value = serde_json::from_str::<Value>(output).map_err(|error| error.to_string())?;
+    if value.get("error").is_some() {
+        let failed =
+            serde_json::from_value::<FailedOutput>(value).map_err(|error| error.to_string())?;
+        if failed.error.trim().is_empty() {
+            return Err("its error is empty".to_owned());
+        }
+        return Ok(Err(failed.error));
+    }
+    let made = serde_json::from_value::<CardOutput>(value).map_err(|error| error.to_string())?;
+    Ok(Ok(Card {
+        id: card.clone(),
+        prompt: made.prompt,
+        prompt_revealed: made.prompt_revealed,
+        answer: made.answer,
+    }))
 }
 
 /// Writes `input` to a program's standard input, and closes it.
@@ -370,14 +498,20 @@ mod tests {
         path
     }
 
+    /// A store with `config` and the notes `notes` (path and text), and its
+    /// notes as read.
+    fn store_with(config: &str, notes: &[(&str, &str)]) -> (TempDir, Store, Notes) {
+        store_in(TempDir::new().unwrap(), config, notes)
+    }
+
     /// A store with `config` and one note `a.md` holding `note`, and its
     /// notes as read.
     fn store(config: &str, note: &str) -> (TempDir, Store, Notes) {
-        store_in(TempDir::new().unwrap(), config, note)
+        store_with(config, &[("a.md", note)])
     }
 
-    /// [`store`], in `tmp`.
-    fn store_in(tmp: TempDir, config: &str, note: &str) -> (TempDir, Store, Notes) {
+    /// [`store_with`], in `tmp`.
+    fn store_in(tmp: TempDir, config: &str, notes: &[(&str, &str)]) -> (TempDir, Store, Notes) {
         Store::init(tmp.path(), false).unwrap();
         let store = Store::open(&Lookup {
             dir: Some(tmp.path().to_path_buf()),
@@ -385,7 +519,9 @@ mod tests {
         })
         .unwrap();
         fs::write(store.config_file(), config).unwrap();
-        fs::write(store.note_file("a.md"), note).unwrap();
+        for (path, text) in notes {
+            fs::write(store.note_file(path), text).unwrap();
+        }
         let notes = Notes::load(&store, &Config::load(&store).unwrap()).unwrap();
         (tmp, store, notes)
     }
@@ -400,8 +536,25 @@ mod tests {
         notes.cards().map(|(_, card)| card.to_string()).collect()
     }
 
-    fn reasons(notes: &Notes) -> Vec<String> {
+    fn problems(notes: &Notes) -> Vec<String> {
         notes.problems().iter().map(ToString::to_string).collect()
+    }
+
+    /// The cards `ids` as made on 2026-10-27, as JSON, or the error.
+    fn make(store: &Store, notes: &Notes, ids: &[&str]) -> Result<Vec<Value>, String> {
+        let wanted = ids
+            .iter()
+            .map(|id| notes.card(&CardId::parse(id).unwrap()).unwrap())
+            .collect::<Vec<_>>();
+        notes
+            .make_cards(store, &wanted, date(2026, 10, 27))
+            .map(|cards| {
+                cards
+                    .iter()
+                    .map(|card| serde_json::to_value(card).unwrap())
+                    .collect()
+            })
+            .map_err(|error| error.to_string())
     }
 
     #[test]
@@ -410,7 +563,7 @@ mod tests {
             &config(""),
             "<!-- srl id:abc kind:fake -->\nGROUPS: te past|negative\n\n<!-- srl id:abd kind:fake -->\nX: y\n",
         );
-        assert_eq!(reasons(&notes), Vec::<String>::new());
+        assert_eq!(problems(&notes), Vec::<String>::new());
         assert_eq!(ids(&notes), ["abc-negative", "abc-past", "abc-te", "abd"]);
         let item = notes.item(&ItemId::parse("abc").unwrap()).unwrap();
         let group = |suffix: &str| item.group(&CardId::parse(&format!("abc-{suffix}")).unwrap());
@@ -420,43 +573,135 @@ mod tests {
     }
 
     #[test]
-    fn a_failing_or_invalid_ids_call_is_an_error_in_the_note() {
+    fn validate_and_groups_run_once_for_every_item_of_the_kind() {
+        let log = "<!-- srl id:{} kind:fake -->\nLOG: calls.log\n";
+        let (tmp, _store, notes) = store_with(
+            &config(""),
+            &[
+                ("a.md", &log.replace("{}", "aaa")),
+                (
+                    "b.md",
+                    &format!(
+                        "{}\n<!-- srl id:bbb kind:fake -->\nLOG: calls.log\nINVALID: no\n",
+                        log.replace("{}", "bab")
+                    ),
+                ),
+            ],
+        );
+        assert_eq!(ids(&notes), ["aaa", "bab"]);
+        assert_eq!(problems(&notes), ["b.md:4: no"]);
+        // groups is asked only about the items validate accepted.
+        let calls = fs::read_to_string(tmp.path().join("calls.log")).unwrap();
+        assert_eq!(calls, "validate 3\ngroups 2\n");
+    }
+
+    #[test]
+    fn validate_errors_are_errors_in_the_note_naming_their_field() {
         let (_tmp, _store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nFAIL_IDS: VERB is missing\n\n<!-- srl id:abd kind:fake -->\nIDS: not json\n",
+            "<!-- srl id:abc kind:fake -->\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}, {\"field\": null, \"message\": \"also wrong\"}]}\n\n<!-- srl id:abd kind:fake -->\nERRORS: not json\n",
         );
         assert!(ids(&notes).is_empty());
-        let reasons = reasons(&notes);
+        let reasons = problems(&notes);
         assert_eq!(
-            reasons[0],
-            "a.md:1: the program of kind fake failed: VERB is missing"
+            reasons[..2],
+            ["a.md:1: VERB: is missing", "a.md:1: also wrong"]
         );
         assert!(
-            reasons[1]
-                .starts_with("a.md:4: the program of kind fake printed invalid output for `ids`"),
+            reasons[2].starts_with(
+                "a.md:4: the program of kind fake printed invalid output for `validate`"
+            ),
             "{reasons:?}"
         );
     }
 
     #[test]
-    fn ids_output_must_follow_the_protocol() {
+    fn validate_output_must_follow_the_protocol() {
+        for bad in [
+            "{}",
+            r#"{"errors": [{"message": " "}]}"#,
+            r#"{"errors": [{"field": "verb", "message": "x"}]}"#,
+            r#"{"errors": [], "more": 1}"#,
+            r#"{"errors": [{"message": "x", "more": 1}]}"#,
+            "",
+        ] {
+            assert!(reasons(bad).is_err(), "accepted {bad}");
+        }
+        assert_eq!(reasons(r#"{"errors": []}"#).unwrap(), Vec::<String>::new());
+        assert_eq!(
+            reasons(r#"{"errors": [{"message": "x"}, {"field": "A_1", "message": "y"}]}"#).unwrap(),
+            ["x", "A_1: y"]
+        );
+    }
+
+    #[test]
+    fn invalid_groups_for_an_item_are_an_error_in_the_note() {
+        let (_tmp, _store, notes) = store(
+            &config(""),
+            "<!-- srl id:abc kind:fake -->\nGROUPS_RAW: {\"groups\": []}\n\n<!-- srl id:abd kind:fake -->\nX: y\n",
+        );
+        assert_eq!(ids(&notes), ["abd"]);
+        let reasons = problems(&notes);
+        assert!(
+            reasons[0].starts_with("a.md:1: the program of kind fake printed invalid output for `groups`: it has no group"),
+            "{reasons:?}"
+        );
+    }
+
+    #[test]
+    fn groups_output_must_follow_the_protocol() {
         let item = ItemId::parse("abc").unwrap();
         for bad in [
             r#"{"groups": []}"#,
-            r#"{"groups": [{"cards": []}]}"#,
-            r#"{"groups": [{"cards": [null, "a"]}]}"#,
-            r#"{"groups": [{"cards": [null]}, {"cards": [null]}]}"#,
-            r#"{"groups": [{"cards": ["A"]}]}"#,
-            r#"{"groups": [{"cards": ["a"]}, {"cards": ["a"]}]}"#,
-            r#"{"groups": [{"cards": ["a"]}], "more": 1}"#,
-            r#"{"groups": [{"cards": ["a"], "name": "x"}]}"#,
+            r#"{"groups": [[]]}"#,
+            r#"{"groups": [[null, "a"]]}"#,
+            r#"{"groups": [[null], [null]]}"#,
+            r#"{"groups": [["A"]]}"#,
+            r#"{"groups": [["a"], ["a"]]}"#,
+            r#"{"groups": [["a"]], "more": 1}"#,
+            r#"{"groups": [{"cards": ["a"]}]}"#,
             "",
         ] {
             assert!(groups(&item, bad).is_err(), "accepted {bad}");
         }
         assert_eq!(
-            groups(&item, r#"{"groups": [{"cards": [null]}]}"#).unwrap(),
+            groups(&item, r#"{"groups": [[null]]}"#).unwrap(),
             [[CardId::new(item.clone(), None)]]
+        );
+    }
+
+    #[test]
+    fn a_failing_call_is_a_problem_of_the_program_not_of_its_items() {
+        for field in [
+            "BREAK_VALIDATE: on purpose",
+            "BREAK_GROUPS: on purpose",
+            "SHORT: yes",
+        ] {
+            let (_tmp, _store, notes) = store(
+                &config(""),
+                &format!(
+                    "<!-- srl id:abc kind:fake -->\n{field}\n\n<!-- srl id:abd kind:fake -->\nX: y\n\n<!-- srl id:qqq -->\nQ: q\nA: a\n"
+                ),
+            );
+            // Items of other kinds are read as always.
+            assert_eq!(ids(&notes), ["qqq"], "{field}");
+            let reasons = problems(&notes);
+            assert_eq!(reasons.len(), 1, "{field}: {reasons:?}");
+            assert!(
+                reasons[0].starts_with("the program of kind fake "),
+                "{reasons:?}"
+            );
+            assert!(
+                reasons[0].contains("no item of kind fake can be read"),
+                "{reasons:?}"
+            );
+        }
+        let (_tmp, _store, notes) =
+            store(&config(""), "<!-- srl id:abc kind:fake -->\nSHORT: yes\n");
+        assert!(
+            problems(&notes)[0].contains("it printed 0 lines for 1 input lines"),
+            "{:?}",
+            problems(&notes)
         );
     }
 
@@ -530,60 +775,86 @@ mod tests {
             &config(""),
             "# Verbs\n\n<!-- srl id:abc kind:fake -->\nGROUPS: te\n",
         );
-        let (item, card) = notes.card(&CardId::parse("abc-te").unwrap()).unwrap();
-        let made = notes
-            .make_card(&store, item, card, date(2026, 10, 27))
-            .unwrap();
         let folder = tmp.path().file_name().unwrap().to_string_lossy();
         assert_eq!(
-            serde_json::to_value(&made).unwrap(),
-            serde_json::json!({
+            make(&store, &notes, &["abc-te"]).unwrap(),
+            [serde_json::json!({
                 "id": "abc-te",
                 "prompt": "te?",
                 "prompt_revealed": "te!",
                 "answer": format!("day \"2026-10-27\"; context \"# Verbs\\n\"; in {folder}"),
-            })
+            })]
         );
+    }
+
+    #[test]
+    fn the_cards_of_a_kind_are_made_in_one_call_in_order() {
+        let (tmp, store, notes) = store(
+            &config(""),
+            "<!-- srl id:abc kind:fake -->\nGROUPS: a b\nLOG: calls.log\n\n<!-- srl id:qqq -->\nQ: q\nA: a\n",
+        );
+        let made = make(&store, &notes, &["abc-b", "qqq", "abc-a"]).unwrap();
+        let ids = made
+            .iter()
+            .map(|card| card["id"].clone())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, ["abc-b", "qqq", "abc-a"]);
+        let calls = fs::read_to_string(tmp.path().join("calls.log")).unwrap();
+        assert_eq!(calls, "validate 1\ngroups 1\nmake 2\n");
     }
 
     #[test]
     fn a_card_may_leave_out_its_revealed_prompt_and_answer() {
         let (_tmp, store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nCARD: {\"prompt\": \"p\"}\n\n<!-- srl id:abd kind:fake -->\nCARD: {\"prompt\": \"p\", \"prompt_revealed\": null, \"answer\": null}\n",
+            "<!-- srl id:abc kind:fake -->\nMAKE_RAW: {\"prompt\": \"p\"}\n\n<!-- srl id:abd kind:fake -->\nMAKE_RAW: {\"prompt\": \"p\", \"prompt_revealed\": null, \"answer\": null}\n",
         );
         for id in ["abc", "abd"] {
-            let (item, card) = notes.card(&CardId::parse(id).unwrap()).unwrap();
-            let made = notes
-                .make_card(&store, item, card, date(2026, 10, 27))
-                .unwrap();
             assert_eq!(
-                serde_json::to_value(&made).unwrap(),
-                serde_json::json!({"id": id, "prompt": "p", "prompt_revealed": null, "answer": null})
+                make(&store, &notes, &[id]).unwrap(),
+                [
+                    serde_json::json!({"id": id, "prompt": "p", "prompt_revealed": null, "answer": null})
+                ]
             );
         }
     }
 
     #[test]
-    fn a_failing_slow_or_invalid_card_call_is_an_error() {
+    fn a_card_the_program_cant_make_slow_or_invalid_is_an_error() {
         let (_tmp, store, notes) = store(
             &config("[kind_programs]\ncard_timeout = 1\n"),
-            "<!-- srl id:aaa kind:fake -->\nFAIL_CARD: _\n\n<!-- srl id:aab kind:fake -->\nSLEEP_CARD: 5\n\n<!-- srl id:aac kind:fake -->\nCARD: {\"prompt_revealed\": \"p\", \"answer\": \"a\"}\n",
+            "<!-- srl id:aaa kind:fake -->\nFAIL_MAKE: _\n\n<!-- srl id:aab kind:fake -->\nSLEEP_MAKE: 5\n\n<!-- srl id:aac kind:fake -->\nMAKE_RAW: {\"prompt_revealed\": \"p\", \"answer\": \"a\"}\n\n<!-- srl id:aad kind:fake -->\nBREAK_MAKE: on purpose\n\n<!-- srl id:aae kind:fake -->\nMAKE_RAW: {\"error\": \" \"}\n",
         );
-        let made = |id: &str| {
-            let (item, card) = notes.card(&CardId::parse(id).unwrap()).unwrap();
-            notes
-                .make_card(&store, item, card, date(2026, 10, 27))
-                .unwrap_err()
-                .to_string()
-        };
+        let made = |id: &str| make(&store, &notes, &[id]).unwrap_err();
         assert_eq!(
             made("aaa"),
             "cannot make the card aaa (fix what failed, or set the card aside with `srl suspend \
-             aaa`): the program of kind fake failed: card _ fails on purpose"
+             aaa`): the program of kind fake couldn't make it: card _ fails on purpose"
         );
-        assert!(made("aab").contains("took longer than 1 seconds"));
-        assert!(made("aac").contains("printed invalid output for `card`"));
+        assert!(made("aab").contains("took longer than 1 seconds to make a card"));
+        assert!(made("aac").contains("printed invalid output for `make`"));
+        assert!(made("aad").contains("the program of kind fake failed: on purpose"));
+        assert!(made("aae").contains("its error is empty"));
+    }
+
+    #[test]
+    fn the_time_limit_grows_with_the_cards_made_at_once() {
+        let (_tmp, store, notes) = store(
+            &config("[kind_programs]\ncard_timeout = 1\n"),
+            "<!-- srl id:abc kind:fake -->\nGROUPS: a b c\nSLEEP_MAKE: 2\n",
+        );
+        // Three cards may take three seconds: two seconds is in time.
+        assert_eq!(
+            make(&store, &notes, &["abc-a", "abc-b", "abc-c"])
+                .unwrap()
+                .len(),
+            3
+        );
+        assert!(
+            make(&store, &notes, &["abc-a"])
+                .unwrap_err()
+                .contains("took longer than 1 seconds to make a card")
+        );
     }
 
     #[test]
@@ -595,22 +866,22 @@ mod tests {
         let (_tmp, _store, notes) = store_in(
             tmp,
             &format!("[kinds]\nfake = ['kinds/{name}']\n"),
-            "<!-- srl id:abc kind:fake -->\nX: y\n",
+            &[("a.md", "<!-- srl id:abc kind:fake -->\nX: y\n")],
         );
-        assert_eq!(reasons(&notes), Vec::<String>::new());
+        assert_eq!(problems(&notes), Vec::<String>::new());
         assert_eq!(ids(&notes), ["abc"]);
     }
 
     #[test]
     fn a_kind_that_is_neither_qa_nor_configured_is_unknown() {
         let (_tmp, _store, notes) = store(&config(""), "<!-- srl id:abc kind:conj -->\nX: y\n");
-        assert!(reasons(&notes)[0].contains("there is no kind `conj`"));
+        assert!(problems(&notes)[0].contains("there is no kind `conj`"));
         let (_tmp, _store, notes) = store(
             "[kinds]\nfake = ['srl-no-such-program-anywhere']\n",
             "<!-- srl id:abc kind:fake -->\nX: y\n",
         );
         assert!(
-            reasons(&notes)[0].contains("cannot find the program `srl-no-such-program-anywhere`")
+            problems(&notes)[0].contains("cannot find the program `srl-no-such-program-anywhere`")
         );
     }
 
@@ -618,7 +889,7 @@ mod tests {
     fn a_card_that_fails_fails_next_without_trying_another() {
         let (_tmp, store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nGROUPS: a b\nFAIL_CARD: a\n",
+            "<!-- srl id:abc kind:fake -->\nGROUPS: a b\nFAIL_MAKE: a\n",
         );
         let log = Log {
             entries: Vec::new(),

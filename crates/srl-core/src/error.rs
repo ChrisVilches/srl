@@ -71,6 +71,9 @@ pub enum Error {
     )]
     CardFailed { card: String, reason: String },
 
+    #[error("{reason}; no item of kind {kind} can be read until the program works")]
+    KindFailed { kind: String, reason: String },
+
     #[error("cannot describe the kind {kind}: {reason}")]
     DescribeFailed { kind: String, reason: String },
 
@@ -171,5 +174,14 @@ impl Error {
     /// Whether this is a problem in a note (see `docs/notes.md`, "Errors").
     pub fn is_in_note(&self) -> bool {
         matches!(self, Self::Note { .. } | Self::MissingId { .. })
+    }
+
+    /// The note and line a problem in a note is about.
+    pub(crate) fn place(&self) -> Option<(&str, usize)> {
+        if let Self::Note { path, line, .. } | Self::MissingId { path, line } = self {
+            Some((path.as_str(), *line))
+        } else {
+            None
+        }
     }
 }

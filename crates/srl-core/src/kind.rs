@@ -4,7 +4,7 @@
 mod cloze;
 mod program;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
@@ -47,50 +47,174 @@ impl Kind {
             Self::Program(name) => name,
         }
     }
+}
 
-    /// The card IDs of an item of this kind with ID `id` and these fields,
-    /// in groups of siblings (see `docs/scheduling.md`, "Siblings"). No key
-    /// is written twice in `fields`. Errors are plain reasons.
-    pub(crate) fn groups(
-        &self,
-        id: &ItemId,
-        fields: &[Field],
-        programs: &Programs,
-    ) -> Result<Vec<Vec<CardId>>, String> {
-        match self {
-            Self::Qa => Ok(vec![
-                qa(id, fields)?.into_iter().map(|card| card.id).collect(),
-            ]),
-            Self::Program(name) => programs.groups(name, id, &Value::Object(input(id, fields))),
-        }
-    }
+/// An item to ask its kind about: its kind, ID and fields. No key is
+/// written twice in `fields`.
+pub(crate) struct Asked<'a> {
+    pub(crate) kind: &'a Kind,
+    pub(crate) id: &'a ItemId,
+    pub(crate) fields: &'a [Field],
+}
 
-    /// The card `card` of an item of this kind with these fields, which
-    /// [`Kind::groups`] accepted and gave `card` for. A kind program also
-    /// gets the item's context and the study day `day`. Errors are plain
-    /// reasons.
-    pub(crate) fn card(
-        &self,
-        card: &CardId,
-        fields: &[Field],
-        programs: &Programs,
-        context: Option<&str>,
-        day: Date,
-    ) -> Result<Card, String> {
-        match self {
-            Self::Qa => Ok(qa(card.item(), fields)
-                .expect("the fields of a qa item should have been checked when read")
-                .into_iter()
-                .find(|made| &made.id == card)
-                .expect("a qa item should give the cards it gave when read")),
-            Self::Program(name) => {
-                let mut input = input(card.item(), fields);
-                input.insert("suffix".to_owned(), Value::from(card.suffix()));
-                input.insert("context".to_owned(), Value::from(context));
-                input.insert("day".to_owned(), Value::from(day.to_string()));
-                programs.card(name, card, &Value::Object(input))
+/// What an item's kind says of it.
+pub(crate) enum Answer {
+    /// The item is valid, and gives these card IDs, in groups of siblings
+    /// (see `docs/scheduling.md`, "Siblings").
+    Cards(Vec<Vec<CardId>>),
+    /// The item is invalid, for these reasons.
+    Invalid(Vec<String>),
+}
+
+/// Asks each item's kind about it (see `docs/cards.md`, "Kind programs"):
+/// `qa` here, and each kind program in one `validate` call for all of its
+/// items, then one `groups` call for the items `validate` accepted. The
+/// answers are in the order of `items`. An item whose program failed as a
+/// whole gets none; the failures, one per kind program, come second.
+pub(crate) fn check(items: &[Asked<'_>], programs: &Programs) -> (Vec<Option<Answer>>, Vec<Error>) {
+    let mut answers = items
+        .iter()
+        .map(|asked| match asked.kind {
+            Kind::Qa => Some(match qa(asked.id, asked.fields) {
+                Ok(cards) => Answer::Cards(vec![cards.into_iter().map(|card| card.id).collect()]),
+                Err(reason) => Answer::Invalid(vec![reason]),
+            }),
+            Kind::Program(_) => None,
+        })
+        .collect::<Vec<_>>();
+    let mut failures = Vec::new();
+    for (name, asked) in by_program(items, |asked| asked.kind) {
+        let inputs = asked
+            .iter()
+            .map(|(_, asked)| Value::Object(input(asked.id, asked.fields)))
+            .collect::<Vec<_>>();
+        let verdicts = match programs.validate(name, &inputs) {
+            Ok(verdicts) => verdicts,
+            Err(reason) => {
+                failures.push(failed(name, reason));
+                continue;
+            }
+        };
+        let mut valid = Vec::new();
+        for (((at, asked), input), reasons) in asked.into_iter().zip(inputs).zip(verdicts) {
+            if reasons.is_empty() {
+                valid.push((at, asked.id, input));
+            } else {
+                set(&mut answers, at, Answer::Invalid(reasons));
             }
         }
+        if valid.is_empty() {
+            continue;
+        }
+        let ids = valid.iter().map(|&(_, id, _)| id).collect::<Vec<_>>();
+        let inputs = valid
+            .iter()
+            .map(|(_, _, input)| input.clone())
+            .collect::<Vec<_>>();
+        match programs.groups(name, &ids, &inputs) {
+            Ok(groups) => {
+                for ((at, _, _), groups) in valid.into_iter().zip(groups) {
+                    let answer = match groups {
+                        Ok(groups) => Answer::Cards(groups),
+                        Err(reason) => Answer::Invalid(vec![reason]),
+                    };
+                    set(&mut answers, at, answer);
+                }
+            }
+            Err(reason) => failures.push(failed(name, reason)),
+        }
+    }
+    (answers, failures)
+}
+
+/// A card to make: its ID, and its item's kind and fields, which [`check`]
+/// accepted and gave the card for, and the item's context in mode `prose`.
+pub(crate) struct ToMake<'a> {
+    pub(crate) card: &'a CardId,
+    pub(crate) kind: &'a Kind,
+    pub(crate) fields: &'a [Field],
+    pub(crate) context: Option<&'a str>,
+}
+
+/// Makes each card of `cards` for the study day `day`: `qa` here, and each
+/// kind program in one `make` call for all of its cards. In the order of
+/// `cards`: each card, or why it can't be made, as a plain reason.
+pub(crate) fn make(
+    cards: &[ToMake<'_>],
+    programs: &Programs,
+    day: Date,
+) -> Vec<Result<Card, String>> {
+    let mut made = cards
+        .iter()
+        .map(|wanted| match wanted.kind {
+            Kind::Qa => Some(Ok(qa(wanted.card.item(), wanted.fields)
+                .expect("the fields of a qa item should have been checked when read")
+                .into_iter()
+                .find(|card| &card.id == wanted.card)
+                .expect("a qa item should give the cards it gave when read"))),
+            Kind::Program(_) => None,
+        })
+        .collect::<Vec<_>>();
+    for (name, wanted) in by_program(cards, |wanted| wanted.kind) {
+        let inputs = wanted
+            .iter()
+            .map(|(_, wanted)| {
+                let mut input = input(wanted.card.item(), wanted.fields);
+                input.insert("suffix".to_owned(), Value::from(wanted.card.suffix()));
+                input.insert("context".to_owned(), Value::from(wanted.context));
+                input.insert("day".to_owned(), Value::from(day.to_string()));
+                Value::Object(input)
+            })
+            .collect::<Vec<_>>();
+        let ids = wanted
+            .iter()
+            .map(|(_, wanted)| wanted.card)
+            .collect::<Vec<_>>();
+        match programs.make(name, &ids, &inputs) {
+            Ok(results) => {
+                for ((at, _), result) in wanted.into_iter().zip(results) {
+                    set(&mut made, at, result);
+                }
+            }
+            Err(reason) => {
+                for (at, _) in wanted {
+                    set(&mut made, at, Err(reason.clone()));
+                }
+            }
+        }
+    }
+    made.into_iter()
+        .map(|card| card.expect("every card should have been made or failed"))
+        .collect()
+}
+
+/// The things of `things` whose kind is a kind program, each with its
+/// place, by the program's name.
+fn by_program<'a, T>(
+    things: &'a [T],
+    kind: impl Fn(&'a T) -> &'a Kind,
+) -> BTreeMap<&'a str, Vec<(usize, &'a T)>> {
+    let mut found = BTreeMap::<_, Vec<_>>::new();
+    for (at, thing) in things.iter().enumerate() {
+        if let Kind::Program(name) = kind(thing) {
+            found.entry(name.as_str()).or_default().push((at, thing));
+        }
+    }
+    found
+}
+
+/// Puts `value` in place `at` of `slots`.
+fn set<T>(slots: &mut [Option<T>], at: usize, value: T) {
+    if let Some(slot) = slots.get_mut(at) {
+        *slot = Some(value);
+    }
+}
+
+/// The failure of the program of kind `name` as a whole.
+fn failed(name: &str, reason: String) -> Error {
+    Error::KindFailed {
+        kind: name.to_owned(),
+        reason,
     }
 }
 
@@ -263,39 +387,50 @@ mod tests {
     /// The cards of item `k3m9q1` with these fields, as JSON (see
     /// `docs/cards.md`, "Format").
     fn cards(pairs: &[(&str, &str)]) -> Result<Vec<Value>, String> {
-        let id = ItemId::parse("k3m9q1").unwrap();
         let fields = fields(pairs);
-        Ok(Kind::Qa
-            .groups(&id, &fields, &Programs::default())?
-            .concat()
+        let wanted = groups(&fields)?.concat();
+        let wanted = wanted
             .iter()
-            .map(|card| {
-                serde_json::to_value(
-                    Kind::Qa
-                        .card(
-                            card,
-                            &fields,
-                            &Programs::default(),
-                            None,
-                            jiff::civil::date(2026, 10, 27),
-                        )
-                        .unwrap(),
-                )
-                .unwrap()
+            .map(|card| ToMake {
+                card,
+                kind: &Kind::Qa,
+                fields: &fields,
+                context: None,
             })
-            .collect())
+            .collect::<Vec<_>>();
+        Ok(make(
+            &wanted,
+            &Programs::default(),
+            jiff::civil::date(2026, 10, 27),
+        )
+        .into_iter()
+        .map(|card| serde_json::to_value(card.unwrap()).unwrap())
+        .collect())
+    }
+
+    /// The card IDs of a `qa` item `k3m9q1` with `fields`, in groups, or
+    /// why it is invalid.
+    fn groups(fields: &[Field]) -> Result<Vec<Vec<CardId>>, String> {
+        let id = ItemId::parse("k3m9q1").unwrap();
+        let asked = Asked {
+            kind: &Kind::Qa,
+            id: &id,
+            fields,
+        };
+        let answer = check(&[asked], &Programs::default())
+            .0
+            .pop()
+            .flatten()
+            .expect("qa always answers");
+        match answer {
+            Answer::Cards(groups) => Ok(groups),
+            Answer::Invalid(reasons) => Err(reasons.join("; ")),
+        }
     }
 
     #[test]
     fn the_cards_of_a_qa_item_are_one_group_of_siblings() {
-        let id = ItemId::parse("k3m9q1").unwrap();
-        let groups = Kind::Qa
-            .groups(
-                &id,
-                &fields(&[("Q", "{{c1::a}} {{c2::b}}")]),
-                &Programs::default(),
-            )
-            .unwrap();
+        let groups = groups(&fields(&[("Q", "{{c1::a}} {{c2::b}}")])).unwrap();
         let groups = groups
             .iter()
             .map(|group| group.iter().map(ToString::to_string).collect::<Vec<_>>())

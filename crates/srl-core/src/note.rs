@@ -12,7 +12,7 @@ use serde_json::{Map, Value};
 
 use crate::card::{Card, CardId};
 use crate::context::{ContextMode, context};
-use crate::kind::{Kind, Programs};
+use crate::kind::{Answer, Asked, Kind, Programs, ToMake, check};
 use crate::store::nfc;
 use crate::{Config, Error, Result, Store};
 
@@ -229,18 +229,23 @@ pub struct Notes {
 
 impl Notes {
     /// Reads every note of the store. Problems in notes are collected in
-    /// [`Notes::problems`]; only failing to read a file is an error here.
+    /// [`Notes::problems`], in the order of the notes and lines they are
+    /// about; only failing to read a file is an error here. The items of
+    /// every note are checked together, so that each kind program is asked
+    /// once about all of its items.
     pub fn load(store: &Store, config: &Config) -> Result<Self> {
         let paths = store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())?;
         let programs = Programs::new(store, config);
-        let mut items = Vec::new();
+        let mut written = Vec::new();
         let mut problems = Vec::new();
         for path in &paths {
             let text = read_note(store, path)?;
-            let (note_items, note_problems) = read_items(path, &text, &programs);
-            items.extend(note_items);
+            let (note_items, note_problems) = read_syntax(path, &text, &programs);
+            written.extend(note_items);
             problems.extend(note_problems);
         }
+        let (items, checked) = check_items(written, &programs);
+        problems.extend(checked);
         let (items, duplicates) = unique(items);
         problems.extend(duplicates);
         let known = paths.iter().map(|path| nfc(path)).collect::<HashSet<_>>();
@@ -255,6 +260,7 @@ impl Notes {
                 ),
             })
         }));
+        in_place_order(&mut problems);
         Ok(Self {
             items,
             problems,
@@ -269,20 +275,51 @@ impl Notes {
     }
 
     /// The card `card` of `item`, made by its kind as it is about to be
-    /// shown on the study day `day` (see `docs/cards.md`, "Kind programs").
-    /// Only a kind program can fail here: reading its item's note again for
-    /// the context, or the program itself.
+    /// shown on the study day `day`: [`Notes::make_cards`] for one card.
     pub fn make_card(&self, store: &Store, item: &Item, card: &CardId, day: Date) -> Result<Card> {
-        let context = match item.kind {
-            Kind::Qa => None,
-            Kind::Program(_) => context(store, item, ContextMode::Prose)?,
-        };
-        item.kind
-            .card(card, &item.fields, &self.programs, context.as_deref(), day)
-            .map_err(|reason| Error::CardFailed {
-                card: card.to_string(),
-                reason,
+        let mut made = self.make_cards(store, &[(item, card)], day)?;
+        Ok(made.pop().expect("one card should have been made"))
+    }
+
+    /// The cards `cards`, each with its item, made by their kinds for the
+    /// study day `day`, in order; each kind program makes all of its cards
+    /// in one call (see `docs/cards.md`, "Kind programs"). Fails at the
+    /// first card, in order, that can't be made: only a kind program can
+    /// fail here, reading its item's note again for the context, or the
+    /// program itself.
+    pub fn make_cards(
+        &self,
+        store: &Store,
+        cards: &[(&Item, &CardId)],
+        day: Date,
+    ) -> Result<Vec<Card>> {
+        let contexts = cards
+            .iter()
+            .map(|(item, _)| match item.kind {
+                Kind::Qa => Ok(None),
+                Kind::Program(_) => context(store, item, ContextMode::Prose),
             })
+            .collect::<Result<Vec<_>>>()?;
+        let wanted = cards
+            .iter()
+            .zip(&contexts)
+            .map(|((item, card), context)| ToMake {
+                card,
+                kind: &item.kind,
+                fields: &item.fields,
+                context: context.as_deref(),
+            })
+            .collect::<Vec<_>>();
+        crate::kind::make(&wanted, &self.programs, day)
+            .into_iter()
+            .zip(cards)
+            .map(|(made, (_, card))| {
+                made.map_err(|reason| Error::CardFailed {
+                    card: card.to_string(),
+                    reason,
+                })
+            })
+            .collect()
     }
 
     /// The items, in the order they are written: by note path, then line.
@@ -343,8 +380,74 @@ pub(crate) fn read_note(store: &Store, path: &str) -> Result<String> {
     fs::read_to_string(&file).map_err(Error::io(file))
 }
 
-/// The items of the note at `path` whose text is `text`, and its problems.
+/// The items of the note at `path` whose text is `text`, checked by their
+/// kinds, and its problems in the order of their lines.
 pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
+    let (written, mut problems) = read_syntax(path, text, programs);
+    let (items, checked) = check_items(written, programs);
+    problems.extend(checked);
+    in_place_order(&mut problems);
+    (items, problems)
+}
+
+/// Asks the kinds of `written` about them, and gives the items they
+/// accepted, with their cards, and the problems: why an item is invalid,
+/// and the kind programs that failed as a whole.
+fn check_items(written: Vec<Item>, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
+    let asked = written
+        .iter()
+        .map(|item| Asked {
+            kind: &item.kind,
+            id: &item.id,
+            fields: &item.fields,
+        })
+        .collect::<Vec<_>>();
+    let (answers, mut problems) = check(&asked, programs);
+    let mut items = Vec::new();
+    for (mut item, answer) in written.into_iter().zip(answers) {
+        match answer {
+            Some(Answer::Cards(groups)) => {
+                item.cards = groups.concat();
+                item.cards.sort();
+                item.groups = groups;
+                items.push(item);
+            }
+            Some(Answer::Invalid(reasons)) => {
+                problems.extend(reasons.into_iter().map(|reason| Error::Note {
+                    path: item.path.clone(),
+                    line: item.line,
+                    reason,
+                }));
+            }
+            // Its program failed as a whole, which is a problem already.
+            None => {}
+        }
+    }
+    (items, problems)
+}
+
+/// Sorts `problems` by the note and line they are about, notes in the order
+/// they are read, keeping the order of problems about the same line;
+/// problems about no note come last.
+fn in_place_order(problems: &mut [Error]) {
+    problems.sort_by_cached_key(|problem| {
+        problem
+            .place()
+            .map(|(path, line)| (nfc(path), path.to_owned(), line))
+    });
+    // `None` sorts first; problems about no note go last.
+    problems.rotate_left(
+        problems
+            .iter()
+            .take_while(|problem| problem.place().is_none())
+            .count(),
+    );
+}
+
+/// The items of the note at `path` whose text is `text`, as written, before
+/// their kinds are asked about them (they have no cards yet), and the
+/// problems of their syntax and headers.
+fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
     let parsed = parse::parse(text);
     let lines = parse::lines(text);
     let mut problems = parsed
@@ -383,29 +486,22 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
             problems.push(at(reason));
             continue;
         }
-        match kind.groups(&id, &raw.fields, programs) {
-            Ok(groups) => items.push(Item {
-                id,
-                path: path.to_owned(),
-                line: raw.line,
-                end: raw.end,
-                kind,
-                see: raw.header.see,
-                draft: raw.header.draft,
-                fields: raw.fields,
-                text: lines
-                    .get(raw.line - 1..raw.end)
-                    .unwrap_or_default()
-                    .join("\n"),
-                cards: {
-                    let mut cards = groups.concat();
-                    cards.sort();
-                    cards
-                },
-                groups,
-            }),
-            Err(reason) => problems.push(at(reason)),
-        }
+        items.push(Item {
+            id,
+            path: path.to_owned(),
+            line: raw.line,
+            end: raw.end,
+            kind,
+            see: raw.header.see,
+            draft: raw.header.draft,
+            fields: raw.fields,
+            text: lines
+                .get(raw.line - 1..raw.end)
+                .unwrap_or_default()
+                .join("\n"),
+            cards: Vec::new(),
+            groups: Vec::new(),
+        });
     }
     (items, problems)
 }

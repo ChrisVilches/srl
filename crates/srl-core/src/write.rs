@@ -187,17 +187,18 @@ pub fn add(
         .iter()
         .zip(&ids)
         .map(|((line, item), id)| {
-            let invalid = |reason| Error::InvalidLine {
+            format_item(id, item).map_err(|reason| Error::InvalidLine {
                 line: *line,
                 reason,
-            };
-            let text = format_item(id, item).map_err(invalid)?;
-            match read_items(path, &text, notes.programs()).1.first() {
-                Some(problem) => Err(invalid(reason_of(problem))),
-                None => Ok(text),
-            }
+            })
         })
         .collect::<Result<Vec<_>>>()?;
+    check_added(
+        path,
+        &items,
+        &lines.iter().map(|(line, _)| *line).collect::<Vec<_>>(),
+        notes,
+    )?;
     let old = read_if_exists(&store.note_file(path))?;
     let ending = line_ending(old.as_deref().unwrap_or_default());
     let added = format!("{}\n", items.join("\n\n"));
@@ -332,6 +333,45 @@ fn refuse_problems(notes: &Notes, missing_ids: bool) -> Result<()> {
 }
 
 /// The reason of a problem in a note, without its place.
+/// Checks `items`, the text of new items for the note at `path` that came
+/// from the lines `lines` of standard input, as they would be read once
+/// added, all at once, so that each kind program is asked once about all of
+/// them. The first problem is an error about its line, unless it is a kind
+/// program failing as a whole, which is no line's fault.
+fn check_added(path: &str, items: &[String], lines: &[usize], notes: &Notes) -> Result<()> {
+    // The items as `srl add` appends them, and the line each starts at.
+    let mut starts = Vec::new();
+    let mut text = String::new();
+    for item in items {
+        if !text.is_empty() {
+            text.push('\n');
+        }
+        starts.push(text.lines().count() + 1);
+        text.push_str(item);
+        text.push('\n');
+    }
+    let Some(problem) = read_items(path, &text, notes.programs())
+        .1
+        .into_iter()
+        .next()
+    else {
+        return Ok(());
+    };
+    let Some((_, at)) = problem.place() else {
+        return Err(problem);
+    };
+    let line = starts
+        .iter()
+        .zip(lines)
+        .rev()
+        .find(|(start, _)| **start <= at)
+        .map_or(0, |(_, line)| *line);
+    Err(Error::InvalidLine {
+        line,
+        reason: reason_of(&problem),
+    })
+}
+
 fn reason_of(problem: &Error) -> String {
     if let Error::Note { reason, .. } = problem {
         reason.clone()

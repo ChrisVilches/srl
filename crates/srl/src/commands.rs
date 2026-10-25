@@ -378,10 +378,7 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
     }
     // A card that can't be made fails the whole command before anything is
     // printed (see `docs/cli.md`, "Cards").
-    let found = found
-        .into_iter()
-        .map(|(item, card)| notes.make_card(store, item, card, day))
-        .collect::<srl_core::Result<Vec<_>>>()?;
+    let found = notes.make_cards(store, &found, day)?;
     if json {
         output::json_lines(&found)?;
     } else {

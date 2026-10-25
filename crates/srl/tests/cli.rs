@@ -1032,7 +1032,7 @@ fn kind_selects_items_by_their_kind() {
 fn next_fails_if_its_kind_program_fails_to_make_the_card() {
     let tmp = store_with_kind(&[(
         "a.md",
-        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\nFAIL_CARD: a\n",
+        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\nFAIL_MAKE: a\n",
     )]);
     let d = dir(&tmp);
     // The same failure every time, and abc-b is never tried in its place.
@@ -1041,7 +1041,7 @@ fn next_fails_if_its_kind_program_fails_to_make_the_card() {
         assert_eq!(output.status.code(), Some(2), "{}", stderr(&output));
         assert!(output.stdout.is_empty());
         assert!(
-            stderr(&output).contains("cannot make the card abc-a (fix what failed, or set the card aside with `srl suspend abc-a`): the program of kind fake failed: card a fails on purpose"),
+            stderr(&output).contains("cannot make the card abc-a (fix what failed, or set the card aside with `srl suspend abc-a`): the program of kind fake couldn't make it: card a fails on purpose"),
             "{}",
             stderr(&output)
         );
@@ -1060,7 +1060,7 @@ fn next_fails_if_its_kind_program_fails_to_make_the_card() {
 fn cards_fails_at_once_if_a_kind_program_fails() {
     let tmp = store_with_kind(&[(
         "a.md",
-        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\nFAIL_CARD: b\n",
+        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\nFAIL_MAKE: b\n",
     )]);
     let d = dir(&tmp);
     let output = srl(&["cards", "abc", "--dir", d]);
@@ -1073,16 +1073,51 @@ fn cards_fails_at_once_if_a_kind_program_fails() {
 }
 
 #[test]
-fn a_failing_ids_call_is_reported_like_any_error_in_a_note() {
+fn an_item_validate_rejects_is_reported_like_any_error_in_a_note() {
     let tmp = store_with_kind(&[(
         "a.md",
-        "<!-- srl id:abc kind:fake -->\nFAIL_IDS: VERB is missing\n",
+        "<!-- srl id:abc kind:fake -->\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}]}\n",
     )]);
     let output = srl(&["check", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
-        stderr(&output).contains("a.md:1: the program of kind fake failed: VERB is missing"),
+        stderr(&output).contains("a.md:1: VERB: is missing"),
         "{}",
         stderr(&output)
     );
+}
+
+#[test]
+fn a_kind_program_that_fails_is_reported_once_and_stops_commands() {
+    let tmp = store_with_kind(&[(
+        "a.md",
+        "<!-- srl id:abc kind:fake -->\nBREAK_GROUPS: on purpose\n\n<!-- srl id:abd kind:fake -->\nX: y\n",
+    )]);
+    let d = dir(&tmp);
+    let output = srl(&["check", "--dir", d]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        stderr(&output).lines().next().unwrap(),
+        "srl: the program of kind fake failed: on purpose; no item of kind fake can be read until \
+         the program works"
+    );
+    assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(2));
+}
+
+#[test]
+fn add_checks_every_new_item_at_once_and_names_the_line_at_fault() {
+    let tmp = store_with_kind(&[]);
+    let d = dir(&tmp);
+    let input = "{\"kind\": \"fake\", \"X\": \"a\", \"LOG\": \"calls.log\"}\n\n{\"kind\": \"fake\", \"GROUPS\": \"a b\", \"LOG\": \"calls.log\"}\n{\"kind\": \"fake\", \"INVALID\": \"no good\"}\n";
+    let output = srl_with_input(
+        &["add", "new.md", "--stdin", "--dry-run", "--dir", d],
+        input,
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("line 4 of standard input is not a valid item: no good"),
+        "{}",
+        stderr(&output)
+    );
+    assert_eq!(read(&tmp, "calls.log"), "validate 3\ngroups 2\n");
 }
