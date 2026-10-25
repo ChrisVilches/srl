@@ -46,6 +46,17 @@ class Ids(unittest.TestCase):
             ids(item("{地方}と{都}"))["groups"][1],
         )
 
+    def test_spaces_around_a_word_are_not_part_of_it(self):
+        for text in ["{ 都}", "{都 }", "{　都　}"]:
+            with self.subTest(text=text):
+                self.assertEqual(ids(item(text)), {"groups": [{"cards": ["e983bd"]}]})
+
+    def test_a_word_with_combining_marks_is_the_same_card(self):
+        self.assertEqual(
+            ids(item("{が}{が}")),
+            {"groups": [{"cards": ["e3818c"]}]},
+        )
+
     def test_invalid_items_are_errors(self):
         for text in ["no words", "{}", "{ }", "{都", "都}", "{{都}}", "{都{}}"]:
             with self.subTest(text=text), self.assertRaises(KindError):
@@ -72,6 +83,14 @@ class Card(unittest.TestCase):
     def test_an_unbraced_occurrence_is_not_highlighted(self):
         made = card(item("京都は{都}", "e983bd"), self.analyze)
         self.assertEqual(made["prompt"], "京都は==都==")
+
+    def test_spaces_around_a_word_stay_outside_the_highlight(self):
+        made = card(item("東京{ 都 }は", "e983bd"), self.analyze)
+        self.assertEqual(made["prompt"], "東京 ==都== は")
+
+    def test_both_forms_of_a_word_with_combining_marks_are_highlighted(self):
+        made = card(item("{が}と{が}", "e3818c"), self.analyze)
+        self.assertEqual(made["prompt"], "==が==と==が==")
 
     def test_the_answer_is_the_analysis_of_the_whole_sentence(self):
         seen = []

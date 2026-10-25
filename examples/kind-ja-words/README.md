@@ -41,6 +41,11 @@ Tried on Arch Linux only.
   word alone, so adding, removing or moving words doesn't give one card's
   history to another, and it can be read back with
   `echo e983bd | xxd -r -p`. Changing a word makes a new card.
+- **A word is taken as it reads, not as it was typed.** Spaces at either
+  end, full-width ones included, aren't part of it: `{ 都}` is the card
+  of 都, and the space stays in the sentence, outside the highlight. The
+  suffix is made from the word in Unicode NFC, so が typed as か followed
+  by a combining ゛, as some copied text has it, is the same card as が.
 - **Braces only go around a word.** An empty `{}`, a brace without its
   pair, braces inside braces, and a `TEXT` without any `{word}` are
   errors; there is no way to write a literal brace. `TEXT` is the only
@@ -105,8 +110,10 @@ They are in `test_ja_words.py`, in three classes:
 
 - `Ids`: one card per distinct word, a repeated word giving one card,
   every card in a group of its own, the hex suffix and that it doesn't
-  depend on where the word is, and every invalid `TEXT` or field.
-- `Card`: which occurrences are highlighted, the card having no
+  depend on where the word is, spaces around a word and combining marks
+  not making another card, and every invalid `TEXT` or field.
+- `Card`: which occurrences are highlighted, spaces staying outside the
+  highlight, the card having no
   `prompt_revealed`, the answer being the analysis
   of the whole sentence, and how each token becomes a line. They give the
   program a made-up MeCab output, so they don't need MeCab.

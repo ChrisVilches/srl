@@ -16,6 +16,7 @@ packages. Tried on Arch Linux only, where they are installed with
 import json
 import subprocess
 import sys
+import unicodedata
 
 FIELD = "TEXT"
 
@@ -26,7 +27,9 @@ class KindError(Exception):
 
 def pieces(text):
     """The text split into plain strings and ("word", WORD) pairs, one per
-    {WORD}. Any other brace is an error: there is no escaping."""
+    {WORD}. Any other brace is an error: there is no escaping. Spaces at
+    either end of a word stay in the sentence but are not part of the
+    word, so `{ 都}` is the word 都 after a space."""
     result = []
     plain = ""
     word = None
@@ -43,10 +46,13 @@ def pieces(text):
         elif char == "}":
             if not word.strip():
                 raise KindError("an empty `{}`; write the word inside it")
+            stripped = word.strip()
+            start = word.index(stripped)
+            plain += word[:start]
             if plain:
                 result.append(plain)
-                plain = ""
-            result.append(("word", word))
+            result.append(("word", stripped))
+            plain = word[start + len(stripped):]
             word = None
         else:
             word += char
@@ -72,8 +78,11 @@ def text_of(item):
 
 
 def suffix(word):
-    """The card suffix of a word: its UTF-8 bytes in hex, so 都 is e983bd."""
-    return word.encode("utf-8").hex()
+    """The card suffix of a word: the UTF-8 bytes of its NFC form in hex,
+    so 都 is e983bd. NFC makes a word typed with combining marks, such as
+    か followed by a combining ゛, the same card as the word typed with
+    precomposed characters, が."""
+    return unicodedata.normalize("NFC", word).encode("utf-8").hex()
 
 
 def ids(item):
@@ -94,8 +103,7 @@ def card(item, analyze=None):
     MeCab in tests."""
     found = text_of(item)
     words = [piece[1] for piece in found if isinstance(piece, tuple)]
-    chosen = next((word for word in words if suffix(word) == item["suffix"]), None)
-    if chosen is None:
+    if not any(suffix(word) == item["suffix"] for word in words):
         raise KindError(f"no `{{word}}` in {FIELD} has the suffix {item['suffix']}")
     # NOTE: the same word twice in a row, `{都}{都}`, gives `==都====都==`,
     # which most Markdown renderers don't show as two highlights. Left as is
@@ -112,7 +120,7 @@ def card(item, analyze=None):
     #   sentence, but no longer shows where one word ends.
     prompt = "".join(
         piece if not isinstance(piece, tuple)
-        else f"=={piece[1]}==" if piece[1] == chosen
+        else f"=={piece[1]}==" if suffix(piece[1]) == item["suffix"]
         else piece[1]
         for piece in found
     )
