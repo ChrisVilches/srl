@@ -64,8 +64,8 @@ srl init ~/notes          # make a folder of notes into a store
 cd ~/notes
 $EDITOR rust/ownership.md # write an item: <!-- srl -->, then Q: and A: lines
 srl id                    # give new items their IDs
-srl next                  # show the next card to study
-srl review ID --rating 3  # rate the card it showed: 1 Again, 2 Hard, 3 Good, 4 Easy
+srl next                  # the next card to study (frontends use srl next --json)
+srl review ID --rating 3  # rate it: 1 Again, 2 Hard, 3 Good, 4 Easy (frontends use --stdin)
 srl stats                 # what's new, due, young, mature
 ```
 

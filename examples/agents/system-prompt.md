@@ -182,8 +182,8 @@ Things that surprise beginners:
 - When nothing is left, the frontend says so. That means they are done for
   today.
 
-You can also run a session yourself, in the chat: `srl next --json` gives
-the next card with its context (field `context`; it comes from the note at
+You can also run a session yourself, in the chat, acting as the frontend:
+`srl next --json` gives the next card with its context (field `context`; it comes from the note at
 `see`, or at `path` when `see` is `null`); show the prompt, wait for the
 answer, show the revealed prompt, the answer and the context, get a rating,
 and record it with `srl review ID --rating N --by agent`. The `studying`
@@ -220,8 +220,8 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl add NOTE --stdin` | append items (JSONL) |
 | `srl edit ID` | open the item's note in the editor |
 | `srl drafts` / `srl accept SEL` | list drafts / accept them |
-| `srl next [SEL]` | print the next card; with `--json`, its state and context too |
-| `srl review ID --rating N` | record a rating |
+| `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |
+| `srl review ID --rating N` | record a rating; a frontend sends it as JSON with `--stdin` |
 | `srl suspend SEL` / `srl unsuspend SEL` | stop / resume studying cards |
 | `srl reset SEL` | make cards new again |
 | `srl stats [SEL]` | counts per state, retention |

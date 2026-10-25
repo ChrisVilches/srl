@@ -187,8 +187,8 @@ items it would write, as they would appear in the note, and writes nothing.
 
 | Command | Does |
 |---|---|
-| `srl next [SELECTOR] [--context MODE] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`; with `--json`, with what a frontend shows around it (see below). Exit 1 if there is none; exit 2 if the card it picks can't be made. |
-| `srl review --stdin` | Record a review: `{"card": "k3m9q1-2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
+| `srl next [SELECTOR] [--context MODE] [--json]` | Give a frontend the next card to show (see [scheduling.md](scheduling.md)): with `--json`, the card and what a frontend shows around it (see below); without, the card for people, in the format of `srl cards`. Exit 1 if there is none; exit 2 if the card it picks can't be made. |
+| `srl review --stdin` | Record a review, as a frontend does after `srl next --json`: `{"card": "k3m9q1-2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
 | `srl review ID… --rating N [--by agent]` | Record the same rating for each card. Prints nothing. |
 | `srl reset SELECTOR` | Make matching cards new again. Only cards that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
 

@@ -121,8 +121,9 @@ ones worth keeping.
 ### Tutor: an interactive session
 
 With agi, each of your replies is one turn in a saved session (for example
-through `agi-repl`). The agent calls `srl next --json`, which gives the
-card with its context, and asks. What happens next is
+through `agi-repl`). The agent acts as the frontend: it calls `srl next
+--json`, the frontend contract, which gives the card with its context, and
+asks. What happens next is
 up to your instructions, for example:
 
 - you answer in your own words, the agent judges the answer and records its

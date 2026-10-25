@@ -85,8 +85,9 @@ To study more new cards today, the person can raise `new_per_day` in
 
 ## In the chat, with you
 
-A session in the chat records the same reviews as a frontend, marked as
-yours. Only run one when the person asks for it. Each round:
+In a session in the chat you act as the frontend: you run the same
+frontend contract, `srl next --json` then `srl review`, and record the
+same reviews as a frontend, marked as yours. Only run one when the person asks for it. Each round:
 
 1. `srl next [SELECTOR] --json` prints the card, with its state, kind and
    context: `{"id": "k3m9q1-2", "prompt": "...", "prompt_revealed": "...",
