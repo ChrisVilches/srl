@@ -1,12 +1,22 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ComponentType } from 'react';
 
+import { Add } from './Add';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
 import { CardFace, Counts, ErrorView, Key, Notice, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges } from './CardParts';
 import { useKeys, useStartWhenShown } from './hooks';
 import { SelectorInput, TopBar, type View } from './TopBar';
 
-const viewOfHash = (): View => (window.location.hash === '#browse' ? 'browse' : 'study');
+const VIEWS: Record<View, ComponentType<{ active: boolean }>> = {
+  study: Study,
+  browse: Browse,
+  add: Add,
+};
+
+const viewOfHash = (): View => {
+  const hash = window.location.hash.slice(1);
+  return hash === 'browse' || hash === 'add' ? hash : 'study';
+};
 
 // Where the session is. It runs the frontend loop of docs/frontends.md:
 // get a card, show the prompt, show the answer and the context, rate it.
@@ -32,8 +42,9 @@ async function nextPhase(selector: string): Promise<Phase> {
   return card ? { kind: 'prompt', card } : { kind: 'done' };
 }
 
-// Both views stay mounted, so that switching keeps the session and the
-// browser where they were; only the one shown takes keys.
+// Every view stays mounted, so that switching keeps the session, the
+// browser and the item being written where they were; only the one shown
+// takes keys.
 export default function App() {
   const [view, setView] = useState<View>(viewOfHash);
   useEffect(() => {
@@ -44,8 +55,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      {(['study', 'browse'] as const).map((v) => {
-        const Pane = v === 'study' ? Study : Browse;
+      {(Object.keys(VIEWS) as View[]).map((v) => {
+        const Pane = VIEWS[v];
         return (
           <div key={v} className={view === v ? 'contents' : 'hidden'}>
             <Pane active={view === v} />

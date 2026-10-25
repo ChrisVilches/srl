@@ -33,6 +33,18 @@ export type FoundCard = {
 
 export type Rating = 1 | 2 | 3 | 4;
 
+// A kind as `srl kinds --json` describes it (docs/cards.md, "Describing a
+// kind"): what it is for, and its fields.
+export type KindDescription = {
+  name: string;
+  description: string;
+  fields: { name: string; description: string }[];
+};
+
+// An item for `srl add --stdin` (docs/cli.md, "Adding items"): its header
+// entries kind, see and draft, and its fields.
+export type NewItem = Record<string, string | boolean>;
+
 async function call<T>(path: string, body?: object, signal?: AbortSignal): Promise<T> {
   const response = await fetch(
     path,
@@ -64,4 +76,11 @@ export const api = {
   // Makes the card, running its kind program. Aborting SIGNAL stops srl.
   card: async (id: string, signal: AbortSignal) =>
     (await call<{ card: ShownCard }>(`/api/card?${new URLSearchParams({ id })}`, undefined, signal)).card,
+  kinds: async () => (await call<{ kinds: KindDescription[] }>('/api/kinds')).kinds,
+  notes: async () => (await call<{ notes: string[] }>('/api/notes')).notes,
+  // The item as srl would write it to NOTE, writing nothing.
+  check: async (note: string, item: NewItem) =>
+    (await call<{ text: string }>('/api/add', { note, item, dry_run: true })).text,
+  // Writes the item to the end of NOTE, and gives its new ID.
+  add: async (note: string, item: NewItem) => (await call<{ ids: string[] }>('/api/add', { note, item })).ids,
 };

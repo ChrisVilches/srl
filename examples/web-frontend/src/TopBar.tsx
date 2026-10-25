@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-// The two views: studying (the page's start), and the card browser (#browse).
-export type View = 'study' | 'browse';
+// The views: studying (the page's start), the card browser (#browse), and
+// adding items (#add).
+export type View = 'study' | 'browse' | 'add';
 
 // The bar at the top of each view: the switch between views, then the
 // view's own controls.
@@ -27,6 +28,7 @@ export function TopBar({ view, wide, children }: { view: View; wide?: boolean; c
         <nav className="flex gap-1 text-sm">
           {tab('study', '#', 'Study')}
           {tab('browse', '#browse', 'Browse')}
+          {tab('add', '#add', 'Add')}
         </nav>
         {children}
       </div>

@@ -189,8 +189,9 @@ it what `srl` is and does, or something done with it?**
     terminal in Python with Rich (see
     [guides/frontends.md](guides/frontends.md)).
   - `examples/web-frontend/`: `srl-web`, the web viewer, with a local
-    server and a React page, and a card browser that shows any card
-    without studying it (see [guides/frontends.md](guides/frontends.md)).
+    server and a React page, a card browser that shows any card
+    without studying it, and a form that adds items (see
+    [guides/frontends.md](guides/frontends.md)).
 
 A guide says how to use or build something; an example is the thing itself.
 The details of an example (its options, keys, internals) are in its own

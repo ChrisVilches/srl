@@ -3,7 +3,7 @@
 `srl-web` is a web viewer, a frontend in the sense of
 [docs/frontends.md](../../docs/frontends.md): a small server on localhost
 that runs `srl` commands, and a page in the browser that shows the cards
-to study, and a browser of any card. It
+to study, a browser of any card, and a form that adds items. It
 needs `srl` on `PATH` and Node.js 20 or later, and should work on Linux,
 macOS and Windows (it is tried on Linux only).
 
@@ -46,6 +46,26 @@ as how `ja_word` marks words, without studying:
   the Study tab is first shown, so a page opened on `#browse` runs no
   `srl next`.
 
+It also **adds items** (the Add tab, or `#add`), one at a time:
+
+- The kind is chosen among those `srl kinds` describes, and the form
+  shows one box per field, with the kind's description of it. Changing
+  the kind keeps the text of a field of the same name.
+- The note it is appended to is chosen among the notes `srl notes`
+  lists, by typing any part of its path (the letters in order); nothing
+  else can be chosen, so the page never creates a note. To add to a new
+  note, such as an inbox, create it, then **Reload notes**.
+- The note last added to is chosen again on the next visit. It is kept
+  in the browser's `localStorage`, so it is per browser and per address
+  (port), and forgotten when `srl notes` no longer lists it.
+- An optional context note, chosen the same way, becomes the item's
+  `see:`; **Draft** makes it a draft.
+- **Check** runs `srl add --dry-run` and shows the item as srl would
+  write it; **Add** (Ctrl+Enter) adds it and shows its ID, then empties
+  the fields. The page knows no rule of any kind: srl checks the item, and
+  the page shows what srl says, such as a field the kind needs. Fields
+  left blank are left out of the item, and `kind` is left out for `qa`.
+
 It is an npm package of its own, kept apart from `srl` and from the other
 examples: everything it needs is in this folder.
 
@@ -84,6 +104,9 @@ scheduling here; that belongs to `srl`.
 | `POST /api/suspend` | `srl suspend id:CARD`, for `{"card": CARD}` | `{}` |
 | `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --context none` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind` and `excerpt`, the first line of its first field |
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json --context prose` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `path`, `see` and `context`, as `srl next --json` gives them |
+| `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
+| `GET /api/notes` | `srl notes --json` | `{"notes": [PATH…]}` |
+| `POST /api/add` | `srl add NOTE --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"note": NOTE, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, the item as it would be written, for a dry run |
 
 `/api/find` gives `srl show` at most 500 item IDs at a time, to keep its
 command line short enough for Windows. When the page stops waiting for

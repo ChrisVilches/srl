@@ -20,6 +20,15 @@
 // /api/card makes the card, so a kind program runs and may take a while (an
 // LLM, say). When the page stops waiting, srl is killed.
 //
+// Adding items, one at a time:
+//
+//   GET  /api/kinds        srl kinds --json            → { kinds: [kind…] }
+//   GET  /api/notes        srl notes --json            → { notes: [path…] }
+//   POST /api/add          srl add NOTE --stdin [--dry-run], with ITEM as its
+//                          one line                    ← { note, item, dry_run }
+//                                                      → { ids } or, with
+//                                                        dry_run, { text }
+//
 // Errors are { error: MESSAGE } with status 400 (bad request) or 500 (srl
 // failed), MESSAGE being srl's own message when it comes from srl.
 
@@ -113,6 +122,30 @@ export function createSrlServer({ dir, selector, staticDir }) {
       }
       const item = jsonLines(show.stdout)[0];
       return { card: { ...card, kind: item.kind, path: item.path, see: item.see, context: item.context } };
+    },
+
+    'GET /api/kinds': async () => ({ kinds: jsonLines((await srl(['kinds', '--json'])).stdout) }),
+
+    'GET /api/notes': async () => {
+      const { found, stdout } = await srl(['notes', '--json']);
+      return { notes: found ? jsonLines(stdout).map((note) => note.path) : [] };
+    },
+
+    // The item is passed to srl as it is: srl checks it, and the note. With
+    // dry_run, srl prints the item as it would write it, and writes nothing.
+    'POST /api/add': async (_url, body) => {
+      if (typeof body.note !== 'string' || body.note === '') {
+        throw new BadRequest('note must be the path of a note');
+      }
+      if (body.item === null || typeof body.item !== 'object' || Array.isArray(body.item)) {
+        throw new BadRequest('item must be a JSON object');
+      }
+      const dryRun = body.dry_run === true;
+      // The note goes after `--`, so that a path starting with `-` is never
+      // read as an option.
+      const args = ['add', '--stdin', ...(dryRun ? ['--dry-run'] : []), '--', body.note];
+      const { stdout } = await srl(args, JSON.stringify(body.item) + '\n');
+      return dryRun ? { text: stdout } : { ids: stdout.split('\n').filter((line) => line.trim() !== '') };
     },
   };
 
