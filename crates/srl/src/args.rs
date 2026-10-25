@@ -99,13 +99,12 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Print cards by ID: a card ID gives that card, an item ID all of its cards.
+    /// Print cards by ID, as a frontend shows them (an item ID gives all of its cards).
     ///
-    /// The cards are made as a frontend shows them: with --json, in the card
-    /// format of `srl next --json` (the prompt, the revealed prompt and the
-    /// answer), without the state, kind, note and context around it. Without
-    /// --json, they are printed for people. Making a card runs its kind
-    /// program, if it has one.
+    /// With --json, the cards are in the card format of `srl next --json`
+    /// (the prompt, the revealed prompt and the answer), without the state,
+    /// kind, note and context around it. Without --json, they are printed for
+    /// people. Making a card runs its kind program, if it has one.
     Cards {
         /// Card or item IDs.
         #[arg(required = true)]
