@@ -105,9 +105,10 @@ k3m9q1-1
 Despite everyone's opposition, she started a company.
 ```
 
-The cards of a kind program are made when `srl cards` prints them (see
-[cards.md](cards.md), "Kind programs"). If one can't be made, `srl cards`
-fails at once with the reason, exit 2, and prints no card at all.
+The cards of a kind program are made when `srl cards` prints them, all
+the cards of a kind program in one call (see [cards.md](cards.md), "How
+srl calls them"). If one can't be made, `srl cards` fails at once with
+the reason, exit 2, and prints no card at all.
 
 `srl accept`, `srl suspend` and `srl unsuspend` apply the selector exactly
 as written, and change only matching cards that have the status they start

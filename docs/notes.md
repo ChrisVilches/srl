@@ -252,7 +252,8 @@ editor, which is you changing it). The rules for writing:
 
 Every command that reads items reads every note, and **any error in any
 note stops it**: it reports every error it found, as `PATH:LINE: message`
-on standard error, one per line, and exits with status 2. The errors are:
+on standard error, one per line, in the order of the notes and their
+lines, and exits with status 2. The errors are:
 
 - a line that starts like a header but isn't one (rule 2);
 - a header not followed by a field line (rule 5);
@@ -263,6 +264,8 @@ on standard error, one per line, and exits with status 2. The errors are:
 - a field key written twice in one item, whatever its kind;
 - an unknown kind, or fields that the kind doesn't accept (see
   [cards.md](cards.md));
+- a kind program that fails as a whole, reported once, without a line
+  (see [cards.md](cards.md), "How srl calls them");
 - a `see:` that doesn't name a note of the store.
 
 `srl id` is the exception for items without an ID: that is the error it

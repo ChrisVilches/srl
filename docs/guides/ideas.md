@@ -47,10 +47,10 @@ PROMPT: Ask me to use 〜をものともせず in a new sentence about everyday
   work. The answer is a model sentence and its translation.
 ```
 
-- `ids` checks that the item has exactly one field, `PROMPT`, and prints
-  `{"groups": [{"cards": [null]}]}`: one card, with the item's ID
+- `validate` checks that the item has exactly one field, `PROMPT`, and
+  `groups` gives `{"groups": [[null]]}`: one card, with the item's ID
   `q8w2e5`. No call to the LLM.
-- `card` sends `PROMPT`, and the item's context (the note about
+- `make` sends `PROMPT`, and the item's context (the note about
   〜をものともせず), to an LLM API, and prints the question it wrote as
   `prompt`, and the answer it wrote. A new card
   each time, under the same ID.
@@ -60,7 +60,7 @@ Each part of `srl` already allows this:
 - **Scheduling** sees one card, `q8w2e5`, with one memory state: how well
   you can use 〜をものともせず, asked a different way each time. Different
   content under one ID is the kind's choice; `srl` never compares content.
-- **Prompt and answer match**, because they come out of the same `card`
+- **Prompt and answer match**, because they come out of the same `make`
   call, and `srl next --json` gives both at once. A frontend holds the
   card it got; it never asks for it again.
 - **Reviews record only the card ID** (and `hash`, of the item's text), so
@@ -71,7 +71,7 @@ Each part of `srl` already allows this:
   every time, until the API works again or you suspend the card. A slow
   one is stopped after `card_timeout`, and fails too.
 - **Cost:** one LLM call per card shown, and none for every other command,
-  because `ids` doesn't call the LLM. `srl cards` makes a call for every
+  because `validate` and `groups` don't call the LLM. `srl cards` asks the LLM for every
   card it prints. The program may cache answers by item ID and study day,
   so the card stays the same for a day if you prefer that.
 

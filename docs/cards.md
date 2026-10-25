@@ -191,7 +191,8 @@ An item with `kind:ja-words` gets its cards from that program.
 per `{word}` of a Japanese sentence.
 
 - **The value is a command**: the program, then its arguments. `srl`
-  adds `ids`, `card` or `describe` (see below) as the last argument. It is a list,
+  adds the call, `describe`, `validate`, `groups` or `make` (see below),
+  as the last argument. It is a list,
   not a path, so that a script runs the same on every platform: Windows
   can't run a script by its `#!` line, and takes
   `["py", "kinds/ja_words.py"]`.
@@ -207,42 +208,65 @@ per `{word}` of a Japanese sentence.
   tools. A store you copy from someone else runs their programs: read its
   `[kinds]` first.
 
-**Card IDs and card content come from two separate calls.** Every command
-that reads items needs their card IDs: selectors, `srl find`, `srl
-check`, scheduling, the sibling rule. Only `srl next`, for the card it
-shows, and `srl cards` need a card's content. So a kind program answers
-two calls, by design. IDs must be stable, since a card's history is kept
-under its ID, and are asked for all the time; content is asked for one
-card at a time, and may be slow to make (a program that asks an LLM to
-write the question) or differ every time. Kept apart, a command that only
-needs IDs never waits for content (see [rationale.md](rationale.md), "Why
-a kind program answers two calls"). A third call, `describe`, says what
-the kind is for and which fields it takes, for people and editors (see
-"Describing a kind" below). Every program answers all three. Each call reads one JSON object on
-standard input and prints one on standard output. A call that exits with a status other than 0 failed, and
-what it printed on standard error is the reason.
+#### Calls
 
-| Call | Input | Output | Rule |
-|---|---|---|---|
-| `ids` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | its cards, in groups: `{"groups": [{"cards": ["te", "past"]}, {"cards": ["negative"]}]}` | **Deterministic and fast**: the same fields always give the same cards. Called for every item of the kind, on every command that reads items. It has no time limit. |
-| `card` | the same object, plus `"suffix"` (`null` for a card with the item's ID), `"context"` (the item's context in mode `prose`, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`: the card's fields of "Format" above, without `id`. Only `prompt` must be present; `prompt_revealed` and `answer` may be left out, which is the same as `null` | **May differ every time.** Called only for a card about to be shown, and stopped after `kind_programs.card_timeout` seconds. |
-| `describe` | `{}` | the kind and its fields: `{"description": "…", "fields": [{"name": "VERB", "description": "…"}]}` (see "Describing a kind") | **Only informs.** Called only by `srl kinds`. It has no time limit. |
+A kind program answers four calls, and **each call does one thing**:
+
+| Call | Does | Rule |
+|---|---|---|
+| `describe` | Says what the kind is for and which fields it takes (see "Describing a kind" below). | **Only informs.** Called only by `srl kinds`. |
+| `validate` | Says whether each item is valid and, if not, why. | **The kind's only check**: an item is invalid only if `validate` says so, so it must reject every item the program can't use. Called for every item of the kind, on every command that reads items. |
+| `groups` | Gives the card suffixes of each valid item, in groups of siblings. | **Deterministic, and never checks**: the same fields always give the same cards. Called only for the items `validate` accepted, right after it. |
+| `make` | Makes each card's content. | **May be slow, and may differ every time.** Called only for cards about to be shown or printed. |
+
+Every call is a **batch**, run the same way:
+
+1. `srl` starts the program with the call as its last argument, and
+   writes its inputs to standard input, one JSON object per line, then
+   closes it. Even a single input is one line, and `srl` never runs a
+   call without any.
+2. The program reads up to the end of standard input, and prints
+   **exactly one JSON object per input line, on one line, in the same
+   order**. It may read everything first or answer as it goes. `srl`
+   matches each answer to its input by its place.
+3. It exits with status 0. **A status other than 0 is a failure of the
+   whole call**, and what it printed on standard error is the reason. An
+   invalid item is an answer, not a failure.
+
+Lines end with `\n` or `\r\n`. Nothing else may go to standard output;
+standard error is free for messages.
+
+| Call | Each input line | Each output line |
+|---|---|---|
+| `describe` | `{}`, which the program may ignore | `{"description": "…", "fields": [{"name": "VERB", "description": "…"}]}` (see "Describing a kind") |
+| `validate` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | `{"errors": []}` for a valid item; otherwise its errors, each with a `message` and the `field` it is about, or `null` (or no `field`) when it is about the whole item: `{"errors": [{"field": "FORMS", "message": "\`tense\` is not a form; the forms are te, past, negative"}]}` |
+| `groups` | the item, as for `validate` | its cards, in groups: `{"groups": [["te", "past"], ["negative"]]}` |
+| `make` | the item, plus `"suffix"` (`null` for a card with the item's ID), `"context"` (the item's context in mode `prose`, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | the card's fields of "Format" above, without `id`: `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`, where only `prompt` must be present, and `prompt_revealed` and `answer` may be left out, which is the same as `null`; or, when this card can't be made, `{"error": "…"}` |
 
 `fields` is as in `srl show --json` (see [notes.md](notes.md), "Items as
 JSON"). No key is written twice in an item, whatever its kind (see
-[notes.md](notes.md), "Errors"), so the object loses nothing.
+[notes.md](notes.md), "Errors"), so the object loses nothing. An error's
+`message` and `field` follow the rules of messages in [cli.md](cli.md):
+a plain sentence that says what to do; `field` is a field name, made as
+in [notes.md](notes.md), "The item syntax".
+
+**`groups` never gets the context or the day**, so that card IDs depend
+on the item's fields alone (see [rationale.md](rationale.md), "Why
+`groups` sees only the fields"). `make` gets both: the context is always
+in mode `prose`, whatever mode a frontend asks for, so a card doesn't
+depend on the frontend that shows it.
 
 **Groups decide siblings.** The cards of one group are siblings (see
 [scheduling.md](scheduling.md), "Siblings"). A kind whose cards give
 each other away puts them in one group, as `qa` does; a kind whose cards
 are independent gives each card its own group. Groups have no names:
 they are only how the cards are written, so a kind can change them
-without touching any card's history. The output of `ids` holds:
+without touching any card's history. The output of `groups` holds:
 
 - at least one group, and no group without cards;
 - each suffix once, made as in "Card IDs" above;
 - `null` in place of a suffix only for a single card with the item's ID:
-  `{"groups": [{"cards": [null]}]}`.
+  `{"groups": [[null]]}`.
 
 Example: a conjugation kind.
 
@@ -252,55 +276,74 @@ VERB: 動く
 FORMS: te past negative
 ```
 
-`ids` gives cards `v81k3z-te`, `v81k3z-past` and `v81k3z-negative`, the
-first two in one group: 動いて and 動いた share their stem, so seeing one
-gives the other away. `card` with suffix `te` prints the て-form question
-for 動く.
+`validate` accepts the item, and `groups` gives cards `v81k3z-te`,
+`v81k3z-past` and `v81k3z-negative`, the first two in one group: 動いて
+and 動いた share their stem, so seeing one gives the other away. `make`
+with suffix `te` gives the て-form question for 動く. With `FORMS: te
+tense`, `validate` gives an error about `FORMS`, and `groups` is never
+asked about the item.
 
-When a call fails:
+#### How srl calls them
 
-- **A failing `ids` call is an error in the note**, like a `qa` item
-  without `Q`: the program checks the fields. So is output that doesn't
-  follow the rules above, and a program that can't be found or started.
-- **A failing `card` call fails the command.** `srl next` fails with the
-  reason and prints no card; it doesn't go on to another card. `srl cards`
-  fails at once, with the reason and no output for any ID (see
-  [cli.md](cli.md)). A `card` call that takes longer than
-  `kind_programs.card_timeout` is stopped, and fails. Until what failed is
-  fixed (an LLM API that is down, a missing key), `srl next` keeps
-  failing on that card; `srl suspend` sets it aside (see
-  [rationale.md](rationale.md), "Why a card that can't be made stops
-  studying").
+- **Reading items**, on every command that reads them: one `validate`
+  call per kind program, for all of its items in the store (or, for
+  `srl add` and `srl edit ID --stdin`, all the items given), then one
+  `groups` call for the items it accepted. So a command starts at most
+  two processes per kind program, however many items it has.
+- **Making cards**: `srl next` makes its one card with a `make` call of
+  one line; `srl cards` makes the cards it prints with one `make` call per
+  kind program. A `make` call with N lines is stopped after N times
+  `kind_programs.card_timeout` seconds, and fails.
+- **Describing**: `srl kinds` makes one `describe` call per kind program.
+
+When something goes wrong, the place it happens says whose fault it is:
+
+- **An error `validate` gives is an error in the note**, like a `qa` item
+  without `Q`, reported at the item's line, as `PATH:LINE: FIELD:
+  message`, or `PATH:LINE: message` when it is about no field.
+- **An answer about one item that doesn't follow the rules above**, from
+  `validate` or `groups`, is an error in the note at that item, saying
+  that the program printed invalid output.
+- **A call that fails as a whole** (a status other than 0, a program
+  that can't be found or started, or a number of lines that isn't the
+  number of input lines) **is a problem of the program**, not of its
+  items: it is reported once, and no item of the kind is read until it is
+  fixed. Like an error in a note, it stops every command that reads
+  items (see [notes.md](notes.md), "Errors").
+- **A card that can't be made fails the command**, whether `make` gave
+  `{"error": …}` for it, failed as a whole, took too long, or printed
+  invalid output for it. `srl next` fails with the reason and prints no
+  card; it doesn't go on to another card. `srl cards` fails at once,
+  with the reason and no output for any ID (see [cli.md](cli.md)). Until
+  what failed is fixed (an LLM API that is down, a missing key),
+  `srl next` keeps failing on that card; `srl suspend` sets it aside
+  (see [rationale.md](rationale.md), "Why a card that can't be made
+  stops studying").
 - **A failing `describe` call fails `srl kinds`**, at once, with the
   reason, and so does output that doesn't follow "Describing a kind"
   below. No other command calls it.
 
-> **TODO (design):** `ids` has two jobs, and its name says only one.
-> Besides giving the item's card IDs, it is the only place a kind program
-> checks an item's fields: srl never checks an item against what
-> `describe` says (see "Describing a kind"), so an
-> item the program can't use is an error only if `ids` fails on it (this
-> is what makes `srl check` and `srl add --dry-run` find a missing or
-> misspelled field). Nothing in the call's name, nor in its row of the
-> table above, says that it must check, so a program that only computes
-> IDs, and accepts any fields, is easy to write by mistake: its broken
-> items then pass every check and fail only in `card`, when studying. One
-> call doing two unrelated things, one of them implicit, is a code smell.
-> Whether to rename the call, split checking into a call of its own, or
-> only say it louder here is undecided.
+`srl cards` makes every card it prints, so a kind whose content differs
+every time gives a new card each time: what `srl cards` prints is one
+card the kind could give, not the one `srl next` will show.
 
-`srl cards` calls `card` for every card it prints, so a kind whose
-content differs every time gives a new card each time: what `srl cards`
-prints is one card the kind could give, not the one `srl next` will show.
+> **TODO (design):** the answers of `validate` and `groups` are **not
+> cached**: every command that reads items runs both calls for every
+> item of every kind program. Batches make that two processes per kind,
+> not one per item, but a large store still pays for every item each
+> time. A cache would make `srl` faster without changing what any command
+> does. What it would be keyed on, and what would make an entry stale
+> (the item's text, the kind's command, the program changing), is still
+> to be analyzed. Notes themselves are not cached either (see
+> [store.md](store.md), "The index cache").
 
-> **TODO (design):** `ids` results are **not cached**: every command
-> that reads items starts the program once for every item of the kind,
-> so a store with many such items is slow. A cache would make `srl`
-> faster without changing what any command does. What it would be keyed
-> on, and what would make an entry stale (the item's text, the kind's
-> command, the program changing), is still to be analyzed. Notes
-> themselves are not cached either (see [store.md](store.md), "The index
-> cache").
+> **TODO (design):** starting a process for every call is **the only way
+> to talk to a kind program**. Other ways could be offered, for the
+> program's author to choose one in `[kinds]`, each with the same four
+> calls and the same answers; for example a program that stays running
+> for a while and is asked over a socket, so that it starts once instead
+> of once per call. Which ways, and how a store says which one a kind
+> uses, is undecided (see [ideas.md](ideas.md), "Kind programs").
 
 ### Describing a kind
 
@@ -328,8 +371,8 @@ description only informs"). `srl kinds` prints the descriptions (see
 
 **A description only informs.** It doesn't say which fields are required
 or how they depend on each other, and `srl` never checks an item against
-it: the kind checks its items, `qa` in `srl` and a program in `ids`, as
-as when a call fails (see above). So an editor shows the fields of
+it: the kind checks its items, `qa` in `srl` and a program in
+`validate`. So an editor shows the fields of
 `describe`, and learns whether an item is valid from `srl add --dry-run`.
 Rules such as "A may be left out when Q has cloze deletions" are written
 once, in the kind, and a description that falls behind them misleads

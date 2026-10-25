@@ -191,31 +191,89 @@ behaves, only what it shows.
 Trade-off: a program is something to install and keep working, it runs
 with your rights, and every command that reads its items runs it.
 
-## Why a kind program answers two calls
+## Why a kind program answers four calls, each doing one thing
 
-A kind program gives card IDs in one call (`ids`) and a card's content in
-another (`card`), because the two have opposite needs. IDs are needed by
-nearly every command (selectors, `srl find`, `srl check`, scheduling) and
-must be stable, since a card's history is kept under its ID. Content is
-needed only when a card is shown, and may take long to make, as when a
-program asks an LLM to write the question, or differ every time. With two
-calls, a command that only needs IDs never waits for content, and a
-program that generates its cards does the slow work only for the card
-about to be shown. Each call stays simple to write: `ids` is a function
-of the fields, and `card` may do whatever it needs.
+A kind program has four jobs, and each is its own call: `describe` says
+what the kind takes, `validate` checks an item, `groups` gives a valid
+item's card IDs, and `make` makes a card's content. One name per job
+keeps every job visible: a program can't do one of them by accident, as
+a side effect of another, or leave it out without its author noticing.
 
-One call giving both would make every command pay for content it doesn't
-use, unless `srl` cached the IDs and called the program only when they
-might have changed: more machinery in `srl`, and still a slow command on
-every miss.
+Card IDs and card content come from different calls because they have
+opposite needs. IDs are needed by nearly every command (selectors,
+`srl find`, `srl check`, scheduling) and must be stable, since a card's
+history is kept under its ID. Content is needed only when a card is
+shown, and may take long to make, as when a program asks an LLM to write
+the question, or differ every time. Kept apart, a command that only needs
+IDs never waits for content, and a program that generates its cards does
+the slow work only for the cards about to be shown.
 
-Trade-off: a kind program has two calls to write instead of one, and the
-two must agree on the item's cards.
+Checking is a call of its own, apart from `groups`, because it is the
+kind's only check: an item is an error only if the kind says so. When
+checking only happened inside the call that gives card IDs, a program
+that just computed IDs and accepted any fields was easy to write, and
+its broken items passed every check, failing only when studied. A call
+named `validate` can't be forgotten that way.
+
+Trade-off: a program has four calls to write, and `validate` and
+`groups` must agree on which items they can handle.
+
+## Why `srl` calls `validate` before `groups`
+
+`srl` asks `groups` only about the items `validate` accepted. So the two
+calls can't contradict each other in a way that matters: `groups` never
+has to check, and when it fails on an item `validate` accepted, the
+fault is the program's, not the item's. Each failure then points at whoever
+can fix it: an error `validate` gives is your note's, a call that fails as
+a whole is the program's, and a card `make` can't make is a problem when
+studying, such as an API that is down. When one call did both, a program
+that crashed looked exactly like a mistake in your note.
+
+This is still "parse, don't validate" (see [rust.md](rust.md)): the
+check and the structure don't drift apart, because `srl`, not the
+program, decides that nothing reaches `groups` unchecked.
+
+## Why calls are batches
+
+Every command that reads items needs the card IDs of every item. With
+one process per item, a store with many items of a kind started that many
+programs on every command. Each call is a batch instead, so a command
+starts at most two processes per kind program (`validate` and
+`groups`), however many items it has. A single input is a batch of one
+line, so there is one way to write a program, not two.
+
+The program reads to the end of its input, then answers, or answers as
+it goes: both work, because `srl` closes the input before it waits. So a
+program can't hang `srl` by holding back its output, and one that sees a
+whole batch can do its work once for all of it, such as running a
+dictionary once over every sentence. Answers are matched to inputs by
+their place, the simplest rule; a program that prints the wrong number of
+lines fails as a whole.
+
+Trade-off: a program reads and writes lines in a loop instead of one
+object, and every command still starts a process for each call, which a
+cache or a program that keeps running could avoid (see
+[cards.md](cards.md), "How srl calls them").
+
+## Why `groups` sees only the fields
+
+`groups` gets an item's ID and fields, and nothing else: not its note,
+not its context, not the day. Card IDs have to stay the same for as long
+as the item's fields do, because a card's history is kept under its ID.
+If `groups` could read the prose around an item, editing that prose
+could change or drop card IDs, and history would be lost without the item
+changing at all.
+
+`make` may differ every time anyway, so it gets the context and the day:
+a program can use the note as background, as `examples/kind-llm-generated`
+does when it asks an LLM for a question. The context is always in mode
+`prose`, whatever mode a frontend asks for, so a card doesn't depend on
+the frontend that shows it.
 
 ## Why a kind describes itself, and the description only informs
 
 To write an item you need to know its kind's fields, and only the kind
-knows them. So every kind program answers a third call, `describe`, and
+knows them. So every kind program answers `describe`, and
 `srl kinds` prints what it says: a person, an editor or an agent learns
 the fields from `srl`, not from the program's source or from a template
 kept somewhere else. It is required, not optional, so that every kind can
@@ -230,8 +288,8 @@ from them. With one place that checks, the kind, a description that
 falls behind only misleads, and `srl add --dry-run` still gives the right
 answer.
 
-Trade-off: a kind program has a third call to write, and nothing makes
-its description agree with what `ids` accepts.
+Trade-off: a kind program has one more call to write, and nothing makes
+its description agree with what `validate` accepts.
 
 ## Why groups of siblings, without names
 
