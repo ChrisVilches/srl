@@ -135,12 +135,12 @@ def groups(item):
 def make(item, analyze=None):
     """The output of `make`: the card, or why it can't be made."""
     try:
-        return card(item, analyze or mecab)
+        return make_card(item, analyze or mecab)
     except KindError as error:
         return {"error": str(error)}
 
 
-def card(item, analyze):
+def make_card(item, analyze):
     """The card: the sentence with every {…} of the card's word
     highlighted, and the analysis of the whole sentence as the answer.
     Nothing is hidden, so there is no `prompt_revealed`: the sentence is

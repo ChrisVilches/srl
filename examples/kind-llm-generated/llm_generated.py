@@ -114,12 +114,12 @@ def groups(_item):
 def make(item, ask=None, log_file=LOG_FILE):
     """The output of `make`: the card, or why it can't be made."""
     try:
-        return card(item, ask, log_file)
+        return make_card(item, ask, log_file)
     except KindError as error:
         return {"error": str(error)}
 
 
-def card(item, ask=None, log_file=LOG_FILE):
+def make_card(item, ask=None, log_file=LOG_FILE):
     """A question and answer the LLM writes for the PROMPT of an item
     `validate` accepted, with the item's note as background. There is no
     `prompt_revealed`: nothing is hidden. Every call to the API, failed or

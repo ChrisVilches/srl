@@ -10,7 +10,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from ja_words import KindError, card, describe, groups, make, validate
+from ja_words import KindError, make_card, describe, groups, make, validate
 
 SENTENCE = "東京{都}は、日本の関東{地方}に{位置}する{都}"
 
@@ -76,43 +76,43 @@ class Groups(unittest.TestCase):
         self.assertEqual(groups(item("{が}{が}")), {"groups": [["e3818c"]]})
 
 
-class Card(unittest.TestCase):
+class MakeCard(unittest.TestCase):
     def analyze(self, text):
         return "EOS\n"
 
     def test_every_braced_occurrence_of_the_word_is_highlighted(self):
-        made = card(item(SENTENCE, "e983bd"), self.analyze)
+        made = make_card(item(SENTENCE, "e983bd"), self.analyze)
         self.assertEqual(made["prompt"], "東京==都==は、日本の関東地方に位置する==都==")
         self.assertNotIn("prompt_revealed", made)
 
     def test_only_the_cards_word_is_highlighted(self):
-        made = card(item(SENTENCE, "e4bd8de7bdae"), self.analyze)
+        made = make_card(item(SENTENCE, "e4bd8de7bdae"), self.analyze)
         self.assertEqual(made["prompt"], "東京都は、日本の関東地方に==位置==する都")
 
     def test_an_unbraced_occurrence_is_not_highlighted(self):
-        made = card(item("京都は{都}", "e983bd"), self.analyze)
+        made = make_card(item("京都は{都}", "e983bd"), self.analyze)
         self.assertEqual(made["prompt"], "京都は==都==")
 
     def test_spaces_around_a_word_stay_outside_the_highlight(self):
-        made = card(item("東京{ 都 }は", "e983bd"), self.analyze)
+        made = make_card(item("東京{ 都 }は", "e983bd"), self.analyze)
         self.assertEqual(made["prompt"], "東京 ==都== は")
 
     def test_highlights_that_touch_are_separated_by_a_space(self):
-        made = card(item("{都}{都}は", "e983bd"), self.analyze)
+        made = make_card(item("{都}{都}は", "e983bd"), self.analyze)
         self.assertEqual(made["prompt"], "==都== ==都==は")
 
     def test_a_highlight_next_to_another_word_gets_no_space(self):
-        made = card(item("{東京}{都}", "e983bd"), self.analyze)
+        made = make_card(item("{東京}{都}", "e983bd"), self.analyze)
         self.assertEqual(made["prompt"], "東京==都==")
 
     def test_both_forms_of_a_word_with_combining_marks_are_highlighted(self):
-        made = card(item("{が}と{が}", "e3818c"), self.analyze)
+        made = make_card(item("{が}と{が}", "e3818c"), self.analyze)
         self.assertEqual(made["prompt"], "==が==と==が==")
 
     def test_the_answer_is_the_analysis_of_the_whole_sentence(self):
         seen = []
-        card(item(SENTENCE, "e983bd"), lambda text: seen.append(text) or "EOS\n")
-        card(item(SENTENCE, "e59cb0e696b9"), lambda text: seen.append(text) or "EOS\n")
+        make_card(item(SENTENCE, "e983bd"), lambda text: seen.append(text) or "EOS\n")
+        make_card(item(SENTENCE, "e59cb0e696b9"), lambda text: seen.append(text) or "EOS\n")
         self.assertEqual(seen, ["東京都は、日本の関東地方に位置する都"] * 2)
 
     def test_a_token_gives_its_reading_part_of_speech_and_base_form(self):
@@ -123,7 +123,7 @@ class Card(unittest.TestCase):
             "ほげ\t名詞,一般,*,*,*,*,*\n"
             "EOS\n"
         )
-        made = card(item("{位置}", "e4bd8de7bdae"), lambda text: analysis)
+        made = make_card(item("{位置}", "e4bd8de7bdae"), lambda text: analysis)
         self.assertEqual(
             made["answer"],
             "- 位置 — いち (名詞, サ変接続)\n"
@@ -134,7 +134,7 @@ class Card(unittest.TestCase):
 
     def test_an_unknown_suffix_is_an_error(self):
         with self.assertRaises(KindError):
-            card(item(SENTENCE, "e69db1"), self.analyze)
+            make_card(item(SENTENCE, "e69db1"), self.analyze)
         self.assertIn("error", make(item(SENTENCE, "e69db1"), self.analyze))
 
 

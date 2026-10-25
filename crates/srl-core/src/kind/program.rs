@@ -78,7 +78,7 @@ struct GroupsOutput {
 /// ID. A field that may be `null` may also be left out.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct CardOutput {
+struct MadeOutput {
     prompt: String,
     #[serde(default)]
     prompt_revealed: Option<String>,
@@ -89,7 +89,7 @@ struct CardOutput {
 /// What `make` prints for a card it can't make.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct FailedOutput {
+struct MakeFailedOutput {
     error: String,
 }
 
@@ -418,13 +418,13 @@ fn made(card: &CardId, output: &str) -> Result<Result<Card, String>, String> {
     let value = serde_json::from_str::<Value>(output).map_err(|error| error.to_string())?;
     if value.get("error").is_some() {
         let failed =
-            serde_json::from_value::<FailedOutput>(value).map_err(|error| error.to_string())?;
+            serde_json::from_value::<MakeFailedOutput>(value).map_err(|error| error.to_string())?;
         if failed.error.trim().is_empty() {
             return Err("its error is empty".to_owned());
         }
         return Ok(Err(failed.error));
     }
-    let made = serde_json::from_value::<CardOutput>(value).map_err(|error| error.to_string())?;
+    let made = serde_json::from_value::<MadeOutput>(value).map_err(|error| error.to_string())?;
     Ok(Ok(Card {
         id: card.clone(),
         prompt: made.prompt,

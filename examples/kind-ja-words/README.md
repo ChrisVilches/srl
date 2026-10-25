@@ -134,7 +134,7 @@ They are in `test_ja_words.py`, in these classes:
   every card in a group of its own, the hex suffix and that it doesn't
   depend on where the word is, and spaces around a word and combining
   marks not making another card.
-- `Card`: which occurrences are highlighted, spaces staying outside the
+- `MakeCard`: which occurrences are highlighted, spaces staying outside the
   highlight, a space between highlights that touch, the card having no
   `prompt_revealed`, the answer being the analysis
   of the whole sentence, and how each token becomes a line. They give the

@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from llm_generated import KindError, card, groups, make, read_response, validate
+from llm_generated import KindError, make_card, groups, make, read_response, validate
 
 TOPIC = "Ohm's law in circuit analysis: when it's used and its edge cases"
 
@@ -55,7 +55,7 @@ class Groups(unittest.TestCase):
         self.assertEqual(groups(item()), {"groups": [[None]]})
 
 
-class Card(unittest.TestCase):
+class MakeCard(unittest.TestCase):
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
@@ -74,7 +74,7 @@ class Card(unittest.TestCase):
             return response('{"prompt": "What is V when I = 2 A and R = 3 Ω?", "answer": "6 V"}')
 
         self.assertEqual(
-            card(item(suffix=True), ask, self.log_file),
+            make_card(item(suffix=True), ask, self.log_file),
             {"prompt": "What is V when I = 2 A and R = 3 Ω?", "answer": "6 V"},
         )
         self.assertEqual(asked, [TOPIC])
@@ -88,7 +88,7 @@ class Card(unittest.TestCase):
 
         given = item(suffix=True)
         given["context"] = "# Ohm's law\n\nV = IR.\n"
-        card(given, ask, self.log_file)
+        make_card(given, ask, self.log_file)
         self.assertTrue(asked[0].startswith(TOPIC + "\n\n"))
         self.assertTrue(asked[0].endswith("# Ohm's law\n\nV = IR.\n"))
 
@@ -106,8 +106,8 @@ class Card(unittest.TestCase):
             made.update(id="resp_1", usage={"input_tokens": 10, "output_tokens": 5, "total_tokens": 15})
             return made
 
-        card(item(suffix=True), ask, self.log_file)
-        card(item(suffix=True), ask, self.log_file)
+        make_card(item(suffix=True), ask, self.log_file)
+        make_card(item(suffix=True), ask, self.log_file)
         entries = self.logged()
         self.assertEqual(len(entries), 2)
         entry = entries[0]
@@ -126,7 +126,7 @@ class Card(unittest.TestCase):
             raise KindError("the OpenAI API answered 500 Internal Server Error: {}")
 
         with self.assertRaises(KindError):
-            card(item(suffix=True), ask, self.log_file)
+            make_card(item(suffix=True), ask, self.log_file)
         [entry] = self.logged()
         self.assertIn("500", entry["error"])
         self.assertIsNone(entry["question"])
@@ -138,7 +138,7 @@ class Card(unittest.TestCase):
             return made
 
         with self.assertRaises(KindError):
-            card(item(suffix=True), ask, self.log_file)
+            make_card(item(suffix=True), ask, self.log_file)
         [entry] = self.logged()
         self.assertIn("not JSON", entry["error"])
         self.assertEqual(entry["usage"], {"total_tokens": 7})

@@ -169,7 +169,7 @@ They are in `test_llm_generated.py`:
 - `Validate`: a prompt alone is valid, and every invalid item gives errors
   about its fields.
 - `Groups`: one card with the item's ID.
-- `Card`: the card is what the model wrote, the note is sent after
+- `MakeCard`: the card is what the model wrote, the note is sent after
   `PROMPT`, a card that can't be made is an `{"error": …}` answer, and
   what each call, failed or not, writes to the log. A function stands in
   for the API, and the log is written to a temporary folder of each test.
