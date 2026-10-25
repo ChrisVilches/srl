@@ -187,7 +187,7 @@ items it would write, as they would appear in the note, and writes nothing.
 
 | Command | Does |
 |---|---|
-| `srl next [SELECTOR] [--context MODE] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`; with `--json`, with what a frontend shows around it (see below). Exit 1 if there is none. |
+| `srl next [SELECTOR] [--context MODE] [--json]` | Print the next card (see [scheduling.md](scheduling.md)), in the format of `srl cards`; with `--json`, with what a frontend shows around it (see below). Exit 1 if there is none; exit 2 if the card it picks can't be made. |
 | `srl review --stdin` | Record a review: `{"card": "k3m9q1-2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
 | `srl review ID… --rating N [--by agent]` | Record the same rating for each card. Prints nothing. |
 | `srl reset SELECTOR` | Make matching cards new again. Only cards that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
@@ -212,6 +212,11 @@ note can't be read, `srl next` fails with the reason and exit 2, prints no
 card, and tries no other card in its place. It writes nothing, so it fails
 the same way every time until what failed is fixed, the card is suspended
 (`srl suspend id:ID`), or the study day changes and another card is picked.
+
+> **TODO (design):** being this strict can get in the way of studying,
+> as when an LLM API is down. Ways to make it less annoying without ever
+> working with broken data are wanted, and still undecided (see
+> [overview.md](overview.md), "Open questions").
 
 Every card given to `srl review` must be a card of the store; an item ID
 is not enough, because a review is about one card. With `--dry-run`,

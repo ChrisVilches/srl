@@ -261,9 +261,15 @@ Main design decisions still to take:
 - **Opening the editor at an item's line.** Today `srl edit ID` opens the
   note at its start, because editors take a line number in different ways
   ([cli.md](cli.md), "Editing in the editor").
-- **A non-strict mode.** Today every error in a note stops every command
-  that reads items. A `strict = false` setting could turn errors into
-  warnings and skip the broken items ([notes.md](notes.md), "Errors").
+- **Making strictness less annoying.** Today every error in a note stops
+  every command that reads items ([notes.md](notes.md), "Errors"), and a
+  card its kind program can't make stops `srl next`
+  ([cli.md](cli.md), "Studying"). That stays the rule: `srl` never works
+  with broken data. More configuration and tools are wanted so that it
+  gets in the way less, a combination of: health checks that troubleshoot
+  a store and say what to fix; more linters and checkers that find
+  problems before studying does, such as a card that can't be made; and
+  settings that turn some errors into warnings. How is not decided.
 - **A helper for moving history.** Today `srl move FROM TO` is the only
   way, and running it by hand takes more knowledge than a person should
   need. A safer helper is wanted, in `srl` or built on top

@@ -1,6 +1,6 @@
 ---
 name: fixing-problems
-description: Diagnose and fix srl problems - errors in notes that stop every command, srl check and srl lint, items that silently aren't items, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, and locking or cache messages. Load whenever an srl command fails, or when cards are missing or behave unexpectedly.
+description: Diagnose and fix srl problems - errors in notes that stop every command, a card a kind program can't make that stops srl next, srl check and srl lint, items that silently aren't items, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, and locking or cache messages. Load whenever an srl command fails, or when cards are missing or behave unexpectedly.
 ---
 
 # Fixing problems
@@ -31,6 +31,22 @@ since the notes and the log can't be read without it. Fix it and run
 
 `srl show ID` prints an item exactly as written, which helps spot the
 problem.
+
+## A card that can't be made
+
+`srl next` picks one card. When its kind program fails to make it, `srl
+next` fails with exit 2 and `cannot make the card ID (...)`, followed by
+the program's reason, and shows no other card instead. It fails the same
+way every time, because nothing changes until someone acts:
+
+- **Fix what failed**, as the reason says: a missing API key, an API that
+  is down, a program that isn't installed, a program that took longer
+  than `card_timeout`. Then run `srl next` again.
+- **Or set the card aside** with `srl suspend id:ID`, and later
+  `srl unsuspend id:ID`. Suspending changes what the person studies, so
+  ask them first.
+
+`srl cards ID` makes the card too, so it shows whether the fix worked.
 
 ## Text that should be an item but isn't
 

@@ -93,6 +93,8 @@ order, and prints the first that the sibling rule allows:
    note path, then by line, then by card ID.
 
 If no card qualifies, `srl next` prints nothing and exits with status 1.
+It picks one card only: if that card can't be made, `srl next` fails,
+and doesn't go on to another (see [cli.md](cli.md), "Studying").
 
 ### Siblings
 

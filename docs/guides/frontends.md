@@ -20,7 +20,8 @@ It runs the whole contract: get a card, show the prompt, show the revealed
 prompt, the answer and the context, get a rating, record it. A terminal
 can't replace the prompt it printed, so it prints the revealed prompt below
 it. The loop ends when `srl next`
-exits with 1, because nothing is left. `--context` is this frontend's
+exits with 1, because nothing is left, or with 2 on an error, such as a
+card its kind couldn't make; `srl` prints the reason on standard error. `--context` is this frontend's
 choice; `full` would show the items of the note too, and `none` nothing.
 
 ## A question in the shell prompt

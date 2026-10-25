@@ -266,8 +266,9 @@ on standard error, one per line, and exits with status 2. The errors are:
 `srl id` is the exception for items without an ID: that is the error it
 fixes. `srl check` reports the same errors and more (see [cli.md](cli.md)).
 
-> **TODO (design):** a `strict = false` setting could report these errors
-> as warnings and skip the broken items instead of stopping (see
+> **TODO (design):** stopping at every error can get in the way. Ways to
+> make it less annoying are wanted, among them turning some errors into
+> warnings and skipping the broken items; none is decided (see
 > [overview.md](overview.md), "Open questions").
 
 ## Items as JSON

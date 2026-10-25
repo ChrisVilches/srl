@@ -104,7 +104,9 @@ so getting past the card is a separate command you choose: fix what
 failed, or `srl suspend` the card.
 
 Trade-off: one card that can't be made, for example while an LLM API is
-down, blocks studying until it is fixed or suspended.
+down, blocks studying until it is fixed or suspended. Tools to make that
+less annoying are still to be designed (see [overview.md](overview.md),
+"Open questions").
 
 ## Why `srl` changes notes so little
 

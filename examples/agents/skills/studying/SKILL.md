@@ -74,6 +74,11 @@ Things that explain "why didn't my card show up?":
 - **Errors stop everything.** A broken note makes `srl next` fail with the
   file and line; see the `fixing-problems` skill.
 - `srl next` exits with 1 and prints nothing when nothing is left today.
+- **A card that can't be made stops `srl next`.** If the card it picks
+  comes from a kind program that fails (an LLM API that is down, a
+  missing key), `srl next` exits with 2 and the reason, every time, and
+  shows no other card instead. Fix what failed, or set the card aside with
+  `srl suspend id:ID`; see the `fixing-problems` skill.
 
 To study more new cards today, the person can raise `new_per_day` in
 `.srl/config.toml`.
@@ -87,7 +92,8 @@ yours. Only run one when the person asks for it. Each round:
    context: `{"id": "k3m9q1-2", "prompt": "...", "prompt_revealed": "...",
    "answer": "...", "state": "due", "path": "...", "see": null,
    "context": "..."}`. Exit
-   code 1 means nothing is left: say so and stop. `--context MODE` chooses
+   code 1 means nothing is left: say so and stop. Exit code 2 is an
+   error: tell the person what it says, and stop. `--context MODE` chooses
    how much of the note comes along: `prose` (the default) without its
    items, `full` with them, `none` nothing.
 2. Show the prompt, and wait for the person's answer or for them to ask for

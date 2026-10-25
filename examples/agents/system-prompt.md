@@ -233,7 +233,9 @@ takes `--dry-run`. Exit codes: 0 success, 1 nothing found or nothing left,
 2 error. Errors go to standard error, saying what to do.
 
 **An error in any note stops every command that reads items**, until it is
-fixed. Read the message: it names the file and line.
+fixed. Read the message: it names the file and line. **A card its kind
+program can't make stops `srl next`** in the same way, with the card's ID
+and the reason, until it is fixed or the card is suspended.
 
 ## Skills
 
@@ -245,5 +247,5 @@ Load a skill when the person needs more than the above:
 | `writing-items` | The full item syntax, cloze rules, code in cards, writing good questions, `srl add` and `srl edit --stdin`. |
 | `studying` | Study sessions with a frontend or in the chat, ratings, how the next card is chosen. |
 | `selectors` | Every selector term, combining them, quoting in each shell. |
-| `fixing-problems` | Errors in notes, `srl check` and `srl lint`, lost history after an edit, suspending and resetting. |
+| `fixing-problems` | Errors in notes, cards that can't be made, `srl check` and `srl lint`, lost history after an edit, suspending and resetting. |
 | `reviewing-progress` | `srl stats`, `srl log`, leeches, and analyzing the log. |
