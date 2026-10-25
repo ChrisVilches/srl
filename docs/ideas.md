@@ -15,6 +15,20 @@ questions", once it is planned.
 - **Partial credit for prerequisites.** A correct answer about a card also
   counts, partially, for the cards it requires. Needs a scheduling rule.
 
+## Writing notes
+
+- **Blank space before added items** (low priority). `srl add` puts a
+  blank line between a note and the items it appends, and keeps every
+  byte already in the note. A note that holds only blank lines, such as
+  an "empty" note an editor saved as one newline, is not empty to it, so
+  the items start after blank lines; a note that ends in several blank
+  lines keeps them all, plus one. Either rule would fix it: a note with
+  nothing but blank space counts as empty and the items replace it, or
+  trailing blank lines are trimmed so that exactly one blank line comes
+  before the items. The second covers both cases, but rewrites blank
+  space at the end of the note (see [notes.md](notes.md), "How srl writes
+  to notes").
+
 ## Stores
 
 - **Export and import between stores.** Move or copy notes from one store to
