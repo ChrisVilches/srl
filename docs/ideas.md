@@ -67,15 +67,21 @@ questions", once it is planned.
       and both wait for its port. The lock is the truth; a file with the
       daemon's process ID is only for people and tools, since it can go
       stale.
+    - **The port is the store's, and a daemon that can't start is an
+      error.** The port is set in the store's configuration, so each
+      store has its own, and nothing is chosen behind your back. `srl`
+      talks to a port only while its own store's lock is held, so it
+      never mistakes another store's daemon, or another program, for its
+      own: with no daemon of its store, it starts one. If that daemon
+      can't start (the port is taken by another store given the same
+      port, or by another program; the lock file can't be written; the
+      program can't be detached), the command fails with the reason, as
+      when a kind program can't be started, and you fix it, for example
+      by giving the store another port. There is no retry on another port
+      and no fallback to a process per call.
 
     To be decided, besides the names above:
 
-    - **The port.** A port set per store can clash: two stores given the
-      same port, or another program already on it, and `srl` would talk to
-      the wrong daemon. So the daemon would answer with the store it
-      serves, and `srl` would refuse any other; or the daemon would take
-      any free port and write it in `.srl/daemon/`, so that nothing needs
-      configuring.
     - **Who may call it.** Any program on the computer can reach a port
       on `127.0.0.1`, and so can a web page, through DNS rebinding (as
       `srl-web` guards against). The daemon runs your programs, some of
