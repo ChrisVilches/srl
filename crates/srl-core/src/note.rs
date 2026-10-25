@@ -270,7 +270,8 @@ impl Notes {
 
     /// The card `card` of `item`, made by its kind as it is about to be
     /// shown on the study day `day` (see `docs/cards.md`, "Kind programs").
-    /// Only a kind program can fail here.
+    /// Only a kind program can fail here: reading its item's note again for
+    /// the context, or the program itself.
     pub fn make_card(&self, store: &Store, item: &Item, card: &CardId, day: Date) -> Result<Card> {
         let context = match item.kind {
             Kind::Qa => None,

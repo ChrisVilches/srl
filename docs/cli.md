@@ -206,10 +206,12 @@ item's note and context, is specified in [frontends.md](frontends.md),
 `prose` without it. Only the JSON output has a context, so without
 `--json` the flag changes nothing.
 
-`srl next` makes the card it is about to print. If a kind program fails to
-make it (see [cards.md](cards.md), "Kind programs"), `srl next` reports
-the failure on standard error and goes on as if that card were not
-eligible today: it prints the next card, or nothing with exit 1.
+`srl next` picks one card and makes it. If the card can't be made, because
+its kind program fails (see [cards.md](cards.md), "Kind programs") or its
+note can't be read, `srl next` fails with the reason and exit 2, prints no
+card, and tries no other card in its place. It writes nothing, so it fails
+the same way every time until what failed is fixed, the card is suspended
+(`srl suspend id:ID`), or the study day changes and another card is picked.
 
 Every card given to `srl review` must be a card of the store; an item ID
 is not enough, because a review is about one card. With `--dry-run`,

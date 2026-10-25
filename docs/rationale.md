@@ -93,6 +93,19 @@ among other output.
 Trade-off: a typo in one note blocks studying every note until it is
 fixed.
 
+## Why a card that can't be made stops studying
+
+`srl next` picks one card. If its kind program can't make it, `srl next`
+fails, instead of trying the next card. Going on would hide the failure
+behind a card that works: the broken card would quietly never be
+studied, and a frontend would have nothing to tell apart from success.
+`srl next` only reads, and gives the same answer until something changes,
+so getting past the card is a separate command you choose: fix what
+failed, or `srl suspend` the card.
+
+Trade-off: one card that can't be made, for example while an LLM API is
+down, blocks studying until it is fixed or suspended.
+
 ## Why `srl` changes notes so little
 
 Your notes are yours. `srl id` and `srl accept` change header lines only,

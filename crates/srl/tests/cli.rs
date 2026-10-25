@@ -975,25 +975,31 @@ fn kind_selects_items_by_their_kind() {
 }
 
 #[test]
-fn next_skips_a_card_its_kind_program_fails_to_make() {
+fn next_fails_if_its_kind_program_fails_to_make_the_card() {
     let tmp = store_with_kind(&[(
         "a.md",
         "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\nFAIL_CARD: a\n",
     )]);
     let d = dir(&tmp);
+    // The same failure every time, and abc-b is never tried in its place.
+    for _ in 0..2 {
+        let output = srl(&["next", "--json", "--dir", d]);
+        assert_eq!(output.status.code(), Some(2), "{}", stderr(&output));
+        assert!(output.stdout.is_empty());
+        assert!(
+            stderr(&output).contains("cannot make the card abc-a (fix what failed, or set the card aside with `srl suspend abc-a`): the program of kind fake failed: card a fails on purpose"),
+            "{}",
+            stderr(&output)
+        );
+    }
+    // Suspending it is how to get past it.
+    assert_eq!(
+        srl(&["suspend", "id:abc-a", "--dir", d]).status.code(),
+        Some(0)
+    );
     let output = srl(&["next", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(lines(&output)[0], "abc-b");
-    assert!(
-        stderr(&output).contains(
-            "cannot make the card abc-a: the program of kind fake failed: card a fails on purpose"
-        ),
-        "{}",
-        stderr(&output)
-    );
-    let only = srl(&["next", "id:abc-a", "--dir", d]);
-    assert_eq!(only.status.code(), Some(1));
-    assert!(only.stdout.is_empty());
 }
 
 #[test]

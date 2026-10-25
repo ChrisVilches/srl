@@ -53,9 +53,10 @@ Every failure makes `card` exit with status 1 and the whole reason on
 standard error: no `OPENAI_API_KEY`, a server that can't be reached, an
 error from the API (with the JSON it answered), an incomplete response, a
 refusal, or output that isn't the expected JSON. Nothing is retried and
-no card is made up. `srl cards` then fails with that reason; `srl next`
-prints it and goes on to the next card (see
-[docs/cards.md](../../docs/cards.md), "Kind programs"). A call is stopped
+no card is made up. `srl cards` and `srl next` then fail with that
+reason, and `srl next` keeps failing on this card until the cause is
+fixed or the card is suspended (see [docs/cards.md](../../docs/cards.md),
+"Kind programs"). A call is stopped
 after `kind_programs.card_timeout` seconds (60 by default). A call usually
 takes a few seconds.
 

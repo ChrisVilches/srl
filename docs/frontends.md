@@ -20,7 +20,10 @@ in [guides/frontends.md](guides/frontends.md).
 Every frontend runs the same loop:
 
 1. **Get a card:** `srl next SELECTOR --json --context MODE`. It prints the
-   card (see "What a frontend gets" below); exit 1 means nothing is left.
+   card (see "What a frontend gets" below); exit 1 means nothing is left,
+   and exit 2 is an error, with its reason on standard error, such as a
+   card its kind couldn't make (see [cli.md](cli.md), "Studying"). How
+   to show an error is up to the frontend.
 2. **Show the prompt**, and wait until the person wants to see the answer.
 3. **Show the answer:** `prompt_revealed` in place of `prompt`, or
    `prompt` again when `prompt_revealed` is `null`; then `answer` and the

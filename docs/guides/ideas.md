@@ -67,8 +67,9 @@ Each part of `srl` already allows this:
   a card that changes doesn't affect the log. What was actually asked is
   not in the log. A frontend that wants it can pass it in `response`, or
   the program can keep its own record.
-- **A failing API doesn't stop studying:** `srl next` skips the card and
-  shows the next one. A slow one is stopped after `card_timeout`.
+- **A failing API stops studying:** `srl next` fails with the reason,
+  every time, until the API works again or you suspend the card. A slow
+  one is stopped after `card_timeout`, and fails too.
 - **Cost:** one LLM call per card shown, and none for every other command,
   because `ids` doesn't call the LLM. `srl cards` makes a call for every
   card it prints. The program may cache answers by item ID and study day,

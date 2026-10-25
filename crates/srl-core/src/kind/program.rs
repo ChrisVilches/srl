@@ -461,7 +461,8 @@ mod tests {
         };
         assert_eq!(
             made("aaa"),
-            "cannot make the card aaa: the program of kind fake failed: card _ fails on purpose"
+            "cannot make the card aaa (fix what failed, or set the card aside with `srl suspend \
+             aaa`): the program of kind fake failed: card _ fails on purpose"
         );
         assert!(made("aab").contains("took longer than 1 seconds"));
         assert!(made("aac").contains("printed invalid output for `card`"));
@@ -496,7 +497,7 @@ mod tests {
     }
 
     #[test]
-    fn a_card_that_fails_is_skipped_by_next() {
+    fn a_card_that_fails_fails_next_without_trying_another() {
         let (_tmp, store, notes) = store(
             &config(""),
             "<!-- srl id:abc kind:fake -->\nGROUPS: a b\nFAIL_CARD: a\n",
@@ -508,7 +509,7 @@ mod tests {
         let config = Config::default();
         let day = date(2026, 10, 27);
         let memories = Memories::replay(&log, &config, day).unwrap();
-        let (next, failed) = crate::next(
+        let next = crate::next(
             &store,
             &notes,
             &memories,
@@ -516,7 +517,6 @@ mod tests {
             &config,
             day,
         );
-        assert_eq!(next.unwrap().1.id().to_string(), "abc-b");
-        assert!(matches!(&failed[..], [Error::CardFailed { card, .. }] if card == "abc-a"));
+        assert!(matches!(next, Err(Error::CardFailed { card, .. }) if card == "abc-a"));
     }
 }

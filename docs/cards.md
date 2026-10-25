@@ -254,12 +254,15 @@ When a call fails:
 - **A failing `ids` call is an error in the note**, like a `qa` item
   without `Q`: the program checks the fields. So is output that doesn't
   follow the rules above, and a program that can't be found or started.
-- **A failing `card` call doesn't stop studying.** An LLM API can be
-  down. `srl next` reports the failure and goes on to the next card, as
-  if the failed card were not eligible today. `srl cards` fails at once,
-  with the reason and no output for any ID (see [cli.md](cli.md)). A
-  `card` call that takes longer than `kind_programs.card_timeout` is
-  stopped, and fails.
+- **A failing `card` call fails the command.** `srl next` fails with the
+  reason and prints no card; it doesn't go on to another card. `srl cards`
+  fails at once, with the reason and no output for any ID (see
+  [cli.md](cli.md)). A `card` call that takes longer than
+  `kind_programs.card_timeout` is stopped, and fails. Until what failed is
+  fixed (an LLM API that is down, a missing key), `srl next` keeps
+  failing on that card; `srl suspend` sets it aside (see
+  [rationale.md](rationale.md), "Why a card that can't be made stops
+  studying").
 
 `srl cards` calls `card` for every card it prints, so a kind whose
 content differs every time gives a new card each time: what `srl cards`

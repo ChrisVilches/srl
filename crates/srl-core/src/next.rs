@@ -6,14 +6,13 @@ use std::collections::HashMap;
 use jiff::civil::Date;
 
 use crate::{
-    Card, CardId, Config, Error, Item, ItemId, Memories, Notes, Selector, State, Status, Store,
+    Card, CardId, Config, Item, ItemId, Memories, Notes, Result, Selector, State, Status, Store,
 };
 
 /// The next card among those that match `selector`, made by its kind to
-/// be shown on the study day `day`, with its item, if there is one; and
-/// the failures of the cards that could not be made. A card that fails is
-/// skipped as if it were not eligible today (see `docs/cli.md`,
-/// "Studying").
+/// be shown on the study day `day`, with its item, if there is one. One
+/// card is picked; if it can't be made, that is the error, and no other
+/// card is tried (see `docs/cli.md`, "Studying").
 pub fn next<'a>(
     store: &Store,
     notes: &'a Notes,
@@ -21,24 +20,15 @@ pub fn next<'a>(
     selector: &Selector,
     config: &Config,
     day: Date,
-) -> (Option<(&'a Item, Card)>, Vec<Error>) {
-    let mut failed = Vec::new();
-    let mut skipped = Vec::new();
-    while let Some((item, card)) = pick(notes, memories, selector.clone(), config, &skipped) {
-        match notes.make_card(store, item, card, day) {
-            Ok(made) => return (Some((item, made)), failed),
-            Err(error) => {
-                failed.push(error);
-                skipped.push(card.clone());
-            }
-        }
-    }
-    (None, failed)
+) -> Result<Option<(&'a Item, Card)>> {
+    let Some((item, card)) = pick(notes, memories, selector.clone(), config) else {
+        return Ok(None);
+    };
+    Ok(Some((item, notes.make_card(store, item, card, day)?)))
 }
 
 /// The next card among those that match `selector` (plus
-/// `status:active`), leaving out `skipped`, with its item, if there is
-/// one.
+/// `status:active`), with its item, if there is one.
 ///
 /// Due cards come first, by due day and then card ID; then new cards, in
 /// the order they are written, if fewer than `new_per_day` cards had their
@@ -49,7 +39,6 @@ fn pick<'a>(
     memories: &Memories,
     selector: Selector,
     config: &Config,
-    skipped: &[CardId],
 ) -> Option<(&'a Item, &'a CardId)> {
     let selector = selector.and_status(Status::Active);
     let limit = usize::try_from(config.schedule.new_per_day).expect("a u32 should fit in a usize");
@@ -57,7 +46,6 @@ fn pick<'a>(
     let eligible = selector
         .select(notes.cards(), memories)
         .into_iter()
-        .filter(|(_, card)| !skipped.contains(card))
         .filter(|(_, card)| match memories.state(card) {
             State::Due => true,
             State::New => new_allowed,
@@ -164,7 +152,7 @@ mod tests {
         };
         let memories = Memories::replay(&log, config, DAY).unwrap();
         let selector = Selector::parse(selector, &Config::default()).unwrap();
-        pick(notes, &memories, selector, config, &[]).map(|(_, card)| card.to_string())
+        pick(notes, &memories, selector, config).map(|(_, card)| card.to_string())
     }
 
     fn store() -> (TempDir, Notes) {

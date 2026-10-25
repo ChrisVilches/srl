@@ -65,7 +65,10 @@ pub enum Error {
     #[error("there is no card {id}; reviews are about one card (list them with `srl cards`)")]
     UnknownCard { id: String },
 
-    #[error("cannot make the card {card}: {reason}")]
+    #[error(
+        "cannot make the card {card} (fix what failed, or set the card aside with `srl suspend \
+         {card}`): {reason}"
+    )]
     CardFailed { card: String, reason: String },
 
     #[error("invalid selector term `{term}`: {reason}")]

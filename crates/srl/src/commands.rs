@@ -460,15 +460,14 @@ fn next(
     json: bool,
 ) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
-    let (next, failed) = srl_core::next(
+    let next = srl_core::next(
         store,
         &loaded.notes,
         &loaded.memories,
         selector,
         &loaded.config,
         loaded.memories.today(),
-    );
-    failed.iter().for_each(output::problem);
+    )?;
     let Some((item, card)) = next else {
         return Ok(Outcome::Nothing);
     };
