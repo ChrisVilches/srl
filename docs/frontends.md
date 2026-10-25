@@ -5,20 +5,24 @@ ratings. `srl` has none built in (see [rationale.md](rationale.md), "Why no
 built-in frontend"): every frontend is a separate program, and all of them
 meet `srl` at one fixed contract, described here.
 
-The contract is the mapping from `srl`'s data to what a frontend shows,
-and back: `srl next --json` turns the store into one card ready to show,
-and `srl review` turns a rating into a review event. Frontends understand
-this and nothing else. They don't know about notes, kinds or cloze syntax,
+The contract is `srl next --json`, the one mapping from `srl`'s data to
+what a frontend shows: it turns the store into one card ready to show.
+Frontends understand this and nothing else. They don't know about notes, kinds or cloze syntax,
 so any frontend can show any card, and a change to the notes or to a kind
 never changes a frontend. A kind reaches a frontend only as its name, a
 label to show.
+
+Recording the rating is not part of the contract. `srl review` takes only
+a card ID and a rating, which belong to the log, not to what a frontend
+shows, so a frontend records it with that ordinary command, as a script or
+a person does.
 
 How to write a frontend, and the ones in the repository's `examples/`, are
 in [guides/frontends.md](guides/frontends.md).
 
 ## The loop
 
-Every frontend runs the same loop:
+Every frontend runs the same loop, around the contract:
 
 1. **Get a card:** `srl next SELECTOR --json --context MODE`. It prints the
    card (see "What a frontend gets" below); exit 1 means nothing is left,
@@ -43,7 +47,7 @@ A frontend may name the card's `kind` at any step, so that the person
 knows where the card came from, such as a kind whose program asks an LLM
 to write the question.
 
-A frontend may offer more, with the commands everyone has: suspending the
+A frontend may offer more, with the other commands everyone has: suspending the
 card (`srl suspend id:ID`), opening its note (`srl edit ID`, or the file at
 `path` in an editor of its own), or a summary at the end, counting the
 cards whose `state` was `new`.

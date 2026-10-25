@@ -18,13 +18,14 @@ document, listed at the end.
    resetting, checking, analyzing. Scheduling is part of the data layer
    too: a card's memory state is computed from the log.
 2. **One fixed mapping from that data to frontends.** `srl next --json`
-   turns the store into one card ready to show, with its state and context,
-   and `srl review` turns a rating back into a review event. This is the
-   **frontend contract** (see [frontends.md](frontends.md)), which every
-   frontend implements.
+   turns the store into one card ready to show, with its state and context.
+   This is the **frontend contract** (see [frontends.md](frontends.md)),
+   which every frontend reads. The rating goes back with `srl review`, an
+   ordinary command of the data layer: it takes a card ID and a rating,
+   nothing that belongs to frontends.
 
 Studying happens in a **frontend**: a separate program of your choice that
-runs the frontend contract, such as the web viewer or the terminal
+reads the frontend contract and records ratings, such as the web viewer or the terminal
 frontend in this repository's `examples/`. Frontends, scripts and LLM agents are all built on top of the
 CLI, outside `srl`. No part of `srl` depends on a frontend, an LLM, an
 agent, or any particular note-taking app.
@@ -89,7 +90,8 @@ agent, or any particular note-taking app.
           │ item                                  ▲ review event
           ▼                                       │
    Kind ─────────────► Card ──► srl next --json   srl review
-   qa, or a program             └────── frontend contract ──────┘
+   qa, or a program             └─ frontend ──┘   │
+                                    contract      │
                                           │       ▲
                                           ▼       │ rating
                                   Frontends (outside srl): terminal,
@@ -107,7 +109,7 @@ agent, or any particular note-taking app.
 | **Card** | One question, ready to show: an ID, a prompt, and, when the kind gives them, the prompt as revealed with the answer and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
 | **Context** | The note an item belongs to, or the note its `see:` names, which frontends show after the answer of its cards. |
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
-| **Frontend** | A program outside `srl` that shows cards to a person and records the ratings, through the frontend contract. `srl` has none built in. |
+| **Frontend** | A program outside `srl` that shows cards to a person and records the ratings: it reads cards through the frontend contract and records ratings with `srl review`. `srl` has none built in. |
 | **Review event** | One line in the log: this card was rated this way, at this time. |
 | **Selector** | A short filter expression that picks cards, such as `in:grammar state:due`. |
 | **Memory state** | What FSRS knows about a card (stability, difficulty, due date). Always computed from the log, never stored as truth. |
@@ -137,7 +139,7 @@ These five formats are fixed, because everything else depends on them:
 |---|---|---|
 | **Item syntax** | Authors (you, agents, imports) and everything that reads notes | [notes.md](notes.md) |
 | **Card** | Kinds and everything that shows a card | [cards.md](cards.md) |
-| **Frontend contract** | `srl` and frontends: `srl next --json` and `srl review` | [frontends.md](frontends.md) |
+| **Frontend contract** | `srl` and frontends: `srl next --json` | [frontends.md](frontends.md) |
 | **Review event** | `srl review` and the scheduler or any analysis | [log.md](log.md) |
 | **Selector** | People, scripts and agents, and every command that picks cards | [selectors.md](selectors.md) |
 

@@ -23,8 +23,7 @@ reviews.** Everything else must justify itself.
 
 `srl` is a CLI over its data (notes with items, the log, the
 configuration) plus one fixed mapping from that data to frontends:
-`srl next --json` and `srl review` (see [overview.md](overview.md), "The
-idea"). Everything around it, such as showing cards, launching programs,
+`srl next --json` (see [overview.md](overview.md), "The idea"). Everything around it, such as showing cards, launching programs,
 choosing how things look, or calling an LLM, is left to programs built on
 top.
 
@@ -34,6 +33,13 @@ apply one schedule for every frontend. What people want to vary is
 everything else. Keeping the two apart means a frontend, a script or an
 agent can be replaced without touching `srl`, and `srl` can change inside
 without breaking them, as long as the contracts hold.
+
+Only `srl next --json` is a mapping to frontends, because only it gives
+what a frontend shows: a card, made for showing, with its context.
+Recording a rating, with `srl review`, takes a card ID and a rating, which
+are the log's data, so it is an ordinary command that frontends use like
+anyone else. The less `srl` knows about frontends, the fewer of its
+commands a frontend can constrain.
 
 Trade-off: a feature that would be convenient inside `srl`, such as
 running your frontend as `srl web`, is left to you: a shell alias or a

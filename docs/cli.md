@@ -4,9 +4,9 @@ The CLI is the only interface to a store. People, scripts, frontends and
 agents all use the same commands. There is no separate API.
 
 Every command reads or changes the store's data: its notes and their
-items, the log and the configuration. Two of them, `srl next --json` and
-`srl review`, are also the frontend contract (see
-[frontends.md](frontends.md)). No command shows cards interactively or
+items, the log and the configuration. One of them, `srl next --json`, is
+also the frontend contract: the mapping from that data to what a frontend
+shows (see [frontends.md](frontends.md)). No command shows cards interactively or
 runs other programs for you, except `srl edit ID`, which opens a note in
 your editor.
 
@@ -199,8 +199,7 @@ review wants to keep it, such as an answer typed to an agent (see
 [log.md](log.md)). `by` says who recorded the review, not how the rating
 was decided.
 
-`srl next --json` and `srl review` are the frontend contract: what
-`srl next --json` prints, one object with the card, its state, and its
+`srl next --json` is the frontend contract: what it prints, one object with the card, its state, and its
 item's kind, note and context, is specified in [frontends.md](frontends.md),
 "What a frontend gets". `--context MODE` chooses the context's mode,
 `prose` without it. Only the JSON output has a context, so without

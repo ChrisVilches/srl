@@ -2,7 +2,7 @@
 
 This is a guide, not part of the specification (see
 [overview.md](../overview.md), "Specification, guides and examples"). A
-frontend is any program that follows the frontend contract of
+frontend is any program that runs the loop of
 [frontends.md](../frontends.md). This guide shows how small one can be, and
 where to find fuller ones to copy.
 
@@ -16,7 +16,7 @@ while card=$(srl next --json --context prose -- "$1"); do
 done
 ```
 
-It runs the whole contract: get a card, show the prompt, show the revealed
+It runs the whole loop: get a card, show the prompt, show the revealed
 prompt, the answer and the context, get a rating, record it. A terminal
 can't replace the prompt it printed, so it prints the revealed prompt below
 it. The loop ends when `srl next`
