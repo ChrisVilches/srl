@@ -9,8 +9,12 @@ Requires MeCab and its IPA dictionary as programs on PATH; no Python
 packages. Tried on Arch Linux only, where they are installed with
 `yay -S mecab mecab-ipadic`.
 
-    python3 ja_words.py ids  < item.json
-    python3 ja_words.py card < item-with-suffix.json
+Every call reads one JSON object per line up to the end of standard
+input, and prints one line per input line, in order:
+
+    python3 ja_words.py validate < items.jsonl
+    python3 ja_words.py groups   < items.jsonl
+    python3 ja_words.py make     < items-with-suffixes.jsonl
     echo '{}' | python3 ja_words.py describe
 """
 
@@ -23,7 +27,7 @@ FIELD = "TEXT"
 
 
 class KindError(Exception):
-    """A reason to fail the call, printed on standard error."""
+    """Why an item is invalid, or a card can't be made."""
 
 
 def pieces(text):
@@ -64,18 +68,31 @@ def pieces(text):
     return result
 
 
-def text_of(item):
-    """The pieces of the item's TEXT, checked."""
+def errors_of(item):
+    """Why the item is invalid, as `validate` gives it: one error per
+    other field, and one about TEXT."""
     fields = item["fields"]
+    errors = [
+        {"field": key, "message": f"a ja-words item has only the field {FIELD}; remove {key}"}
+        for key in sorted(fields)
+        if key != FIELD
+    ]
     if FIELD not in fields:
-        raise KindError(f"a ja-words item needs the field {FIELD}")
-    others = sorted(key for key in fields if key != FIELD)
-    if others:
-        raise KindError(f"a ja-words item has only the field {FIELD}, not {', '.join(others)}")
-    result = pieces(fields[FIELD])
-    if not any(isinstance(piece, tuple) for piece in result):
-        raise KindError(f"{FIELD} has no `{{word}}` to make a card of")
-    return result
+        errors.append({"field": FIELD, "message": f"a ja-words item needs the field {FIELD}"})
+        return errors
+    try:
+        found = pieces(fields[FIELD])
+    except KindError as error:
+        errors.append({"field": FIELD, "message": str(error)})
+        return errors
+    if not any(isinstance(piece, tuple) for piece in found):
+        errors.append({"field": FIELD, "message": f"{FIELD} has no `{{word}}` to make a card of"})
+    return errors
+
+
+def text_of(item):
+    """The pieces of the TEXT of an item `validate` accepted."""
+    return pieces(item["fields"][FIELD])
 
 
 def suffix(word):
@@ -100,22 +117,35 @@ def describe(_input):
     }
 
 
-def ids(item):
-    """The output of `ids`: one card per distinct word, in the order they
-    first appear, each in a group of its own."""
+def validate(item):
+    """The output of `validate`: the item's errors, none if it is valid."""
+    return {"errors": errors_of(item)}
+
+
+def groups(item):
+    """The output of `groups`: one card per distinct word, in the order
+    they first appear, each in a group of its own."""
     suffixes = []
     for piece in text_of(item):
         if isinstance(piece, tuple) and suffix(piece[1]) not in suffixes:
             suffixes.append(suffix(piece[1]))
-    return {"groups": [{"cards": [card]} for card in suffixes]}
+    return {"groups": [[card] for card in suffixes]}
 
 
-def card(item, analyze=None):
-    """The output of `card`: the sentence with every {…} of the card's
-    word highlighted, and the analysis of the whole sentence as the
-    answer. Nothing is hidden, so there is no `prompt_revealed`: the
-    sentence is shown as it is with the answer. `analyze` stands in for
-    MeCab in tests."""
+def make(item, analyze=None):
+    """The output of `make`: the card, or why it can't be made."""
+    try:
+        return card(item, analyze or mecab)
+    except KindError as error:
+        return {"error": str(error)}
+
+
+def card(item, analyze):
+    """The card: the sentence with every {…} of the card's word
+    highlighted, and the analysis of the whole sentence as the answer.
+    Nothing is hidden, so there is no `prompt_revealed`: the sentence is
+    shown as it is with the answer. `analyze` is MeCab, or what stands in
+    for it in tests."""
     found = text_of(item)
     words = [piece[1] for piece in found if isinstance(piece, tuple)]
     if not any(suffix(word) == item["suffix"] for word in words):
@@ -137,7 +167,7 @@ def card(item, analyze=None):
     plain = "".join(piece if not isinstance(piece, tuple) else piece[1] for piece in found)
     return {
         "prompt": prompt,
-        "answer": answer(plain, analyze or mecab),
+        "answer": answer(plain, analyze),
     }
 
 
@@ -187,17 +217,19 @@ def hiragana(katakana):
 
 
 def main(argv):
-    calls = {"ids": ids, "card": card, "describe": describe}
+    """Answers the call in `argv`: one line of JSON per line of standard
+    input, in order (see docs/cards.md, "Kind programs"). Anything that
+    goes wrong outside the answers, such as a line that isn't JSON, fails
+    the whole call with a traceback on standard error."""
+    calls = {"describe": describe, "validate": validate, "groups": groups, "make": make}
     if len(argv) != 2 or argv[1] not in calls:
-        print("usage: ja_words.py ids|card|describe < INPUT.json", file=sys.stderr)
+        print("usage: ja_words.py describe|validate|groups|make < INPUT.jsonl", file=sys.stderr)
         return 2
-    try:
-        output = calls[argv[1]](json.load(sys.stdin))
-    except KindError as error:
-        print(error, file=sys.stderr)
-        return 1
-    json.dump(output, sys.stdout, ensure_ascii=False)
-    print()
+    # srl writes and reads UTF-8, whatever the platform's default.
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")
+    for line in sys.stdin:
+        print(json.dumps(calls[argv[1]](json.loads(line)), ensure_ascii=False), flush=True)
     return 0
 
 

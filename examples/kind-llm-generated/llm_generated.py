@@ -11,8 +11,12 @@ no Python packages. Needs the API key in OPENAI_API_KEY. Logs every
 call to llm_generated.log in the temporary folder. Meant for Linux,
 macOS and Windows; tried on Linux only.
 
-    python3 llm_generated.py ids  < item.json
-    python3 llm_generated.py card < item-with-suffix.json
+Every call reads one JSON object per line up to the end of standard
+input, and prints one line per input line, in order:
+
+    python3 llm_generated.py validate < items.jsonl
+    python3 llm_generated.py groups   < items.jsonl
+    python3 llm_generated.py make     < items-with-suffixes.jsonl
     echo '{}' | python3 llm_generated.py describe
 """
 
@@ -61,20 +65,23 @@ SCHEMA = {
 
 
 class KindError(Exception):
-    """A reason to fail the call, printed on standard error."""
+    """Why a card can't be made."""
 
 
-def topic_of(item):
-    """The item's PROMPT, checked."""
+def errors_of(item):
+    """Why the item is invalid, as `validate` gives it: one error per
+    other field, and one about PROMPT."""
     fields = item["fields"]
+    errors = [
+        {"field": key, "message": f"an llm-generated item has only the field {FIELD}; remove {key}"}
+        for key in sorted(fields)
+        if key != FIELD
+    ]
     if FIELD not in fields:
-        raise KindError(f"an llm-generated item needs the field {FIELD}")
-    others = sorted(key for key in fields if key != FIELD)
-    if others:
-        raise KindError(f"an llm-generated item has only the field {FIELD}, not {', '.join(others)}")
-    if not fields[FIELD].strip():
-        raise KindError(f"{FIELD} is empty; say what the question should be about")
-    return fields[FIELD]
+        errors.append({"field": FIELD, "message": f"an llm-generated item needs the field {FIELD}"})
+    elif not fields[FIELD].strip():
+        errors.append({"field": FIELD, "message": f"{FIELD} is empty; say what the question should be about"})
+    return errors
 
 
 def describe(_input):
@@ -91,21 +98,34 @@ def describe(_input):
     }
 
 
-def ids(item):
-    """The output of `ids`: one card, with the item's ID. Its content
+def validate(item):
+    """The output of `validate`: the item's errors, none if it is valid.
+    It never calls the LLM."""
+    return {"errors": errors_of(item)}
+
+
+def groups(_item):
+    """The output of `groups`: one card, with the item's ID. Its content
     changes every time, but a new ID each time would never be due again,
     so the ID stays the same and the card is scheduled as any other."""
-    topic_of(item)
-    return {"groups": [{"cards": [None]}]}
+    return {"groups": [[None]]}
+
+
+def make(item, ask=None, log_file=LOG_FILE):
+    """The output of `make`: the card, or why it can't be made."""
+    try:
+        return card(item, ask, log_file)
+    except KindError as error:
+        return {"error": str(error)}
 
 
 def card(item, ask=None, log_file=LOG_FILE):
-    """The output of `card`: a question and answer the LLM writes for the
-    item's PROMPT, with the item's note as background. There is no
+    """A question and answer the LLM writes for the PROMPT of an item
+    `validate` accepted, with the item's note as background. There is no
     `prompt_revealed`: nothing is hidden. Every call to the API, failed or
     not, is a line of `log_file`. `ask` stands in for the API in tests: it
     gets the request's text and gives the response."""
-    text = request_text(topic_of(item), item.get("context"))
+    text = request_text(item["fields"][FIELD], item.get("context"))
     if ask is None:
         key = api_key()
         ask = lambda text: responses(text, key)
@@ -127,7 +147,7 @@ def card(item, ask=None, log_file=LOG_FILE):
         response = ask(text)
         entry["usage"] = response.get("usage")
         entry["response_id"] = response.get("id")
-        made = parse(response)
+        made = read_response(response)
         entry["question"] = made["prompt"]
         entry["answer"] = made["answer"]
     except KindError as error:
@@ -192,7 +212,7 @@ def responses(text, key):
     return response
 
 
-def parse(response):
+def read_response(response):
     """The {"prompt", "answer"} in a Responses API response."""
     if response.get("error"):
         raise KindError(f"the OpenAI API failed: {json.dumps(response['error'])}")
@@ -216,17 +236,19 @@ def parse(response):
 
 
 def main(argv):
-    calls = {"ids": ids, "card": card, "describe": describe}
+    """Answers the call in `argv`: one line of JSON per line of standard
+    input, in order (see docs/cards.md, "Kind programs"). Anything that
+    goes wrong outside the answers, such as a line that isn't JSON, fails
+    the whole call with a traceback on standard error."""
+    calls = {"describe": describe, "validate": validate, "groups": groups, "make": make}
     if len(argv) != 2 or argv[1] not in calls:
-        print("usage: llm_generated.py ids|card|describe < INPUT.json", file=sys.stderr)
+        print("usage: llm_generated.py describe|validate|groups|make < INPUT.jsonl", file=sys.stderr)
         return 2
-    try:
-        output = calls[argv[1]](json.load(sys.stdin))
-    except KindError as error:
-        print(error, file=sys.stderr)
-        return 1
-    json.dump(output, sys.stdout, ensure_ascii=False)
-    print()
+    # srl writes and reads UTF-8, whatever the platform's default.
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")
+    for line in sys.stdin:
+        print(json.dumps(calls[argv[1]](json.loads(line)), ensure_ascii=False), flush=True)
     return 0
 
 

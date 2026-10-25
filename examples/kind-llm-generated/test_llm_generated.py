@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from llm_generated import KindError, card, ids, parse
+from llm_generated import KindError, card, groups, make, read_response, validate
 
 TOPIC = "Ohm's law in circuit analysis: when it's used and its edge cases"
 
@@ -34,14 +34,25 @@ def response(text, status="completed"):
     }
 
 
-class Ids(unittest.TestCase):
-    def test_one_card_with_the_item_id(self):
-        self.assertEqual(ids(item()), {"groups": [{"cards": [None]}]})
+class Validate(unittest.TestCase):
+    def test_a_prompt_alone_is_valid(self):
+        self.assertEqual(validate(item()), {"errors": []})
 
-    def test_invalid_items_are_errors(self):
-        for fields in [{}, {"Q": TOPIC}, {"PROMPT": TOPIC, "A": "x"}, {"PROMPT": "  "}]:
-            with self.subTest(fields=fields), self.assertRaises(KindError):
-                ids({"id": "q4n8w2", "fields": fields})
+    def test_invalid_items_are_errors_about_their_fields(self):
+        for fields, about in [
+            ({}, ["PROMPT"]),
+            ({"Q": TOPIC}, ["Q", "PROMPT"]),
+            ({"PROMPT": TOPIC, "A": "x"}, ["A"]),
+            ({"PROMPT": "  "}, ["PROMPT"]),
+        ]:
+            with self.subTest(fields=fields):
+                errors = validate({"id": "q4n8w2", "fields": fields})["errors"]
+                self.assertEqual([error["field"] for error in errors], about)
+
+
+class Groups(unittest.TestCase):
+    def test_one_card_with_the_item_id(self):
+        self.assertEqual(groups(item()), {"groups": [[None]]})
 
 
 class Card(unittest.TestCase):
@@ -81,13 +92,13 @@ class Card(unittest.TestCase):
         self.assertTrue(asked[0].startswith(TOPIC + "\n\n"))
         self.assertTrue(asked[0].endswith("# Ohm's law\n\nV = IR.\n"))
 
-    def test_an_invalid_item_never_asks_nor_logs(self):
+    def test_a_card_that_cant_be_made_is_an_error_answer(self):
         def ask(text):
-            raise AssertionError("asked")
+            raise KindError("the OpenAI API answered 500 Internal Server Error: {}")
 
-        with self.assertRaises(KindError):
-            card({"id": "q4n8w2", "fields": {}, "suffix": None}, ask, self.log_file)
-        self.assertEqual(self.logged(), [])
+        made = make(item(suffix=True), ask, self.log_file)
+        self.assertEqual(list(made), ["error"])
+        self.assertIn("500", made["error"])
 
     def test_each_call_is_a_line_of_the_log(self):
         def ask(text):
@@ -133,10 +144,10 @@ class Card(unittest.TestCase):
         self.assertEqual(entry["usage"], {"total_tokens": 7})
 
 
-class Parse(unittest.TestCase):
+class ReadResponse(unittest.TestCase):
     def test_the_structured_output(self):
         self.assertEqual(
-            parse(response('{"prompt": "Q?", "answer": "A."}')),
+            read_response(response('{"prompt": "Q?", "answer": "A."}')),
             {"prompt": "Q?", "answer": "A."},
         )
 
@@ -153,40 +164,43 @@ class Parse(unittest.TestCase):
         ]
         for failure in failures:
             with self.subTest(failure=failure), self.assertRaises(KindError):
-                parse(failure)
+                read_response(failure)
 
 
 class AsSrlRunsIt(unittest.TestCase):
-    """Runs the program with JSON on standard input, as srl does."""
+    """Runs the program with JSONL on standard input, as srl does."""
 
     def run_call(self, call, given, env=None):
         return subprocess.run(
             [sys.executable, str(Path(__file__).with_name("llm_generated.py")), call],
-            input=json.dumps(given),
+            input="".join(json.dumps(line) + "\n" for line in given),
             capture_output=True,
             text=True,
             encoding="utf-8",
             env=env,
         )
 
-    def test_ids(self):
-        run = self.run_call("ids", item())
+    def answers(self, run):
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual(json.loads(run.stdout), {"groups": [{"cards": [None]}]})
+        return [json.loads(line) for line in run.stdout.splitlines()]
 
-    def test_describe_names_the_field_that_ids_checks(self):
-        run = self.run_call("describe", {})
-        self.assertEqual(run.returncode, 0, run.stderr)
-        fields = json.loads(run.stdout)["fields"]
-        self.assertEqual([field["name"] for field in fields], ["PROMPT"])
+    def test_each_input_line_gets_one_line_in_order(self):
+        invalid = {"id": "q4n8w2", "fields": {}}
+        answers = self.answers(self.run_call("validate", [item(), invalid]))
+        self.assertEqual([len(answer["errors"]) for answer in answers], [0, 1])
+        answers = self.answers(self.run_call("groups", [item(), item()]))
+        self.assertEqual(answers, [{"groups": [[None]]}] * 2)
 
-    def test_card_without_a_key_fails_loudly_and_logs_nothing(self):
+    def test_describe_names_the_field_that_validate_checks(self):
+        [described] = self.answers(self.run_call("describe", [{}]))
+        self.assertEqual([field["name"] for field in described["fields"]], ["PROMPT"])
+
+    def test_make_without_a_key_gives_errors_and_logs_nothing(self):
         with tempfile.TemporaryDirectory() as folder:
             env = {key: value for key, value in os.environ.items() if key != "OPENAI_API_KEY"}
             # The temporary folder, on every platform.
             env.update(TMPDIR=folder, TEMP=folder, TMP=folder)
-            run = self.run_call("card", item(suffix=True), env)
-            self.assertEqual(run.returncode, 1)
-            self.assertEqual(run.stdout, "")
-            self.assertIn("OPENAI_API_KEY", run.stderr)
+            answers = self.answers(self.run_call("make", [item(suffix=True)] * 2, env))
+            self.assertEqual(len(answers), 2)
+            self.assertIn("OPENAI_API_KEY", answers[0]["error"])
             self.assertEqual(os.listdir(folder), [])

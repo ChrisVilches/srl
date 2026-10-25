@@ -32,13 +32,15 @@ Meant for Linux, macOS and Windows; tried on Linux only.
   But a card ID that is never seen twice would never be due again, so the
   ID stays the same and the card is scheduled as usual. What you rate is
   how well you know the topic, asked a different way each time.
-- **`ids` never calls the LLM.** It only checks that `PROMPT` is the
-  item's only field and isn't empty. Every command that reads items calls
-  it, so `srl find`, `srl check`, selectors and scheduling cost nothing.
+- **`validate` and `groups` never call the LLM.** `validate` only checks
+  that `PROMPT` is the item's only field and isn't empty, and `groups`
+  gives the one card. Every command that reads items calls them, so
+  `srl find`, `srl check`, selectors and scheduling cost nothing.
   `describe`, for `srl kinds` and editors, names the same field.
-- **`card` calls the LLM**, and srl calls it only for a card that is about to
-  be shown: the one `srl next` (and so every frontend) gives, and each
-  card `srl cards` prints. No question is written that nobody sees.
+- **`make` calls the LLM**, and srl calls it only for cards about to be
+  shown: the one `srl next` (and so every frontend) gives, and each card
+  `srl cards` prints. No question is written that nobody sees. A `make`
+  call with several cards asks the LLM once per card.
 - **The question and answer come from one call**, with structured output
   (a JSON schema of `prompt` and `answer`), so they always match.
 - **No `prompt_revealed`, no clozes.** Nothing is hidden, and the
@@ -50,11 +52,12 @@ Meant for Linux, macOS and Windows; tried on Linux only.
 
 ## Errors
 
-Every failure makes `card` exit with status 1 and the whole reason on
-standard error: no `OPENAI_API_KEY`, a server that can't be reached, an
-error from the API (with the JSON it answered), an incomplete response, a
-refusal, or output that isn't the expected JSON. Nothing is retried and
-no card is made up. `srl cards` and `srl next` then fail with that
+Every failure to make a card is that card's answer, `{"error": …}`, with
+the whole reason: no `OPENAI_API_KEY`, a server that can't be reached,
+an error from the API (with the JSON it answered), an incomplete
+response, a refusal, or output that isn't the expected JSON. Nothing is
+retried and no card is made up. The program exits with a status other
+than 0 only when it can't run at all, such as on input that isn't JSON. `srl cards` and `srl next` then fail with that
 reason, and `srl next` keeps failing on this card until the cause is
 fixed or the card is suspended (see [docs/cards.md](../../docs/cards.md),
 "Kind programs"). A call is stopped
@@ -92,13 +95,13 @@ Each line is one JSON object:
 | `usage` | The token counts the API returned, as it returned them, or `null` if it returned none. |
 | `response_id` | The API's ID of the response, or `null`. |
 | `seconds` | How long the call took. |
-| `error` | Why the call failed, as printed on standard error, or `null`. |
+| `error` | Why the call failed, as `make` gives it in `{"error": …}`, or `null`. |
 
 A failed call is logged too, since it may still cost something. What
-fails before any request is sent is not logged: an invalid item or a
+fails before any request is sent is not logged: a
 missing `OPENAI_API_KEY`. A call that srl stops after `card_timeout`
 isn't logged either, because the program is killed before it can write. If
-the log can't be written, `card` fails.
+the log can't be written, the card fails with that reason.
 
 Nothing deletes the log, and the temporary folder may be emptied when the
 computer restarts. For example:
@@ -134,16 +137,19 @@ The Browse tab of `srl-web` (see [web-frontend/](../web-frontend/README.md))
 shows such a card as a frontend shows it, without studying it: choose a
 card and it is made, with an API call, while the page counts the seconds.
 
-By hand:
+By hand, one JSON object per line in, one per line out:
 
 ```sh
 echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}}' \
-  | python3 llm_generated.py ids
-# {"groups": [{"cards": [null]}]}
+  | python3 llm_generated.py validate
+# {"errors": []}
 
-echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"},
-       "suffix": null, "context": null, "day": "2026-10-27"}' \
-  | python3 llm_generated.py card
+echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}}' \
+  | python3 llm_generated.py groups
+# {"groups": [[null]]}
+
+echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}, "suffix": null, "context": null, "day": "2026-10-27"}' \
+  | python3 llm_generated.py make
 
 echo '{}' | python3 llm_generated.py describe
 ```
@@ -160,13 +166,16 @@ python3 -m unittest -v
 
 They are in `test_llm_generated.py`:
 
-- `Ids`: one card with the item's ID, and every invalid item.
+- `Validate`: a prompt alone is valid, and every invalid item gives errors
+  about its fields.
+- `Groups`: one card with the item's ID.
 - `Card`: the card is what the model wrote, the note is sent after
-  `PROMPT`, an invalid item never reaches the API, and what each call,
-  failed or not, writes to the log. A function stands in for the API, and
-  the log is written to a temporary folder of each test.
-- `Parse`: reading the structured output from a Responses API response,
-  and every failure in one.
-- `AsSrlRunsIt`: runs the program with JSON on standard input, as srl
-  does: `ids`, and `card` failing loudly without `OPENAI_API_KEY`, and
+  `PROMPT`, a card that can't be made is an `{"error": …}` answer, and
+  what each call, failed or not, writes to the log. A function stands in
+  for the API, and the log is written to a temporary folder of each test.
+- `ReadResponse`: reading the structured output from a Responses API
+  response, and every failure in one.
+- `AsSrlRunsIt`: runs the program with JSONL on standard input, as srl
+  does: one answer per line, in order, for `validate`, `groups` and
+  `describe`, and `make` without `OPENAI_API_KEY` giving errors and
   logging nothing.

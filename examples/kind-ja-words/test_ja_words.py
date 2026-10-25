@@ -10,7 +10,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from ja_words import KindError, card, describe, ids
+from ja_words import KindError, card, describe, groups, make, validate
 
 SENTENCE = "東京{都}は、日本の関東{地方}に{位置}する{都}"
 
@@ -23,53 +23,57 @@ def item(text, suffix=None, **fields):
 
 
 class Describe(unittest.TestCase):
-    def test_it_names_the_field_that_ids_checks(self):
+    def test_it_names_the_field_that_validate_checks(self):
         self.assertEqual([field["name"] for field in describe({})["fields"]], ["TEXT"])
 
 
-class Ids(unittest.TestCase):
+class Validate(unittest.TestCase):
+    def test_a_sentence_with_words_is_valid(self):
+        self.assertEqual(validate(item(SENTENCE)), {"errors": []})
+
+    def test_invalid_text_is_an_error_about_text(self):
+        for text in ["no words", "{}", "{ }", "{都", "都}", "{{都}}", "{都{}}"]:
+            with self.subTest(text=text):
+                errors = validate(item(text))["errors"]
+                self.assertEqual([error["field"] for error in errors], ["TEXT"])
+
+    def test_every_other_field_is_an_error_about_it(self):
+        errors = validate({"id": "v81k3z", "fields": {"Q": "{都}", "A": "x"}})["errors"]
+        self.assertEqual([error["field"] for error in errors], ["A", "Q", "TEXT"])
+        errors = validate(item("{都}", A="capital"))["errors"]
+        self.assertEqual([error["field"] for error in errors], ["A"])
+
+
+class Groups(unittest.TestCase):
     def test_each_word_gives_a_card_in_a_group_of_its_own(self):
         self.assertEqual(
-            ids(item("{東京}の{地方}")),
-            {"groups": [{"cards": ["e69db1e4baac"]}, {"cards": ["e59cb0e696b9"]}]},
+            groups(item("{東京}の{地方}")),
+            {"groups": [["e69db1e4baac"], ["e59cb0e696b9"]]},
         )
 
     def test_a_repeated_word_gives_one_card(self):
-        groups = ids(item(SENTENCE))["groups"]
         self.assertEqual(
-            groups,
-            [{"cards": ["e983bd"]}, {"cards": ["e59cb0e696b9"]}, {"cards": ["e4bd8de7bdae"]}],
+            groups(item(SENTENCE))["groups"],
+            [["e983bd"], ["e59cb0e696b9"], ["e4bd8de7bdae"]],
         )
 
     def test_the_suffix_is_the_hex_of_the_utf8_of_the_word(self):
-        self.assertEqual(ids(item("{都}")), {"groups": [{"cards": ["e983bd"]}]})
+        self.assertEqual(groups(item("{都}")), {"groups": [["e983bd"]]})
         self.assertEqual(bytes.fromhex("e983bd").decode("utf-8"), "都")
 
     def test_a_suffix_does_not_depend_on_where_the_word_is(self):
         self.assertEqual(
-            ids(item("{都}"))["groups"][0],
-            ids(item("{地方}と{都}"))["groups"][1],
+            groups(item("{都}"))["groups"][0],
+            groups(item("{地方}と{都}"))["groups"][1],
         )
 
     def test_spaces_around_a_word_are_not_part_of_it(self):
         for text in ["{ 都}", "{都 }", "{　都　}"]:
             with self.subTest(text=text):
-                self.assertEqual(ids(item(text)), {"groups": [{"cards": ["e983bd"]}]})
+                self.assertEqual(groups(item(text)), {"groups": [["e983bd"]]})
 
     def test_a_word_with_combining_marks_is_the_same_card(self):
-        self.assertEqual(
-            ids(item("{が}{が}")),
-            {"groups": [{"cards": ["e3818c"]}]},
-        )
-
-    def test_invalid_items_are_errors(self):
-        for text in ["no words", "{}", "{ }", "{都", "都}", "{{都}}", "{都{}}"]:
-            with self.subTest(text=text), self.assertRaises(KindError):
-                ids(item(text))
-        with self.assertRaises(KindError):
-            ids({"id": "v81k3z", "fields": {"Q": "{都}"}})
-        with self.assertRaises(KindError):
-            ids(item("{都}", A="capital"))
+        self.assertEqual(groups(item("{が}{が}")), {"groups": [["e3818c"]]})
 
 
 class Card(unittest.TestCase):
@@ -102,8 +106,8 @@ class Card(unittest.TestCase):
         self.assertEqual(made["prompt"], "東京==都==")
 
     def test_both_forms_of_a_word_with_combining_marks_are_highlighted(self):
-        made = card(item("{が}と{が}", "e3818c"), self.analyze)
-        self.assertEqual(made["prompt"], "==が==と==が==")
+        made = card(item("{が}と{が}", "e3818c"), self.analyze)
+        self.assertEqual(made["prompt"], "==が==と==が==")
 
     def test_the_answer_is_the_analysis_of_the_whole_sentence(self):
         seen = []
@@ -131,34 +135,48 @@ class Card(unittest.TestCase):
     def test_an_unknown_suffix_is_an_error(self):
         with self.assertRaises(KindError):
             card(item(SENTENCE, "e69db1"), self.analyze)
+        self.assertIn("error", make(item(SENTENCE, "e69db1"), self.analyze))
 
 
-@unittest.skipIf(shutil.which("mecab") is None, "mecab is not installed")
-class WithMecab(unittest.TestCase):
+class Calls(unittest.TestCase):
+    """Runs the program with JSONL on standard input, as srl does."""
+
     def run_call(self, call, given):
         script = Path(__file__).with_name("ja_words.py")
         return subprocess.run(
             [sys.executable, str(script), call],
-            input=json.dumps(given),
+            input="".join(json.dumps(line) + "\n" for line in given),
             capture_output=True,
             text=True,
             encoding="utf-8",
         )
 
-    def test_card_analyzes_the_sentence_with_mecab(self):
-        run = self.run_call("card", item(SENTENCE, "e983bd"))
+    def test_each_input_line_gets_one_line_in_order(self):
+        run = self.run_call("validate", [item("{都}"), item("{都"), item("{地方}")])
         self.assertEqual(run.returncode, 0, run.stderr)
-        answer = json.loads(run.stdout)["answer"].splitlines()
+        answers = [json.loads(line) for line in run.stdout.splitlines()]
+        self.assertEqual([len(answer["errors"]) for answer in answers], [0, 1, 0])
+        run = self.run_call("groups", [item("{都}"), item("{地方}")])
+        self.assertEqual(
+            [json.loads(line) for line in run.stdout.splitlines()],
+            [{"groups": [["e983bd"]]}, {"groups": [["e59cb0e696b9"]]}],
+        )
+
+    def test_describe_answers_its_one_line(self):
+        run = self.run_call("describe", [{}])
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(json.loads(run.stdout)["fields"][0]["name"], "TEXT")
+
+    @unittest.skipIf(shutil.which("mecab") is None, "mecab is not installed")
+    def test_make_analyzes_the_sentence_with_mecab(self):
+        run = self.run_call("make", [item(SENTENCE, "e983bd"), item(SENTENCE, "e69db1")])
+        self.assertEqual(run.returncode, 0, run.stderr)
+        made, failed = [json.loads(line) for line in run.stdout.splitlines()]
+        answer = made["answer"].splitlines()
         self.assertEqual(answer[0], "- 東京 — とうきょう (名詞, 固有名詞)")
         self.assertIn("- 位置 — いち (名詞, サ変接続)", answer)
         self.assertEqual(len(answer), 12)
-
-    def test_ids_prints_json_and_errors_go_to_standard_error(self):
-        run = self.run_call("ids", item("{都}"))
-        self.assertEqual((run.returncode, json.loads(run.stdout)), (0, {"groups": [{"cards": ["e983bd"]}]}))
-        run = self.run_call("ids", item("{都"))
-        self.assertEqual((run.returncode, run.stdout), (1, ""))
-        self.assertIn("without its", run.stderr)
+        self.assertIn("e69db1", failed["error"])
 
 
 if __name__ == "__main__":

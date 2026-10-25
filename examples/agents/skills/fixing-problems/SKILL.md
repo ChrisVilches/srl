@@ -25,7 +25,9 @@ since the notes and the log can't be read without it. Fix it and run
 | unknown or repeated header entry | a typo such as `darft` | Use only `id:`, `kind:`, `see:` and `draft`. |
 | unknown field, missing `Q` or `A` | `B:`, or a `qa` item without `A` and without cloze | Use `Q` and `A` only; `A` is optional only with cloze. |
 | bad cloze | `{{c1::` without `}}`, empty text, `c0`, `c01`, nested, or cloze in `A` | Fix the deletion. |
-| a kind program failed or there is no such kind | the fields don't suit the program, or `kind:` names no kind of `[kinds]` | Fix the fields as the program's message says, or the `kind:`. |
+| `PATH:LINE: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind:` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind:`. |
+| `the program of kind X failed …; no item of kind X can be read until the program works` | the program itself is broken: not installed, a missing dependency, a bug; not your notes | Fix or reinstall the program, or its command in `[kinds]`; run `srl check` again. |
+| `the program of kind X printed invalid output …` | a bug in the program | Report it to its author; the item is fine as written. |
 | `see:` doesn't name a note | the note was moved or renamed | Update the path, relative to the store. |
 | invalid configuration | a typo or out-of-range value in `.srl/config.toml` | Fix the named setting. |
 
