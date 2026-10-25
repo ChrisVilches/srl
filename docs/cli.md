@@ -54,6 +54,7 @@ opens a note in your editor.
 | `srl lint` | Look for text that was probably meant to be an item but isn't one (see "Checking" below). |
 | `srl id` | Give an ID to every item without one (see [notes.md](notes.md), "How srl writes to notes"). Prints `ID  PATH:LINE` per item; exit 1 if every item already had one. |
 | `srl reindex` | Delete the index cache and build it again from the files (see [store.md](store.md), "The index cache"). Prints nothing. |
+| `srl notes [--json]` | List the notes of the store (see [notes.md](notes.md), "Which files are notes"): one path per line, relative to the store's folder, sorted as `srl find` sorts notes. With `--json`, one object per note: `{"path": "japanese/grammar/wo.md"}`. It doesn't read the notes, so errors in them don't stop it. Exit 1 if the store has none. |
 
 ### Items and cards
 

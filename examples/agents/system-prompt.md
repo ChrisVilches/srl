@@ -215,6 +215,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl init [DIR]` | create a store |
 | `srl id` | give IDs to new items |
 | `srl find [SEL]` | list cards |
+| `srl notes` | list the notes, also those without items (for `see:` and `srl add NOTE`) |
 | `srl show ID` | print an item and its context |
 | `srl cards ID` | print the cards of an item |
 | `srl add NOTE --stdin` | append items (JSONL) |

@@ -653,6 +653,40 @@ fn excluded_notes_and_dot_folders_are_not_read() {
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(0));
 }
 
+#[test]
+fn notes_lists_every_note_without_reading_it() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(&tmp, "prose.md", "Only prose, no items.\n");
+    write(&tmp, "broken.md", "<!-- srl -->\nbroken\n");
+    write(&tmp, "plain.txt", "Not a note.\n");
+    write(&tmp, ".obsidian/x.md", "Not a note.\n");
+    write(&tmp, "templates/t.md", "Excluded.\n");
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[notes]\nexclude = [\"templates/**\"]\n",
+    );
+    let output = srl(&["notes", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        lines(&output),
+        [
+            "broken.md",
+            "japanese/grammar/wo.md",
+            "kanji/fish.md",
+            "prose.md"
+        ]
+    );
+    let output = srl(&["notes", "--json", "--dir", d]);
+    assert_eq!(
+        json_lines(&output)[1],
+        serde_json::json!({"path": "japanese/grammar/wo.md"})
+    );
+    let empty = store(&[]);
+    assert_eq!(srl(&["notes", "--dir", dir(&empty)]).status.code(), Some(1));
+}
+
 const TEXT_NOTE: &str = "<!-- srl id:txt001 -->\nQ: From a text file?\nA: Yes.\n";
 
 #[test]

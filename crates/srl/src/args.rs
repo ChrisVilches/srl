@@ -82,6 +82,11 @@ pub(crate) enum Command {
     },
     /// Rebuild the index cache.
     Reindex,
+    /// List the notes of the store, without reading them.
+    Notes {
+        #[command(flatten)]
+        json: Json,
+    },
     /// List matching cards.
     Find {
         #[command(flatten)]

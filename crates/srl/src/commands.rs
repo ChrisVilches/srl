@@ -34,6 +34,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Lint => lint(&store()?),
         Command::Id { dry_run } => id(&store()?, dry_run.dry_run),
         Command::Reindex => reindex(&store()?),
+        Command::Notes { json } => notes(&store()?, json.json),
         Command::Find {
             selector: terms,
             json,
@@ -224,6 +225,23 @@ fn reindex(store: &Store) -> anyhow::Result<Outcome> {
         .iter()
         .for_each(output::problem);
     Ok(Outcome::Done)
+}
+
+/// `srl notes`: lists every note's path, without reading the notes, so
+/// errors in them don't stop it. Exit 1 if the store has none.
+fn notes(store: &Store, json: bool) -> anyhow::Result<Outcome> {
+    let config = Config::load(store)?;
+    let paths = store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())?;
+    if json {
+        let lines = paths
+            .iter()
+            .map(|path| serde_json::json!({ "path": path }))
+            .collect::<Vec<_>>();
+        output::json_lines(&lines)?;
+    } else {
+        output::note_paths(&paths);
+    }
+    Ok(found_anything(!paths.is_empty()))
 }
 
 /// The cards that match `selector`, with their items.

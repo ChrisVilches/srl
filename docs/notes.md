@@ -29,6 +29,8 @@ read the same, with a short comment above each.
 (`.srl/`, `.git/`, `.obsidian/`, …). Both are set in `.srl/config.toml`
 (see [store.md](store.md), "Configuration"). By default `include` is
 `["**/*.md"]` and `exclude` is empty: every Markdown file is a note.
+`srl notes` lists them (see [cli.md](cli.md)), including the notes that
+hold no items.
 
 Every note is read the same way, whatever its name: a `.txt` note has the
 same item syntax, fenced code blocks and context as a `.md` note, and its

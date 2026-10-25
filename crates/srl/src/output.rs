@@ -26,6 +26,13 @@ pub(crate) fn ids<T: Display>(ids: &[T]) {
     }
 }
 
+/// Prints one note path per line.
+pub(crate) fn note_paths(paths: &[String]) {
+    for path in paths {
+        println!("{path}");
+    }
+}
+
 /// Prints one line per changed item: its ID and `PATH:LINE`, separated by
 /// two spaces.
 pub(crate) fn written(written: &[Written]) {
