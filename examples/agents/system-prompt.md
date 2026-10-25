@@ -221,7 +221,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl edit ID` | open the item's note in the editor |
 | `srl drafts` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |
-| `srl review ID --rating N` | record a rating; a frontend sends it as JSON with `--stdin` |
+| `srl review ID --rating N` | record a rating |
 | `srl suspend SEL` / `srl unsuspend SEL` | stop / resume studying cards |
 | `srl reset SEL` | make cards new again |
 | `srl stats [SEL]` | counts per state, retention |

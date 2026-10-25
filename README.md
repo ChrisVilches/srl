@@ -65,7 +65,7 @@ cd ~/notes
 $EDITOR rust/ownership.md # write an item: <!-- srl -->, then Q: and A: lines
 srl id                    # give new items their IDs
 srl next                  # the next card to study (frontends use srl next --json)
-srl review ID --rating 3  # rate it: 1 Again, 2 Hard, 3 Good, 4 Easy (frontends use --stdin)
+srl review ID --rating 3  # rate it: 1 Again, 2 Hard, 3 Good, 4 Easy
 srl stats                 # what's new, due, young, mature
 ```
 
