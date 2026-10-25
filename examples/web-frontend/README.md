@@ -35,8 +35,8 @@ as how `ja_word` marks words, without studying:
   shows it as studying does: the prompt, or, turned, the revealed prompt,
   the answer and the context. The JSON side shows the card as `srl cards
   --json` prints it.
-- A kind program can take a while (one that asks an LLM, say): the page
-  says so and counts the seconds. A card is made once it has stayed chosen
+- A kind program can take a while: the page counts the seconds while it
+  runs. A card is made once it has stayed chosen
   for a moment, so moving through the list makes no card on the way, and
   choosing another card stops the one being made (see "How it works").
 - Each card is made once and kept; **Make again** (`r`) runs its kind

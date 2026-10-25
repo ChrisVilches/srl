@@ -321,8 +321,8 @@ function Preview({
   );
 }
 
-// A card being made, with how long it has taken so far: a kind program that
-// asks an LLM, say, can take a while.
+// A card being made, with how long it has taken so far: a kind program can
+// take a while.
 function Making({ kind, since }: { kind: string; since: number }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -340,8 +340,7 @@ function Making({ kind, since }: { kind: string; since: number }) {
           'srl cards is making it.'
         ) : (
           <>
-            srl cards is running the kind program <code className="font-mono">{kind}</code>. One that asks an LLM can
-            take a while. Choosing another card stops it.
+            srl cards is running the kind program <code className="font-mono">{kind}</code>.
           </>
         )}
       </p>
