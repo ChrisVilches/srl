@@ -29,7 +29,7 @@ crates/
     src/stats.rs          cli.md, "Analysis": `srl stats`
     src/config.rs         store.md, "Configuration"; the study day
     src/card.rs           cards.md: the card format and card IDs
-    src/kind.rs           cards.md, "Kinds": the `qa` kind, and which kind an item has
+    src/kind.rs           cards.md, "Kinds": the `qa` kind, which kind an item has, describing kinds
     src/kind/program.rs   cards.md, "Kind programs": running them, checking what they print
     src/kind/cloze.rs     cards.md, "Cloze deletions"
     src/log.rs            log.md: reading and appending events
@@ -291,7 +291,8 @@ Write tests for every module that has logic, which is nearly all of
   codes, standard output and standard error.
 - **Kind programs are tested with `srl-test-kind`**, a small Rust program
   whose behaviour is set by the fields of the item it gets (its cards and
-  groups, failures, slowness, invalid output; see its `main.rs`). It needs
+  groups, failures, slowness, invalid output; see its `main.rs`), and, for
+  `describe`, which has no item, by an argument before the call. It needs
   no interpreter, so the tests run the same on every platform. Tests find
   it next to their own binary, where `cargo test --workspace` builds it;
   with `cargo test -p srl` alone it isn't built, and those tests say so.

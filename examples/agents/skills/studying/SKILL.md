@@ -32,7 +32,9 @@ as it is given.
 `srl-web` also has a Browse tab, which lists the cards of a selector and
 shows any of them as studying would, recording nothing: for seeing how a
 card looks, such as one of a kind program, without waiting for it to be
-due.
+due. Its Add tab writes items one at a time into a note the person picks,
+for a person who prefers a form to editing notes (see the writing-items
+skill for what an item holds).
 
 Both are meant for Linux, macOS and Windows, but are tried on Linux only;
 their READMEs say what may differ elsewhere. In `srl-tui` on Windows, the

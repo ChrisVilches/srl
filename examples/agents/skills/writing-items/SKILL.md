@@ -42,7 +42,7 @@ Header entries, in any order, each at most once:
 | `id:ID` | The item's ID. `srl id` adds it; lowercase letters and digits. |
 | `draft` | Not studied until `srl accept`. |
 | `see:PATH` | The note shown as context, instead of the item's own note. Must be a note of the store. Quote paths with spaces: `see:"my notes/a b.md"`. |
-| `kind:NAME` | The kind. `qa` is the default; any other is a kind program named in `[kinds]` of `.srl/config.toml`, whose fields are its own. |
+| `kind:NAME` | The kind. `qa` is the default; any other is a kind program named in `[kinds]` of `.srl/config.toml`, whose fields are its own. `srl kinds` describes every kind and its fields. |
 
 An item without an ID is an error for every command except `srl id`, which
 fixes it. Two items with the same ID (usually a copied item) is an error:
@@ -136,9 +136,12 @@ key is a field, and its value the field's text. A newline in a value (`\n`
 in JSON) becomes a continuation line.
 `NOTE` is relative to the store's folder, must be a note (by default, end
 in `.md`; see `include` in `.srl/config.toml`), and is created
-with its folders if it doesn't exist. Items are appended at the end, each
-gets a new ID, and the IDs are printed. Every line is checked first: one
-bad line and nothing is added.
+with its folders if it doesn't exist. `srl notes` lists the notes, also
+those without items, for `NOTE` and `"see"`. Items are appended at the
+end, each gets a new ID, and the IDs are printed. Every line is checked
+first, by the same rules as reading notes, kind programs included: one
+bad line and nothing is added. So `--dry-run` is the way to know whether
+an item is valid; `srl kinds` only describes the fields.
 
 ```sh
 srl add generated/rust.md --stdin <<'JSONL'
