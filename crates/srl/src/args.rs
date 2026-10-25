@@ -154,7 +154,14 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Print the next card. Exits with 1 if there is none.
+    /// Give a frontend the next card to show (with --json). Exits with 1 if there is none.
+    ///
+    /// With `srl review`, this is the frontend contract: a frontend runs
+    /// `srl next --json` to get the card, with its state, its item's kind and
+    /// note, and the context to show after the answer; shows it; and records
+    /// the person's rating with `srl review`. srl itself never shows cards
+    /// interactively. Without --json, the card is printed for people, as
+    /// `srl cards` prints it.
     Next {
         #[command(flatten)]
         selector: Selector,
@@ -163,7 +170,11 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Record a review, from JSON on standard input or for cards by ID.
+    /// Record a review, as a frontend does after `srl next --json`, or for cards by ID.
+    ///
+    /// With `srl next`, this is the frontend contract: a frontend sends the
+    /// rating of the card `srl next --json` gave as JSON on standard input.
+    /// Scripts and agents may also rate cards by ID with --rating.
     Review(ReviewArgs),
     /// Make matching cards new again.
     Reset {
