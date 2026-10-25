@@ -293,21 +293,20 @@ impl Notes {
         cards: &[(&Item, &CardId)],
         day: Date,
     ) -> Result<Vec<Card>> {
-        let contexts = cards
-            .iter()
-            .map(|(item, _)| match item.kind {
-                Kind::Qa => Ok(None),
-                Kind::Program(_) => context(store, item, ContextMode::Prose),
-            })
-            .collect::<Result<Vec<_>>>()?;
+        // Only kind programs get the context, read once for each item.
+        let mut contexts = HashMap::new();
+        for (item, _) in cards {
+            if matches!(item.kind, Kind::Program(_)) && !contexts.contains_key(&item.id) {
+                contexts.insert(&item.id, context(store, item, ContextMode::Prose)?);
+            }
+        }
         let wanted = cards
             .iter()
-            .zip(&contexts)
-            .map(|((item, card), context)| ToMake {
+            .map(|(item, card)| ToMake {
                 card,
                 kind: &item.kind,
                 fields: &item.fields,
-                context: context.as_deref(),
+                context: contexts.get(&item.id).and_then(Option::as_deref),
             })
             .collect::<Vec<_>>();
         crate::kind::make(&wanted, &self.programs, day)
@@ -430,18 +429,10 @@ fn check_items(written: Vec<Item>, programs: &Programs) -> (Vec<Item>, Vec<Error
 /// they are read, keeping the order of problems about the same line;
 /// problems about no note come last.
 fn in_place_order(problems: &mut [Error]) {
-    problems.sort_by_cached_key(|problem| {
-        problem
-            .place()
-            .map(|(path, line)| (nfc(path), path.to_owned(), line))
+    problems.sort_by_cached_key(|problem| match problem.place() {
+        Some((path, line)) => (false, nfc(path), path.to_owned(), line),
+        None => (true, String::new(), String::new(), 0),
     });
-    // `None` sorts first; problems about no note go last.
-    problems.rotate_left(
-        problems
-            .iter()
-            .take_while(|problem| problem.place().is_none())
-            .count(),
-    );
 }
 
 /// The items of the note at `path` whose text is `text`, as written, before

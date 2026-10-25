@@ -671,6 +671,32 @@ mod tests {
     }
 
     #[test]
+    fn problems_come_by_note_and_line_and_failing_programs_last() {
+        let (_tmp, _store, notes) = store_with(
+            &config("broken = ['srl-no-such-program-anywhere']\n"),
+            &[
+                (
+                    "a.md",
+                    "<!-- srl id:aaa kind:fake -->\nINVALID: in a\n\n<!-- srl id:aab kind:broken -->\nX: y\n\n<!-- srl -->\nQ: no id\nA: a\n",
+                ),
+                ("b.md", "<!-- srl id:bbb kind:fake -->\nINVALID: in b\n"),
+            ],
+        );
+        let problems = problems(&notes);
+        assert_eq!(problems.len(), 4, "{problems:?}");
+        assert_eq!(problems[0], "a.md:1: in a");
+        assert!(
+            problems[1].starts_with("a.md:7: this item has no ID"),
+            "{problems:?}"
+        );
+        assert_eq!(problems[2], "b.md:1: in b");
+        assert!(
+            problems[3].contains("cannot find the program `srl-no-such-program-anywhere`"),
+            "{problems:?}"
+        );
+    }
+
+    #[test]
     fn a_failing_call_is_a_problem_of_the_program_not_of_its_items() {
         for field in [
             "BREAK_VALIDATE: on purpose",

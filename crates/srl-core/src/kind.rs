@@ -95,10 +95,14 @@ pub(crate) fn check(items: &[Asked<'_>], programs: &Programs) -> (Vec<Option<Ans
                 continue;
             }
         };
+        // The items `validate` accepted: their places and IDs, and their
+        // inputs, for `groups`.
         let mut valid = Vec::new();
+        let mut valid_inputs = Vec::new();
         for (((at, asked), input), reasons) in asked.into_iter().zip(inputs).zip(verdicts) {
             if reasons.is_empty() {
-                valid.push((at, asked.id, input));
+                valid.push((at, asked.id));
+                valid_inputs.push(input);
             } else {
                 set(&mut answers, at, Answer::Invalid(reasons));
             }
@@ -106,14 +110,10 @@ pub(crate) fn check(items: &[Asked<'_>], programs: &Programs) -> (Vec<Option<Ans
         if valid.is_empty() {
             continue;
         }
-        let ids = valid.iter().map(|&(_, id, _)| id).collect::<Vec<_>>();
-        let inputs = valid
-            .iter()
-            .map(|(_, _, input)| input.clone())
-            .collect::<Vec<_>>();
-        match programs.groups(name, &ids, &inputs) {
+        let ids = valid.iter().map(|&(_, id)| id).collect::<Vec<_>>();
+        match programs.groups(name, &ids, &valid_inputs) {
             Ok(groups) => {
-                for ((at, _, _), groups) in valid.into_iter().zip(groups) {
+                for ((at, _), groups) in valid.into_iter().zip(groups) {
                     let answer = match groups {
                         Ok(groups) => Answer::Cards(groups),
                         Err(reason) => Answer::Invalid(vec![reason]),

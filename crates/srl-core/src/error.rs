@@ -171,12 +171,8 @@ impl Error {
         move |source| Self::Io { path, source }
     }
 
-    /// Whether this is a problem in a note (see `docs/notes.md`, "Errors").
-    pub fn is_in_note(&self) -> bool {
-        matches!(self, Self::Note { .. } | Self::MissingId { .. })
-    }
-
-    /// The note and line a problem in a note is about.
+    /// The note and line a problem in a note is about (see
+    /// `docs/notes.md`, "Errors").
     pub(crate) fn place(&self) -> Option<(&str, usize)> {
         if let Self::Note { path, line, .. } | Self::MissingId { path, line } = self {
             Some((path.as_str(), *line))

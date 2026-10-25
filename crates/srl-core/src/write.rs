@@ -339,14 +339,17 @@ fn refuse_problems(notes: &Notes, missing_ids: bool) -> Result<()> {
 /// them. The first problem is an error about its line, unless it is a kind
 /// program failing as a whole, which is no line's fault.
 fn check_added(path: &str, items: &[String], lines: &[usize], notes: &Notes) -> Result<()> {
-    // The items as `srl add` appends them, and the line each starts at.
+    // The items as `srl add` appends them, a blank line between two, and
+    // the line each starts at.
     let mut starts = Vec::new();
     let mut text = String::new();
+    let mut next = 1;
     for item in items {
         if !text.is_empty() {
             text.push('\n');
         }
-        starts.push(text.lines().count() + 1);
+        starts.push(next);
+        next += item.lines().count() + 1;
         text.push_str(item);
         text.push('\n');
     }
