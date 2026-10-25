@@ -269,6 +269,19 @@ When a call fails:
   [rationale.md](rationale.md), "Why a card that can't be made stops
   studying").
 
+> **TODO (design):** `ids` has two jobs, and its name says only one.
+> Besides giving the item's card IDs, it is the only place a kind program
+> checks an item's fields: srl knows nothing of a program's fields, so an
+> item the program can't use is an error only if `ids` fails on it (this
+> is what makes `srl check` and `srl add --dry-run` find a missing or
+> misspelled field). Nothing in the call's name, nor in its row of the
+> table above, says that it must check, so a program that only computes
+> IDs, and accepts any fields, is easy to write by mistake: its broken
+> items then pass every check and fail only in `card`, when studying. One
+> call doing two unrelated things, one of them implicit, is a code smell.
+> Whether to rename the call, split checking into a call of its own, or
+> only say it louder here is undecided.
+
 `srl cards` calls `card` for every card it prints, so a kind whose
 content differs every time gives a new card each time: what `srl cards`
 prints is one card the kind could give, not the one `srl next` will show.
