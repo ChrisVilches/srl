@@ -34,6 +34,10 @@ Tried on Arch Linux only.
   都 above, gives one card, with every braced occurrence highlighted:
   `東京==都==は、日本の関東地方に位置する==都==`. The same word
   without braces is not highlighted, so 都 in 京都 is left alone.
+- **Highlights that touch get a space between them.** `{都}{都}` would
+  give `==都====都==`, which most Markdown renderers don't show as two
+  highlights, so the card shows `==都== ==都==`: a space the sentence
+  doesn't have, but each word stays visible on its own.
 - **No siblings.** Each card is a group of its own, so on the same day
   you can see every word of a sentence.
 - **The card suffix is the word's UTF-8 bytes in hex**: 都 gives
@@ -118,7 +122,7 @@ They are in `test_ja_words.py`, in three classes:
   depend on where the word is, spaces around a word and combining marks
   not making another card, and every invalid `TEXT` or field.
 - `Card`: which occurrences are highlighted, spaces staying outside the
-  highlight, the card having no
+  highlight, a space between highlights that touch, the card having no
   `prompt_revealed`, the answer being the analysis
   of the whole sentence, and how each token becomes a line. They give the
   program a made-up MeCab output, so they don't need MeCab.

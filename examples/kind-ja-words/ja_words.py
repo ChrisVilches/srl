@@ -105,25 +105,20 @@ def card(item, analyze=None):
     words = [piece[1] for piece in found if isinstance(piece, tuple)]
     if not any(suffix(word) == item["suffix"] for word in words):
         raise KindError(f"no `{{word}}` in {FIELD} has the suffix {item['suffix']}")
-    # NOTE: the same word twice in a row, `{都}{都}`, gives `==都====都==`,
-    # which most Markdown renderers don't show as two highlights. Left as is
-    # for this proof of concept. Ways to fix it:
-    # - Separate the marks while building the string: when a highlight ends
-    #   right where the next begins, put a space between them, giving
-    #   `==都== ==都==`. Hacky, and it adds a space that isn't in the
-    #   sentence, but it works.
-    # - Always wrap the word in a marker that isolates it, such as
-    #   `==[都]==`. A hardcoded decoration on every card, not only on the
-    #   ones that need it; and `==[…]==` is also how a qa cloze shows its
-    #   blank, so it could read as a hidden word.
-    # - Merge highlights in a row into one, `==都都==`: adds nothing to the
-    #   sentence, but no longer shows where one word ends.
-    prompt = "".join(
-        piece if not isinstance(piece, tuple)
-        else f"=={piece[1]}==" if suffix(piece[1]) == item["suffix"]
-        else piece[1]
-        for piece in found
-    )
+    # The same word twice in a row, `{都}{都}`, would give `==都====都==`,
+    # which most Markdown renderers don't show as two highlights. A space
+    # goes between highlights that touch, giving `==都== ==都==`: a
+    # heuristic that adds a space the sentence doesn't have, but shows
+    # where each word ends. Merging them, `==都都==`, would hide that.
+    prompt = ""
+    highlighted = False
+    for piece in found:
+        if isinstance(piece, tuple) and suffix(piece[1]) == item["suffix"]:
+            prompt += (" " if highlighted else "") + f"=={piece[1]}=="
+            highlighted = True
+        else:
+            prompt += piece if not isinstance(piece, tuple) else piece[1]
+            highlighted = False
     plain = "".join(piece if not isinstance(piece, tuple) else piece[1] for piece in found)
     return {
         "prompt": prompt,

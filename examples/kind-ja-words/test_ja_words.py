@@ -88,6 +88,14 @@ class Card(unittest.TestCase):
         made = card(item("東京{ 都 }は", "e983bd"), self.analyze)
         self.assertEqual(made["prompt"], "東京 ==都== は")
 
+    def test_highlights_that_touch_are_separated_by_a_space(self):
+        made = card(item("{都}{都}は", "e983bd"), self.analyze)
+        self.assertEqual(made["prompt"], "==都== ==都==は")
+
+    def test_a_highlight_next_to_another_word_gets_no_space(self):
+        made = card(item("{東京}{都}", "e983bd"), self.analyze)
+        self.assertEqual(made["prompt"], "東京==都==")
+
     def test_both_forms_of_a_word_with_combining_marks_are_highlighted(self):
         made = card(item("{が}と{が}", "e3818c"), self.analyze)
         self.assertEqual(made["prompt"], "==が==と==が==")
