@@ -37,7 +37,9 @@ Ideas that would change `srl` itself are in [ideas.md](../ideas.md).
 ### Questions written by an LLM
 
 A kind program (see [cards.md](../cards.md), "Kind programs") whose card
-is written anew by an LLM every time it is shown:
+is written anew by an LLM every time it is shown.
+[examples/kind-llm-generated/](../../examples/kind-llm-generated/) is
+one:
 
 ```markdown
 <!-- srl id:q8w2e5 kind:llm-generated -->
