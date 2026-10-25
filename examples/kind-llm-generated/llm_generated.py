@@ -7,8 +7,9 @@ A proof of concept of a kind program whose content differs every time
 store's .srl/config.toml, or call it by hand (see README.md).
 
 Calls OpenAI's Responses API over HTTP with Python's standard library;
-no Python packages. Needs the API key in OPENAI_API_KEY. Meant for
-Linux, macOS and Windows; tried on Linux only.
+no Python packages. Needs the API key in OPENAI_API_KEY. Logs every
+call to llm_generated.log in the temporary folder. Meant for Linux,
+macOS and Windows; tried on Linux only.
 
     python3 llm_generated.py ids  < item.json
     python3 llm_generated.py card < item-with-suffix.json
@@ -17,12 +18,18 @@ Linux, macOS and Windows; tried on Linux only.
 import json
 import os
 import sys
+import tempfile
+import time
 import urllib.error
 import urllib.request
+from datetime import datetime
+from pathlib import Path
 
 FIELD = "PROMPT"
 MODEL = "gpt-6-luna"
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
+# Every API call, one JSON line each (see README.md, "The log").
+LOG_FILE = Path(tempfile.gettempdir()) / f"{Path(__file__).stem}.log"
 
 INSTRUCTIONS = """\
 You write one flashcard for a spaced repetition system. The user says what
@@ -77,13 +84,53 @@ def ids(item):
     return {"groups": [{"cards": [None]}]}
 
 
-def card(item, ask=None):
+def card(item, ask=None, log_file=LOG_FILE):
     """The output of `card`: a question and answer the LLM writes for the
     item's PROMPT, with the item's note as background. There is no
-    `prompt_revealed`: nothing is hidden. `ask` stands in for the API in
-    tests."""
-    made = (ask or responses)(request_text(topic_of(item), item.get("context")))
+    `prompt_revealed`: nothing is hidden. Every call to the API, failed or
+    not, is a line of `log_file`. `ask` stands in for the API in tests: it
+    gets the request's text and gives the response."""
+    text = request_text(topic_of(item), item.get("context"))
+    if ask is None:
+        key = api_key()
+        ask = lambda text: responses(text, key)
+    entry = {
+        "t": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "item": item["id"],
+        "day": item.get("day"),
+        "model": MODEL,
+        "input": text,
+        "question": None,
+        "answer": None,
+        "usage": None,
+        "response_id": None,
+        "seconds": None,
+        "error": None,
+    }
+    started = time.monotonic()
+    try:
+        response = ask(text)
+        entry["usage"] = response.get("usage")
+        entry["response_id"] = response.get("id")
+        made = parse(response)
+        entry["question"] = made["prompt"]
+        entry["answer"] = made["answer"]
+    except KindError as error:
+        entry["error"] = str(error)
+        raise
+    finally:
+        entry["seconds"] = round(time.monotonic() - started, 3)
+        log(log_file, entry)
     return {"prompt": made["prompt"], "answer": made["answer"]}
+
+
+def log(log_file, entry):
+    """Appends the entry to the log as one JSON line."""
+    try:
+        with open(log_file, "a", encoding="utf-8") as file:
+            file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError as error:
+        raise KindError(f"cannot write the log {log_file}: {error}") from None
 
 
 def request_text(topic, context):
@@ -93,18 +140,23 @@ def request_text(topic, context):
     return f"{topic}\n\nThe note this card is in, as background:\n\n{context}"
 
 
-def responses(topic):
-    """The {"prompt", "answer"} the Responses API gives for the request.
-    Every failure is a KindError with all the API said, since nothing can
-    be done about it here."""
+def api_key():
+    """The OpenAI API key, from OPENAI_API_KEY."""
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
         raise KindError("OPENAI_API_KEY is not set; set it to your OpenAI API key")
+    return key
+
+
+def responses(text, key):
+    """The response of the Responses API to the request. Every failure is
+    a KindError with all the API said, since nothing can be done about it
+    here."""
     base = os.environ.get("OPENAI_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
     body = {
         "model": MODEL,
         "instructions": INSTRUCTIONS,
-        "input": topic,
+        "input": text,
         "text": {"format": {"type": "json_schema", "name": "card", "schema": SCHEMA, "strict": True}},
     }
     request = urllib.request.Request(
@@ -122,7 +174,7 @@ def responses(topic):
         raise KindError(f"the OpenAI API answered {error.code} {error.reason}: {details}") from None
     except urllib.error.URLError as error:
         raise KindError(f"the OpenAI API could not be reached at {base}: {error.reason}") from None
-    return parse(response)
+    return response
 
 
 def parse(response):

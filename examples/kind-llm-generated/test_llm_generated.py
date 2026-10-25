@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -44,15 +45,25 @@ class Ids(unittest.TestCase):
 
 
 class Card(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.log_file = Path(folder.name) / "llm_generated.log"
+
+    def logged(self):
+        if not self.log_file.exists():
+            return []
+        return [json.loads(line) for line in self.log_file.read_text("utf-8").splitlines()]
+
     def test_the_card_is_what_the_model_wrote_for_the_prompt(self):
         asked = []
 
-        def ask(topic):
-            asked.append(topic)
-            return {"prompt": "What is V when I = 2 A and R = 3 Ω?", "answer": "6 V"}
+        def ask(text):
+            asked.append(text)
+            return response('{"prompt": "What is V when I = 2 A and R = 3 Ω?", "answer": "6 V"}')
 
         self.assertEqual(
-            card(item(suffix=True), ask),
+            card(item(suffix=True), ask, self.log_file),
             {"prompt": "What is V when I = 2 A and R = 3 Ω?", "answer": "6 V"},
         )
         self.assertEqual(asked, [TOPIC])
@@ -60,22 +71,66 @@ class Card(unittest.TestCase):
     def test_the_note_is_sent_after_the_prompt(self):
         asked = []
 
-        def ask(topic):
-            asked.append(topic)
-            return {"prompt": "Q?", "answer": "A."}
+        def ask(text):
+            asked.append(text)
+            return response('{"prompt": "Q?", "answer": "A."}')
 
         given = item(suffix=True)
         given["context"] = "# Ohm's law\n\nV = IR.\n"
-        card(given, ask)
+        card(given, ask, self.log_file)
         self.assertTrue(asked[0].startswith(TOPIC + "\n\n"))
         self.assertTrue(asked[0].endswith("# Ohm's law\n\nV = IR.\n"))
 
-    def test_an_invalid_item_never_asks(self):
-        def ask(topic):
+    def test_an_invalid_item_never_asks_nor_logs(self):
+        def ask(text):
             raise AssertionError("asked")
 
         with self.assertRaises(KindError):
-            card({"id": "q4n8w2", "fields": {}, "suffix": None}, ask)
+            card({"id": "q4n8w2", "fields": {}, "suffix": None}, ask, self.log_file)
+        self.assertEqual(self.logged(), [])
+
+    def test_each_call_is_a_line_of_the_log(self):
+        def ask(text):
+            made = response('{"prompt": "Q?", "answer": "A."}')
+            made.update(id="resp_1", usage={"input_tokens": 10, "output_tokens": 5, "total_tokens": 15})
+            return made
+
+        card(item(suffix=True), ask, self.log_file)
+        card(item(suffix=True), ask, self.log_file)
+        entries = self.logged()
+        self.assertEqual(len(entries), 2)
+        entry = entries[0]
+        self.assertEqual(entry["item"], "q4n8w2")
+        self.assertEqual(entry["day"], "2026-10-27")
+        self.assertEqual(entry["input"], TOPIC)
+        self.assertEqual((entry["question"], entry["answer"]), ("Q?", "A."))
+        self.assertEqual(entry["usage"]["total_tokens"], 15)
+        self.assertEqual(entry["response_id"], "resp_1")
+        self.assertIsNone(entry["error"])
+        self.assertIsInstance(entry["seconds"], float)
+        self.assertRegex(entry["t"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$")
+
+    def test_a_failed_call_is_logged_with_its_error(self):
+        def ask(text):
+            raise KindError("the OpenAI API answered 500 Internal Server Error: {}")
+
+        with self.assertRaises(KindError):
+            card(item(suffix=True), ask, self.log_file)
+        [entry] = self.logged()
+        self.assertIn("500", entry["error"])
+        self.assertIsNone(entry["question"])
+
+    def test_a_response_that_cant_be_read_is_logged_with_its_usage(self):
+        def ask(text):
+            made = response("not json")
+            made["usage"] = {"total_tokens": 7}
+            return made
+
+        with self.assertRaises(KindError):
+            card(item(suffix=True), ask, self.log_file)
+        [entry] = self.logged()
+        self.assertIn("not JSON", entry["error"])
+        self.assertEqual(entry["usage"], {"total_tokens": 7})
 
 
 class Parse(unittest.TestCase):
@@ -119,9 +174,13 @@ class AsSrlRunsIt(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertEqual(json.loads(run.stdout), {"groups": [{"cards": [None]}]})
 
-    def test_card_without_a_key_fails_loudly(self):
-        env = {key: value for key, value in os.environ.items() if key != "OPENAI_API_KEY"}
-        run = self.run_call("card", item(suffix=True), env)
-        self.assertEqual(run.returncode, 1)
-        self.assertEqual(run.stdout, "")
-        self.assertIn("OPENAI_API_KEY", run.stderr)
+    def test_card_without_a_key_fails_loudly_and_logs_nothing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            env = {key: value for key, value in os.environ.items() if key != "OPENAI_API_KEY"}
+            # The temporary folder, on every platform.
+            env.update(TMPDIR=folder, TEMP=folder, TMP=folder)
+            run = self.run_call("card", item(suffix=True), env)
+            self.assertEqual(run.returncode, 1)
+            self.assertEqual(run.stdout, "")
+            self.assertIn("OPENAI_API_KEY", run.stderr)
+            self.assertEqual(os.listdir(folder), [])

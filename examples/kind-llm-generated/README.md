@@ -60,6 +60,56 @@ fixed or the card is suspended (see [docs/cards.md](../../docs/cards.md),
 after `kind_programs.card_timeout` seconds (60 by default). A call usually
 takes a few seconds.
 
+## The log
+
+Every call to the API is a line of `llm_generated.log` in the temporary
+folder (Python's `tempfile.gettempdir()`: `/tmp` on Linux,
+`%TEMP%` on Windows). The name is always the same, taken from the
+program's file name, so a copy renamed `other.py` logs to `other.log`.
+The log is for two things: checking that a question is only written when
+a card is about to be shown, and counting calls and tokens to know the
+cost.
+
+Each line is one JSON object:
+
+```json
+{"t": "2026-10-27T22:15:47+09:00", "item": "q4n8w2", "day": "2026-10-27",
+ "model": "gpt-6-luna", "input": "question about ohm law, …",
+ "question": "In circuit analysis, when can you use …", "answer": "Use …",
+ "usage": {"input_tokens": 277, "output_tokens": 269, "total_tokens": 546, …},
+ "response_id": "resp_05d2…", "seconds": 4.666, "error": null}
+```
+
+| Key | Meaning |
+|---|---|
+| `t` | When the call started, local time with its offset. |
+| `item` | The item's ID. |
+| `day` | The study day srl gave. |
+| `model` | The model asked. |
+| `input` | What was sent: `PROMPT`, then the note. The fixed instructions are not repeated. |
+| `question`, `answer` | The card the model wrote, or `null` if the call failed. |
+| `usage` | The token counts the API returned, as it returned them, or `null` if it returned none. |
+| `response_id` | The API's ID of the response, or `null`. |
+| `seconds` | How long the call took. |
+| `error` | Why the call failed, as printed on standard error, or `null`. |
+
+A failed call is logged too, since it may still cost something. What
+fails before any request is sent is not logged: an invalid item or a
+missing `OPENAI_API_KEY`. A call that srl stops after `card_timeout`
+isn't logged either, because the program is killed before it can write. If
+the log can't be written, `card` fails.
+
+Nothing deletes the log, and the temporary folder may be emptied when the
+computer restarts. For example:
+
+```sh
+L=$(python3 -c 'import tempfile; print(tempfile.gettempdir())')/llm_generated.log
+tail -f "$L"                                        # watch calls as they are made
+jq -s 'length' "$L"                                 # calls
+jq -s 'map(.usage.total_tokens // 0) | add' "$L"    # tokens
+jq -c 'select(.error) | {t, item, error}' "$L"      # failures
+```
+
 ## Running it
 
 Copy `llm_generated.py` into your store, for example to
@@ -105,9 +155,11 @@ They are in `test_llm_generated.py`:
 
 - `Ids`: one card with the item's ID, and every invalid item.
 - `Card`: the card is what the model wrote, the note is sent after
-  `PROMPT`, and an invalid item never reaches the API. A function stands
-  in for the API.
+  `PROMPT`, an invalid item never reaches the API, and what each call,
+  failed or not, writes to the log. A function stands in for the API, and
+  the log is written to a temporary folder of each test.
 - `Parse`: reading the structured output from a Responses API response,
   and every failure in one.
 - `AsSrlRunsIt`: runs the program with JSON on standard input, as srl
-  does: `ids`, and `card` failing loudly without `OPENAI_API_KEY`.
+  does: `ids`, and `card` failing loudly without `OPENAI_API_KEY`, and
+  logging nothing.
