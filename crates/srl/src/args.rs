@@ -99,7 +99,7 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Print cards by ID, as a frontend shows them (an item ID gives all of its cards).
+    /// Print cards by ID, as a frontend requires them (an item ID gives all of its cards).
     ///
     /// With --json, the cards are in the card format of `srl next --json`
     /// (the prompt, the revealed prompt and the answer), without the state,
@@ -161,7 +161,7 @@ pub(crate) enum Command {
     },
     /// Give a frontend the next card to show (with --json). Exits with 1 if there is none.
     ///
-    /// With --json, it maps the store to what a frontend shows: the card, in
+    /// With --json, it maps the store to what a frontend requires: the card, in
     /// the format of `srl cards --json`, with its state, its item's kind and
     /// note, and the context to show after the answer. srl itself never shows cards interactively. Without
     /// --json, the card is printed for people, as `srl cards` prints it.

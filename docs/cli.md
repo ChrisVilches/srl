@@ -7,7 +7,7 @@ Every command reads or changes the store's data: its notes and their
 items, the log and the configuration. One of them, `srl next --json`, is
 also the frontend contract: the mapping from that data to what a frontend
 shows (see [frontends.md](frontends.md)). `srl cards --json` prints cards
-in the same format, the one a frontend shows (see [cards.md](cards.md)),
+in the same format, the one a frontend requires (see [cards.md](cards.md)),
 without what `srl next --json` adds around them; frontends rely on
 `srl next` only. No command shows cards
 interactively or runs other programs for you, except `srl edit ID`, which
@@ -61,7 +61,7 @@ opens a note in your editor.
 |---|---|
 | `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by note path, line, then card ID): one line each with the card ID, `PATH:LINE` and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
-| `srl cards ID… [--json]` | Print cards by ID, as a frontend shows them: a card ID gives that card, an item ID all of its cards (see below). |
+| `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
 | `srl add NOTE --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
 | `srl edit ID` | Open the note of the item in the editor (see "Editing in the editor" below). |
 | `srl edit ID --stdin` | Replace the item's lines in its note with standard input, which must be exactly one item with the same ID. The rest of the note is unchanged. Prints nothing; with `--dry-run`, only checks the input. |
@@ -190,7 +190,7 @@ items it would write, as they would appear in the note, and writes nothing.
 
 | Command | Does |
 |---|---|
-| `srl next [SELECTOR] [--context MODE] [--json]` | Give a frontend the next card to show (see [scheduling.md](scheduling.md)): with `--json`, the card and what a frontend shows around it (see below); without, the card for people, in the format of `srl cards`. Exit 1 if there is none; exit 2 if the card it picks can't be made. |
+| `srl next [SELECTOR] [--context MODE] [--json]` | Give a frontend the next card to show (see [scheduling.md](scheduling.md)): with `--json`, the card and what a frontend requires around it (see below); without, the card for people, in the format of `srl cards`. Exit 1 if there is none; exit 2 if the card it picks can't be made. |
 | `srl review --stdin` | Record a review: `{"card": "k3m9q1-2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
 | `srl review ID… --rating N [--by agent]` | Record the same rating for each card. Prints nothing. |
 | `srl reset SELECTOR` | Make matching cards new again. Only cards that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
