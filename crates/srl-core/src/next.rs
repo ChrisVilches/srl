@@ -7,12 +7,14 @@ use jiff::civil::Date;
 
 use crate::{
     Card, CardId, Config, Item, ItemId, Memories, Notes, Result, Selector, State, Status, Store,
+    random,
 };
 
 /// The next card among those that match `selector`, made by its kind to
 /// be shown on the study day `day`, with its item, if there is one. One
-/// card is picked; if it can't be made, that is the error, and no other
-/// card is tried (see `docs/cli.md`, "Studying").
+/// card is picked, with `seed` choosing how many to skip; if it can't be
+/// made, that is the error, and no other card is tried (see `docs/cli.md`,
+/// "Studying").
 pub fn next<'a>(
     store: &Store,
     notes: &'a Notes,
@@ -20,8 +22,9 @@ pub fn next<'a>(
     selector: &Selector,
     config: &Config,
     day: Date,
+    seed: u64,
 ) -> Result<Option<(&'a Item, Card)>> {
-    let Some((item, card)) = pick(notes, memories, selector.clone(), config) else {
+    let Some((item, card)) = pick(notes, memories, selector.clone(), config, seed) else {
         return Ok(None);
     };
     Ok(Some((item, notes.make_card(store, item, card, day)?)))
@@ -32,13 +35,15 @@ pub fn next<'a>(
 ///
 /// Due cards come first, by due day and then card ID; then new cards, in
 /// the order they are written, if fewer than `new_per_day` cards had their
-/// first review today. The first of those that is its group's pick under
-/// the sibling rule is the one.
+/// first review today. Of those, the ones that are their group's pick
+/// under the sibling rule are the candidates, and the card is one of the
+/// first `max_skip + 1`, chosen uniformly from `seed`.
 fn pick<'a>(
     notes: &'a Notes,
     memories: &Memories,
     selector: Selector,
     config: &Config,
+    seed: u64,
 ) -> Option<(&'a Item, &'a CardId)> {
     let selector = selector.and_status(Status::Active);
     let limit = usize::try_from(config.schedule.new_per_day).expect("a u32 should fit in a usize");
@@ -63,10 +68,20 @@ fn pick<'a>(
     let new = eligible
         .iter()
         .filter(|(_, card)| memories.state(card) == State::New);
-    due.into_iter()
+    let window = usize::try_from(config.schedule.max_skip)
+        .expect("a u32 should fit in a usize")
+        .saturating_add(1);
+    let candidates = due
+        .into_iter()
         .chain(new)
-        .find(|(item, card)| is_pick(item, card))
-        .copied()
+        .filter(|(item, card)| is_pick(item, card))
+        .take(window)
+        .collect::<Vec<_>>();
+    let number = random::numbers(seed).next().expect("the numbers never end");
+    let len = u64::try_from(candidates.len()).expect("a usize should fit in a u64");
+    // No remainder when there are no candidates, and so no card.
+    let skip = usize::try_from(number.checked_rem(len)?).expect("it is less than a usize");
+    candidates.get(skip).map(|&&pick| pick)
 }
 
 /// The card each group of siblings offers today under the sibling rule,
@@ -142,17 +157,83 @@ mod tests {
 
     fn next_card(
         notes: &Notes,
-        entries: Vec<Entry>,
+        entries: &[Entry],
         config: &Config,
         selector: &str,
     ) -> Option<String> {
+        picked(notes, entries, config, selector, 0)
+    }
+
+    /// The card picked with `seed`.
+    fn picked(
+        notes: &Notes,
+        entries: &[Entry],
+        config: &Config,
+        selector: &str,
+        seed: u64,
+    ) -> Option<String> {
         let log = Log {
-            entries,
+            entries: entries.to_vec(),
             problems: Vec::new(),
         };
         let memories = Memories::replay(&log, config, DAY).unwrap();
         let selector = Selector::parse(selector, &Config::default()).unwrap();
-        pick(notes, &memories, selector, config).map(|(_, card)| card.to_string())
+        pick(notes, &memories, selector, config, seed).map(|(_, card)| card.to_string())
+    }
+
+    fn skipping(max_skip: u32) -> Config {
+        Config {
+            schedule: crate::config::Schedule {
+                max_skip,
+                ..crate::config::Schedule::default()
+            },
+            ..Config::default()
+        }
+    }
+
+    /// The cards picked with seeds 0 to 99, without repeats, sorted.
+    fn picks_over_seeds(
+        notes: &Notes,
+        entries: &[Entry],
+        config: &Config,
+        selector: &str,
+    ) -> Vec<String> {
+        let mut cards = (0..100)
+            .filter_map(|seed| picked(notes, entries, config, selector, seed))
+            .collect::<Vec<_>>();
+        cards.sort();
+        cards.dedup();
+        cards
+    }
+
+    #[test]
+    fn max_skip_picks_among_the_first_cards() {
+        let (_tmp, notes) = store();
+        // In order: aaa2 (due), then aaa1-1 (new, its group's pick); aaa1-2
+        // and aaa1-10 are its siblings, never candidates.
+        let entries = vec![reviewed("aaa2", date(2026, 10, 1), 3)];
+        assert_eq!(
+            picks_over_seeds(&notes, &entries, &skipping(0), ""),
+            ["aaa2"]
+        );
+        assert_eq!(
+            picks_over_seeds(&notes, &entries, &skipping(1), ""),
+            ["aaa1-1", "aaa2"]
+        );
+        // Fewer candidates than the window: the range shrinks to them.
+        assert_eq!(
+            picks_over_seeds(&notes, &entries, &skipping(5), ""),
+            ["aaa1-1", "aaa2"]
+        );
+    }
+
+    #[test]
+    fn max_skip_with_nothing_left_picks_nothing() {
+        let (_tmp, notes) = store();
+        assert_eq!(
+            picks_over_seeds(&notes, &[], &skipping(3), "id:aaa3"),
+            Vec::<String>::new()
+        );
     }
 
     fn store() -> (TempDir, Notes) {
@@ -169,13 +250,10 @@ mod tests {
     fn new_cards_come_in_written_order_and_drafts_never() {
         let (_tmp, notes) = store();
         assert_eq!(
-            next_card(&notes, Vec::new(), &Config::default(), "").as_deref(),
+            next_card(&notes, &[], &Config::default(), "").as_deref(),
             Some("aaa1-1")
         );
-        assert_eq!(
-            next_card(&notes, Vec::new(), &Config::default(), "id:aaa3"),
-            None
-        );
+        assert_eq!(next_card(&notes, &[], &Config::default(), "id:aaa3"), None);
     }
 
     #[test]
@@ -183,7 +261,7 @@ mod tests {
         let (_tmp, notes) = store();
         let entries = vec![reviewed("aaa2", date(2026, 10, 1), 3)];
         assert_eq!(
-            next_card(&notes, entries, &Config::default(), "").as_deref(),
+            next_card(&notes, &entries, &Config::default(), "").as_deref(),
             Some("aaa2")
         );
     }
@@ -193,12 +271,12 @@ mod tests {
         let (_tmp, notes) = store();
         let entries = vec![reviewed("aaa1-1", DAY, 3)];
         assert_eq!(
-            next_card(&notes, entries, &Config::default(), "").as_deref(),
+            next_card(&notes, &entries, &Config::default(), "").as_deref(),
             Some("aaa2")
         );
         let entries = vec![reviewed("aaa1-1", DAY, 3)];
         assert_eq!(
-            next_card(&notes, entries, &Config::default(), "id:aaa1"),
+            next_card(&notes, &entries, &Config::default(), "id:aaa1"),
             None
         );
     }
@@ -208,7 +286,7 @@ mod tests {
         let (_tmp, notes) = store();
         let entries = vec![reviewed("aaa1-1", date(2026, 10, 25), 3)];
         assert_eq!(
-            next_card(&notes, entries, &Config::default(), "id:aaa1").as_deref(),
+            next_card(&notes, &entries, &Config::default(), "id:aaa1").as_deref(),
             Some("aaa1-2")
         );
         let entries = vec![
@@ -216,7 +294,7 @@ mod tests {
             reviewed("aaa1-2", date(2026, 10, 25), 3),
         ];
         assert_eq!(
-            next_card(&notes, entries, &Config::default(), "id:aaa1").as_deref(),
+            next_card(&notes, &entries, &Config::default(), "id:aaa1").as_deref(),
             Some("aaa1-10")
         );
     }
@@ -231,7 +309,7 @@ mod tests {
             reviewed("aaa1-1", date(2026, 9, 3), 1),
         ];
         assert_eq!(
-            next_card(&notes, entries, &Config::default(), "id:aaa1").as_deref(),
+            next_card(&notes, &entries, &Config::default(), "id:aaa1").as_deref(),
             Some("aaa1-2")
         );
     }
@@ -244,7 +322,7 @@ mod tests {
             reviewed("aaa1-2", date(2026, 9, 2), 1),
         ];
         assert_eq!(
-            next_card(&notes, entries, &Config::default(), "id:aaa1").as_deref(),
+            next_card(&notes, &entries, &Config::default(), "id:aaa1").as_deref(),
             Some("aaa1-10")
         );
     }
@@ -260,6 +338,6 @@ mod tests {
             ..Config::default()
         };
         let entries = vec![reviewed("aaa2", DAY, 3)];
-        assert_eq!(next_card(&notes, entries, &config, ""), None);
+        assert_eq!(next_card(&notes, &entries, &config, ""), None);
     }
 }

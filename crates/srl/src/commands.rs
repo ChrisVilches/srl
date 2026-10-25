@@ -467,6 +467,7 @@ fn next(
         selector,
         &loaded.config,
         loaded.memories.today(),
+        getrandom::u64().context("cannot get random numbers to pick the next card")?,
     )?;
     let Some((item, card)) = next else {
         return Ok(Outcome::Nothing);

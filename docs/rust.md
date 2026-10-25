@@ -38,7 +38,7 @@ crates/
     src/next.rs           scheduling.md, "Choosing the next card" and "Siblings"
     src/selector.rs       selectors.md
     src/index.rs          store.md, "The index cache": `.srl/cache/index.sqlite`
-    src/random.rs         reproducible random numbers for new IDs
+    src/random.rs         reproducible random numbers for new IDs and `srl next`
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
     src/args.rs         clap definitions, no logic
@@ -344,7 +344,7 @@ Current dependencies:
 |---|---|---|
 | `clap` (derive) | `srl` | Argument parsing, help and usage errors |
 | `anyhow` | `srl` | Error type with context in the CLI |
-| `getrandom` | `srl` | The random seed for new item IDs (the core derives IDs from it) |
+| `getrandom` | `srl` | The random seeds for new item IDs and for `srl next`'s pick (the core derives both from them) |
 | `dirs` | `srl` | The platform's data directory, for the default store |
 | `which` | both | Finding the editor and kind programs on `PATH`, with `PATHEXT` on Windows |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |

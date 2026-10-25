@@ -516,6 +516,7 @@ mod tests {
             &Selector::parse("", &Config::default()).unwrap(),
             &config,
             day,
+            0,
         );
         assert!(matches!(next, Err(Error::CardFailed { card, .. }) if card == "abc-a"));
     }

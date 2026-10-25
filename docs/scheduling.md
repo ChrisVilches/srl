@@ -84,13 +84,25 @@ the study day fail and say so, rather than assume UTC.
 
 ## Choosing the next card: `srl next SELECTOR`
 
-`srl next` goes through the active cards matching the selector in this
-order, and prints the first that the sibling rule allows:
+`srl next` puts the active cards matching the selector in this order, and
+keeps those that the sibling rule allows:
 
 1. **Due cards**, ordered by due day (oldest first), then by card ID.
 2. **Then new cards**, if today's new-card limit is not reached: cards with
    no reviews since their last reset, in the order they are written: by
    note path, then by line, then by card ID.
+
+> **It picks one of the first `max_skip` + 1 of those, uniformly at
+> random.**
+
+`max_skip` (default 0) is set in the configuration (see
+[store.md](store.md), "Configuration"). At 0, `srl next` always prints the
+first card. At 3, it skips 0, 1, 2 or 3 cards, each as likely; when fewer
+than 4 cards are left, it picks uniformly among those left. The cards it
+skips are not set aside: `srl next` writes nothing, so they are still at
+the front of the order the next time, and each call picks afresh. Asking
+again without reviewing, such as by reloading a frontend, can give a
+different card.
 
 If no card qualifies, `srl next` prints nothing and exits with status 1.
 It picks one card only: if that card can't be made, `srl next` fails,

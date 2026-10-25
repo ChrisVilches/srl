@@ -37,6 +37,7 @@ pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is opt
 # desired_retention = 0.9    # FSRS target probability of recall
 # day_starts_at = 4          # hour (local time) when a new study day begins
 # new_per_day = 10           # new cards introduced per day, across all selectors
+# max_skip = 0               # srl next skips up to this many cards, at random
 # leech_lapses = 8           # a card with this many lapses is a leech
 # mature_days = 21           # a card with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent

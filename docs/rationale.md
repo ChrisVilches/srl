@@ -105,9 +105,10 @@ fixed.
 fails, instead of trying the next card. Going on would hide the failure
 behind a card that works: the broken card would quietly never be
 studied, and a frontend would have nothing to tell apart from success.
-`srl next` only reads, and gives the same answer until something changes,
-so getting past the card is a separate command you choose: fix what
-failed, or `srl suspend` the card.
+`srl next` only reads, so the broken card stays first, or among the first
+when `max_skip` lets it skip a few, until something changes. Getting past
+it is a separate command you choose: fix what failed, or `srl suspend` the
+card.
 
 Trade-off: one card that can't be made, for example while an LLM API is
 down, blocks studying until it is fixed or suspended. Tools to make that
@@ -143,6 +144,20 @@ not held back at all.
 
 Trade-off: when you change a cloze number or an item's kind, a card's
 history is orphaned until you move it with `srl move`. `srl` never guesses.
+
+## Why `srl next` may skip a few cards at random
+
+Always showing cards in the same order makes studying predictable: you
+learn what comes next, not only the answers. Picking uniformly among the
+first few cards breaks the pattern while keeping to the schedule, which
+only works in whole days anyway, so reordering the cards of one day costs
+nothing. Skipped cards are not set aside, since `srl next` writes nothing,
+so none can starve: the oldest stays among the first until it is shown.
+The sibling rule decides which cards are candidates before any skipping,
+so skipping can never show two siblings in a day.
+
+Trade-off: `srl next` no longer gives the same answer twice when
+`max_skip` is above 0; the default, 0, keeps it fixed.
 
 ## Why you always rate yourself
 

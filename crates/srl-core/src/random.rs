@@ -1,7 +1,8 @@
 //! Reproducible pseudo-random numbers.
 //!
-//! New IDs come from one seed that the caller gives, so that the core
-//! takes its inputs explicitly and its tests can repeat them. The generator
+//! New IDs, and the card `srl next` picks, come from a seed that the
+//! caller gives, so that the core takes its inputs explicitly and its
+//! tests can repeat them. The generator
 //! here is a small, fixed algorithm, so the same seed gives the same numbers
 //! on every platform and in every version.
 

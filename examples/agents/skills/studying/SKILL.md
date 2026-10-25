@@ -63,6 +63,10 @@ tomorrow, which is the point. Good is the normal answer, not a compromise.
    `new_per_day` (default 10) new cards were started today. The limit is
    for the whole store, not per selector.
 
+With `max_skip` above 0 in `.srl/config.toml` (default 0), it picks
+uniformly among the first `max_skip` + 1 of those, so the order is a
+little shuffled; skipped cards come back on later calls.
+
 Things that explain "why didn't my card show up?":
 
 - **Days, not minutes.** Every interval is at least one day; there are no

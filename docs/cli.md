@@ -212,8 +212,12 @@ specified in [frontends.md](frontends.md), "What a frontend gets". `--context MO
 its kind program fails (see [cards.md](cards.md), "Kind programs") or its
 note can't be read, `srl next` fails with the reason and exit 2, prints no
 card, and tries no other card in its place. It writes nothing, so it fails
-the same way every time until what failed is fixed, the card is suspended
-(`srl suspend id:ID`), or the study day changes and another card is picked.
+the same way every time it picks that card, until what failed is fixed, the
+card is suspended (`srl suspend id:ID`), or the study day changes and
+another card is picked. With `max_skip` above 0 (see
+[scheduling.md](scheduling.md), "Choosing the next card"), another call
+may pick another card, but the broken one stays among the first and keeps
+coming back.
 
 > **TODO (design):** being this strict can get in the way of studying,
 > as when an LLM API is down. Ways to make it less annoying without ever
