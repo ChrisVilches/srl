@@ -31,8 +31,22 @@ questions", once it is planned.
     when it is needed and isn't running; since it lives for some seconds,
     commands run one after another find it still there. It saves the
     start of a process (and of an interpreter, a dictionary or a model)
-    on every call. To be decided: how the program knows when to end (an
-    idle timeout of its own, or one `srl` tells it), where the folder is
+    on every call.
+
+    The program needn't manage any of this itself: a **supervisor**
+    that comes with `srl` can. `srl` starts the supervisor detached; the
+    supervisor starts the kind program as its child, holds the process ID
+    and the socket, passes each request it gets on the socket to the
+    child and its answers back, and, when no request has come for a
+    while, stops the child and ends itself. Ending, locking and cleaning
+    up are then written once, in the supervisor, not in every program,
+    and a program only has to answer requests as they come, over its
+    standard input and output, flushing each answer (as in the session
+    below), instead of reading to the end of its input. The supervisor
+    could be a hidden command of `srl` itself or a program of its own.
+
+    To be decided: how long the supervisor (or the program) waits before
+    ending, and whether a store can set it, where the folder is
     (under `.srl/`), how two `srl` commands starting it at once agree on
     one process (a lock on the folder, with `flock`), how `srl` notices a
     program that died or hangs and cleans up after it (a stale process ID
