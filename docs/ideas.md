@@ -23,37 +23,91 @@ questions", once it is planned.
   them"). Other ways could be offered beside it, each with the same four
   calls and the same answers, so that a program's author picks the one
   that suits it, and `[kinds]` says which one a kind uses. Candidates:
-  - **A program that keeps running for a while.** `srl` starts the
-    program detached the first time a command needs it, and talks to it
-    over a socket file in a folder of its own, with a file holding its
-    process ID: one process per kind at a time. The program ends by
-    itself after some time without requests, and `srl` starts it again
-    when it is needed and isn't running; since it lives for some seconds,
-    commands run one after another find it still there. It saves the
-    start of a process (and of an interpreter, a dictionary or a model)
-    on every call.
+  - **Kind programs served over HTTP, kept running by a daemon of the
+    store.** As Claude Code's hooks can be either a command or an HTTP
+    endpoint, a kind could be either a process per call, as today, or an
+    HTTP server that keeps running between calls. It saves the start of
+    a process (and of an interpreter, a dictionary or a model) on every
+    call. Claude Code keeps its servers alive because it runs for hours;
+    an `srl` command lasts a moment, so a **daemon** of the store keeps
+    them instead.
 
-    The program needn't manage any of this itself: a **supervisor**
-    that comes with `srl` can. `srl` starts the supervisor detached; the
-    supervisor starts the kind program as its child, holds the process ID
-    and the socket, passes each request it gets on the socket to the
-    child and its answers back, and, when no request has come for a
-    while, stops the child and ends itself. Ending, locking and cleaning
-    up are then written once, in the supervisor, not in every program,
-    and a program only has to answer requests as they come, over its
-    standard input and output, flushing each answer (as in the session
-    below), instead of reading to the end of its input. The supervisor
-    could be a hidden command of `srl` itself or a program of its own.
+    - **Choosing HTTP.** A kind's entry in `[kinds]` says that it is
+      served over HTTP, for example as a table beside today's list,
+      `[kinds.ja-words]` with `command = [...]` and `http = true`. It is
+      easy to check: the daemon starts the program and asks it for
+      `describe`; a program that doesn't answer in time, or exits, doesn't
+      support it, and that is an error about the kind, like any program
+      that fails (see [cards.md](cards.md), "How srl calls them"). `srl
+      kinds` could show how each kind is called. There is no quiet
+      fallback to a process per call: a kind is called one way.
+    - **The same four calls.** Each call is a request,
+      `POST /describe`, `/validate`, `/groups` or `/make`, whose body is
+      the same JSONL as on standard input today, and whose answer is the
+      same JSONL; status 200 means every line was answered, any other
+      status is a failure of the whole call, with its body as the reason.
+      So a program can serve both ways with the same functions, and every
+      rule of the calls (batches, one line per input, `groups` only for
+      what `validate` accepted, the context only for `make`) is unchanged.
+    - **The daemon.** It is `srl` itself, as a hidden command such as
+      `srl daemon`, so `srl` still runs no program but its own and your
+      kind programs. A command that needs an HTTP kind and finds no
+      daemon for its store starts one, detached, and waits until it
+      answers. The daemon listens on `127.0.0.1`, on the store's port
+      (set in the configuration, for example `[daemon] port`, since each
+      store has its own `[kinds]`), and passes each request to the kind's
+      server, which it starts on the first request, on a port of its
+      choosing. It stops a server after a while without requests to it,
+      and ends itself once no server is running and no request has come
+      for a while (for example `[daemon] idle`, in seconds).
+    - **One daemon per store.** The daemon holds a lock on a file in
+      `.srl/daemon/` for as long as it runs (`flock`; `LockFileEx` on
+      Windows): a second daemon that can't take the lock ends at once, so
+      two commands that start one at the same moment end up with one,
+      and both wait for its port. The lock is the truth; a file with the
+      daemon's process ID is only for people and tools, since it can go
+      stale.
 
-    To be decided: how long the supervisor (or the program) waits before
-    ending, and whether a store can set it, where the folder is
-    (under `.srl/`), how two `srl` commands starting it at once agree on
-    one process (a lock on the folder, with `flock`), how `srl` notices a
-    program that died or hangs and cleans up after it (a stale process ID
-    or socket, zombie processes), and how a call is still a batch and
-    still has the same time limits. Sockets and file locks differ between
-    Linux, macOS and Windows (Unix sockets and `LockFileEx` on Windows),
-    so it needs a design for each.
+    To be decided, besides the names above:
+
+    - **The port.** A port set per store can clash: two stores given the
+      same port, or another program already on it, and `srl` would talk to
+      the wrong daemon. So the daemon would answer with the store it
+      serves, and `srl` would refuse any other; or the daemon would take
+      any free port and write it in `.srl/daemon/`, so that nothing needs
+      configuring.
+    - **Who may call it.** Any program on the computer can reach a port
+      on `127.0.0.1`, and so can a web page, through DNS rebinding (as
+      `srl-web` guards against). The daemon runs your programs, some of
+      which cost money (an LLM), so each request would carry a token
+      from a file in `.srl/daemon/` that only you can read, and the
+      daemon would refuse requests for another host.
+    - **Changes while it runs.** When `[kinds]` changes, or a program is
+      updated, a running server is stale. `srl` could send each request
+      with the kind's command, so that the daemon starts the server again
+      when it changed; a program updated in place can't be noticed that
+      way, so the idle time bounds how long a stale server lives, and a
+      command to stop the daemon (`srl daemon stop`) is wanted.
+    - **Time limits.** `make` keeps its limit, `card_timeout` per card,
+      and a server that runs out of it must be stopped, since it may
+      still be working. `validate` and `groups` have no limit today; a
+      server that hangs would hang every command, so they need one too.
+    - **State between requests.** A server that keeps running can keep
+      state, so card IDs could depend on earlier requests. The rule stays
+      the same (`groups` depends on the fields alone), but it becomes
+      easier to break by accident.
+    - **Detaching and cleaning up.** The daemon starts in a session of its
+      own (`setsid`; `DETACHED_PROCESS` on Windows), with its output in a
+      log in `.srl/daemon/`, waits for every server it started so none is
+      left a zombie, and stops them all when it ends; servers should also
+      die with it if it is killed (a process group, or a job object on
+      Windows). Each of these differs between Linux, macOS and Windows,
+      so it needs a design for each (see [rust.md](rust.md), "Platform
+      independence").
+    - **The store's layout.** `.srl/daemon/` is new, and, like the index
+      cache, belongs to one computer: it is left out of version control
+      and syncing (see [store.md](store.md), "Version control and
+      syncing").
   - **A session over standard input and output**, as language servers
     do: one process per command, asked line by line, answering each line
     before it reads the next. Saves a process per call, but a program that

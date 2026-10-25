@@ -58,7 +58,9 @@ note-taking app.
 - `srl` does not contain, call or assume an LLM.
 - `srl` is not a sync service or a multi-user system.
 - `srl` is not a frontend, and does not launch other programs for you. The
-  one exception is `srl edit ID`, which opens a note in your editor.
+  exceptions are `srl edit ID`, which opens a note in your editor, and
+  the kind programs you name in `.srl/config.toml`, which `srl` runs to
+  turn items into cards.
 
 ## Principles
 
@@ -261,8 +263,8 @@ Main design decisions still to take:
   batch each; a cache would make that faster without changing any result
   ([cards.md](cards.md), "How srl calls them").
 - **Other ways to talk to kind programs.** Today `srl` starts a process
-  for every call; other ways, chosen by a program's author, such as a
-  program that keeps running for a while, are wanted
+  for every call; other ways, chosen by a program's author, such as an
+  HTTP server kept running by a daemon of the store, are wanted
   ([cards.md](cards.md), "How srl calls them";
   [ideas.md](ideas.md), "Kind programs").
 - **Media in cards (audio, images) and furigana markup.** Today card text is

@@ -11,7 +11,9 @@ in the same format, the one a frontend requires (see [cards.md](cards.md)),
 without what `srl next --json` adds around them; frontends rely on
 `srl next` only. No command shows cards
 interactively or runs other programs for you, except `srl edit ID`, which
-opens a note in your editor.
+opens a note in your editor, and the kind programs of `[kinds]`, which
+every command that reads items runs (see [cards.md](cards.md), "Kind
+programs").
 
 ## Conventions
 

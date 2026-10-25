@@ -340,10 +340,10 @@ card the kind could give, not the one `srl next` will show.
 > **TODO (design):** starting a process for every call is **the only way
 > to talk to a kind program**. Other ways could be offered, for the
 > program's author to choose one in `[kinds]`, each with the same four
-> calls and the same answers; for example a program that stays running
-> for a while and is asked over a socket, so that it starts once instead
-> of once per call. Which ways, and how a store says which one a kind
-> uses, is undecided (see [ideas.md](ideas.md), "Kind programs").
+> calls and the same answers; for example an HTTP server that a daemon
+> of the store keeps running for a while, so that a program starts once
+> instead of once per call. Which ways, and how a store says which one a
+> kind uses, is undecided (see [ideas.md](ideas.md), "Kind programs").
 
 ### Describing a kind
 
