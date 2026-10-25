@@ -89,7 +89,9 @@ def ids(item):
 def card(item, analyze=None):
     """The output of `card`: the sentence with every {…} of the card's
     word highlighted, and the analysis of the whole sentence as the
-    answer. `analyze` stands in for MeCab in tests."""
+    answer. Nothing is hidden, so there is no `prompt_revealed`: the
+    sentence is shown as it is with the answer. `analyze` stands in for
+    MeCab in tests."""
     found = text_of(item)
     words = [piece[1] for piece in found if isinstance(piece, tuple)]
     chosen = next((word for word in words if suffix(word) == item["suffix"]), None)

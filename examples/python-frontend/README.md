@@ -16,7 +16,9 @@ screen needs a modern terminal such as Windows Terminal.
 - Card text and context are rendered as Markdown by Rich (CommonMark plus
   GFM tables and strikethrough), with `==highlights==` in bold yellow.
 - Showing the answer turns the question into its revealed prompt, with a
-  cloze's blanks filled in, and adds the answer below it when there is one.
+  cloze's blanks filled in (or leaves it as it is when the card has none,
+  `prompt_revealed` being `null`), and adds the answer below it when there
+  is one.
 - The context is shown under the answer, titled with its note (`see`, or
   else `path`). It asks for the `prose` context: the note without its
   items.

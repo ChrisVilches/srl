@@ -96,7 +96,9 @@ impl fmt::Display for CardId {
 
 /// One question, ready to show (see `docs/cards.md`, "Format"). Any
 /// combination of fields is a valid card, so kinds build it by field name,
-/// which keeps `prompt` and `prompt_revealed` from being swapped.
+/// which keeps `prompt` and `prompt_revealed` from being swapped. Only
+/// `prompt` always exists: `None` is the revealed prompt being `prompt`
+/// itself, or there being no answer.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Card {
     pub(crate) id: CardId,

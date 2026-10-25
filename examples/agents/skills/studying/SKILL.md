@@ -93,9 +93,9 @@ yours. Only run one when the person asks for it. Each round:
 2. Show the prompt, and wait for the person's answer or for them to ask for
    the answer.
 3. Show the answer: `prompt_revealed` (the prompt with a cloze's blanks
-   filled in), or `prompt` again when it is `null`, then `answer` (`null` when there is none: the revealed
-   prompt is the whole answer), then the context (`null` when there is
-   none). Say which note it comes from: `see`, or `path` when `see` is
+   filled in), or `prompt` again when it is `null`; then `answer`, unless
+   it is `null` (there is none: show nothing for it); then the context,
+   unless it is `null`. Say which note it comes from: `see`, or `path` when `see` is
    `null`.
 4. Get the rating. Either the person gives it, or, if they asked you to
    judge, you compare their answer with the card's and decide, telling them

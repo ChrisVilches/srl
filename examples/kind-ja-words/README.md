@@ -12,7 +12,10 @@ Each distinct word in braces is a card. The card shows the whole sentence
 with that word highlighted, not hidden: you say the word to yourself, look
 at the answer, and rate yourself. The answer is the same for every card of
 the sentence: MeCab's analysis of it, one line per token, with its reading
-in hiragana, its part of speech and its base form.
+in hiragana, its part of speech and its base form. Since nothing is
+hidden, the card has no `prompt_revealed`: the sentence stays as it is
+when the answer is shown (see [docs/cards.md](../../docs/cards.md),
+"Format").
 
 It is a proof of concept of a kind program with several cards and no
 siblings (see [docs/cards.md](../../docs/cards.md), "Kind programs").
@@ -102,7 +105,8 @@ They are in `test_ja_words.py`, in three classes:
 - `Ids`: one card per distinct word, a repeated word giving one card,
   every card in a group of its own, the hex suffix and that it doesn't
   depend on where the word is, and every invalid `TEXT` or field.
-- `Card`: which occurrences are highlighted, the answer being the analysis
+- `Card`: which occurrences are highlighted, the card having no
+  `prompt_revealed`, the answer being the analysis
   of the whole sentence, and how each token becomes a line. They give the
   program a made-up MeCab output, so they don't need MeCab.
 - `WithMecab`: runs `ja_words.py` as `srl` would, with JSON on standard

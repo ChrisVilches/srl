@@ -25,6 +25,8 @@ would forget it.
   `<!-- srl -->` followed by fields `Q:` and `A:`. It has an ID.
 - A **card** is one question, ready to show: an ID, a prompt, the prompt as
   revealed with the answer (a cloze's blanks filled in), and an answer.
+  The last two may be `null`: the revealed prompt is then the prompt, and
+  there is no answer to show.
   An item gives one card, or one per cloze number if it has cloze deletions.
   Each card is scheduled on its own.
 - A **review** is one line in the log: this card was rated this way, at this
