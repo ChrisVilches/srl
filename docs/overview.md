@@ -253,8 +253,7 @@ Main design decisions still to take:
 
 - **Caching kind programs.** Today a kind program's `ids` call runs for
   every item of its kind on every command; a cache would make that faster
-  without changing any result. Whether a program could answer one call
-  instead of two is open too ([cards.md](cards.md), "Kind programs").
+  without changing any result ([cards.md](cards.md), "Kind programs").
 - **Media in cards (audio, images) and furigana markup.** Today card text is
   Markdown with `==highlight==` only ([cards.md](cards.md), "Text
   formatting").

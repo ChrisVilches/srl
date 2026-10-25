@@ -211,8 +211,13 @@ per `{word}` of a Japanese sentence.
 that reads items needs their card IDs: selectors, `srl find`, `srl
 check`, scheduling, the sibling rule. Only `srl next`, for the card it
 shows, and `srl cards` need a card's content. So a kind program answers
-two calls. Each reads one JSON object on standard input and prints one on
-standard output. A call that exits with a status other than 0 failed, and
+two calls, by design. IDs must be stable, since a card's history is kept
+under its ID, and are asked for all the time; content is asked for one
+card at a time, and may be slow to make (a program that asks an LLM to
+write the question) or differ every time. Kept apart, a command that only
+needs IDs never waits for content (see [rationale.md](rationale.md), "Why
+a kind program answers two calls"). Each call reads one JSON object on
+standard input and prints one on standard output. A call that exits with a status other than 0 failed, and
 what it printed on standard error is the reason.
 
 | Call | Input | Output | Rule |
@@ -276,13 +281,6 @@ prints is one card the kind could give, not the one `srl next` will show.
 > command, the program changing), is still to be analyzed. Notes
 > themselves are not cached either (see [store.md](store.md), "The index
 > cache").
-
-> **TODO (design):** the wish is a kind program with **one call**, not
-> two. It is not known yet whether that is possible: card IDs are needed
-> far more often than card content, and must be stable, while content
-> may differ every time. Getting there would need a restructuring of how
-> `srl` asks a kind for cards, for example around when IDs are computed
-> and cached. Until then, the two calls are the design known to work.
 
 ## Text formatting
 

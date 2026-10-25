@@ -165,12 +165,31 @@ that a new kind needs no change to `srl`, and is written in whatever
 language suits it. A kind only makes cards: it gives their IDs, in groups
 of siblings, and their content when asked. Everything else, scheduling
 included, is the same for every kind, so a program can't change how `srl`
-behaves, only what it shows. IDs and content are two calls because IDs
-are needed by nearly every command and content only when a card is shown,
-which lets a kind's content be slow or different every time.
+behaves, only what it shows.
 
 Trade-off: a program is something to install and keep working, it runs
 with your rights, and every command that reads its items runs it.
+
+## Why a kind program answers two calls
+
+A kind program gives card IDs in one call (`ids`) and a card's content in
+another (`card`), because the two have opposite needs. IDs are needed by
+nearly every command (selectors, `srl find`, `srl check`, scheduling) and
+must be stable, since a card's history is kept under its ID. Content is
+needed only when a card is shown, and may take long to make, as when a
+program asks an LLM to write the question, or differ every time. With two
+calls, a command that only needs IDs never waits for content, and a
+program that generates its cards does the slow work only for the card
+about to be shown. Each call stays simple to write: `ids` is a function
+of the fields, and `card` may do whatever it needs.
+
+One call giving both would make every command pay for content it doesn't
+use, unless `srl` cached the IDs and called the program only when they
+might have changed: more machinery in `srl`, and still a slow command on
+every miss.
+
+Trade-off: a kind program has two calls to write instead of one, and the
+two must agree on the item's cards.
 
 ## Why groups of siblings, without names
 
