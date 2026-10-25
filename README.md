@@ -72,6 +72,12 @@ srl stats                 # what's new, due, young, mature
 Cloze deletions use Anki's syntax (`{{c1::text}}` and `{{c1::text::hint}}`).
 Multi-line fields, code blocks and drafts are supported too.
 
+An item's kind decides how its fields become cards. `qa`, questions and
+answers as above, is built in and the default. Any other kind is a program
+you name in `.srl/config.toml`, written in any language, such as one that
+makes a card for each marked word of a sentence. `srl kinds` describes
+every kind and its fields.
+
 ## Frontends
 
 `srl` has no frontend built in: it decides what to study, and a frontend
@@ -79,7 +85,8 @@ shows it. Any program that calls `srl next --json` and `srl review` is one.
 The repository has two to start from:
 
 - `srl-web`: a local web viewer that renders cards and context as Markdown,
-  with a card browser to see how any card looks.
+  with a card browser to see how any card looks, and a form that adds
+  items.
 - `srl-tui`: a terminal frontend in Python with Rich.
 
 This shell loop is a frontend too:

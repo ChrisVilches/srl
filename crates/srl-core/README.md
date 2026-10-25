@@ -8,12 +8,15 @@ cargo install srl
 ```
 
 `srl-core` holds every rule of `srl`: the store, the item syntax in
-Markdown notes, cards and cloze deletions, the review log, FSRS scheduling
-and selectors. The `srl` command line is a thin layer on top of it.
+Markdown notes, kinds, cards and cloze deletions, the review log, FSRS
+scheduling and selectors. It also runs the kind programs a store names in
+its configuration, which turn items into cards. The `srl` command line is
+a thin layer on top of it.
 
 The library has no CLI code and does no I/O behind your back: it never
-prints, and it never reads environment variables, the current directory or
-the clock on its own. Everything comes in as an argument.
+prints, and it never reads environment variables, the current directory,
+standard input or the clock on its own. Everything comes in as an
+argument.
 
 Its API is not stable yet, and may change in any release before 1.0. To
 build on `srl` today, the supported interface is the command line: every

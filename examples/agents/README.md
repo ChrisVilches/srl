@@ -13,10 +13,12 @@ agents/
                                 common commands, the rules it follows
   skills/
     setting-up-a-store/         stores, configuration, git and syncing
-    writing-items/              the full item syntax, cloze, srl add and edit
+    writing-items/              the full item syntax, kinds, cloze, srl add
+                                and edit
     studying/                   study sessions, ratings, which card comes next
     selectors/                  the selector language and shell quoting
-    fixing-problems/            errors, srl check and lint, lost history
+    fixing-problems/            errors, cards a kind program can't make,
+                                srl check and lint, lost history
     reviewing-progress/         srl stats, srl log, leeches
 ```
 
