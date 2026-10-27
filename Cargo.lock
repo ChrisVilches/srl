@@ -885,7 +885,7 @@ dependencies = [
 
 [[package]]
 name = "srl"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "srl-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "blake3",
  "fsrs",
@@ -920,7 +920,7 @@ dependencies = [
 
 [[package]]
 name = "srl-test-kind"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde_json",
 ]
