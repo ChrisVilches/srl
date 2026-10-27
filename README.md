@@ -6,16 +6,17 @@ Markdown notes, and `srl` schedules them for review with
 the modern scheduling algorithm that Anki also offers.
 
 ```markdown
-# 〜をものともせず
+# 食い倒れ
 
-Undeterred by (adversity), braving. Admiring tone; not used about oneself.
+Eating yourself into ruin. Osaka's motto, lived nightly along Dotonbori:
+京の着倒れ、大阪の食い倒れ (Kyoto spends it on clothes, Osaka on food).
 
 <!-- srl id:x7k2m9 -->
-Q: What does 〜をものともせず mean?
-A: Undeterred by (adversity), braving.
+Q: What does 食い倒れ mean?
+A: Eating until you drop, or go broke.
 
 <!-- srl id:p4n8d2 -->
-Q: 嵐を{{c1::ものともせず}}、漁師たちは海へ出た。
+Q: 道頓堀で{{c1::食い倒れ}}の一日を過ごした。
 ```
 
 That's a complete note with two cards in it. Rendered, the `<!-- srl -->`
