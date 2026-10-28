@@ -169,6 +169,16 @@ fn init_prints_what_it_creates_and_refuses_to_run_twice() {
 }
 
 #[test]
+fn init_creates_the_store_given_with_dir() {
+    let tmp = TempDir::new().unwrap();
+    let output = srl(&["init", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(tmp.path().join(".srl").join("config.toml").is_file());
+    let before = srl(&["--dir", dir(&tmp), "init"]);
+    assert_eq!(before.status.code(), Some(2), "{}", stderr(&before));
+}
+
+#[test]
 fn init_dry_run_creates_nothing() {
     let tmp = TempDir::new().unwrap();
     let output = srl(&["init", "--dry-run", dir(&tmp)]);

@@ -44,13 +44,7 @@ impl Store {
         let store = Self {
             tmp: TempDir::new().unwrap(),
         };
-        let output = Command::new(env!("CARGO_BIN_EXE_srl"))
-            .arg("init")
-            .arg(store.tmp.path())
-            .env_remove("SRL_DIR")
-            .output()
-            .unwrap();
-        assert_eq!(output.status.code(), Some(0));
+        store.ok(&at(1, 9), &["init"]);
         for (path, text) in notes {
             store.write(path, text);
         }

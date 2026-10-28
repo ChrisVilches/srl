@@ -67,6 +67,8 @@ pub(crate) struct DryRun {
 pub(crate) enum Command {
     /// Create a store.
     Init {
+        // Its own ID, so that it doesn't hide the global `--dir`.
+        #[arg(id = "init_dir", value_name = "DIR")]
         dir: Option<PathBuf>,
         #[command(flatten)]
         dry_run: DryRun,
@@ -261,6 +263,19 @@ mod tests {
     fn dir_is_accepted_after_the_command() {
         let cli = parse(&["find", "--dir", "/s"]).unwrap();
         assert_eq!(cli.dir, Some(PathBuf::from("/s")));
+    }
+
+    #[test]
+    fn init_takes_its_dir_as_an_argument_or_with_dir() {
+        let flag = parse(&["init", "--dir", "/s"]).unwrap();
+        assert_eq!(flag.dir, Some(PathBuf::from("/s")));
+        assert!(matches!(flag.command, Command::Init { dir: None, .. }));
+        let argument = parse(&["init", "/a"]).unwrap();
+        assert_eq!(argument.dir, None);
+        assert!(matches!(
+            argument.command,
+            Command::Init { dir: Some(dir), .. } if dir == std::path::Path::new("/a")
+        ));
     }
 
     #[test]
