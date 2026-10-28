@@ -194,6 +194,9 @@ it what `srl` is and does, or something done with it?**
     server and a React page, a card browser that shows any card
     without studying it, and a form that adds items (see
     [guides/frontends.md](guides/frontends.md)).
+  - `examples/screenshots/`: screenshots of `srl-tui` and `srl-web`, with
+    a demo store and the scripts that take them; its `SKILL.md` tells an
+    agent how to take new ones.
 
 A guide says how to use or build something; an example is the thing itself.
 The details of an example (its options, keys, internals) are in its own

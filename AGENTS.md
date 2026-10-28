@@ -41,6 +41,9 @@ example that works on some platforms only says so in a comment at its top.
 When a change to the specifications affects an example, update the example
 too.
 
+To take screenshots of the example frontends, read
+[examples/screenshots/SKILL.md](examples/screenshots/SKILL.md) first.
+
 ### Keep docs/ in sync with the specifications
 
 Whenever the specifications change, update the documents in `docs/` in the

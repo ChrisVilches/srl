@@ -44,6 +44,9 @@ them, what they need and what may differ elsewhere.
   Python with Rich, with keys that act without Enter, and the card, the
   answer and the context rendered as Markdown on one screen.
 
+Screenshots of both are in `examples/screenshots/images/`; how to take new
+ones is in `examples/screenshots/SKILL.md`.
+
 Both keep everything about appearance to themselves: colors, keys, layout,
 how `==highlights==` look (bold yellow in `srl-tui`, CSS in `srl-web`), and
 the context mode they ask for. Each pairs highlights in order, each `==`
