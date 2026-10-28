@@ -128,9 +128,9 @@ export function Key({ children }: { children: ReactNode }) {
 // new SINCE by a tick, hence the clamp): making a card
 // can take a while, as when its kind program asks an LLM.
 export function Waiting({ title, since, children }: { title: string; since: number; children?: ReactNode }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(performance.now());
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 200);
+    const timer = setInterval(() => setNow(performance.now()), 200);
     return () => clearInterval(timer);
   }, []);
   return (

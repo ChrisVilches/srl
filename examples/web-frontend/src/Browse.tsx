@@ -67,10 +67,10 @@ export function Browse({ active }: { active: boolean }) {
     making.current?.abort.abort();
     const abort = new AbortController();
     making.current = { id, abort };
-    const since = Date.now();
+    const since = performance.now();
     setMade((m) => ({ ...m, [id]: { kind: 'making', since } }));
     api.card(id, abort.signal).then(
-      (card) => setMade((m) => ({ ...m, [id]: { kind: 'ready', card, ms: Date.now() - since } })),
+      (card) => setMade((m) => ({ ...m, [id]: { kind: 'ready', card, ms: performance.now() - since } })),
       (error: Error) => {
         if (!abort.signal.aborted) {
           setMade((m) => ({ ...m, [id]: { kind: 'error', message: error.message } }));

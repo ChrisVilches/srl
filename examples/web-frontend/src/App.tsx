@@ -73,7 +73,7 @@ export default function App() {
 
 function Study({ active }: { active: boolean }) {
   const [selector, setSelector] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: Date.now() }));
+  const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: performance.now() }));
   const [stats, setStats] = useState<Stats>({ reviewed: 0, new: 0, again: 0 });
   const [busy, setBusy] = useState(false);
 
@@ -91,7 +91,7 @@ function Study({ active }: { active: boolean }) {
 
   // Shows the next card, or, if srl takes a while to make it, that it waits.
   const toNext = useCallback(async (sel: string) => {
-    const since = Date.now();
+    const since = performance.now();
     const timer = setTimeout(() => setPhase({ kind: 'loading', since }), WAIT_SHOWN_AFTER_MS);
     try {
       setPhase(await nextPhase(sel));
@@ -104,7 +104,7 @@ function Study({ active }: { active: boolean }) {
   const start = useCallback(
     () =>
       step(async () => {
-        setPhase({ kind: 'loading', since: Date.now() });
+        setPhase({ kind: 'loading', since: performance.now() });
         const sel = await api.selector();
         setSelector(sel);
         await toNext(sel);
