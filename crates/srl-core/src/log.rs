@@ -371,6 +371,14 @@ mod tests {
         );
         // `printf -- '```srl id:abc\nQ: q\nA: a\n```' | sha256sum | cut -c1-12`
         assert_eq!(hash(&items[0]), "54b0d17db858");
+        // In a JSONL note, the item as written is its line.
+        let (items, _) = crate::note::read_items(
+            "a.jsonl",
+            "\n{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\r\n",
+            &crate::kind::Programs::default(),
+        );
+        // `printf '%s' '{"id": "abc", "Q": "q", "A": "a"}' | sha256sum | cut -c1-12`
+        assert_eq!(hash(&items[0]), "4fe96b449782");
     }
 
     #[test]

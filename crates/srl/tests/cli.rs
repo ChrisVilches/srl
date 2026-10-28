@@ -491,6 +491,96 @@ fn jsonl_notes_hold_one_item_per_line_and_no_context() {
     assert!(stderr(&broken).contains("generated/items.jsonl:1:"));
 }
 
+/// A store that reads JSONL notes too, with `notes`.
+fn store_with_jsonl(notes: &[(&str, &str)]) -> TempDir {
+    let tmp = store(notes);
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[notes]\ninclude = [\"**/*.md\", \"**/*.jsonl\"]\n",
+    );
+    tmp
+}
+
+#[test]
+fn a_jsonl_note_is_a_context_as_it_is_in_every_mode_but_none() {
+    let items = "\n{\"id\": \"own001\", \"Q\": \"q\", \"A\": \"a\"}\n\n";
+    let tmp = store_with_jsonl(&[
+        ("items.jsonl", items),
+        ("blank.jsonl", "\n  \n"),
+        (
+            "a.md",
+            "```srl id:see001 see:items.jsonl\nQ: q\nA: a\n```\n\n```srl id:see002 see:blank.jsonl\nQ: q\nA: a\n```\n",
+        ),
+    ]);
+    let d = dir(&tmp);
+    let context = |id: &str, mode: &str| {
+        let output = srl(&["show", id, "--json", "--context", mode, "--dir", d]);
+        assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+        json_lines(&output)[0]["context"].clone()
+    };
+    for mode in ["prose", "full"] {
+        assert_eq!(context("see001", mode), items, "{mode}");
+        assert_eq!(context("own001", mode), serde_json::Value::Null, "{mode}");
+        assert_eq!(context("see002", mode), serde_json::Value::Null, "{mode}");
+    }
+    assert_eq!(context("see001", "none"), serde_json::Value::Null);
+    // The frontend contract gives the same.
+    let next = next_card(d, &["id:own001"]);
+    assert_eq!(next["path"], "items.jsonl");
+    assert_eq!(next["see"], serde_json::Value::Null);
+    assert_eq!(next["context"], serde_json::Value::Null);
+    assert_eq!(
+        next_card(d, &["id:see001", "--context", "full"])["context"],
+        items
+    );
+}
+
+#[test]
+fn lint_and_check_read_jsonl_notes_by_their_syntax() {
+    let tmp = store_with_jsonl(&[
+        (
+            "items.jsonl",
+            "{\"id\": \"abc\", \"Q\": \"{{C1::upper}}\", \"A\": \"Q: not a field\"}\n",
+        ),
+        ("a.md", "Q: bare\n"),
+    ]);
+    let d = dir(&tmp);
+    let lint = srl(&["lint", "--dir", d]);
+    assert_eq!(lint.status.code(), Some(0), "{}", stderr(&lint));
+    let found = lines(&lint);
+    assert_eq!(found.len(), 2, "{found:?}");
+    assert!(found[0].starts_with("a.md:1: "), "{found:?}");
+    assert!(
+        found[1].starts_with("items.jsonl:1: this looks like a cloze"),
+        "{found:?}"
+    );
+    write(
+        &tmp,
+        "items.jsonl",
+        "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\n\n{\"id\": \"abc\", \"Q\": \"q\", \"Q\": \"r\"}\n[1]\n",
+    );
+    let check = srl(&["check", "--dir", d]);
+    assert_eq!(check.status.code(), Some(2));
+    let problems = stderr(&check);
+    assert!(problems.contains("items.jsonl:3: "), "{problems}");
+    assert!(problems.contains("appears twice"), "{problems}");
+    assert!(problems.contains("items.jsonl:4: "), "{problems}");
+}
+
+#[test]
+fn edit_dry_run_prints_the_ids_and_empty_input_finds_nothing() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let input = "{\"id\": \"tuna01\", \"Q\": \"鮪\", \"A\": \"まぐろ\"}\n{\"id\": \"x7k2m9\", \"Q\": \"q\", \"A\": \"a\"}\n";
+    let dry = srl_with_input(&["edit", "--stdin", "--dry-run", "--dir", d], input);
+    assert_eq!(dry.status.code(), Some(0), "{}", stderr(&dry));
+    assert_eq!(lines(&dry), ["tuna01", "x7k2m9"]);
+    assert_eq!(read(&tmp, "kanji/fish.md"), FISH);
+    let empty = srl_with_input(&["edit", "--stdin", "--dir", d], "\n");
+    assert_eq!(empty.status.code(), Some(1), "{}", stderr(&empty));
+}
+
 fn next_card(d: &str, extra: &[&str]) -> serde_json::Value {
     let output = srl(&[&["next", "--json", "--dir", d][..], extra].concat());
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
@@ -1231,6 +1321,26 @@ fn add_checks_every_new_item_at_once_and_names_the_line_at_fault() {
         stderr(&output)
     );
     assert_eq!(read(&tmp, "calls.log"), "validate 3\ngroups 2\n");
+}
+
+#[test]
+fn edit_checks_every_new_item_at_once_and_names_the_line_at_fault() {
+    let tmp = store_with_kind(&[(
+        "a.md",
+        "```srl id:aaa1 kind:fake\nX: a\n```\n\n```srl id:aaa2 kind:fake\nX: b\n```\n\n```srl id:aaa3 kind:fake\nX: c\n```\n",
+    )]);
+    let d = dir(&tmp);
+    let before = read(&tmp, "a.md");
+    let input = "{\"id\": \"aaa1\", \"kind\": \"fake\", \"X\": \"a\", \"LOG\": \"calls.log\"}\n\n{\"id\": \"aaa2\", \"kind\": \"fake\", \"GROUPS\": \"a b\", \"LOG\": \"calls.log\"}\n{\"id\": \"aaa3\", \"kind\": \"fake\", \"INVALID\": \"no good\"}\n";
+    let output = srl_with_input(&["edit", "--stdin", "--dir", d], input);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("line 4 of standard input is not a valid item: no good"),
+        "{}",
+        stderr(&output)
+    );
+    assert_eq!(read(&tmp, "calls.log"), "validate 3\ngroups 2\n");
+    assert_eq!(read(&tmp, "a.md"), before);
 }
 
 /// Runs `srl` as if it were `now`, in UTC.

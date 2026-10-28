@@ -852,6 +852,90 @@ mod tests {
     }
 
     #[test]
+    fn several_edits_in_one_block_or_one_jsonl_note_each_find_their_item() {
+        let mut config = Config::default();
+        config.notes.include = vec!["*.md".to_owned(), "*.jsonl".to_owned()];
+        let text = "```srl\n@ id:aaa1\nQ: one\nA: a\n\n@ id:aaa2\nQ: two\nA: a\n\n@ id:aaa3\nQ: three\nA: a\n```\n";
+        let lines = "{\"id\": \"bbb1\", \"Q\": \"one\", \"A\": \"a\"}\n{\"id\": \"bbb2\", \"Q\": \"two\", \"A\": \"a\"}\n{\"id\": \"bbb3\", \"Q\": \"three\", \"A\": \"a\"}\n";
+        let (_tmp, store) = store(&[("a.md", text), ("b.jsonl", lines)]);
+        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        // The first items given grow by a line, so that a later edit made
+        // from the top down would miss its item.
+        let input = "{\"id\": \"aaa1\", \"Q\": \"one\\nmore\", \"A\": \"a\"}\n{\"id\": \"bbb1\", \"Q\": \"1\", \"A\": \"a\"}\n{\"id\": \"aaa3\", \"Q\": \"three\\nmore\", \"A\": \"a\"}\n{\"id\": \"bbb3\", \"Q\": \"3\", \"A\": \"a\"}\n";
+        edit(&store, &notes, input, false).unwrap();
+        assert_eq!(
+            read(&store, "a.md"),
+            "```srl\n@ id:aaa1\nQ: one\n  more\nA: a\n\n@ id:aaa2\nQ: two\nA: a\n\n@ id:aaa3\nQ: three\n  more\nA: a\n```\n"
+        );
+        assert_eq!(
+            read(&store, "b.jsonl"),
+            "{\"id\":\"bbb1\",\"Q\":\"1\",\"A\":\"a\"}\n{\"id\": \"bbb2\", \"Q\": \"two\", \"A\": \"a\"}\n{\"id\":\"bbb3\",\"Q\":\"3\",\"A\":\"a\"}\n"
+        );
+    }
+
+    #[test]
+    fn edit_writes_nothing_when_a_note_changed_after_it_was_read() {
+        let (_tmp, store) = store(&[
+            ("a.md", "```srl id:aaa1\nQ: q\nA: a\n```\n"),
+            ("b.md", "```srl id:bbb1\nQ: q\nA: a\n```\n"),
+        ]);
+        let notes = notes(&store);
+        // The item moved down a line since the notes were read.
+        fs::write(
+            store.note_file("b.md"),
+            "\n```srl id:bbb1\nQ: q\nA: a\n```\n",
+        )
+        .unwrap();
+        let input = "{\"id\": \"aaa1\", \"Q\": \"new\", \"A\": \"a\"}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\"}\n";
+        assert!(matches!(
+            edit(&store, &notes, input, false),
+            Err(Error::ChangedMeanwhile { .. })
+        ));
+        assert_eq!(read(&store, "a.md"), "```srl id:aaa1\nQ: q\nA: a\n```\n");
+        assert!(edit(&store, &notes, "\n\n", false).unwrap().is_empty());
+    }
+
+    #[test]
+    fn add_to_a_jsonl_note_starts_a_new_line_and_keeps_its_line_endings() {
+        let mut config = Config::default();
+        config.notes.include = vec!["**/*.jsonl".to_owned()];
+        let (_tmp, store) = store(&[
+            ("a.jsonl", "{\"id\": \"old1\", \"Q\": \"q\", \"A\": \"a\"}"),
+            (
+                "b.jsonl",
+                "{\"id\": \"old2\", \"Q\": \"q\", \"A\": \"a\"}\r\n",
+            ),
+        ]);
+        let load = || Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let item = "{\"id\": \"new1\", \"Q\": \"r\", \"A\": \"a\"}\n{\"id\": \"new2\", \"Q\": \"s\", \"A\": \"a\"}";
+        let added = add(&store, &config, &load(), "a.jsonl", item, 3, false).unwrap();
+        assert_eq!(
+            added.text,
+            "{\"id\":\"new1\",\"Q\":\"r\",\"A\":\"a\"}\n{\"id\":\"new2\",\"Q\":\"s\",\"A\":\"a\"}\n"
+        );
+        assert_eq!(
+            read(&store, "a.jsonl"),
+            format!(
+                "{{\"id\": \"old1\", \"Q\": \"q\", \"A\": \"a\"}}\n{}",
+                added.text
+            )
+        );
+        let item = "{\"id\": \"new3\", \"Q\": \"t\", \"A\": \"a\"}";
+        add(&store, &config, &load(), "b.jsonl", item, 3, false).unwrap();
+        assert_eq!(
+            read(&store, "b.jsonl"),
+            "{\"id\": \"old2\", \"Q\": \"q\", \"A\": \"a\"}\r\n{\"id\":\"new3\",\"Q\":\"t\",\"A\":\"a\"}\r\n"
+        );
+        let item = "{\"id\": \"new4\", \"Q\": \"u\", \"A\": \"a\"}";
+        add(&store, &config, &load(), "c/new.jsonl", item, 3, false).unwrap();
+        assert_eq!(
+            read(&store, "c/new.jsonl"),
+            "{\"id\":\"new4\",\"Q\":\"u\",\"A\":\"a\"}\n"
+        );
+        assert!(load().problems().is_empty(), "{:?}", load().problems());
+    }
+
+    #[test]
     fn edit_checks_every_line_first() {
         let (_tmp, store) = store(&[("a.md", "```srl id:aaa1\nQ: q\nA: a\n```\n")]);
         let notes = notes(&store);
