@@ -69,7 +69,6 @@ commands that read items run for the items whose answers aren't kept
 | `srl add NOTE --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
 | `srl edit ID` | Open the note of the item in the editor (see "Editing in the editor" below). |
 | `srl edit ID --stdin` | Replace the item's lines in its note with standard input, which must be exactly one item with the same ID. The rest of the note is unchanged. Prints nothing; with `--dry-run`, only checks the input. |
-| `srl drafts [SELECTOR] [--json]` | List drafts: the same as `srl find SELECTOR status:draft`. |
 | `srl accept SELECTOR` | Remove `draft` from the headers of the items of matching draft cards. |
 | `srl suspend SELECTOR` | Suspend matching active cards. |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |

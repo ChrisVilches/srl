@@ -66,12 +66,11 @@ An empty selector matches every card.
 
 ## Defaults per command
 
-Some commands add a term of their own:
+One command adds a term of its own:
 
 | Command | Adds |
 |---|---|
 | `srl next` | `status:active` (drafts and suspended cards are never studied) |
-| `srl drafts` | `status:draft` |
 
 Every other command applies the selector exactly as written.
 

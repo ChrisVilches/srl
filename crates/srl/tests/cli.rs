@@ -338,7 +338,7 @@ fn add_appends_items_with_their_header_entries() {
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
     let ids = lines(&added);
     assert_eq!(ids.len(), 2);
-    let drafts = srl(&["drafts", "in:generated", "--dir", d]);
+    let drafts = srl(&["find", "in:generated", "status:draft", "--dir", d]);
     assert_eq!(lines(&drafts).len(), 2);
     let context = srl(&["show", &ids[0], "--json", "--dir", d]);
     assert!(

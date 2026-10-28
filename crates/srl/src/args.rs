@@ -134,13 +134,6 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// List drafts.
-    Drafts {
-        #[command(flatten)]
-        selector: Selector,
-        #[command(flatten)]
-        json: Json,
-    },
     /// Remove `draft` from the items of matching draft cards.
     Accept {
         #[command(flatten)]

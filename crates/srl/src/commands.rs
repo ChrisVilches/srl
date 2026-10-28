@@ -40,14 +40,6 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             selector: terms,
             json,
         } => find(&store()?, &selector(&terms.terms)?, json.json),
-        Command::Drafts {
-            selector: terms,
-            json,
-        } => find(
-            &store()?,
-            &selector(&terms.terms)?.and_status(Status::Draft),
-            json.json,
-        ),
         Command::Show { ids, context, json } => {
             show(&store()?, &ids, context_mode(context.context), json.json)
         }
@@ -277,7 +269,7 @@ fn select<'a>(loaded: &'a Loaded, selector: &Selector) -> Vec<(&'a Item, &'a Car
     selector.select(loaded.notes.cards(), &loaded.memories)
 }
 
-/// `srl find` and `srl drafts`: lists the matching cards.
+/// `srl find`: lists the matching cards.
 fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
     let found = select(&loaded, selector);

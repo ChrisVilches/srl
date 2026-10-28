@@ -80,8 +80,9 @@ Things that explain "why didn't my card show up?":
   introduced one per day. A kind program decides which of its cards are
   siblings; cards that don't give each other away, such as two words of one
   sentence, can all be shown the same day.
-- **Drafts and suspended cards are never studied.** `srl drafts` lists
-  drafts; `srl find status:suspended` lists suspended cards.
+- **Drafts and suspended cards are never studied.** `srl find
+  status:draft` lists drafts; `srl find status:suspended` lists suspended
+  cards.
 - **Errors stop everything.** A broken note makes `srl next` fail with the
   file and line; see the `fixing-problems` skill.
 - `srl next` exits with 1 and prints nothing when nothing is left today.

@@ -152,7 +152,7 @@ It prints the new item IDs. Then the person reads the note, deletes what
 they don't want, and accepts the rest:
 
 ```sh
-srl drafts                              # list drafts
+srl find status:draft                   # list drafts
 srl accept path:generated/ownership.md  # make them studied
 ```
 
@@ -221,7 +221,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl cards ID` | print the cards of an item |
 | `srl add NOTE --stdin` | append items (JSONL) |
 | `srl edit ID` | open the item's note in the editor |
-| `srl drafts` / `srl accept SEL` | list drafts / accept them |
+| `srl find status:draft` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |
 | `srl review ID --rating N` | record a rating |
 | `srl suspend SEL` / `srl unsuspend SEL` | stop / resume studying cards |
