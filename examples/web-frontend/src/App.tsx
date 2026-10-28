@@ -177,9 +177,7 @@ function Study({ active }: { active: boolean }) {
       </TopBar>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
         {phase.kind === 'loading' && (
-          <Waiting title="Getting the next card…" since={phase.since}>
-            srl next is making it. A kind program, such as one that asks an LLM, can take a while.
-          </Waiting>
+          <Waiting title="Loading…" since={phase.since} />
         )}
         {phase.kind === 'error' && (
           <ErrorView message={phase.message} onRetry={() => (selector === null ? start() : loadNext(selector))} />

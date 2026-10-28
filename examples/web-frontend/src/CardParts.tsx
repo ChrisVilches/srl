@@ -126,7 +126,7 @@ export function Key({ children }: { children: ReactNode }) {
 
 // Waiting for srl, with a spinner and the seconds since SINCE: making a card
 // can take a while, as when its kind program asks an LLM.
-export function Waiting({ title, since, children }: { title: string; since: number; children: ReactNode }) {
+export function Waiting({ title, since, children }: { title: string; since: number; children?: ReactNode }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 200);
@@ -138,7 +138,7 @@ export function Waiting({ title, since, children }: { title: string; since: numb
       <div className="font-medium">
         {title} <span className="tabular-nums">{((now - since) / 1000).toFixed(1)} s</span>
       </div>
-      <p className="max-w-md text-sm text-stone-500">{children}</p>
+      {children && <p className="max-w-md text-sm text-stone-500">{children}</p>}
     </div>
   );
 }
