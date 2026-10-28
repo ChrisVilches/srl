@@ -146,8 +146,9 @@ below).
   after it. Anything else (an edited, shortened, removed or earlier file)
   replays the whole log.
 - **Kind programs:** an answer of `validate` or `groups` is kept under
-  the kind's command as written in `[kinds]`, the call, and the item's
-  input line, and used for as long as all three are the same; only the
+  the kind's name and its command as written in `[kinds]`, the call, and
+  the item's input line, and used for as long as all four are the same;
+  only the
   items without a kept answer are asked about (see [cards.md](cards.md),
   "How srl calls them"). A program changed in place is not noticed: run
   `srl reindex` after changing one. Old answers are kept until then.

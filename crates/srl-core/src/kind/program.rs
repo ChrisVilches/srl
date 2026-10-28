@@ -207,7 +207,7 @@ impl Programs {
         let inputs = lines(inputs);
         let command = self.command(name);
         let kept = match cache {
-            Cache::Use(index) => index.kind_answers(command, call, &inputs),
+            Cache::Use(index) => index.kind_answers(name, command, call, &inputs),
             Cache::None | Cache::Refresh(_) => vec![None; inputs.len()],
         };
         let asked = inputs
@@ -222,7 +222,7 @@ impl Programs {
         let answered = self.run(name, call, &asked, None)?;
         if let Cache::Use(index) | Cache::Refresh(index) = cache {
             let pairs = asked.iter().zip(&answered).collect::<Vec<_>>();
-            index.keep_kind_answers(command, call, &pairs);
+            index.keep_kind_answers(name, command, call, &pairs);
         }
         let mut answered = answered.into_iter();
         Ok(kept
@@ -712,7 +712,7 @@ mod tests {
     }
 
     #[test]
-    fn answers_are_kept_for_the_kinds_command_as_written() {
+    fn answers_are_kept_for_the_kinds_name_and_command_as_written() {
         let (_tmp, store, _) = store(
             &config(""),
             "<!-- srl id:aaa kind:fake -->\nLOG: calls.log\n",
@@ -724,6 +724,20 @@ mod tests {
         fs::write(
             store.config_file(),
             format!("[kinds]\nfake = ['{}', 'more']\n", test_kind().display()),
+        )
+        .unwrap();
+        let (_, calls) = reload(&store, false);
+        assert_eq!(calls, "validate 1\ngroups 1\n");
+        // Another name is another kind, even with the same command.
+        fs::write(
+            store.config_file(),
+            format!("[kinds]\nother = ['{}', 'more']\n", test_kind().display()),
+        )
+        .unwrap();
+        let note = fs::read_to_string(store.note_file("a.md")).unwrap();
+        fs::write(
+            store.note_file("a.md"),
+            note.replace("kind:fake", "kind:other"),
         )
         .unwrap();
         let (_, calls) = reload(&store, false);

@@ -24,7 +24,7 @@ use crate::{CardId, Config, Error, History, Log, Memory, Result, Reviewed, Store
 
 /// The version of the tables below. Change it whenever they, or what they
 /// mean, change: a cache of another version is rebuilt.
-const SCHEMA_VERSION: i64 = 4;
+const SCHEMA_VERSION: i64 = 5;
 
 /// The tables. Their layout is not a contract (see `docs/store.md`).
 const SCHEMA: &str = "
@@ -185,11 +185,12 @@ impl Index {
         )
     }
 
-    /// What the kind program run by `command` answered to the call `call`
-    /// for each input line of `lines`, when it was kept; in the order of
-    /// `lines` (see `docs/cards.md`, "How srl calls them").
+    /// What the program of kind `kind`, run by `command`, answered to the
+    /// call `call` for each input line of `lines`, when it was kept; in the
+    /// order of `lines` (see `docs/cards.md`, "How srl calls them").
     pub(crate) fn kind_answers(
         &mut self,
+        kind: &str,
         command: &[String],
         call: &str,
         lines: &[String],
@@ -201,7 +202,7 @@ impl Index {
                     .map(|line| {
                         Ok(transaction
                             .prepare_cached("SELECT answer FROM kind_answers WHERE key = ?1")?
-                            .query_row([answer_key(command, call, line)], |row| row.get(0))
+                            .query_row([answer_key(kind, command, call, line)], |row| row.get(0))
                             .optional()?)
                     })
                     .collect()
@@ -211,10 +212,12 @@ impl Index {
         .expect("looking up kind answers should read none of the store's files")
     }
 
-    /// Keeps what the kind program run by `command` answered to the call
-    /// `call`: each pair is an input line and the line answered for it.
+    /// Keeps what the program of kind `kind`, run by `command`, answered to
+    /// the call `call`: each pair is an input line and the line answered
+    /// for it.
     pub(crate) fn keep_kind_answers(
         &mut self,
+        kind: &str,
         command: &[String],
         call: &str,
         answers: &[(&String, &String)],
@@ -225,7 +228,7 @@ impl Index {
                     execute(
                         transaction,
                         "INSERT OR REPLACE INTO kind_answers (key, answer) VALUES (?1, ?2)",
-                        (answer_key(command, call, line), answer),
+                        (answer_key(kind, command, call, line), answer),
                     )?;
                 }
                 Ok(())
@@ -402,11 +405,14 @@ fn hash(bytes: &[u8]) -> String {
     blake3::hash(bytes).to_hex().to_string()
 }
 
-/// The key of a kind program's answer: the program's command as written,
-/// the call and the input line, hashed.
-fn answer_key(command: &[String], call: &str, line: &str) -> String {
+/// The key of a kind program's answer: the kind's name, its command as
+/// written, the call and the input line, one per line, hashed. The name and
+/// the command are written as JSON, which has no line breaks, so that no
+/// two of them give the same text.
+fn answer_key(kind: &str, command: &[String], call: &str, line: &str) -> String {
+    let kind = serde_json::to_string(kind).expect("a string should serialize");
     let command = serde_json::to_string(command).expect("a list of strings should serialize");
-    hash(format!("{command}\n{call}\n{line}").as_bytes())
+    hash(format!("{kind}\n{command}\n{call}\n{line}").as_bytes())
 }
 
 /// A log file as the cache last read it.

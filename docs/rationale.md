@@ -254,7 +254,7 @@ lines fails as a whole.
 Trade-off: a program reads and writes lines in a loop instead of one
 object, and a call starts a process, however few lines it has.
 
-## Why answers of kind programs are kept under the command as written
+## Why answers of kind programs are kept under the kind and its command
 
 Starting a process costs far more than anything `srl` does with a
 store's files: an interpreter alone takes tens of milliseconds, and a
@@ -263,9 +263,14 @@ program. Both calls are deterministic, so their answers are kept in the
 index cache and only new or changed items are asked about. A command on
 an unchanged store then starts no kind program at all.
 
-An answer is kept under the kind's command as written, the call and the
-item's input line, and nothing else. Two other ways to notice a changed
-program were rejected:
+An answer is kept under the kind's name, its command as written, the
+call and the item's input line, and nothing else. The command is what
+says which program answered: changing it in `[kinds]`, for example to
+choose another version, asks again on its own. The name says which kind
+an answer belongs to, so that a kind is never answered for by what
+another kind was told, at the cost of asking again when a kind is
+renamed. Two other ways to notice a changed program in place were
+rejected:
 
 - **Hashing the files the command names**, such as `kinds/ja_words.py`.
   It misses whatever that file imports or reads, so it would be a

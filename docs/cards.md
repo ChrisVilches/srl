@@ -341,9 +341,10 @@ asked about the item.
   kept.
 - **Kept answers.** The answers of `validate` and `groups` calls are kept
   in the index cache (see [store.md](store.md), "The index cache"),
-  each under the kind's command as written in `[kinds]`, the call, and
-  the item's input line. An item whose input line hasn't changed since
-  it was answered is not asked about again. Only the answers of a call
+  each under the kind's name and its command as written in `[kinds]`,
+  the call, and the item's input line. An item whose input line hasn't
+  changed since it was answered is not asked about again; renaming a
+  kind, or changing its command, asks about all of its items again. Only the answers of a call
   that succeeded are kept, including answers that say an item is
   invalid or that don't follow the rules; a call that fails as a whole
   keeps nothing, and its items are asked about again next time.
