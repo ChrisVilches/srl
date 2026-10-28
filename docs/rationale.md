@@ -92,8 +92,11 @@ a block can't mix the two, so there is one rule to read each.
 Trade-off: in a renderer that knows nothing of `srl`, items show as code,
 not as prose, and a field that holds a fenced code block needs a longer
 fence around its block. Getting that wrong closes the block early, and the
-cut item can still be valid, so it is not always reported. LLMs are prone
-to this mistake (see
+cut item can still be valid, so `srl check` doesn't always report it. `srl
+lint` does: the fence that closed the block is indented, as the end of a
+code block in a field is. It stays a guess, not an error, because an
+indented closing fence is valid CommonMark, and `srl` reads blocks as
+renderers do. LLMs are prone to this mistake (see
 [guides/agents.md](guides/agents.md), "Limitations of the item syntax for
 LLMs"). The syntax is also Markdown's: it suits Markdown
 and the formats built on it, and any other file read as a note has to use

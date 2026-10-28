@@ -110,11 +110,12 @@ A:
 
 Getting this wrong is not always an error. The block closes at the code's
 fence, the rest of the item becomes text of the note, and the leftover
-closing fence opens a code block that can hide the items after it. A `qa`
-item that loses its `A:` is reported, but one with cloze deletions, or an
-item of a kind program, is silently cut short. After writing such an item
-by hand, run `srl check` and `srl lint`, and look at it with `srl show ID`.
-`srl add` never makes this mistake: it picks the fence itself.
+closing fence opens a code block that can hide the items after it. `srl
+check` reports it only when the cut item is invalid, such as a `qa` item
+that lost its `A:`; `srl lint` reports it every time, at the indented
+fence that closed the block. So after writing such an item by hand, run
+`srl check` **and** `srl lint`, and look at it with `srl show ID`. `srl
+add` never makes this mistake: it picks the fence itself.
 
 ## Cloze deletions
 

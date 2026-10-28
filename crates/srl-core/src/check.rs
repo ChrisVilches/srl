@@ -84,13 +84,36 @@ fn lint_text(text: &str) -> Vec<(usize, String)> {
     let parsed = parse::parse(text);
     let lines = parse::lines(text);
     let mut found = Vec::new();
+    // A block closed by an indented fence was most likely closed by the
+    // end of a code block in one of its fields, too early.
+    let mut early = Vec::new();
+    for block in parsed.items.iter().map(|item| &item.block) {
+        let closing = lines.get(block.close - 1).copied().unwrap_or_default();
+        if closing.starts_with(' ') && !early.contains(&block.close) {
+            early.push(block.close);
+            found.push((
+                block.close,
+                format!(
+                    "this indented fence closes the srl block of line {}, probably as the end of \
+                     a code block in a field, so the rest of the item is not part of it; open \
+                     the block with ~~~srl, or with a longer fence than the code blocks in its \
+                     fields",
+                    block.open
+                ),
+            ));
+        }
+    }
     // Outside items, one finding per paragraph: the lines after the first
-    // suspicious one are usually the same mistake.
+    // suspicious one are usually the same mistake. The paragraph right
+    // after a block closed too early is the rest of its item.
     let mut reported = false;
     for (index, (line, kind)) in lines.iter().zip(&parsed.lines).enumerate() {
         if *kind != Line::Text || line.trim().is_empty() {
             reported = false;
             continue;
+        }
+        if early.contains(&index) {
+            reported = true;
         }
         if let Some(message) = suspicion(line).filter(|_| !reported) {
             found.push((index + 1, message.to_owned()));
@@ -309,6 +332,23 @@ mod tests {
     fn mistaken_deletions_in_questions_are_found() {
         let text = "```srl\n@ id:abc\nQ: {{C1::upper}}\n  {{c1:one colon}}\n  {{c1::Paris::Paris}}\nA: {{C1::in the answer}}\n@ id:abd kind:words\nQ: {{C1::other kind}}\n```\n";
         assert_eq!(found_lines(text), [3, 4, 5]);
+    }
+
+    #[test]
+    fn a_block_closed_by_a_code_block_in_a_field_is_found() {
+        // The A: left outside is the rest of the item, not another finding.
+        let lost_answer =
+            "```srl id:aaa1\nQ: Does this compile?\n  ```rust\n  let b = a;\n  ```\nA: No.\n```\n";
+        assert_eq!(found_lines(lost_answer), [5]);
+        let cut_cloze = "```srl id:bbb1\nQ: {{c1::x}} here\n  ```rust\n  code\n  ```\n  more of Q\n```\n\n```srl id:ccc1\nQ: q\nA: a\n```\n";
+        assert_eq!(found_lines(cut_cloze), [5]);
+        let shared =
+            "```srl\n@ id:ddd1\nQ: {{c1::y}}\n  ```\n  code\n  ```\n@ id:eee1\nQ: z\nA: a\n```\n";
+        assert_eq!(found_lines(shared), [4]);
+        let longer = "````srl id:fff1\nQ: q\n  ```\n  code\n  ```\nA: a\n````\n";
+        assert!(found_lines(longer).is_empty());
+        let tildes = "~~~srl id:fff2\nQ: q\n  ```\n  code\n  ```\nA: a\n~~~\n";
+        assert!(found_lines(tildes).is_empty());
     }
 
     #[test]

@@ -110,8 +110,10 @@ The rules, in full:
     ```` ``` ````, in `srl` as in every CommonMark renderer. The rest of
     the item is then text of the note, and the block's own closing fence
     opens an ordinary code block (rule 13), which can hide the srl blocks
-    after it. This is not always an error: an item cut this way may still
-    be valid. `srl add` picks a long enough fence by itself.
+    after it. This is not always an error, since an item cut this way may
+    still be valid, but `srl lint` reports every block closed by an
+    indented fence (see [cli.md](cli.md), "Checking"). `srl add` picks a
+    long enough fence by itself.
 13. **Other fenced code blocks of the note are ignored**, so a note can
     show the item syntax in a code example. A fenced code block starts
     with a line of three or more backticks or tildes (after up to three

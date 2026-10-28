@@ -45,7 +45,7 @@ use. For example:
 
 | Tool | Runs |
 |---|---|
-| `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_notes`, `srs_kinds` | Reading (`srs_notes` and `srs_kinds` tell which notes and which fields an item can have) |
+| `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_notes`, `srs_kinds`, `srs_check`, `srs_lint` | Reading (`srs_notes` and `srs_kinds` tell which notes and which fields an item can have; `srs_check` and `srs_lint` find mistakes in what was written) |
 | `srs_add` | `srl add NOTE --stdin` (always draft: the tool sets `"draft": true` on every line, for example with `jq -c '.draft = true'`) |
 | `srs_edit` | `srl edit ID --stdin` (only if you want agents to edit items) |
 | `srs_next`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
@@ -81,21 +81,24 @@ Items are written in srl blocks, fenced code blocks whose language is `srl`
 mostly easy: fenced blocks are familiar, a block says where its items end,
 a mistake inside a block is an error that names its line, and `srl show`
 prints an item as one block that `srl edit ID --stdin` takes back. Three
-things are harder, and the first can lose text without any error.
+things are harder, and the first can lose text that only `srl lint`
+reports.
 
 1. **Fences inside fields.** A field that holds a fenced code block needs
    its srl block to be opened with a longer fence, or with tildes, and
    models often get fence lengths wrong. With too short a fence, the
    code's closing fence closes the srl block early, and what follows is
-   read as text of the note:
-   - in a `qa` item without cloze deletions, the `A:` is cut off: `srl
-     check` reports the item without an answer, and `srl lint` the `A:`
-     line outside a block;
-   - otherwise the item is cut short **without any error**: in a `Q` with
-     cloze deletions, or in the fields of a kind program, which `srl lint`
-     doesn't look at. Worse, the block's own closing fence, left over,
-     opens an ordinary code block, which hides the srl blocks after it
-     until the next fence closes it: their items silently disappear.
+   read as text of the note. The block's own closing fence, left over,
+   opens an ordinary code block, which hides the srl blocks after it
+   until the next fence closes it.
+   - `srl check` reports it only when the cut item is invalid, as a `qa`
+     item without cloze deletions that lost its `A:`. An item whose `Q`
+     has cloze deletions, or an item of a kind program, is just shorter,
+     and the hidden items are just gone: other commands read the note
+     without complaint.
+   - `srl lint` reports it every time, whatever the kind: the fence that
+     closed the block is indented, as the end of a code block in a field
+     is, and a block's own closing fence isn't.
 2. **Two forms of block.** A block holds one item, with its entries on the
    fence, or several, each starting with an `@` line, never both. A model
    that mixes them, for example by adding an `@` item to a block of one, gets an
@@ -112,10 +115,10 @@ What keeps them small:
   syntax at all, and it picks a fence long enough for the fields.
 - **Open blocks written by hand with `~~~srl`** when a field holds code:
   a tilde fence is never closed by backticks, so there is nothing to count.
-- **Check after writing**, with `srl check` and `srl lint`, and compare
-  what `srl show ID` prints with what was meant: a cut item shows there
-  with fewer fields, or shorter ones. `srl find` tells whether every item
-  written is there.
+- **Run `srl lint` after writing items by hand**, as well as `srl check`:
+  it is the one that finds a block closed too early. `srl show ID` then
+  shows what was read, and `srl find` whether every item written is
+  there.
 - **Give the agent tools instead of a shell** (see "Tools"): the tool
   passes standard input as it is, so there is no quoting to get wrong.
 

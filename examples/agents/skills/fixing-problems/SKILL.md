@@ -58,8 +58,8 @@ The person can also see it rendered in the Browse tab of `srl-web`.
 Only srl blocks make items, so `Q:` lines outside one are ordinary text,
 and no error is reported. `srl lint` finds such likely mistakes: `Q:` or
 `A:` lines outside blocks (also in lists and quotes), indented or
-misspelled block fences (```` ```SRL ````, ```` ```srl{…} ````), and cloze
-deletions outside items. It prints `PATH:LINE: message` and never
+misspelled block fences (```` ```SRL ````, ```` ```srl{…} ````), cloze
+deletions outside items, and srl blocks closed too early (see below). It prints `PATH:LINE: message` and never
 fails; exit 0 means it found something.
 
 ## An item cut short, or gone
@@ -68,18 +68,20 @@ When a field holds a fenced code block and its srl block was opened with
 ```` ``` ````, the code's closing fence closes the srl block. The rest of
 the item becomes text of the note, and the srl block's own closing fence,
 left over, opens a code block that hides the next srl blocks until another
-fence. This is not always reported:
+fence.
 
-- a `qa` item that lost its `A:` is an error (`srl check`), and the `A:`
-  line outside a block is found by `srl lint`;
-- an item whose `Q` has cloze deletions, or an item of a kind program, is
-  silently shorter, and the hidden items silently gone.
+- `srl check` reports it only when the cut item is invalid, such as a `qa`
+  item that lost its `A:`. An item whose `Q` has cloze deletions, or an
+  item of a kind program, is just shorter, and the hidden items just gone.
+- `srl lint` reports it every time: "this indented fence closes the srl
+  block of line N…", at the code's closing fence, which is indented by
+  the two spaces of its continuation line.
 
-Signs: `srl show ID` prints fewer or shorter fields than the note seems to
-hold; `srl find in:NOTE` lists fewer items than the note has; in a
-renderer, code and items look out of place. The fix: open that srl block
-with `~~~srl` and close it with `~~~`, or with more backticks than any
-fence inside it. Then run `srl check` and `srl find` again.
+Other signs: `srl show ID` prints fewer or shorter fields than the note
+seems to hold; `srl find in:NOTE` lists fewer items than the note has. The
+fix: open that srl block with `~~~srl` and close it with `~~~`, or with
+more backticks than any fence inside it. Then run `srl check`, `srl lint`
+and `srl find` again.
 
 ## History left behind: orphans and `srl move`
 

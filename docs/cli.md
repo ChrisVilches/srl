@@ -326,12 +326,18 @@ their lines:
 - in the `Q` of a `qa` item, something that was probably meant to be a
   cloze deletion (`{{C1::…}}`, or `{{c1:…}}` with one colon), and a
   deletion whose hint is the text it hides;
+- an srl block whose closing fence is indented (by one to three spaces): it
+  is almost always the end of a code block in a field, which closed the
+  srl block too early (see [notes.md](notes.md), "The item syntax", rule
+  12), whatever the item's kind;
 - a fenced code block that is never closed, when srl blocks come after it.
 
 Outside srl blocks, a paragraph (a run of lines without a blank line) is
 reported once, at its first suspicious line, since the lines after it are
-usually the same mistake. Lines inside an srl block are never reported:
-mistakes there are errors, which `srl check` reports.
+usually the same mistake. The paragraph right after a block closed by an
+indented fence is the rest of its item, so it is not reported. Other
+lines inside an srl block are never reported: mistakes there are errors,
+which `srl check` reports.
 
 Only the item syntax and the `qa` kind are known to `srl lint`: it doesn't
 look at the fields of items of kind programs, nor for their fields outside
