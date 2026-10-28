@@ -124,9 +124,9 @@ export function Key({ children }: { children: ReactNode }) {
   return <kbd className="ml-1 rounded bg-black/15 px-1.5 dark:bg-white/15 py-0.5 font-mono text-xs opacity-80">{children}</kbd>;
 }
 
-// Waiting for srl, with a spinner and the seconds since SINCE (NOW can lag a
-// new SINCE by a tick, hence the clamp): making a card
-// can take a while, as when its kind program asks an LLM.
+// Waiting for srl, with a spinner and the seconds since SINCE, a
+// performance.now(): making a card can take a while, as when its kind program
+// asks an LLM. NOW can lag a new SINCE by a tick, hence the clamp.
 export function Waiting({ title, since, children }: { title: string; since: number; children?: ReactNode }) {
   const [now, setNow] = useState(performance.now());
   useEffect(() => {
