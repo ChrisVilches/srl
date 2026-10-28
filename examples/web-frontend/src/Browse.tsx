@@ -238,7 +238,7 @@ function Preview({
               key={s}
               onClick={() => onSide(s)}
               className={`rounded-md px-3 py-1 ${
-                side === s ? 'bg-stone-900 text-white dark:bg-stone-700' : 'text-stone-500 hover:text-stone-900 dark:hover:text-stone-100'
+                side === s ? 'bg-stone-200 font-medium dark:bg-stone-800' :'text-stone-500 hover:text-stone-900 dark:hover:text-stone-100'
               }`}
             >
               {name}

@@ -121,7 +121,7 @@ export function Label({ children }: { children: ReactNode }) {
 }
 
 export function Key({ children }: { children: ReactNode }) {
-  return <kbd className="ml-1 rounded bg-black/15 px-1.5 py-0.5 font-mono text-xs opacity-80">{children}</kbd>;
+  return <kbd className="ml-1 rounded bg-black/15 px-1.5 dark:bg-white/15 py-0.5 font-mono text-xs opacity-80">{children}</kbd>;
 }
 
 export function Notice({ children }: { children: ReactNode }) {

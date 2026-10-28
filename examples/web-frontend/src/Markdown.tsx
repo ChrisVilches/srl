@@ -17,11 +17,16 @@ md.renderer.rules.link_open = (tokens, i, options, env, self) => {
   return defaultLinkOpen(tokens, i, options, env, self);
 };
 
+// Code blocks in the theme's colors: the typography plugin makes them dark in
+// the light theme too.
+const PRE =
+  'prose-pre:border prose-pre:border-stone-200 prose-pre:bg-stone-50 prose-pre:text-stone-800 dark:prose-pre:border-stone-800 dark:prose-pre:bg-stone-950/60 dark:prose-pre:text-stone-200';
+
 export function Markdown({ text, className = '' }: { text: string; className?: string }) {
   const html = useMemo(() => md.render(text), [text]);
   return (
     <div
-      className={`prose max-w-none dark:prose-invert ${className}`}
+      className={`prose prose-stone max-w-none dark:prose-invert ${PRE} ${className}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
