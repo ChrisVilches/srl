@@ -83,9 +83,21 @@ function ContextView({ card }: { card: ShownCard }) {
   return (
     <section className="rounded-2xl bg-stone-100 px-6 py-5 dark:bg-stone-900/50">
       <div className="mb-3 font-mono text-xs text-stone-500">{card.see ?? card.path}</div>
-      <Markdown text={card.context} className="prose-sm prose-stone" />
+      <Markdown text={contextMarkdown(card.context, card.see)} className="prose-sm prose-stone" />
     </section>
   );
+}
+
+// The context as Markdown to render. srl gives a JSONL note named by see as
+// it is, so it goes in a code block, with a fence longer than any run of
+// backticks in it, instead of being read as Markdown.
+function contextMarkdown(context: string, see: string | null): string {
+  if (!see?.endsWith('.jsonl')) {
+    return context;
+  }
+  const longest = Math.max(0, ...(context.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = '`'.repeat(Math.max(3, longest + 1));
+  return `${fence}json\n${context.replace(/\n+$/, '')}\n${fence}\n`;
 }
 
 export function ErrorView({ message, onRetry }: { message: string; onRetry: () => void }) {

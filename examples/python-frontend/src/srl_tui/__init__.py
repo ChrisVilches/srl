@@ -16,6 +16,7 @@ context, s suspends the card, q quits.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -110,6 +111,18 @@ class CardMarkdown(Markdown):
     def __init__(self, markup):
         super().__init__(markup)
         self.parsed = self.parser.parse(markup)  # Rich has no way to give it a parser
+
+
+def context_markdown(card):
+    """The card's context, as Markdown to render. srl gives a JSONL note
+    named by see as it is, so it goes in a code block, with a fence longer
+    than any run of backticks in it, instead of being read as Markdown."""
+    context = card["context"]
+    if not (card["see"] or "").endswith(".jsonl"):
+        return context
+    longest = max((len(run) for run in re.findall("`+", context)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return f"{fence}json\n{context.rstrip(chr(10))}\n{fence}\n"
 
 
 class Lines:
@@ -257,7 +270,7 @@ class Session:
         with_context = answered and card["context"] is not None
         card_height = min(height - (answered and not with_context), len(card_lines) + 4)
         if with_context:
-            context_lines = console.render_lines(CardMarkdown(card["context"]), options)
+            context_lines = console.render_lines(CardMarkdown(context_markdown(card)), options)
             card_height, context_height = split(height, len(card_lines) + 4, len(context_lines) + 2)
         # The panel in focus has the brighter border.
         color = "green" if answered else "cyan"

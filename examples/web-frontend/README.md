@@ -16,7 +16,8 @@ macOS and Windows (it is tried on Linux only).
 - Each card is labelled with its ID and kind, the kind in violet when it
   isn't `qa`, such as a kind that asks an LLM.
 - After the answer it shows the context in `prose` mode, under the name of
-  its note; `CONTEXT` in `server/server.js` chooses the mode.
+  its note; `CONTEXT` in `server/server.js` chooses the mode. A JSONL
+  note, which `srl` gives whole, is shown as a code block.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
   card without recording a review.
 - When the next card takes a while to make, as when its kind program asks
