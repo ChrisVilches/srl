@@ -204,25 +204,38 @@ impl Programs {
         inputs: &[Value],
         cache: &mut Cache<'_>,
     ) -> Result<Vec<String>, String> {
-        let inputs = lines(inputs);
+        let items = inputs.iter().map(|input| {
+            input
+                .get("id")
+                .and_then(Value::as_str)
+                .expect("an item's input should hold its ID")
+        });
+        let lines = lines(inputs);
         let command = self.command(name);
         let kept = match cache {
-            Cache::Use(index) => index.kind_answers(name, command, call, &inputs),
-            Cache::None | Cache::Refresh(_) => vec![None; inputs.len()],
+            Cache::Use(index) => index.kind_answers(name, command, call, &lines),
+            Cache::None | Cache::Refresh(_) => vec![None; lines.len()],
         };
-        let asked = inputs
-            .iter()
+        // The items without a kept answer: their IDs, for people reading
+        // the cache, and their input lines.
+        let (asked_items, asked): (Vec<_>, Vec<_>) = items
+            .zip(&lines)
             .zip(&kept)
             .filter(|(_, kept)| kept.is_none())
-            .map(|(input, _)| input.clone())
-            .collect::<Vec<_>>();
+            .map(|((item, line), _)| (item, line.clone()))
+            .unzip();
         if asked.is_empty() {
             return Ok(kept.into_iter().flatten().collect());
         }
         let answered = self.run(name, call, &asked, None)?;
         if let Cache::Use(index) | Cache::Refresh(index) = cache {
-            let pairs = asked.iter().zip(&answered).collect::<Vec<_>>();
-            index.keep_kind_answers(name, command, call, &pairs);
+            let answers = asked_items
+                .into_iter()
+                .zip(&asked)
+                .zip(&answered)
+                .map(|((item, line), answer)| (item, line, answer))
+                .collect::<Vec<_>>();
+            index.keep_kind_answers(name, command, call, &answers);
         }
         let mut answered = answered.into_iter();
         Ok(kept

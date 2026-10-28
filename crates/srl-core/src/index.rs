@@ -24,7 +24,7 @@ use crate::{CardId, Config, Error, History, Log, Memory, Result, Reviewed, Store
 
 /// The version of the tables below. Change it whenever they, or what they
 /// mean, change: a cache of another version is rebuilt.
-const SCHEMA_VERSION: i64 = 5;
+const SCHEMA_VERSION: i64 = 6;
 
 /// The tables. Their layout is not a contract (see `docs/store.md`).
 const SCHEMA: &str = "
@@ -38,7 +38,8 @@ CREATE TABLE memories (card TEXT PRIMARY KEY, reviews INTEGER NOT NULL, lapses I
     suspended INTEGER NOT NULL, seen_position INTEGER, seen_day TEXT, touched INTEGER NOT NULL);
 CREATE TABLE reviews (seq INTEGER PRIMARY KEY, card TEXT NOT NULL, day TEXT NOT NULL,
     rating INTEGER NOT NULL, was_new INTEGER NOT NULL);
-CREATE TABLE kind_answers (key TEXT PRIMARY KEY, answer TEXT NOT NULL);
+CREATE TABLE kind_answers (key TEXT PRIMARY KEY, answer TEXT NOT NULL, kind TEXT NOT NULL,
+    call TEXT NOT NULL, item TEXT NOT NULL);
 ";
 
 /// Every table, to drop them all before building them again. `atoms` is
@@ -213,22 +214,30 @@ impl Index {
     }
 
     /// Keeps what the program of kind `kind`, run by `command`, answered to
-    /// the call `call`: each pair is an input line and the line answered
-    /// for it.
+    /// the call `call`: for each item, its ID, its input line and the line
+    /// answered for it. The kind, the call and the item are kept beside the
+    /// answer only for people reading the cache; `srl` finds answers by key.
     pub(crate) fn keep_kind_answers(
         &mut self,
         kind: &str,
         command: &[String],
         call: &str,
-        answers: &[(&String, &String)],
+        answers: &[(&str, &String, &String)],
     ) {
         self.run(
             |transaction, _| {
-                for (line, answer) in answers {
+                for (item, line, answer) in answers {
                     execute(
                         transaction,
-                        "INSERT OR REPLACE INTO kind_answers (key, answer) VALUES (?1, ?2)",
-                        (answer_key(kind, command, call, line), answer),
+                        "INSERT OR REPLACE INTO kind_answers (key, answer, kind, call, item) \
+                         VALUES (?1, ?2, ?3, ?4, ?5)",
+                        (
+                            answer_key(kind, command, call, line),
+                            answer,
+                            kind,
+                            call,
+                            item,
+                        ),
                     )?;
                 }
                 Ok(())

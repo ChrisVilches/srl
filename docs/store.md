@@ -150,7 +150,9 @@ below).
   the item's input line, and used for as long as all four are the same;
   only the
   items without a kept answer are asked about (see [cards.md](cards.md),
-  "How srl calls them"). A program changed in place is not noticed: run
+  "How srl calls them"). Each kept answer also names its kind, call and
+  item, only for people reading the cache. A program changed in place is
+  not noticed: run
   `srl reindex` after changing one. Old answers are kept until then.
 - **Settings:** the whole log is replayed when `day_starts_at`,
   `desired_retention` or `weights` differ from those the cache was built
