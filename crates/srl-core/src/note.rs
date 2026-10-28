@@ -20,7 +20,7 @@ use crate::context::{ContextMode, context};
 use crate::kind::{Answer, Asked, Cache, Kind, Programs, ToMake, check};
 use crate::store::nfc;
 use crate::{Config, Error, Index, Result, Store};
-use syntax::{RawItem, Syntax};
+use syntax::ParsedItem;
 
 /// One field of an item: its key and its text.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,7 +143,6 @@ pub struct Item {
     id: ItemId,
     path: String,
     line: usize,
-    end: usize,
     kind: Kind,
     see: Option<String>,
     draft: bool,
@@ -166,14 +165,11 @@ impl Item {
         &self.path
     }
 
-    /// The line of the header, counting from 1.
+    /// The line where the item starts, counting from 1, as near as its
+    /// syntax can say: only for people, in `PATH:LINE`. Nothing finds an
+    /// item by it (see `docs/rust.md`, "The item syntax").
     pub fn line(&self) -> usize {
         self.line
-    }
-
-    /// The last line of the item, counting from 1.
-    pub fn end(&self) -> usize {
-        self.end
     }
 
     pub fn kind(&self) -> &Kind {
@@ -185,17 +181,6 @@ impl Item {
         self.see.as_deref()
     }
 
-    /// The path of the note shown as context: `see:`, or else the item's
-    /// own note, unless it is a JSONL note, which is no item's context
-    /// (see `docs/notes.md`, "Context").
-    pub fn context_path(&self) -> Option<&str> {
-        match self.see() {
-            Some(see) => Some(see),
-            None if Syntax::of(self.path()) == Syntax::Jsonl => None,
-            None => Some(self.path()),
-        }
-    }
-
     pub fn is_draft(&self) -> bool {
         self.draft
     }
@@ -205,7 +190,7 @@ impl Item {
     }
 
     /// The item written on its own, lines joined with `\n`, as the syntax
-    /// gives it (see [`syntax::RawItem::text`]): what `srl show` prints.
+    /// gives it (see [`syntax::ParsedItem::text`]): what `srl show` prints.
     pub fn text(&self) -> &str {
         &self.text
     }
@@ -510,10 +495,9 @@ pub(crate) fn check_new(new: &[(Entries, Vec<Field>)], programs: &Programs) -> V
     let mut problems = Vec::new();
     let mut items = Vec::new();
     for (index, (entries, fields)) in new.iter().enumerate() {
-        let raw = RawItem {
+        let raw = ParsedItem {
             entries: entries.clone(),
             line: index + 1,
-            end: index + 1,
             fields: fields.clone(),
             spans: Vec::new(),
             text: String::new(),
@@ -532,7 +516,7 @@ pub(crate) fn check_new(new: &[(Entries, Vec<Field>)], programs: &Programs) -> V
 /// their kinds are asked about them (they have no cards yet), and the
 /// problems of their syntax and entries.
 fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
-    let parsed = Syntax::of(path).parse(text);
+    let parsed = syntax::of(path).parse(text);
     let mut problems = parsed
         .errors
         .into_iter()
@@ -554,7 +538,7 @@ fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<E
 
 /// The item `raw` of the note at `path`, without its cards yet, or the
 /// problem of its entries or fields.
-fn written_item(path: &str, raw: RawItem, programs: &Programs) -> Result<Item> {
+fn written_item(path: &str, raw: ParsedItem, programs: &Programs) -> Result<Item> {
     let at = |reason: String| Error::Note {
         path: path.to_owned(),
         line: raw.line,
@@ -581,7 +565,6 @@ fn written_item(path: &str, raw: RawItem, programs: &Programs) -> Result<Item> {
         id,
         path: path.to_owned(),
         line: raw.line,
-        end: raw.end,
         kind,
         see: raw.entries.see,
         draft: raw.entries.draft,
@@ -662,24 +645,21 @@ mod tests {
     }
 
     #[test]
-    fn items_of_a_jsonl_note_have_no_context_of_their_own() {
+    fn the_notes_extension_chooses_how_its_items_are_read() {
         let text = "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"abd\", \"see\": \"n.md\", \"draft\": true, \"Q\": \"{{c1::r}}\"}\n";
         let (items, problems) = read_items("n.jsonl", text, &Programs::default());
         assert!(problems.is_empty(), "{problems:?}");
-        assert_eq!(items[0].context_path(), None);
-        assert_eq!(items[1].context_path(), Some("n.md"));
+        assert_eq!(items[1].see(), Some("n.md"));
+        assert!(items[1].is_draft());
         assert_eq!(items[1].line(), 2);
         assert_eq!(items[1].text(), text.lines().nth(1).unwrap());
         assert_eq!(
             items[0].json(None).to_string(),
             r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","path":"n.jsonl","line":1,"cards":["abc"],"context":null}"#
         );
-        let (md, _) = read_items(
-            "n.md",
-            "```srl id:abc\nQ: q\nA: a\n```\n",
-            &Programs::default(),
-        );
-        assert_eq!(md[0].context_path(), Some("n.md"));
+        // The same text in any other note is prose, with no item.
+        let (md, problems) = read_items("n.md", text, &Programs::default());
+        assert!(md.is_empty() && problems.is_empty());
     }
 
     #[test]

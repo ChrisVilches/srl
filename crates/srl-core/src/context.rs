@@ -1,8 +1,12 @@
 //! An item's context: the note shown after the answer of its cards (see
 //! `docs/notes.md`, "Context").
+//!
+//! Which note it is depends only on `see`; what that note shows is up to
+//! its own syntax (see [`syntax::Syntax::own_context`] and [`syntax::Syntax::context`]), so
+//! an item in one syntax can name a note in another.
 
-use crate::note::syntax::{Role, Syntax};
-use crate::note::{lines, read_note};
+use crate::note::read_note;
+use crate::note::syntax;
 use crate::{Item, Result, Store};
 
 /// How the context is shown. Each frontend chooses it, with `--context`.
@@ -16,77 +20,16 @@ pub enum ContextMode {
     None,
 }
 
-/// The context of `item` in `mode`: the note named by `see:`, or the
-/// item's own note unless it is a JSONL note. `None` in mode `none`, and
-/// when nothing but blank space is left.
+/// The context of `item` in `mode`: what the note named by `see:` shows to
+/// the items that name it, or else what the item's own note shows to its
+/// own items, each as its syntax says. `None` in mode `none`, without
+/// reading anything, and when there is nothing to show.
 pub fn context(store: &Store, item: &Item, mode: ContextMode) -> Result<Option<String>> {
     if mode == ContextMode::None {
         return Ok(None);
     }
-    let Some(path) = item.context_path() else {
-        return Ok(None);
-    };
-    let text = read_note(store, path)?;
-    Ok(match Syntax::of(path) {
-        Syntax::Blocks => of_text(&text, mode),
-        // A JSONL note is given as it is, in every mode.
-        Syntax::Jsonl => (!text.trim().is_empty()).then_some(text),
+    Ok(match item.see() {
+        Some(see) => syntax::of(see).context(&read_note(store, see)?, mode),
+        None => syntax::of(item.path()).own_context(&read_note(store, item.path())?, mode),
     })
-}
-
-/// The context of a note of srl blocks whose text is `text`, in `mode`.
-pub(crate) fn of_text(text: &str, mode: ContextMode) -> Option<String> {
-    let kept = lines(text)
-        .into_iter()
-        .zip(Syntax::Blocks.parse(text).roles)
-        .filter(|(_, role)| match role {
-            Role::Prose => true,
-            Role::Item => mode == ContextMode::Full,
-            Role::Hidden => false,
-        })
-        .map(|(line, _)| line);
-    let mut lines = Vec::new();
-    for line in kept {
-        let blank = line.trim().is_empty();
-        let after_blank = lines.last().is_none_or(|last: &&str| last.is_empty());
-        if blank && after_blank {
-            continue;
-        }
-        lines.push(if blank { "" } else { line });
-    }
-    while lines.last().is_some_and(|line| line.is_empty()) {
-        lines.pop();
-    }
-    (!lines.is_empty()).then(|| format!("{}\n", lines.join("\n")))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const NOTE: &str = "---\ntags: [x]\n---\n\n# Title\n\nProse.\n\n\n```srl id:abc\nQ: q\n\nA: a\n```\n\nMore.\n```srl\n@ id:abd\nQ: {{c1::x}}\n\n@ id:abe\nQ: y\n```\n\n";
-
-    #[test]
-    fn prose_leaves_out_items_and_front_matter() {
-        assert_eq!(
-            of_text(NOTE, ContextMode::Prose).as_deref(),
-            Some("# Title\n\nProse.\n\nMore.\n")
-        );
-    }
-
-    #[test]
-    fn full_keeps_fields_without_fences_and_headers() {
-        assert_eq!(
-            of_text(NOTE, ContextMode::Full).as_deref(),
-            Some("# Title\n\nProse.\n\nQ: q\n\nA: a\n\nMore.\nQ: {{c1::x}}\n\nQ: y\n")
-        );
-    }
-
-    #[test]
-    fn nothing_but_blank_space_is_no_context() {
-        let only_items = "\n```srl id:abc\nQ: q\nA: a\n```\n\n  \n```srl id:abd\nQ: r\nA: b\n```\n";
-        assert_eq!(of_text(only_items, ContextMode::Prose), None);
-        assert!(of_text(only_items, ContextMode::Full).is_some());
-        assert_eq!(of_text("", ContextMode::Full), None);
-    }
 }

@@ -8,14 +8,18 @@
 //! this module makes the change safe: the new text is parsed again and
 //! compared with the old before it is written, the file must not have
 //! changed since it was read, and it is replaced atomically.
+//!
+//! An item to change is found in the note as it is right before the
+//! change: by its ID, or, for `srl id`, by having none. It is named to the
+//! syntax by its position among the note's items, never by its line.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
 use std::io::Write as _;
 use std::path::Path;
 
 use crate::note::object::{self, Object};
-use crate::note::syntax::{Edit, RawItem, Syntax};
+use crate::note::syntax::{self, Edit, ParsedItem, Syntax};
 use crate::note::{Entries, Field, check_new, read_note};
 use crate::store::nfc;
 use crate::{Config, Error, Item, ItemId, Notes, Result, Store, random};
@@ -40,57 +44,57 @@ pub struct Added {
 /// problem other than items without an ID.
 pub fn assign_ids(store: &Store, notes: &Notes, seed: u64, dry_run: bool) -> Result<Vec<Written>> {
     refuse_problems(notes, true)?;
-    let missing = notes
+    let paths = notes
         .problems()
         .iter()
         .filter_map(|problem| {
-            if let Error::MissingId { path, line } = problem {
-                Some((path.clone(), *line))
+            if let Error::MissingId { path, .. } = problem {
+                Some(path.clone())
             } else {
                 None
             }
         })
-        .fold(
-            BTreeMap::<String, Vec<usize>>::new(),
-            |mut by_note, (path, line)| {
-                by_note.entry(path).or_default().push(line);
-                by_note
-            },
-        );
+        .collect::<BTreeSet<_>>();
     let mut fresh = fresh_ids(notes, HashSet::new(), seed);
     let mut written = Vec::new();
-    for (path, lines) in missing {
-        let syntax = Syntax::of(&path);
-        let old = read_note(store, &path)?;
-        let ids = lines
+    for path in paths {
+        let syntax = syntax::of(&path);
+        let (old, items) = read_parsed(store, &path)?;
+        // Each item without an ID, by its position, with its new ID.
+        let ids = items
             .iter()
-            .map(|line| {
+            .enumerate()
+            .filter(|(_, item)| item.entries.id.is_none())
+            .map(|(position, item)| {
                 let id = fresh.next().expect("random IDs should never run out");
-                (*line, id)
+                (position, item.line, id)
             })
             .collect::<Vec<_>>();
-        let new = ids.iter().try_fold(old.clone(), |text, (line, id)| {
-            syntax
-                .with_id(&text, *line, id)
-                .map(|edit| apply(&text, &edit))
-                .ok_or_else(|| no_header(&path, *line))
-        })?;
-        let expected = keys(syntax, &old)
+        let new = ids
+            .iter()
+            .try_fold(old.clone(), |text, (position, _, id)| {
+                syntax
+                    .with_id(&text, *position, id)
+                    .map(|edit| apply(&text, &edit))
+                    .ok_or_else(|| lost_item(&path))
+            })?;
+        let expected = items
             .into_iter()
-            .map(|(line, entries, fields)| {
+            .enumerate()
+            .map(|(position, item)| {
                 let id = ids
                     .iter()
-                    .find(|(at, _)| *at == line)
-                    .map(|(_, id)| id.clone());
+                    .find(|(at, _, _)| *at == position)
+                    .map(|(_, _, id)| id.clone());
                 let entries = Entries {
-                    id: id.or(entries.id),
-                    ..entries
+                    id: id.or(item.entries.id),
+                    ..item.entries
                 };
-                (entries, fields)
+                (entries, item.fields)
             })
             .collect::<Vec<_>>();
         commit(store, &path, Some(&old), &new, &expected, dry_run)?;
-        written.extend(ids.into_iter().map(|(line, id)| Written {
+        written.extend(ids.into_iter().map(|(_, line, id)| Written {
             id,
             path: path.clone(),
             line,
@@ -116,20 +120,30 @@ pub fn accept(
     );
     let mut written = Vec::new();
     for (path, drafts) in by_note {
-        let syntax = Syntax::of(path);
-        let old = read_note(store, path)?;
-        let new = drafts.iter().try_fold(old.clone(), |text, item| {
+        let syntax = syntax::of(path);
+        let (old, items) = read_parsed(store, path)?;
+        let positions = drafts
+            .iter()
+            .map(|item| position_of(&items, item.id(), path))
+            .collect::<Result<Vec<_>>>()?;
+        let new = positions.iter().try_fold(old.clone(), |text, position| {
             syntax
-                .without_draft(&text, item.line())
+                .without_draft(&text, *position)
                 .map(|edit| apply(&text, &edit))
-                .ok_or_else(|| no_header(path, item.line()))
+                .ok_or_else(|| lost_item(path))
         })?;
-        let lines = drafts.iter().map(|item| item.line()).collect::<Vec<_>>();
-        let expected = keys(syntax, &old)
+        let expected = items
             .into_iter()
-            .map(|(line, entries, fields)| {
-                let draft = entries.draft && !lines.contains(&line);
-                (Entries { draft, ..entries }, fields)
+            .enumerate()
+            .map(|(position, item)| {
+                let draft = item.entries.draft && !positions.contains(&position);
+                (
+                    Entries {
+                        draft,
+                        ..item.entries
+                    },
+                    item.fields,
+                )
             })
             .collect::<Vec<_>>();
         commit(store, path, Some(&old), &new, &expected, dry_run)?;
@@ -156,7 +170,7 @@ pub fn add(
 ) -> Result<Added> {
     refuse_problems(notes, false)?;
     check_note_path(config, path)?;
-    let syntax = Syntax::of(path);
+    let syntax = syntax::of(path);
     let lines = read_input(notes, input)?;
     let mut given = HashSet::new();
     for (line, object) in &lines {
@@ -206,6 +220,14 @@ pub fn add(
         .collect::<Result<Vec<_>>>()?;
     check_lines(&new, &lines, notes)?;
     let old = read_if_exists(&store.note_file(path))?;
+    if old
+        .as_deref()
+        .is_some_and(|text| !syntax.parse(text).errors.is_empty())
+    {
+        return Err(Error::ChangedMeanwhile {
+            path: path.to_owned(),
+        });
+    }
     let ending = line_ending(old.as_deref().unwrap_or_default());
     let gap = syntax.gap();
     let added = format!("{}\n", items.join(gap));
@@ -225,7 +247,6 @@ pub fn add(
     let expected = keys(syntax, old.as_deref().unwrap_or_default())
         .into_iter()
         .chain(items.iter().flat_map(|item| keys(syntax, item)))
-        .map(|(_, entries, fields)| (entries, fields))
         .collect::<Vec<_>>();
     commit(store, path, old.as_deref(), &new_text, &expected, dry_run)?;
     let ids = new
@@ -273,45 +294,36 @@ pub fn edit(store: &Store, notes: &Notes, input: &str, dry_run: bool) -> Result<
         },
     );
     let mut changed = Vec::new();
-    for (path, mut edits) in by_note {
-        let syntax = Syntax::of(path);
-        let old = read_note(store, path)?;
-        let written = syntax.parse(&old).items;
-        let still_there = edits.iter().all(|(_, item, _)| {
-            written
-                .iter()
-                .any(|raw| raw.line == item.line() && raw.entries.id.as_ref() == Some(item.id()))
-        });
-        if !still_there {
-            return Err(Error::ChangedMeanwhile {
-                path: path.to_owned(),
-            });
-        }
-        // From the last item up, so that the lines of the others stay put.
-        edits.sort_by_key(|(_, item, _)| std::cmp::Reverse(item.line()));
+    for (path, edits) in by_note {
+        let syntax = syntax::of(path);
+        let (old, items) = read_parsed(store, path)?;
+        // Replacing an item never adds or removes one, so the positions of
+        // the others stay put, in any order.
         let mut text = old.clone();
         let mut replaced = Vec::new();
         for (line, item, object) in edits {
             let invalid = |reason: String| Error::InvalidLine { line, reason };
+            let position = position_of(&items, item.id(), path)?;
             let (entries, fields) = (&object.entries, &object.fields);
             let edit = syntax
-                .replace(&text, item.line(), entries, fields)
+                .replace(&text, position, entries, fields)
                 .map_err(invalid)?;
             text = apply(&text, &edit);
             let formatted = syntax.format(entries, fields).map_err(invalid)?;
-            let (_, entries, fields) = keys(syntax, &formatted)
+            let (entries, fields) = keys(syntax, &formatted)
                 .into_iter()
                 .next()
-                .ok_or_else(|| no_header(path, item.line()))?;
-            replaced.push((item.line(), entries, fields));
+                .ok_or_else(|| lost_item(path))?;
+            replaced.push((position, entries, fields));
         }
-        let expected = keys(syntax, &old)
+        let expected = items
             .into_iter()
-            .map(|(line, entries, fields)| {
+            .enumerate()
+            .map(|(position, item)| {
                 replaced
                     .iter()
-                    .find(|(at, _, _)| *at == line)
-                    .map_or((entries, fields), |(_, entries, fields)| {
+                    .find(|(at, _, _)| *at == position)
+                    .map_or((item.entries, item.fields), |(_, entries, fields)| {
                         (entries.clone(), fields.clone())
                     })
             })
@@ -348,12 +360,40 @@ fn read_input(notes: &Notes, input: &str) -> Result<Vec<(usize, Object)>> {
         .collect()
 }
 
-/// The error for a change to a header that is not on line `line` of the
-/// note at `path`, which can only be a bug in `srl`.
-fn no_header(path: &str, line: usize) -> Error {
+/// The text of the note at `path` as it is now, and its items. Commands
+/// that write refuse notes with errors, so a note that has some now
+/// changed since it was read.
+fn read_parsed(store: &Store, path: &str) -> Result<(String, Vec<ParsedItem>)> {
+    let text = read_note(store, path)?;
+    let parsed = syntax::of(path).parse(&text);
+    if parsed.errors.is_empty() {
+        Ok((text, parsed.items))
+    } else {
+        Err(Error::ChangedMeanwhile {
+            path: path.to_owned(),
+        })
+    }
+}
+
+/// The position of the item `id` among `items`, those of the note at
+/// `path` as it is now. An item that is not there any more was moved or
+/// removed since the note was read.
+fn position_of(items: &[ParsedItem], id: &ItemId, path: &str) -> Result<usize> {
+    items
+        .iter()
+        .position(|item| item.entries.id.as_ref() == Some(id))
+        .ok_or_else(|| Error::ChangedMeanwhile {
+            path: path.to_owned(),
+        })
+}
+
+/// The error for a change to an item the syntax doesn't find where it just
+/// read it, which can only be a bug in `srl`.
+fn lost_item(path: &str) -> Error {
     Error::CannotWrite {
         path: path.to_owned(),
-        reason: format!("line {line} holds no header (a bug in srl; please report it)"),
+        reason: "an item to change is not where srl read it (a bug in srl; please report it)"
+            .to_owned(),
     }
 }
 
@@ -433,27 +473,20 @@ fn check_lines(
     Err(Error::InvalidLine { line, reason })
 }
 
-/// What verification compares: each item's line, entries and fields.
-fn keys(syntax: Syntax, text: &str) -> Vec<(usize, Entries, Vec<Field>)> {
+/// What verification compares: each item's entries and fields, in order.
+fn keys(syntax: &dyn Syntax, text: &str) -> Vec<(Entries, Vec<Field>)> {
     syntax
         .parse(text)
         .items
         .into_iter()
-        .map(
-            |RawItem {
-                 entries,
-                 line,
-                 fields,
-                 ..
-             }| (line, entries, fields),
-        )
+        .map(|item| (item.entries, item.fields))
         .collect()
 }
 
 /// Checks that `new` parses without errors into exactly the `expected`
 /// items. A mismatch is a bug in `srl`, so nothing is written.
 fn verify(path: &str, new: &str, expected: &[(Entries, Vec<Field>)]) -> Result<()> {
-    let parsed = Syntax::of(path).parse(new);
+    let parsed = syntax::of(path).parse(new);
     let found = parsed
         .items
         .into_iter()
@@ -874,25 +907,50 @@ mod tests {
     }
 
     #[test]
-    fn edit_writes_nothing_when_a_note_changed_after_it_was_read() {
+    fn writes_find_items_by_id_in_the_note_as_it_is_now() {
         let (_tmp, store) = store(&[
             ("a.md", "```srl id:aaa1\nQ: q\nA: a\n```\n"),
             ("b.md", "```srl id:bbb1\nQ: q\nA: a\n```\n"),
         ]);
         let notes = notes(&store);
-        // The item moved down a line since the notes were read.
+        let input = "{\"id\": \"aaa1\", \"Q\": \"new\", \"A\": \"a\"}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\"}\n";
+        // An item that moved since the notes were read is found where it
+        // is now.
         fs::write(
             store.note_file("b.md"),
-            "\n```srl id:bbb1\nQ: q\nA: a\n```\n",
+            "Prose.\n```srl id:bbb1\nQ: q\nA: a\n```\n",
         )
         .unwrap();
-        let input = "{\"id\": \"aaa1\", \"Q\": \"new\", \"A\": \"a\"}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\"}\n";
-        assert!(matches!(
-            edit(&store, &notes, input, false),
-            Err(Error::ChangedMeanwhile { .. })
-        ));
-        assert_eq!(read(&store, "a.md"), "```srl id:aaa1\nQ: q\nA: a\n```\n");
+        edit(&store, &notes, input, true).unwrap();
+        // An item that is gone, or a note that has an error now, stops the
+        // command, and no note is written.
+        for changed in ["Prose.\n", "```srl id:bbb1\nQ: q\nA: a\n```\n```srl\n"] {
+            fs::write(store.note_file("b.md"), changed).unwrap();
+            assert!(matches!(
+                edit(&store, &notes, input, false),
+                Err(Error::ChangedMeanwhile { .. })
+            ));
+            assert_eq!(read(&store, "a.md"), "```srl id:aaa1\nQ: q\nA: a\n```\n");
+        }
         assert!(edit(&store, &notes, "\n\n", false).unwrap().is_empty());
+    }
+
+    #[test]
+    fn ids_go_to_the_items_without_one_by_their_position() {
+        let mut config = Config::default();
+        config.notes.include = vec!["*.jsonl".to_owned()];
+        // Two items alike in everything, but where they are, are told apart
+        // by their position.
+        let (_tmp, store) = store(&[(
+            "a.jsonl",
+            "{\"Q\": \"q\", \"A\": \"a\"}\n{\"Q\": \"q\", \"A\": \"a\"}\n",
+        )]);
+        let load = || Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let written = assign_ids(&store, &load(), 7, false).unwrap();
+        let lines = written.iter().map(|done| done.line).collect::<Vec<_>>();
+        assert_eq!(lines, [1, 2]);
+        assert_eq!(load().items().len(), 2);
+        assert!(load().problems().is_empty());
     }
 
     #[test]

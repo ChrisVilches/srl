@@ -1,91 +1,175 @@
 //! The srl block syntax: items in fenced code blocks of Markdown (see
-//! `docs/notes.md`, "The srl block syntax"). Its functions are those of
-//! every syntax, described in the parent module.
+//! `docs/notes.md`, "The srl block syntax"), the syntax of every note but a
+//! JSONL note.
 //!
 //! The parser reports every problem it finds, with its line, and carries
 //! on, so that one run lists all of them.
 
-use super::{Edit, Lines, Parsed, RawItem, Role};
+use super::{Edit, Lines, Parsed, ParsedItem, Syntax, unless_blank};
+use crate::context::ContextMode;
 use crate::kind::has_deletion;
 use crate::note::{Entries, Field, ItemId, is_field_key, lines};
 
-/// Reads the items of a note.
-pub(super) fn parse(text: &str) -> Parsed {
+/// The srl block syntax.
+pub(super) struct Blocks;
+
+impl Syntax for Blocks {
+    fn parse(&self, text: &str) -> Parsed {
+        let reading = read(text);
+        Parsed {
+            items: reading.found.into_iter().map(|found| found.item).collect(),
+            errors: reading.errors,
+        }
+    }
+
+    /// The note, without its srl blocks in mode `prose` (see [`context`]).
+    fn own_context(&self, text: &str, mode: ContextMode) -> Option<String> {
+        context(text, mode)
+    }
+
+    /// The same as for its own items: the note, without its srl blocks in
+    /// mode `prose` (see [`context`]).
+    fn context(&self, text: &str, mode: ContextMode) -> Option<String> {
+        context(text, mode)
+    }
+
+    /// Adds `id:ID` right after the `srl` of the item's opening fence or
+    /// the `@` of its `@` line.
+    fn with_id(&self, text: &str, item: usize, id: &ItemId) -> Option<Edit> {
+        let line = read(text).found.get(item)?.item.line;
+        let content = *lines(text).get(line - 1)?;
+        let header = header(content)?.ok()?;
+        let (before, after) = content.split_at(header.mark_end);
+        Some(Edit::one(line, format!("{before} id:{id}{after}")))
+    }
+
+    /// Removes `draft` from the item's header, with the spaces before it.
+    fn without_draft(&self, text: &str, item: usize) -> Option<Edit> {
+        let line = read(text).found.get(item)?.item.line;
+        let content = *lines(text).get(line - 1)?;
+        let draft = header(content)?.ok()?.draft?;
+        let before = content.get(..draft.start).unwrap_or_default();
+        let after = content.get(draft.end..).unwrap_or_default();
+        Some(Edit::one(
+            line,
+            format!("{}{after}", before.trim_end_matches(' ')),
+        ))
+    }
+
+    /// An item that has its block to itself becomes a block of its own, as
+    /// [`format()`] writes it; an item that starts with an `@` line keeps its
+    /// place in its block, as an `@` line and its field lines.
+    fn replace(
+        &self,
+        text: &str,
+        item: usize,
+        entries: &Entries,
+        fields: &[Field],
+    ) -> Result<Edit, String> {
+        let reading = read(text);
+        let target = reading
+            .found
+            .get(item)
+            .ok_or_else(|| format!("the note has no item {item}"))?;
+        if target.is_alone() {
+            return Ok(Edit {
+                first: target.block.open,
+                last: target.block.close,
+                lines: format(entries, fields)?
+                    .split('\n')
+                    .map(str::to_owned)
+                    .collect(),
+            });
+        }
+        let field_lines = field_lines(fields);
+        if field_lines.iter().any(|line| target.block.closed_by(line)) {
+            return Err(format!(
+                "a line of it would close the block the item is in; open and close that block \
+                 with a longer fence than {}",
+                target.block.fence
+            ));
+        }
+        let written = header_entries(entries)?;
+        let header = if written.is_empty() {
+            "@".to_owned()
+        } else {
+            format!("@ {written}")
+        };
+        Ok(Edit {
+            first: target.item.line,
+            last: target.end,
+            lines: std::iter::once(header).chain(field_lines).collect(),
+        })
+    }
+
+    fn format(&self, entries: &Entries, fields: &[Field]) -> Result<String, String> {
+        format(entries, fields)
+    }
+
+    /// A blank line: each item is a block of its own.
+    fn gap(&self) -> &'static str {
+        "\n\n"
+    }
+
+    fn lint(&self, text: &str) -> Vec<(usize, String)> {
+        lint(text)
+    }
+
+    /// The lines of the note the field is written on, as they are, each
+    /// named by its own line.
+    fn field_lines(&self, text: &str, item: &ParsedItem, field: usize) -> Vec<(usize, String)> {
+        let Some(span) = item.spans.get(field) else {
+            return Vec::new();
+        };
+        lines(text)
+            .into_iter()
+            .enumerate()
+            .take(span.last)
+            .skip(span.first - 1)
+            .map(|(index, line)| (index + 1, line.to_owned()))
+            .collect()
+    }
+}
+
+/// What a line of a note is for its context (see `docs/notes.md`,
+/// "Context").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Role {
+    /// Text of the note, shown in every mode but `none`.
+    Prose,
+    /// Text of an item, shown in mode `full` only.
+    Item,
+    /// Never shown: front-matter, and the syntax around items.
+    Hidden,
+}
+
+/// A note of srl blocks as a context, in `mode`: its prose, and in mode
+/// `full` the field lines of its items, without front-matter, with runs of
+/// blank lines made one and no blank lines at the start or the end.
+fn context(text: &str, mode: ContextMode) -> Option<String> {
     let reading = read(text);
-    Parsed {
-        roles: reading
-            .lines
-            .iter()
-            .zip(lines(text))
-            .map(|(kind, line)| kind.role(line))
-            .collect(),
-        items: reading.found.into_iter().map(|found| found.item).collect(),
-        errors: reading.errors,
+    let kept = lines(text)
+        .into_iter()
+        .zip(&reading.lines)
+        .filter(|(line, kind)| match kind.role(line) {
+            Role::Prose => true,
+            Role::Item => mode == ContextMode::Full,
+            Role::Hidden => false,
+        })
+        .map(|(line, _)| line);
+    let mut lines = Vec::new();
+    for line in kept {
+        let blank = line.trim().is_empty();
+        let after_blank = lines.last().is_none_or(|last: &&str| last.is_empty());
+        if blank && after_blank {
+            continue;
+        }
+        lines.push(if blank { "" } else { line });
     }
-}
-
-pub(super) fn with_id(text: &str, line: usize, id: &ItemId) -> Option<Edit> {
-    let content = *lines(text).get(line.checked_sub(1)?)?;
-    let header = header(content)?.ok()?;
-    let (before, after) = content.split_at(header.mark_end);
-    Some(Edit::one(line, format!("{before} id:{id}{after}")))
-}
-
-pub(super) fn without_draft(text: &str, line: usize) -> Option<Edit> {
-    let content = *lines(text).get(line.checked_sub(1)?)?;
-    let draft = header(content)?.ok()?.draft?;
-    let before = content.get(..draft.start).unwrap_or_default();
-    let after = content.get(draft.end..).unwrap_or_default();
-    Some(Edit::one(
-        line,
-        format!("{}{after}", before.trim_end_matches(' ')),
-    ))
-}
-
-/// An item that has its block to itself becomes a block of its own, as
-/// [`format`] writes it; an item that starts with an `@` line keeps its
-/// place in its block, as an `@` line and its field lines.
-pub(super) fn replace(
-    text: &str,
-    line: usize,
-    entries: &Entries,
-    fields: &[Field],
-) -> Result<Edit, String> {
-    let reading = read(text);
-    let target = reading
-        .found
-        .iter()
-        .find(|found| found.item.line == line)
-        .ok_or_else(|| format!("no item starts on line {line} any more"))?;
-    if target.is_alone() {
-        return Ok(Edit {
-            first: target.block.open,
-            last: target.block.close,
-            lines: format(entries, fields)?
-                .split('\n')
-                .map(str::to_owned)
-                .collect(),
-        });
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
     }
-    let field_lines = field_lines(fields);
-    if field_lines.iter().any(|line| target.block.closed_by(line)) {
-        return Err(format!(
-            "a line of it would close the block the item is in; open and close that block with \
-             a longer fence than {}",
-            target.block.fence
-        ));
-    }
-    let written = header_entries(entries)?;
-    let header = if written.is_empty() {
-        "@".to_owned()
-    } else {
-        format!("@ {written}")
-    };
-    Ok(Edit {
-        first: target.item.line,
-        last: target.item.end,
-        lines: std::iter::once(header).chain(field_lines).collect(),
-    })
+    unless_blank(format!("{}\n", lines.join("\n")))
 }
 
 /// A new item as `srl add` writes it: an srl block of its own, its entries
@@ -93,7 +177,7 @@ pub(super) fn replace(
 /// multi-line text. The fence is three backticks, or one more than the
 /// longest run of backticks a line of the text starts with. Errors are
 /// plain reasons.
-pub(super) fn format(entries: &Entries, fields: &[Field]) -> Result<String, String> {
+fn format(entries: &Entries, fields: &[Field]) -> Result<String, String> {
     let written = header_entries(entries)?;
     let longest = fields
         .iter()
@@ -170,8 +254,8 @@ fn field_lines(fields: &[Field]) -> Vec<String> {
     lines
 }
 
-/// The likely mistakes of the syntax in one note (see [`super::Syntax::lint`]).
-pub(super) fn lint(text: &str) -> Vec<(usize, String)> {
+/// The likely mistakes of the syntax in one note (see [`Syntax::lint`]).
+fn lint(text: &str) -> Vec<(usize, String)> {
     let reading = read(text);
     let lines = lines(text);
     let mut found = Vec::new();
@@ -287,7 +371,9 @@ impl Block {
 /// An item, with what the syntax knows about it besides.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Found {
-    item: RawItem,
+    item: ParsedItem,
+    /// The last line of the item.
+    end: usize,
     /// The header's entries, as written.
     entries: String,
     /// The block the item is in.
@@ -519,14 +605,14 @@ impl Parser<'_> {
             .collect::<Vec<_>>()
             .join("\n");
         self.found.push(Found {
-            item: RawItem {
+            item: ParsedItem {
                 entries: line.entries_read,
                 line: header + 1,
-                end: body.last + 1,
                 fields: body.fields,
                 spans: body.spans,
                 text,
             },
+            end: body.last + 1,
             entries: line.entries,
             block: block.clone(),
         });
@@ -969,7 +1055,21 @@ fn without_markers(line: &str) -> &str {
 mod tests {
     use super::*;
 
-    fn field_pairs(item: &RawItem) -> Vec<(&str, &str)> {
+    fn parse(text: &str) -> Parsed {
+        Blocks.parse(text)
+    }
+
+    /// The role in the context of each line of `text`.
+    fn roles(text: &str) -> Vec<Role> {
+        read(text)
+            .lines
+            .iter()
+            .zip(lines(text))
+            .map(|(kind, line)| kind.role(line))
+            .collect()
+    }
+
+    fn field_pairs(item: &ParsedItem) -> Vec<(&str, &str)> {
         item.fields
             .iter()
             .map(|field| (field.key.as_str(), field.text.as_str()))
@@ -995,7 +1095,7 @@ mod tests {
         };
         let item = &found.item;
         assert_eq!(item.entries.id.as_ref().unwrap().as_str(), "x7k2m9");
-        assert_eq!((item.line, item.end), (2, 4));
+        assert_eq!((item.line, found.end), (2, 4));
         assert_eq!((found.block.open, found.block.close), (2, 5));
         assert!(found.is_alone());
         assert_eq!(field_pairs(item), [("Q", "What?"), ("A", "That.")]);
@@ -1012,7 +1112,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            parse(text).roles,
+            roles(text),
             [
                 Role::Prose,
                 Role::Hidden,
@@ -1034,7 +1134,7 @@ mod tests {
             panic!("expected two items: {:?}", reading.found);
         };
         assert_eq!(
-            (one.item.line, one.item.end, two.item.line, two.item.end),
+            (one.item.line, one.end, two.item.line, two.end),
             (2, 4, 6, 8)
         );
         assert_eq!(one.entries, "id:abc");
@@ -1043,7 +1143,7 @@ mod tests {
         assert_eq!(two.block.fence, "~~~~");
         assert_eq!(reading.lines[4], Line::Block);
         assert_eq!(reading.lines[8], Line::Block);
-        assert_eq!(parse(text).roles[4], Role::Item);
+        assert_eq!(roles(text)[4], Role::Item);
         assert_eq!(one.item.text, "~~~~srl id:abc\nQ: a\nA: b\n~~~~");
         assert_eq!(two.item.text, "~~~~srl\nQ: c\n  more\n~~~~");
     }
@@ -1157,7 +1257,7 @@ mod tests {
     #[test]
     fn a_block_with_an_error_is_hidden_from_the_context() {
         assert_eq!(
-            parse("```srl\nprose\n```\nAfter.\n").roles,
+            roles("```srl\nprose\n```\nAfter.\n"),
             [Role::Hidden, Role::Hidden, Role::Hidden, Role::Prose]
         );
     }
@@ -1175,7 +1275,7 @@ mod tests {
                 ("A", "No.\n\nReally.")
             ]
         );
-        assert_eq!(item.end, 10);
+        assert_eq!(reading.found[0].end, 10);
         assert_eq!(reading.lines[10], Line::Block);
         assert_eq!(reading.lines[12], Line::Text);
     }
@@ -1238,22 +1338,61 @@ mod tests {
 
     #[test]
     fn edits_touch_the_header_line_only() {
-        let text = "```srl\n@  draft\nQ: q\n@ id:abc draft see:a.md\nQ: r\n```\n";
+        let text = "```srl\n@  draft\nQ: q\n@ id:abc draft see:a.md\nQ: r\n@ id:abd\nQ: s\n```\n";
         let id = ItemId::parse("xyz").unwrap();
         assert_eq!(
-            with_id(text, 2, &id),
+            Blocks.with_id(text, 0, &id),
             Some(Edit::one(2, "@ id:xyz  draft".to_owned()))
         );
         assert_eq!(
-            without_draft(text, 4),
+            Blocks.without_draft(text, 1),
             Some(Edit::one(4, "@ id:abc see:a.md".to_owned()))
         );
-        assert_eq!(with_id(text, 3, &id), None);
-        assert_eq!(without_draft(text, 1), None);
+        assert_eq!(Blocks.with_id(text, 3, &id), None);
+        assert_eq!(Blocks.without_draft(text, 2), None);
         assert_eq!(
-            with_id("```srl\nQ: q\n```\n", 1, &id),
-            Some(Edit::one(1, "```srl id:xyz".to_owned()))
+            Blocks.with_id("Prose.\n```srl\nQ: q\n```\n", 0, &id),
+            Some(Edit::one(2, "```srl id:xyz".to_owned()))
         );
+    }
+
+    #[test]
+    fn a_notes_context_leaves_out_its_items_unless_full() {
+        let text = "---\ntags: [x]\n---\n\n# Title\n\nProse.\n\n\n```srl id:abc\nQ: q\n\nA: a\n```\n\nMore.\n```srl\n@ id:abd\nQ: {{c1::x}}\n\n@ id:abe\nQ: y\n```\n\n";
+        for context in [
+            Blocks.context(text, ContextMode::Prose),
+            Blocks.own_context(text, ContextMode::Prose),
+        ] {
+            assert_eq!(context.as_deref(), Some("# Title\n\nProse.\n\nMore.\n"));
+        }
+        for context in [
+            Blocks.context(text, ContextMode::Full),
+            Blocks.own_context(text, ContextMode::Full),
+        ] {
+            assert_eq!(
+                context.as_deref(),
+                Some("# Title\n\nProse.\n\nQ: q\n\nA: a\n\nMore.\nQ: {{c1::x}}\n\nQ: y\n")
+            );
+        }
+    }
+
+    #[test]
+    fn nothing_but_blank_space_is_no_context() {
+        let only_items = "\n```srl id:abc\nQ: q\nA: a\n```\n\n  \n```srl id:abd\nQ: r\nA: b\n```\n";
+        assert_eq!(Blocks.context(only_items, ContextMode::Prose), None);
+        assert!(Blocks.context(only_items, ContextMode::Full).is_some());
+        assert_eq!(Blocks.context("", ContextMode::Full), None);
+    }
+
+    #[test]
+    fn a_fields_lines_are_the_lines_of_the_note_it_is_written_on() {
+        let text = "Prose.\n```srl\nQ: a\n  b\n\nA: c\n```\n";
+        let item = &parse(text).items[0];
+        assert_eq!(
+            Blocks.field_lines(text, item, 0),
+            [(3, "Q: a".to_owned()), (4, "  b".to_owned())]
+        );
+        assert_eq!(Blocks.field_lines(text, item, 1), [(6, "A: c".to_owned())]);
     }
 
     #[test]
@@ -1271,21 +1410,23 @@ mod tests {
                 text: text.to_owned(),
             })
         };
-        let alone = replace(text, 1, &entries("aaa", true), &fields("new")).unwrap();
+        let replace =
+            |item, entries, fields: &[Field]| Blocks.replace(text, item, &entries, fields);
+        let alone = replace(0, entries("aaa", true), &fields("new")).unwrap();
         assert_eq!((alone.first, alone.last), (1, 4));
         assert_eq!(
             alone.lines,
             ["```srl id:aaa kind:words draft", "Q: new", "A: a", "```"]
         );
-        let shared = replace(text, 6, &entries("bbb", false), &fields("new\n  more")).unwrap();
+        let shared = replace(1, entries("bbb", false), &fields("new\n  more")).unwrap();
         assert_eq!((shared.first, shared.last), (6, 8));
         assert_eq!(
             shared.lines,
             ["@ id:bbb kind:words", "Q: new", "    more", "A: a"]
         );
-        let closing = replace(text, 10, &entries("ccc", false), &fields("q\n````"));
+        let closing = replace(2, entries("ccc", false), &fields("q\n````"));
         assert!(closing.is_err());
-        assert!(replace(text, 2, &entries("aaa", false), &fields("q")).is_err());
+        assert!(replace(3, entries("aaa", false), &fields("q")).is_err());
     }
 
     #[test]

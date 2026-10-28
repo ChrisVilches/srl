@@ -203,6 +203,17 @@ questions", once it is planned.
   needs a plugin protocol of its own, much like the one of kind programs,
   so it is postponed.
 
+- **Items without a line.** An item's line is only shown to people
+  (`PATH:LINE`, `line` in JSON), and nothing finds an item by it (see
+  [rust.md](rust.md), "Lines are for people"). Some syntaxes can't say
+  well where an item starts: in a pretty-printed JSON document, an item
+  could start on the line of its `{` or of its first key. Such a syntax
+  could give no line, or `srl` could drop lines altogether, and leave
+  finding an item to its ID: `srl show ID` says which note it is in, and
+  each syntax finds it there its own way. `PATH:LINE` would become `PATH`
+  where there is no line, and `line` in JSON `null`; a person opening the
+  note would search for the ID.
+
 - **Blank space before added items** (low priority). `srl add` puts a
   blank line between a note and the items it appends, and keeps every
   byte already in the note. A note that holds only blank lines, such as

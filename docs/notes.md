@@ -211,8 +211,7 @@ A JSONL note holds one item per line, and nothing else:
 3. **Any other line is an error**: text that is not JSON, JSON that is not
    an object, or an object that is not a valid item object.
 
-An item's line is its header's line, and its last line, in `PATH:LINE`.
-Field text is anything JSON can write: line endings, code blocks, fences
+An item's line, in `PATH:LINE`, is the line it is on. Field text is anything JSON can write: line endings, code blocks, fences
 of any length, quotes and backslashes need nothing but JSON's escapes.
 
 A JSONL note is data, not prose: it is never a context of its own items
@@ -252,6 +251,11 @@ misspelled one is an error.
   the item's: `x7k2m9`, or `p4n8d2-1` and `p4n8d2-2` (see
   [cards.md](cards.md), "Card IDs"). Because an item ID never contains `-`,
   a card ID always names its item.
+- **An item's line is for people only.** `PATH:LINE` in listings and
+  messages, and `line` in JSON, say where the item starts, as near as its
+  syntax can say: the line of its header, or its line in a JSONL note.
+  `srl` never finds an item by its line: commands that change an item
+  find it by its ID in the note as it is (see "How srl writes to notes").
 - **Editing an item never resets its cards.** `srl reset` is the way to
   start over. When an edit makes a card disappear, its history is kept in
   the log, and `srl move` can give it to another card (see
@@ -347,9 +351,12 @@ Every other command only reads notes. The rules for writing:
    has an error, the command reports every error and changes nothing. For
    `srl id`, an item without an ID is not an error, since that is what it
    fixes.
-3. **A note that changed while `srl` was working is not written.** Right
-   before writing, the file is read again and compared with what `srl`
-   read. If it differs, for example because your editor saved it in
+3. **A note that changed while `srl` was working is not written.** Each
+   item to change is found in the note as it is when the command writes
+   it: by its ID, or, for `srl id`, by having none. If an item is not there
+   any more, or the note has an error now, the command stops and says so.
+   Right before writing, the file is read again and compared with what
+   `srl` read. If it differs, for example because your editor saved it in
    between, the command stops and says so; notes it wrote before stay
    written, and running it again finishes the work.
 4. **Writes are atomic.** The new content is written to a temporary file
