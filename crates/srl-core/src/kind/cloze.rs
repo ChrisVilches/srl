@@ -95,6 +95,37 @@ pub(crate) fn has_deletion(text: &str) -> bool {
     next_start(text, 0).is_some()
 }
 
+/// Whether `text` has something that was probably meant to start a
+/// deletion but doesn't: `{{C1::` or `{{c1:` (one colon).
+pub(crate) fn has_near_deletion(text: &str) -> bool {
+    text.match_indices("{{").any(|(start, _)| {
+        let rest = text.get(start + 2..).unwrap_or_default();
+        let (upper, rest) = match rest.strip_prefix('C') {
+            Some(rest) => (true, rest),
+            None => (false, rest.strip_prefix('c').unwrap_or_default()),
+        };
+        let digits = rest.len() - rest.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+        let tail = rest.get(digits..).unwrap_or_default();
+        digits > 0
+            && if upper {
+                tail.starts_with("::")
+            } else {
+                tail.starts_with(':') && !tail.starts_with("::")
+            }
+    })
+}
+
+/// Whether a deletion of `text` has a hint that is its text, so that the
+/// prompt shows what it hides. A text with errors has none.
+pub(crate) fn has_revealing_hint(text: &str) -> bool {
+    pieces(text).is_ok_and(|pieces| {
+        pieces.iter().any(|piece| match piece {
+            Piece::Deletion(deletion) => deletion.hint.map(str::trim) == Some(deletion.text.trim()),
+            Piece::Text(_) => false,
+        })
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,6 +171,32 @@ mod tests {
         ] {
             assert!(pieces(text).is_err(), "accepted {text}");
         }
+    }
+
+    #[test]
+    fn near_deletions_are_found() {
+        for text in ["a {{C1::x}}", "{{c1:x}}", "{{c12:x}}"] {
+            assert!(has_near_deletion(text), "missed {text}");
+        }
+        for text in [
+            "{{c1::x}}",
+            "{{c::x}}",
+            "{{C::x}}",
+            "{{cx:y}}",
+            "{{}}",
+            "{{c1",
+        ] {
+            assert!(!has_near_deletion(text), "found {text}");
+        }
+    }
+
+    #[test]
+    fn hints_that_are_the_text_are_found() {
+        assert!(has_revealing_hint("{{c1::Paris::Paris}}"));
+        assert!(has_revealing_hint("a {{c1::x}} {{c2::Paris:: Paris }}"));
+        assert!(!has_revealing_hint("{{c1::Paris::city}}"));
+        assert!(!has_revealing_hint("{{c1::Paris}}"));
+        assert!(!has_revealing_hint("{{c1::open"));
     }
 
     #[test]

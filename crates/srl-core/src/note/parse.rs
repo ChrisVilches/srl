@@ -77,6 +77,9 @@ pub(crate) struct Parsed {
     pub(crate) errors: Vec<(usize, String)>,
     /// What each line is.
     pub(crate) lines: Vec<Line>,
+    /// The line (counting from 1) that opens a fenced code block never
+    /// closed, which runs to the end of the note.
+    pub(crate) unclosed_fence: Option<usize>,
 }
 
 /// The lines of `text`, without their line endings (`\n` or `\r\n`) and
@@ -106,9 +109,9 @@ pub(crate) fn parse(text: &str) -> Parsed {
             .for_each(|kind| *kind = Line::FrontMatter);
         end + 1
     });
-    let mut fence: Option<(char, usize)> = None;
+    let mut fence: Option<(char, usize, usize)> = None;
     while let Some(line) = lines.get(index).copied() {
-        if let Some((character, length)) = fence {
+        if let Some((character, length, _)) = fence {
             set(&mut kinds, index, Line::Code);
             if closes_fence(line, character, length) {
                 fence = None;
@@ -116,8 +119,8 @@ pub(crate) fn parse(text: &str) -> Parsed {
             index += 1;
             continue;
         }
-        if let Some(opened) = opens_fence(line) {
-            fence = Some(opened);
+        if let Some((character, length)) = opens_fence(line) {
+            fence = Some((character, length, index + 1));
             set(&mut kinds, index, Line::Code);
             index += 1;
             continue;
@@ -161,6 +164,7 @@ pub(crate) fn parse(text: &str) -> Parsed {
         items,
         errors,
         lines: kinds,
+        unclosed_fence: fence.map(|(_, _, line)| line),
     }
 }
 

@@ -73,7 +73,7 @@ pub(crate) enum Command {
     },
     /// Check the notes, the configuration and the log.
     Check,
-    /// Look for text that was probably meant to be an item.
+    /// Look for likely mistakes in notes: text probably meant to be an item, and items probably not written as meant.
     Lint,
     /// Give an ID to every item without one.
     Id {

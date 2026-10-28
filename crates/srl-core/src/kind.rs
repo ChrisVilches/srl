@@ -15,7 +15,7 @@ use crate::note::{Field, ItemId};
 use crate::{Config, Error, Index, Store};
 
 use cloze::Piece;
-pub(crate) use cloze::has_deletion;
+pub(crate) use cloze::{has_deletion, has_near_deletion, has_revealing_hint};
 pub(crate) use program::Programs;
 
 /// A kind of item.

@@ -53,7 +53,7 @@ commands that read items run for the items whose answers aren't kept
 |---|---|
 | `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
 | `srl check` | Check the notes, the configuration and the log; report each problem on standard error and exit with 2 if there are any (see "Checking" below). |
-| `srl lint` | Look for text that was probably meant to be an item but isn't one (see "Checking" below). |
+| `srl lint` | Look for likely mistakes: text probably meant to be an item, and items probably not written as meant (see "Checking" below). |
 | `srl id` | Give an ID to every item without one (see [notes.md](notes.md), "How srl writes to notes"). Prints `ID  PATH:LINE` per item; exit 1 if every item already had one. |
 | `srl reindex` | Delete the index cache and build it again from the files, forgetting the answers kept from kind programs; run it after changing a kind program (see [store.md](store.md), "The index cache"). Prints nothing. |
 | `srl notes [--json]` | List the notes of the store (see [notes.md](notes.md), "Which files are notes"): one path per line, relative to the store's folder, sorted as `srl find` sorts notes. With `--json`, one object per note: `{"path": "japanese/grammar/wo.md"}`. It doesn't read the notes, so errors in them don't stop it. Exit 1 if the store has none. |
@@ -305,15 +305,40 @@ the notes, for example paths too long for some programs on Windows, is not
 its concern.
 
 `srl lint` looks for mistakes `srl check` can't call errors, because only
-headers make items (see [notes.md](notes.md), "The item syntax"). It
-reports, as `PATH:LINE: message` on standard output:
+headers make items (see [notes.md](notes.md), "The item syntax"), and
+because an item can be valid and still not be what you meant. It reports,
+as `PATH:LINE: message` on standard output, in the order of the notes and
+their lines:
 
-- lines outside items that look like fields of the `qa` kind: `Q:` or `A:`
-  at the start of a line, or after spaces, a list marker (`-`, `*`, `+`,
-  `1.`) or a quote marker (`>`);
-- header-like text that isn't at column 0, such as an indented
-  `<!-- srl -->`;
-- cloze deletions (`{{c1::…}}`) outside items.
+- outside items, lines that look like part of one. Each may come at the
+  start of a line, or after spaces, a list marker (`-`, `*`, `+`, `1.`)
+  or a quote marker (`>`):
+  - a header that isn't at column 0, such as an indented `<!-- srl -->`;
+  - a misspelled header: an HTML comment whose first word is `srl` or
+    `slr` in any case, however its dashes are written, such as
+    `<!-- SRL -->`, `<!— srl —>` or `<! -- srl -->`;
+  - a field of the `qa` kind: `Q:` or `A:`, with or without the space
+    after the colon, `q:`, or `Q` with a full-width colon or letter
+    (`Q：`, `Ｑ:`);
+  - a cloze deletion (`{{c1::…}}`);
+  - a line right after the last line of an item, with no blank line
+    between, unless it is a Markdown heading (`#`) or an HTML comment: it
+    is usually a continuation line without its two spaces, and the field
+    above ends before it;
+- in the `Q` of a `qa` item, something that was probably meant to be a
+  cloze deletion (`{{C1::…}}`, or `{{c1:…}}` with one colon), and a
+  deletion whose hint is the text it hides;
+- a fenced code block that is never closed, when headers come after it.
+
+Outside items, a paragraph (a run of lines without a blank line) is
+reported once, at its first suspicious line, since the lines after it are
+usually the same mistake. A line that starts like a header but isn't one
+is an error, which `srl check` reports, so `srl lint` reports nothing in
+its paragraph.
+
+Only the item syntax and the `qa` kind are known to `srl lint`: it doesn't
+look at the fields of items of kind programs, nor for their fields outside
+items.
 
 These are guesses, so `srl lint` never fails because of what it finds: it
 exits with 0 if it found something, and 1 if not.

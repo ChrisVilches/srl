@@ -658,7 +658,7 @@ fn lint_finds_questions_without_headers() {
         "{}",
         stdout(&output)
     );
-    assert_eq!(lines(&output).len(), 2);
+    assert_eq!(lines(&output).len(), 1);
 }
 
 #[test]
