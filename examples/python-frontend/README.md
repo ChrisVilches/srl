@@ -23,15 +23,20 @@ screen needs a modern terminal such as Windows Terminal.
 - The context is shown under the answer, titled with its note (`see`, or
   else `path`). It asks for the `prose` context: the note without its
   items.
-- The screen never scrolls: the question and the answer always stay in
-  view. A context too long for the space left under them scrolls on its
-  own, inside its panel.
+- The screen never scrolls: the card and its context each scroll inside
+  their own panel. When both are too long for the screen, each gets half
+  of it; when one is shorter than half, the other takes the rest. A panel
+  that can't show everything says which lines it shows.
+- One panel has the focus, with the brighter border: the card on the
+  question side, the context once the answer is shown (the card when
+  there is no context). Tab moves the focus to the other panel.
 - When `srl` takes a while, as when `srl next` runs a kind program that
   asks an LLM, the screen shows a spinner, "Loading…", and the seconds
   taken; Ctrl-C stops the wait.
 - Keys act at once, without Enter: space (or Enter) shows the answer,
-  `1`–`4` rate, `j`/`k` or the arrows scroll the context, Ctrl-D/Ctrl-U
-  by half of it, `s` suspends the card, `q` (or Ctrl-C) quits.
+  `1`–`4` rate, `j`/`k` or the arrows scroll the panel in focus,
+  Ctrl-D/Ctrl-U by half of it, `g`/`G` to its top and bottom, Tab
+  switches the focus, `s` suspends the card, `q` (or Ctrl-C) quits.
 - It ends with a summary: the cards reviewed, the new ones among them, and
   the Again ratings. If `srl` fails, it prints what `srl` said and exits
   with 2.

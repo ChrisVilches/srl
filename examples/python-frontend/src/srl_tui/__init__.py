@@ -9,8 +9,9 @@ It is a starting point: copy it, rename it, change it.
 It runs the frontend loop of docs/frontends.md: `srl next --json --context
 CONTEXT` for the card and its context, `srl review --stdin` for the rating.
 Keys act at once, without Enter: space or Enter shows the answer, 1-4 rate,
-j/k or the arrows scroll the context, Ctrl-D/Ctrl-U by half of it, s
-suspends the card, q quits.
+j/k or the arrows scroll the panel in focus, Ctrl-D/Ctrl-U by half of it,
+g/G to its top and bottom, Tab moves the focus between the card and the
+context, s suspends the card, q quits.
 """
 
 import json
@@ -169,9 +170,43 @@ def wait_for(keys):
 
 
 # The keys each side of the card takes, and the end of the bar that lists them.
-QUESTION_KEYS = {" ", "\n", "s", "q"}
-ANSWER_KEYS = {"1", "2", "3", "4", "j", "k", "up", "down", CTRL_D, CTRL_U, "s", "q"}
+SCROLL_KEYS = {"j", "k", "up", "down", CTRL_D, CTRL_U, "g", "G"}
+QUESTION_KEYS = {" ", "\n", "s", "q"} | SCROLL_KEYS
+ANSWER_KEYS = {"1", "2", "3", "4", "\t", "s", "q"} | SCROLL_KEYS
 OTHER_KEYS = "   s suspend  q quit"
+
+
+def scrolled(lines, height, scroll, focused, **panel):
+    """A panel at most height lines tall showing the lines from scroll on,
+    the scroll it shows, and how many lines it shows.
+
+    panel holds the arguments of Panel; height counts its borders and its
+    padding. A panel that can't show every line says which ones it shows,
+    and how to scroll it: j/k when it has the focus, Tab to give it the focus.
+    """
+    shown = max(height - 2 - 2 * panel["padding"][0], 1)  # the borders take 2 lines
+    scroll = max(0, min(scroll, len(lines) - shown))
+    if len(lines) > shown:
+        hint = "j/k scroll" if focused else "tab to scroll"
+        panel["subtitle"] = Text(f"{scroll + 1}–{scroll + shown} of {len(lines)}  {hint}", "dim")
+    return Panel(Lines(lines[scroll:scroll + shown]), subtitle_align="right", **panel), scroll, shown
+
+
+def split(height, card, context):
+    """The heights of the card and the context panels, which would take card
+    and context lines, in a space height lines tall.
+
+    Both get what they take when it fits. Otherwise each gets half of the
+    space, and one that takes less than half leaves the rest to the other.
+    """
+    if card + context <= height:
+        return card, context
+    half = height // 2
+    if card <= half:
+        return card, height - card
+    if context <= height - half:
+        return height - context, context
+    return half, height - half
 
 
 class Session:
@@ -200,46 +235,51 @@ class Session:
         grid.add_row(left, right)
         return grid
 
-    def context(self, card, height, scroll):
-        """The context panel, at most height lines tall, the scroll it shows,
-        and how many lines of the context it shows.
+    def show(self, card, answered, scroll, focus):
+        """Draws the screen for the card, with the focus ("card" or "context")
+        on one of its panels. Clamps the scroll of each panel to its lines,
+        and returns how many lines each one shows.
 
-        A context too long for the panel shows the lines from scroll on,
-        so that the card above it never leaves the screen.
+        The card and its context scroll each inside its own panel, so that
+        neither of them pushes the other off the screen.
         """
-        if card["context"] is None:
-            return Padding(Text("no context", "dim"), (0, 2)), 0, 0
-        width = console.width - 6  # the borders and the padding
-        lines = console.render_lines(CardMarkdown(card["context"]), console.options.update_width(width))
-        shown = max(height - 2, 3)  # the borders take 2 lines
-        scroll = max(0, min(scroll, len(lines) - shown))
-        subtitle = None
-        if len(lines) > shown:
-            subtitle = Text(f"{scroll + 1}–{scroll + shown} of {len(lines)}  j/k scroll", "dim")
-        panel = Panel(Lines(lines[scroll:scroll + shown]), title=Text(card["see"] or card["path"], "dim"),
-                      title_align="left", subtitle=subtitle, subtitle_align="right",
-                      border_style="dim", padding=(0, 2))
-        return panel, scroll, shown
-
-    def show(self, card, answered, scroll):
-        """Draws the screen for the card, and returns the scroll of its context
-        and how many lines of it are shown."""
+        options = console.options.update_width(console.width - 6)  # the borders and the padding
         revealed = card["prompt_revealed"] or card["prompt"]
         body = [CardMarkdown(revealed if answered else card["prompt"])]
         if answered and card["answer"] is not None:
             body += [Padding(Rule(style="dim"), (1, 0)), CardMarkdown(card["answer"])]
-        panel = Panel(Group(*body), border_style="green" if answered else "cyan", padding=(1, 2))
+        card_lines = console.render_lines(Group(*body), options)
+        # What is left of the screen once the header (1 line), and the blank
+        # line and the keys at the bottom (2) are drawn. The card's panel
+        # takes 4 lines more than its text, the context's 2, and "no
+        # context" 1.
+        height = console.height - 1 - 2
+        with_context = answered and card["context"] is not None
+        card_height = min(height - (answered and not with_context), len(card_lines) + 4)
+        if with_context:
+            context_lines = console.render_lines(CardMarkdown(card["context"]), options)
+            card_height, context_height = split(height, len(card_lines) + 4, len(context_lines) + 2)
+        # The panel in focus has the brighter border.
+        color = "green" if answered else "cyan"
+        panel, scroll["card"], card_shown = scrolled(
+            card_lines, card_height, scroll["card"], focus == "card",
+            border_style=color if focus == "card" else f"dim {color}", padding=(1, 2))
         screen = [self.header(card), panel]
-        shown = 0
-        if answered:
-            # What is left of the screen once the header (1 line), the card,
-            # and the blank line and the keys at the bottom (2) are drawn.
-            height = console.height - 1 - len(console.render_lines(panel)) - 2
-            context, scroll, shown = self.context(card, height, scroll)
+        shown = {"card": card_shown, "context": 0}
+        if with_context:
+            context, scroll["context"], shown["context"] = scrolled(
+                context_lines, context_height, scroll["context"], focus == "context",
+                title=Text(card["see"] or card["path"], "dim"), title_align="left",
+                border_style="white" if focus == "context" else "dim", padding=(0, 2))
             screen.append(context)
+        elif answered:
+            screen.append(Padding(Text("no context", "dim"), (0, 2)))
+        if answered:
             keys = Text("  ")
             for number, (name, color) in enumerate(RATINGS, 1):
                 keys.append(f" {number} {name} ", f"bold black on {color}").append(" ")
+            if with_context:
+                keys.append("  tab focus", "dim")
             keys.append(OTHER_KEYS, "dim")
         else:
             keys = Text("  space answer" + OTHER_KEYS, "dim")
@@ -253,11 +293,13 @@ class Session:
         with console:  # Rich writes the buffer when the block ends
             console.clear()
             console.print(Group(*screen))
-            console.print(keys, end="")  # no newline: on the last line, it would scroll the screen
+            # No newline: on the last line, it would scroll the screen. Cropped
+            # to one line, which the layout above counts on.
+            console.print(keys, end="", no_wrap=True, overflow="crop")
         if sync:
             console.file.write("\x1b[?2026l")
             console.file.flush()
-        return scroll, shown
+        return shown
 
     def run(self):
         """Studies until no card is left (returns True) or q is pressed."""
@@ -267,27 +309,38 @@ class Session:
                 return True
             card = json.loads(out)
             answered = False
-            scroll = 0
+            scroll = {"card": 0, "context": 0}  # show clamps them to the lines there are
+            focus = "card"
             while True:
-                scroll, shown = self.show(card, answered, scroll)
+                shown = self.show(card, answered, scroll, focus)
                 key = wait_for(ANSWER_KEYS if answered else QUESTION_KEYS)
                 if key == "q":
                     return False
                 if key in (" ", "\n"):
+                    # The card starts again from its top, now with the
+                    # answer, and the focus goes to the context, if any.
                     answered = True
+                    scroll["card"] = 0
+                    focus = "card" if card["context"] is None else "context"
                 elif key in ("1", "2", "3", "4"):
                     self.review(card, int(key))
                     break
+                elif key == "\t" and card["context"] is not None:
+                    focus = "card" if focus == "context" else "context"
                 elif key in ("j", "down"):
-                    scroll += 1
+                    scroll[focus] += 1
                 elif key in ("k", "up"):
-                    scroll -= 1
+                    scroll[focus] -= 1
                 # Half of the lines shown, as in Vim: the lines that were at
                 # the bottom are then at the top, so none is skipped.
                 elif key == CTRL_D:
-                    scroll += shown // 2
+                    scroll[focus] += shown[focus] // 2
                 elif key == CTRL_U:
-                    scroll -= shown // 2
+                    scroll[focus] -= shown[focus] // 2
+                elif key == "g":
+                    scroll[focus] = 0
+                elif key == "G":
+                    scroll[focus] = sys.maxsize
                 elif key == "s":
                     srl("suspend", f"id:{card['id']}")
                     break
