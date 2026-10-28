@@ -61,6 +61,16 @@ byte for byte.
   look at every image yourself, tell the user where they are and what
   each shows, and copy them to `images/` only once the user accepts them.
 - **Don't rate cards** while taking shots, by key or by command.
+- **Keep references to the shots working.** Adding, removing and renaming
+  shots is allowed, but other files link to images in `images/` by name,
+  such as the README at the repository's root. Before keeping the shots,
+  search the whole repository (outside `node_modules/`) for the name of
+  every shot removed or renamed. Point each reference to the shot that
+  now shows what it showed, a new one if need be, and update its alt
+  text if the content changed. Remove a reference only when no shot
+  fits. Then tell the user which references changed and to which shots,
+  so they can look at them where they appear, and which were removed, if
+  any.
 
 ## Steps
 
@@ -112,7 +122,8 @@ IPA dictionary (for the `ja-words` cards; see `../kind-ja-words/`).
    Set `FIREFOX` to the Firefox program if it isn't `/usr/bin/firefox`.
 
 6. **Look at every image**, then show the user (see "Rules"). Once they
-   accept them, copy them to `images/` and commit.
+   accept them, copy them to `images/`, fix the references to removed or
+   renamed shots (see "Rules"), and commit.
 
 ## Changing what is shown
 
