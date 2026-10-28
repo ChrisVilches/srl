@@ -102,11 +102,11 @@ terminal frontend in Python.
 
 `srl-web`, with the answer of a card revealed and the ratings below it:
 
-![srl-web showing the answer of a card about Rust ownership, with its note as context and the rating buttons](examples/screenshots/images/web-3-rust-answer-dark.png)
+![srl-web showing the answer of a card about the Japanese adverb なるべく, with its note as context and the rating buttons](examples/screenshots/images/web-2-study-answer-dark.png)
 
-`srl-tui`, on the same card:
+`srl-tui`, on a card about Ohm's law:
 
-![srl-tui showing the answer of a card about Rust ownership, with its note as context and the rating keys](examples/screenshots/images/tui-2-rust-answer.png)
+![srl-tui showing the answer of a card about Ohm's law, with its note as context and the rating keys](examples/screenshots/images/tui-6-electrical.png)
 
 ### LLM agents
 
