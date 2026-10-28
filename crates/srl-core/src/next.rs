@@ -240,9 +240,9 @@ mod tests {
         notes(&[
             (
                 "a.md",
-                "<!-- srl id:aaa1 -->\nQ: {{c1::x}} {{c2::y}} {{c10::z}}\n\n<!-- srl id:aaa2 -->\nQ: b\nA: c\n",
+                "```srl\n@ id:aaa1\nQ: {{c1::x}} {{c2::y}} {{c10::z}}\n\n@ id:aaa2\nQ: b\nA: c\n```\n",
             ),
-            ("b.md", "<!-- srl id:aaa3 draft -->\nQ: c\nA: d\n"),
+            ("b.md", "```srl id:aaa3 draft\nQ: c\nA: d\n```\n"),
         ])
     }
 

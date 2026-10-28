@@ -79,8 +79,10 @@ pub fn assign_ids(store: &Store, notes: &Notes, seed: u64, dry_run: bool) -> Res
             .collect::<Vec<_>>();
         let new = ids.iter().try_fold(old.clone(), |text, (line, id)| {
             edit_line(&text, *line, |header| {
-                let start = parse::header_start(header)
-                    .expect("a line with a missing ID should be a header");
+                let start = parse::header(header)
+                    .and_then(std::result::Result::ok)
+                    .expect("a line with a missing ID should be a header")
+                    .mark_end;
                 let (before, after) = header.split_at(start);
                 format!("{before} id:{id}{after}")
             })
@@ -224,7 +226,9 @@ pub fn add(
 }
 
 /// `srl edit ID --stdin`: replaces the lines of `item` with `input`, which
-/// must be exactly one item with the same ID.
+/// must be exactly one item with the same ID, in an srl block. An item that
+/// has its block to itself is replaced with that block; an item that starts
+/// with an `@` line is replaced with an `@` line and the new fields.
 pub fn replace(
     store: &Store,
     notes: &Notes,
@@ -259,11 +263,38 @@ pub fn replace(
     }
     let old = read_note(store, item.path())?;
     let ending = line_ending(&old);
-    let replacement = lines
-        .get(new_item.line - 1..new_item.end)
-        .unwrap_or_default()
-        .join(ending);
-    let new = replace_lines(&old, item.line(), item.end(), &replacement);
+    let Some(target) = parse::parse(&old)
+        .items
+        .into_iter()
+        .find(|raw| raw.line == item.line() && raw.header.id.as_ref() == Some(item.id()))
+    else {
+        return Err(Error::ChangedMeanwhile {
+            path: item.path().to_owned(),
+        });
+    };
+    let new = if target.is_alone() {
+        let replacement = new_item.text(&lines).replace('\n', ending);
+        replace_lines(&old, target.block.open, target.block.close, &replacement)
+    } else {
+        let fields = lines.get(new_item.line..new_item.end).unwrap_or_default();
+        if fields.iter().any(|line| target.block.closed_by(line)) {
+            return Err(invalid(format!(
+                "a line of it would close the block the item is in; open and close that block \
+                 with a longer fence than {}",
+                target.block.fence
+            )));
+        }
+        let header = if new_item.entries.is_empty() {
+            "@".to_owned()
+        } else {
+            format!("@ {}", new_item.entries)
+        };
+        let replacement = std::iter::once(header.as_str())
+            .chain(fields.iter().copied())
+            .collect::<Vec<_>>()
+            .join(ending);
+        replace_lines(&old, target.line, target.end, &replacement)
+    };
     let expected = keys(&old)
         .into_iter()
         .map(|(line, header, fields)| {
@@ -582,8 +613,11 @@ fn item_of(notes: &Notes, line: &str) -> std::result::Result<NewItem, String> {
     Ok(item)
 }
 
-/// An item as `srl add` writes it: a header, then each field, with
-/// continuation lines for multi-line text. Errors are plain reasons.
+/// An item as `srl add` writes it: an srl block of its own, its entries on
+/// the opening fence, then each field, with continuation lines for
+/// multi-line text. The fence is three backticks, or one more than the
+/// longest run of backticks a line of the text starts with. Errors are
+/// plain reasons.
 fn format_item(id: &ItemId, item: &NewItem) -> std::result::Result<String, String> {
     let mut entries = vec![format!("id:{id}")];
     if let Some(kind) = &item.kind {
@@ -605,7 +639,15 @@ fn format_item(id: &ItemId, item: &NewItem) -> std::result::Result<String, Strin
     if item.draft {
         entries.push("draft".to_owned());
     }
-    let mut lines = vec![format!("<!-- srl {} -->", entries.join(" "))];
+    let longest = item
+        .fields
+        .iter()
+        .flat_map(|(_, text)| text.lines())
+        .map(|line| line.trim_start().chars().take_while(|c| *c == '`').count())
+        .max()
+        .unwrap_or_default();
+    let fence = "`".repeat((longest + 1).max(3));
+    let mut lines = vec![format!("{fence}srl {}", entries.join(" "))];
     for (key, text) in &item.fields {
         let text = text.replace("\r\n", "\n");
         let mut parts = text.split('\n').collect::<Vec<_>>();
@@ -628,6 +670,7 @@ fn format_item(id: &ItemId, item: &NewItem) -> std::result::Result<String, Strin
             }
         }));
     }
+    lines.push(fence);
     Ok(lines.join("\n"))
 }
 
@@ -665,17 +708,17 @@ mod tests {
 
     #[test]
     fn ids_are_added_to_headers_without_one_and_nothing_else_changes() {
-        let text = "\u{feff}<!--srl-->\r\nQ: a\r\nA: b\r\n\r\nProse.\r\n<!-- srl  draft -->\r\nQ: c\r\nA: d\r\n<!-- srl id:keep -->\r\nQ: e\r\nA: f";
+        let text = "\u{feff}```srl\r\nQ: a\r\nA: b\r\n```\r\n\r\nProse.\r\n~~~  srl\r\n@  draft\r\nQ: c\r\nA: d\r\n@ id:keep\r\nQ: e\r\nA: f\r\n~~~";
         let (_tmp, store) = store(&[("a.md", text)]);
         let written = assign_ids(&store, &notes(&store), 7, false).unwrap();
         assert_eq!(written.len(), 2);
-        assert_eq!((written[0].line, written[1].line), (1, 6));
+        assert_eq!((written[0].line, written[1].line), (1, 8));
         assert!(written.iter().all(|done| is_id(done.id.as_str())));
         let (one, two) = (&written[0].id, &written[1].id);
         assert_eq!(
             read(&store, "a.md"),
             format!(
-                "\u{feff}<!--srl id:{one}-->\r\nQ: a\r\nA: b\r\n\r\nProse.\r\n<!-- srl id:{two}  draft -->\r\nQ: c\r\nA: d\r\n<!-- srl id:keep -->\r\nQ: e\r\nA: f"
+                "\u{feff}```srl id:{one}\r\nQ: a\r\nA: b\r\n```\r\n\r\nProse.\r\n~~~  srl\r\n@ id:{two}  draft\r\nQ: c\r\nA: d\r\n@ id:keep\r\nQ: e\r\nA: f\r\n~~~"
             )
         );
         assert!(notes(&store).problems().is_empty());
@@ -688,10 +731,8 @@ mod tests {
 
     #[test]
     fn ids_are_not_added_while_other_problems_remain() {
-        let (_tmp, store) = store(&[(
-            "a.md",
-            "<!-- srl -->\nQ: a\nA: b\n<!-- srl darft -->\nQ: c\n",
-        )]);
+        let (_tmp, store) =
+            store(&[("a.md", "```srl\nQ: a\nA: b\n```\n```srl darft\nQ: c\n```\n")]);
         let before = read(&store, "a.md");
         assert!(matches!(
             assign_ids(&store, &notes(&store), 7, false),
@@ -702,7 +743,7 @@ mod tests {
 
     #[test]
     fn dry_runs_write_nothing() {
-        let (_tmp, store) = store(&[("a.md", "<!-- srl -->\nQ: a\nA: b\n")]);
+        let (_tmp, store) = store(&[("a.md", "```srl\nQ: a\nA: b\n```\n")]);
         let before = read(&store, "a.md");
         assert_eq!(
             assign_ids(&store, &notes(&store), 7, true).unwrap().len(),
@@ -713,7 +754,7 @@ mod tests {
 
     #[test]
     fn accept_removes_draft_only() {
-        let text = "<!-- srl draft id:aaa1 -->\nQ: a\nA: b\n\n<!-- srl id:aaa2 draft see:a.md -->\nQ: c\nA: d\n\n<!-- srl id:aaa3 draft -->\nQ: e\nA: f\n";
+        let text = "```srl draft id:aaa1\nQ: a\nA: b\n```\n\n```srl\n@ id:aaa2 draft see:a.md\nQ: c\nA: d\n\n@ id:aaa3 draft\nQ: e\nA: f\n```\n";
         let (_tmp, store) = store(&[("a.md", text)]);
         let notes = notes(&store);
         let chosen = notes.items().iter().take(2).collect::<Vec<_>>();
@@ -721,14 +762,14 @@ mod tests {
         assert_eq!(written.len(), 2);
         assert_eq!(
             read(&store, "a.md"),
-            "<!-- srl id:aaa1 -->\nQ: a\nA: b\n\n<!-- srl id:aaa2 see:a.md -->\nQ: c\nA: d\n\n<!-- srl id:aaa3 draft -->\nQ: e\nA: f\n"
+            "```srl id:aaa1\nQ: a\nA: b\n```\n\n```srl\n@ id:aaa2 see:a.md\nQ: c\nA: d\n\n@ id:aaa3 draft\nQ: e\nA: f\n```\n"
         );
     }
 
     #[test]
     fn add_appends_items_after_a_blank_line_or_creates_the_note() {
         let (_tmp, store) = store(&[("a.md", "Prose.\r\n"), ("my notes/b c.md", "")]);
-        let input = "{\"Q\": \"Two\\nlines\\n\\nand more\", \"see\": \"my notes/b c.md\", \"A\": \"x\", \"draft\": true}\n\n{\"kind\": \"qa\", \"Q\": \"{{c1::y}}\", \"draft\": false}\n";
+        let input = "{\"Q\": \"Two\\nlines\\n\\nand more\", \"see\": \"my notes/b c.md\", \"A\": \"x\", \"draft\": true}\n\n{\"kind\": \"qa\", \"Q\": \"{{c1::y}}\\n```\\n````rust\", \"draft\": false}\n";
         let added = add(
             &store,
             &Config::default(),
@@ -743,7 +784,7 @@ mod tests {
             panic!("expected two IDs");
         };
         let expected = format!(
-            "<!-- srl id:{one} see:\"my notes/b c.md\" draft -->\nQ: Two\n  lines\n\n  and more\nA: x\n\n<!-- srl id:{two} kind:qa -->\nQ: {{{{c1::y}}}}\n"
+            "```srl id:{one} see:\"my notes/b c.md\" draft\nQ: Two\n  lines\n\n  and more\nA: x\n```\n\n`````srl id:{two} kind:qa\nQ: {{{{c1::y}}}}\n  ```\n  ````rust\n`````\n"
         );
         assert_eq!(added.text, expected);
         assert_eq!(
@@ -833,35 +874,56 @@ mod tests {
 
     #[test]
     fn replace_swaps_one_item_and_keeps_the_rest() {
-        let text = "Before.\n<!-- srl id:aaa1 -->\nQ: old\nA: old\n\nAfter.\n";
+        let text = "Before.\n```srl id:aaa1\nQ: old\nA: old\n```\n\n````srl\n@ id:aaa2\nQ: old\nA: old\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n";
         let (_tmp, store) = store(&[("a.md", text)]);
         let notes = notes(&store);
-        let item = &notes.items()[0];
         replace(
             &store,
             &notes,
-            item,
-            "<!-- srl id:aaa1 draft -->\nQ: new\n\nA: new\n  more\n",
+            &notes.items()[0],
+            "~~~srl id:aaa1 draft\nQ: new\n\nA: new\n  more\n~~~\n",
+            false,
+        )
+        .unwrap();
+        let notes = self::notes(&store);
+        replace(
+            &store,
+            &notes,
+            &notes.items()[1],
+            "````srl id:aaa2  kind:qa\nQ: new\n  ```\n  code\n  ```\nA: a\n````\n",
             false,
         )
         .unwrap();
         assert_eq!(
             read(&store, "a.md"),
-            "Before.\n<!-- srl id:aaa1 draft -->\nQ: new\n\nA: new\n  more\n\nAfter.\n"
+            "Before.\n~~~srl id:aaa1 draft\nQ: new\n\nA: new\n  more\n~~~\n\n````srl\n@ id:aaa2  kind:qa\nQ: new\n  ```\n  code\n  ```\nA: a\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n"
+        );
+        let notes = self::notes(&store);
+        assert!(
+            replace(
+                &store,
+                &notes,
+                &notes.items()[2],
+                "`````srl id:aaa3\nQ: q\n  ````\n`````\n",
+                false,
+            )
+            .is_err()
         );
     }
 
     #[test]
     fn replace_needs_exactly_one_item_with_the_same_id() {
-        let (_tmp, store) = store(&[("a.md", "<!-- srl id:aaa1 -->\nQ: q\nA: a\n")]);
+        let (_tmp, store) = store(&[("a.md", "```srl id:aaa1\nQ: q\nA: a\n```\n")]);
         let notes = notes(&store);
         let item = &notes.items()[0];
         for input in [
-            "<!-- srl id:aaa2 -->\nQ: q\nA: a\n",
-            "<!-- srl -->\nQ: q\nA: a\n",
-            "<!-- srl id:aaa1 -->\nQ: q\nA: a\nProse.\n",
-            "<!-- srl id:aaa1 -->\nQ: q\nA: a\n<!-- srl id:aaa1 -->\nQ: q\nA: a\n",
-            "<!-- srl id:aaa1 -->\nQ: q\n",
+            "```srl id:aaa2\nQ: q\nA: a\n```\n",
+            "```srl\nQ: q\nA: a\n```\n",
+            "```srl id:aaa1\nQ: q\nA: a\n```\nProse.\n",
+            "```srl\n@ id:aaa1\nQ: q\nA: a\n@ id:aaa1\nQ: q\nA: a\n```\n",
+            "```srl id:aaa1\nQ: q\n```\n",
+            "```srl id:aaa1\nQ: q\nA: a\n",
+            "Q: q\nA: a\n",
             "",
         ] {
             assert!(
@@ -873,7 +935,7 @@ mod tests {
 
     #[test]
     fn a_note_changed_meanwhile_is_not_written() {
-        let (_tmp, store) = store(&[("a.md", "<!-- srl -->\nQ: a\nA: b\n")]);
+        let (_tmp, store) = store(&[("a.md", "```srl\nQ: a\nA: b\n```\n")]);
         assert!(matches!(
             replace_file(&store, "a.md", Some("something else"), "new"),
             Err(Error::ChangedMeanwhile { .. })
@@ -882,6 +944,6 @@ mod tests {
             replace_file(&store, "b.md", Some("x"), "new"),
             Err(Error::ChangedMeanwhile { .. })
         ));
-        assert_eq!(read(&store, "a.md"), "<!-- srl -->\nQ: a\nA: b\n");
+        assert_eq!(read(&store, "a.md"), "```srl\nQ: a\nA: b\n```\n");
     }
 }

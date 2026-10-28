@@ -199,7 +199,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             store.note_file("a.md"),
-            "<!-- srl id:aaa1 -->\nQ: q\nA: a\n\n<!-- srl id:aaa2 -->\nQ: {{c1::x}} {{c2::y}}\n\n<!-- srl id:aaa3 draft -->\nQ: d\nA: e\n",
+            "```srl\n@ id:aaa1\nQ: q\nA: a\n\n@ id:aaa2\nQ: {{c1::x}} {{c2::y}}\n\n@ id:aaa3 draft\nQ: d\nA: e\n```\n",
         )
         .unwrap();
         let notes = Notes::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();

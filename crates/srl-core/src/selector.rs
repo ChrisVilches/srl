@@ -323,19 +323,19 @@ mod tests {
         let notes = [
             (
                 "japanese/Grammar/wo.md",
-                "<!-- srl id:aaa1 -->\nQ: 〜をものともせず?\nA: Undeterred by (adversity).\n",
+                "```srl id:aaa1\nQ: 〜をものともせず?\nA: Undeterred by (adversity).\n```\n",
             ),
             (
                 "japanese/n5.md",
-                "<!-- srl id:aaa2 -->\nQ: {{c1::です}} {{c2::ます}}\n",
+                "```srl id:aaa2\nQ: {{c1::です}} {{c2::ます}}\n```\n",
             ),
             (
                 "kanji/food.md",
-                "<!-- srl id:aaa3 draft -->\nQ: 鮪\nA: Tuna.\n",
+                "```srl id:aaa3 draft\nQ: 鮪\nA: Tuna.\n```\n",
             ),
             (
                 "rust/ownership/move.md",
-                "<!-- srl id:aaa4 -->\nQ: Move semantics?\nA: Ownership MOVES on assignment.\n",
+                "```srl id:aaa4\nQ: Move semantics?\nA: Ownership MOVES on assignment.\n```\n",
             ),
         ];
         notes
@@ -526,7 +526,7 @@ mod tests {
     fn names_match_whatever_unicode_form_they_are_in() {
         let (items, _) = read_items(
             "cafe\u{301}/x.md",
-            "<!-- srl id:abc -->\nQ: q\nA: a\n",
+            "```srl id:abc\nQ: q\nA: a\n```\n",
             &crate::kind::Programs::default(),
         );
         let item = &items[0];

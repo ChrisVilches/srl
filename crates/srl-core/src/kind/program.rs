@@ -638,7 +638,7 @@ mod tests {
     fn a_kind_program_gives_the_cards_of_its_items_in_groups() {
         let (_tmp, _store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nGROUPS: te past|negative\n\n<!-- srl id:abd kind:fake -->\nX: y\n",
+            "```srl id:abc kind:fake\nGROUPS: te past|negative\n```\n\n```srl id:abd kind:fake\nX: y\n```\n",
         );
         assert_eq!(problems(&notes), Vec::<String>::new());
         assert_eq!(ids(&notes), ["abc-negative", "abc-past", "abc-te", "abd"]);
@@ -651,7 +651,7 @@ mod tests {
 
     #[test]
     fn validate_and_groups_run_once_for_every_item_of_the_kind() {
-        let log = "<!-- srl id:{} kind:fake -->\nLOG: calls.log\n";
+        let log = "```srl id:{} kind:fake\nLOG: calls.log\n```\n";
         let (tmp, _store, notes) = store_with(
             &config(""),
             &[
@@ -659,14 +659,14 @@ mod tests {
                 (
                     "b.md",
                     &format!(
-                        "{}\n<!-- srl id:bbb kind:fake -->\nLOG: calls.log\nINVALID: no\n",
+                        "{}\n```srl id:bbb kind:fake\nLOG: calls.log\nINVALID: no\n```\n",
                         log.replace("{}", "bab")
                     ),
                 ),
             ],
         );
         assert_eq!(ids(&notes), ["aaa", "bab"]);
-        assert_eq!(problems(&notes), ["b.md:4: no"]);
+        assert_eq!(problems(&notes), ["b.md:5: no"]);
         // groups is asked only about the items validate accepted.
         let calls = fs::read_to_string(tmp.path().join("calls.log")).unwrap();
         assert_eq!(calls, "validate 3\ngroups 2\n");
@@ -694,7 +694,7 @@ mod tests {
     #[test]
     fn kept_answers_are_not_asked_for_again() {
         let item = |id: &str, more: &str| {
-            format!("<!-- srl id:{id} kind:fake -->\nLOG: calls.log\n{more}\n")
+            format!("```srl id:{id} kind:fake\nLOG: calls.log\n{more}\n```\n")
         };
         let (_tmp, store, _) = store(
             &config(""),
@@ -710,7 +710,7 @@ mod tests {
         assert_eq!(calls, "");
         assert_eq!(ids(&notes), ["aaa-x", "aaa-y", "bbb"]);
         // A kept answer that says the item is invalid says it again.
-        assert_eq!(problems(&notes), ["a.md:9: no"]);
+        assert_eq!(problems(&notes), ["a.md:11: no"]);
         // Only the item that changed is asked about.
         let note = fs::read_to_string(store.note_file("a.md")).unwrap();
         fs::write(store.note_file("a.md"), note.replace("x y", "x z")).unwrap();
@@ -728,7 +728,7 @@ mod tests {
     fn answers_are_kept_for_the_kinds_name_and_command_as_written() {
         let (_tmp, store, _) = store(
             &config(""),
-            "<!-- srl id:aaa kind:fake -->\nLOG: calls.log\n",
+            "```srl id:aaa kind:fake\nLOG: calls.log\n```\n",
         );
         fs::write(store.root().join("calls.log"), "").unwrap();
         let (_, calls) = reload(&store, false);
@@ -761,7 +761,7 @@ mod tests {
     fn answers_of_a_call_that_failed_are_not_kept() {
         let (_tmp, store, notes) = store(
             &config(""),
-            "<!-- srl id:aaa kind:fake -->\nLOG: calls.log\n\n<!-- srl id:bbb kind:fake -->\nBREAK_VALIDATE: down\n",
+            "```srl id:aaa kind:fake\nLOG: calls.log\n```\n\n```srl id:bbb kind:fake\nBREAK_VALIDATE: down\n```\n",
         );
         assert!(ids(&notes).is_empty());
         let note = fs::read_to_string(store.note_file("a.md")).unwrap();
@@ -776,7 +776,7 @@ mod tests {
     fn without_a_usable_cache_every_item_is_asked_about() {
         let (_tmp, store, _) = store(
             &config(""),
-            "<!-- srl id:aaa kind:fake -->\nLOG: calls.log\n",
+            "```srl id:aaa kind:fake\nLOG: calls.log\n```\n",
         );
         fs::remove_dir_all(store.cache_dir()).unwrap();
         fs::write(store.cache_dir(), "not a folder").unwrap();
@@ -796,7 +796,7 @@ mod tests {
     fn validate_errors_are_errors_in_the_note_naming_their_field() {
         let (_tmp, _store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}, {\"field\": null, \"message\": \"also wrong\"}]}\n\n<!-- srl id:abd kind:fake -->\nERRORS: not json\n",
+            "```srl id:abc kind:fake\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}, {\"field\": null, \"message\": \"also wrong\"}]}\n```\n\n```srl id:abd kind:fake\nERRORS: not json\n```\n",
         );
         assert!(ids(&notes).is_empty());
         let reasons = problems(&notes);
@@ -806,7 +806,7 @@ mod tests {
         );
         assert!(
             reasons[2].starts_with(
-                "a.md:4: the program of kind fake printed invalid output for `validate`"
+                "a.md:5: the program of kind fake printed invalid output for `validate`"
             ),
             "{reasons:?}"
         );
@@ -835,7 +835,7 @@ mod tests {
     fn invalid_groups_for_an_item_are_an_error_in_the_note() {
         let (_tmp, _store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nGROUPS_RAW: {\"groups\": []}\n\n<!-- srl id:abd kind:fake -->\nX: y\n",
+            "```srl id:abc kind:fake\nGROUPS_RAW: {\"groups\": []}\n```\n\n```srl id:abd kind:fake\nX: y\n```\n",
         );
         assert_eq!(ids(&notes), ["abd"]);
         let reasons = problems(&notes);
@@ -874,16 +874,16 @@ mod tests {
             &[
                 (
                     "a.md",
-                    "<!-- srl id:aaa kind:fake -->\nINVALID: in a\n\n<!-- srl id:aab kind:broken -->\nX: y\n\n<!-- srl -->\nQ: no id\nA: a\n",
+                    "```srl id:aaa kind:fake\nINVALID: in a\n```\n\n```srl id:aab kind:broken\nX: y\n```\n\n```srl\nQ: no id\nA: a\n```\n",
                 ),
-                ("b.md", "<!-- srl id:bbb kind:fake -->\nINVALID: in b\n"),
+                ("b.md", "```srl id:bbb kind:fake\nINVALID: in b\n```\n"),
             ],
         );
         let problems = problems(&notes);
         assert_eq!(problems.len(), 4, "{problems:?}");
         assert_eq!(problems[0], "a.md:1: in a");
         assert!(
-            problems[1].starts_with("a.md:7: this item has no ID"),
+            problems[1].starts_with("a.md:9: this item has no ID"),
             "{problems:?}"
         );
         assert_eq!(problems[2], "b.md:1: in b");
@@ -903,7 +903,7 @@ mod tests {
             let (_tmp, _store, notes) = store(
                 &config(""),
                 &format!(
-                    "<!-- srl id:abc kind:fake -->\n{field}\n\n<!-- srl id:abd kind:fake -->\nX: y\n\n<!-- srl id:qqq -->\nQ: q\nA: a\n"
+                    "```srl id:abc kind:fake\n{field}\n```\n\n```srl id:abd kind:fake\nX: y\n```\n\n```srl id:qqq\nQ: q\nA: a\n```\n"
                 ),
             );
             // Items of other kinds are read as always.
@@ -920,7 +920,7 @@ mod tests {
             );
         }
         let (_tmp, _store, notes) =
-            store(&config(""), "<!-- srl id:abc kind:fake -->\nSHORT: yes\n");
+            store(&config(""), "```srl id:abc kind:fake\nSHORT: yes\n```\n");
         assert!(
             problems(&notes)[0].contains("it printed 0 lines for 1 input lines"),
             "{:?}",
@@ -996,7 +996,7 @@ mod tests {
     fn a_card_gets_its_suffix_context_and_day_and_runs_in_the_store() {
         let (tmp, store, notes) = store(
             &config(""),
-            "# Verbs\n\n<!-- srl id:abc kind:fake -->\nGROUPS: te\n",
+            "# Verbs\n\n```srl id:abc kind:fake\nGROUPS: te\n```\n",
         );
         let folder = tmp.path().file_name().unwrap().to_string_lossy();
         assert_eq!(
@@ -1014,7 +1014,7 @@ mod tests {
     fn the_cards_of_a_kind_are_made_in_one_call_in_order() {
         let (tmp, store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nGROUPS: a b\nLOG: calls.log\n\n<!-- srl id:qqq -->\nQ: q\nA: a\n",
+            "```srl id:abc kind:fake\nGROUPS: a b\nLOG: calls.log\n```\n\n```srl id:qqq\nQ: q\nA: a\n```\n",
         );
         let made = make(&store, &notes, &["abc-b", "qqq", "abc-a"]).unwrap();
         let ids = made
@@ -1030,7 +1030,7 @@ mod tests {
     fn a_card_may_leave_out_its_revealed_prompt_and_answer() {
         let (_tmp, store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nMAKE_RAW: {\"prompt\": \"p\"}\n\n<!-- srl id:abd kind:fake -->\nMAKE_RAW: {\"prompt\": \"p\", \"prompt_revealed\": null, \"answer\": null}\n",
+            "```srl id:abc kind:fake\nMAKE_RAW: {\"prompt\": \"p\"}\n```\n\n```srl id:abd kind:fake\nMAKE_RAW: {\"prompt\": \"p\", \"prompt_revealed\": null, \"answer\": null}\n```\n",
         );
         for id in ["abc", "abd"] {
             assert_eq!(
@@ -1046,7 +1046,7 @@ mod tests {
     fn a_card_the_program_cant_make_slow_or_invalid_is_an_error() {
         let (_tmp, store, notes) = store(
             &config("[kind_programs]\ncard_timeout = 1\n"),
-            "<!-- srl id:aaa kind:fake -->\nFAIL_MAKE: _\n\n<!-- srl id:aab kind:fake -->\nSLEEP_MAKE: 5\n\n<!-- srl id:aac kind:fake -->\nMAKE_RAW: {\"prompt_revealed\": \"p\", \"answer\": \"a\"}\n\n<!-- srl id:aad kind:fake -->\nBREAK_MAKE: on purpose\n\n<!-- srl id:aae kind:fake -->\nMAKE_RAW: {\"error\": \" \"}\n",
+            "```srl\n@ id:aaa kind:fake\nFAIL_MAKE: _\n\n@ id:aab kind:fake\nSLEEP_MAKE: 5\n\n@ id:aac kind:fake\nMAKE_RAW: {\"prompt_revealed\": \"p\", \"answer\": \"a\"}\n\n@ id:aad kind:fake\nBREAK_MAKE: on purpose\n\n@ id:aae kind:fake\nMAKE_RAW: {\"error\": \" \"}\n```\n",
         );
         let made = |id: &str| make(&store, &notes, &[id]).unwrap_err();
         assert_eq!(
@@ -1064,7 +1064,7 @@ mod tests {
     fn the_time_limit_grows_with_the_cards_made_at_once() {
         let (_tmp, store, notes) = store(
             &config("[kind_programs]\ncard_timeout = 1\n"),
-            "<!-- srl id:abc kind:fake -->\nGROUPS: a b c\nSLEEP_MAKE: 2\n",
+            "```srl id:abc kind:fake\nGROUPS: a b c\nSLEEP_MAKE: 2\n```\n",
         );
         // Three cards may take three seconds: two seconds is in time.
         assert_eq!(
@@ -1089,7 +1089,7 @@ mod tests {
         let (_tmp, _store, notes) = store_in(
             tmp,
             &format!("[kinds]\nfake = ['kinds/{name}']\n"),
-            &[("a.md", "<!-- srl id:abc kind:fake -->\nX: y\n")],
+            &[("a.md", "```srl id:abc kind:fake\nX: y\n```\n")],
         );
         assert_eq!(problems(&notes), Vec::<String>::new());
         assert_eq!(ids(&notes), ["abc"]);
@@ -1097,11 +1097,11 @@ mod tests {
 
     #[test]
     fn a_kind_that_is_neither_qa_nor_configured_is_unknown() {
-        let (_tmp, _store, notes) = store(&config(""), "<!-- srl id:abc kind:conj -->\nX: y\n");
+        let (_tmp, _store, notes) = store(&config(""), "```srl id:abc kind:conj\nX: y\n```\n");
         assert!(problems(&notes)[0].contains("there is no kind `conj`"));
         let (_tmp, _store, notes) = store(
             "[kinds]\nfake = ['srl-no-such-program-anywhere']\n",
-            "<!-- srl id:abc kind:fake -->\nX: y\n",
+            "```srl id:abc kind:fake\nX: y\n```\n",
         );
         assert!(
             problems(&notes)[0].contains("cannot find the program `srl-no-such-program-anywhere`")
@@ -1112,7 +1112,7 @@ mod tests {
     fn a_card_that_fails_fails_next_without_trying_another() {
         let (_tmp, store, notes) = store(
             &config(""),
-            "<!-- srl id:abc kind:fake -->\nGROUPS: a b\nFAIL_MAKE: a\n",
+            "```srl id:abc kind:fake\nGROUPS: a b\nFAIL_MAKE: a\n```\n",
         );
         let log = Log {
             entries: Vec::new(),

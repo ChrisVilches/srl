@@ -67,7 +67,7 @@ item was deleted keeps its events (see [scheduling.md](scheduling.md),
 | `rating` | 1–4, as given (see [scheduling.md](scheduling.md), "Ratings"). |
 | `response` | What was answered, as text, if the review was recorded with one, for example an answer typed to an agent. `null` if none was given, which is usual: rating yourself needs no typed answer. `srl` never reads it. |
 | `by` | `human` or `agent`: who recorded the review. It says nothing about how the rating was decided, or whether there is a `response`: an agent may record a rating you gave it, or one it judged from your answer. |
-| `hash` | The first 12 hex characters of the SHA-256 of the item's text at review time: its header and field lines, as written in the note. |
+| `hash` | The first 12 hex characters of the SHA-256 of the item's text at review time: the item as an srl block of its own, as `srl show` prints it (see [cli.md](cli.md), "Items and cards"). |
 
 `hash` is never used by `srl`. It exists so that you can later ask questions
 like "did my retention change after I rewrote this item?".

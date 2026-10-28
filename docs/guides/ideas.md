@@ -41,11 +41,12 @@ is written anew by an LLM every time it is shown.
 [examples/kind-llm-generated/](../../examples/kind-llm-generated/) is
 one:
 
-```markdown
-<!-- srl id:q8w2e5 kind:llm-generated -->
+````markdown
+```srl id:q8w2e5 kind:llm-generated
 PROMPT: Ask me to use 〜をものともせず in a new sentence about everyday
   work. The answer is a model sentence and its translation.
 ```
+````
 
 - `validate` checks that the item has exactly one field, `PROMPT`, and
   `groups` gives `{"groups": [[null]]}`: one card, with the item's ID

@@ -406,8 +406,8 @@ change notes (see [notes.md](notes.md), "How srl writes to notes") go
 through one module, `write.rs`, with these rules:
 
 1. **It edits lines, not data.** It changes header lines (adding `id:ID`,
-   removing `draft`), replaces the lines of one item (`srl edit ID
-   --stdin`), or appends lines at the end. Every other byte of the file
+   removing `draft`), replaces the lines of one item or of its block
+   (`srl edit ID --stdin`), or appends lines at the end. Every other byte of the file
    stays the same, including a UTF-8 BOM, `\r\n` line endings and a missing
    final newline. New lines get the line ending of the note's first line,
    or `\n` in a note without one.
@@ -422,9 +422,9 @@ through one module, `write.rs`, with these rules:
    of the specification, because users ignore it in git (see
    [store.md](store.md), "Version control and syncing").
 5. **It has thorough tests**, including CRLF line endings, a UTF-8 BOM, no
-   trailing newline, headers with extra spaces, `<!--srl-->` without
-   spaces, quoted values, non-ASCII text around the edited line, and a note
-   changed between reading and writing.
+   trailing newline, fences with extra spaces, fences of tildes and of more
+   than three backticks, `@` lines, quoted values, non-ASCII text around
+   the edited line, and a note changed between reading and writing.
 
 ## The command line
 

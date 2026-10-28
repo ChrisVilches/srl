@@ -114,22 +114,26 @@ const GRAMMAR: &str = "# 〜をものともせず
 
 Undeterred by (adversity). Admiring tone.
 
-<!-- srl id:x7k2m9 -->
+```srl id:x7k2m9
 Q: What does 〜をものともせず mean?
 A: Undeterred by (adversity), braving.
+```
 
-<!-- srl id:k3m9q1 -->
+```srl id:k3m9q1
 Q: {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。
 A: Despite everyone's opposition, she started a company.
+```
 ";
 
-const FISH: &str = "<!-- srl id:tuna01 -->
+const FISH: &str = "```srl
+@ id:tuna01
 Q: 鮪
 A: まぐろ — tuna
 
-<!-- srl id:saba01 draft -->
+@ id:saba01 draft
 Q: 鯖
 A: さば — mackerel
+```
 ";
 
 fn japanese() -> TempDir {
@@ -175,10 +179,10 @@ fn find_lists_cards_in_written_order() {
         lines(&output),
         [
             "x7k2m9  japanese/grammar/wo.md:5  What does 〜をものともせず mean?",
-            "k3m9q1-1  japanese/grammar/wo.md:9  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
-            "k3m9q1-2  japanese/grammar/wo.md:9  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
-            "tuna01  kanji/fish.md:1  鮪",
-            "saba01  kanji/fish.md:5  鯖",
+            "k3m9q1-1  japanese/grammar/wo.md:10  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
+            "k3m9q1-2  japanese/grammar/wo.md:10  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
+            "tuna01  kanji/fish.md:2  鮪",
+            "saba01  kanji/fish.md:6  鯖",
         ]
     );
 }
@@ -203,9 +207,9 @@ fn find_json_prints_one_card_per_line() {
         json_lines(&output),
         [
             serde_json::json!({"id": "k3m9q1-2", "item": "k3m9q1", "path": "japanese/grammar/wo.md",
-                "line": 9, "status": "active", "state": "new", "due": null}),
+                "line": 10, "status": "active", "state": "new", "due": null}),
             serde_json::json!({"id": "saba01", "item": "saba01", "path": "kanji/fish.md",
-                "line": 5, "status": "draft", "state": "new", "due": null}),
+                "line": 6, "status": "draft", "state": "new", "due": null}),
         ]
     );
 }
@@ -225,7 +229,7 @@ fn errors_in_notes_stop_commands_until_fixed() {
     write(
         &tmp,
         "broken.md",
-        "<!-- srl id:bad1\nQ: a\n\n<!-- srl -->\nQ: no id\nA: x\n",
+        "```srl id:bad1 darft\nQ: a\n```\n```srl\nQ: no id\nA: x\n```\n",
     );
     for args in [
         &["find"][..],
@@ -237,7 +241,7 @@ fn errors_in_notes_stop_commands_until_fixed() {
         assert_eq!(output.status.code(), Some(2), "{args:?}");
         let stderr = stderr(&output);
         assert!(
-            stderr.contains("broken.md:1: this header doesn't end"),
+            stderr.contains("broken.md:1: `darft` is not a header entry"),
             "{stderr}"
         );
         assert!(
@@ -253,7 +257,7 @@ fn errors_in_notes_stop_commands_until_fixed() {
     let refused = srl(&["id", "--dir", d]);
     assert_eq!(refused.status.code(), Some(2));
     assert_eq!(read(&tmp, "broken.md"), before);
-    write(&tmp, "broken.md", "<!-- srl -->\nQ: no id\nA: x\n");
+    write(&tmp, "broken.md", "```srl\nQ: no id\nA: x\n```\n");
     let assigned = srl(&["id", "--dir", d]);
     assert_eq!(assigned.status.code(), Some(0), "{}", stderr(&assigned));
     let line = stdout(&assigned);
@@ -261,7 +265,7 @@ fn errors_in_notes_stop_commands_until_fixed() {
     assert!(line.trim_end().ends_with("broken.md:1"), "{line}");
     assert_eq!(
         read(&tmp, "broken.md"),
-        format!("<!-- srl id:{id} -->\nQ: no id\nA: x\n")
+        format!("```srl id:{id}\nQ: no id\nA: x\n```\n")
     );
     assert_eq!(srl(&["id", "--dir", d]).status.code(), Some(1));
     assert_eq!(srl(&["check", "--dir", d]).status.code(), Some(0));
@@ -276,7 +280,7 @@ fn show_prints_the_item_and_its_context() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(
         stdout(&output),
-        "japanese/grammar/wo.md:9\n<!-- srl id:k3m9q1 -->\nQ: {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。\nA: Despite everyone's opposition, she started a company.\n---\n# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n"
+        "japanese/grammar/wo.md:10\n```srl id:k3m9q1\nQ: {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。\nA: Despite everyone's opposition, she started a company.\n```\n---\n# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n"
     );
     let full = srl(&["show", "x7k2m9", "--context", "full", "--json", "--dir", d]);
     let shown = &json_lines(&full)[0];
@@ -330,7 +334,7 @@ fn add_appends_items_with_their_header_entries() {
     let dry = srl_with_input(&[&args[..], &["--dry-run"]].concat(), input);
     assert_eq!(dry.status.code(), Some(0), "{}", stderr(&dry));
     assert!(stdout(&dry).contains(
-        "see:japanese/grammar/wo.md draft -->\nQ: Use 〜をものともせず\n  about football.\n"
+        "see:japanese/grammar/wo.md draft\nQ: Use 〜をものともせず\n  about football.\n"
     ));
     assert_eq!(stdout(&dry).matches("see:").count(), 1);
     assert!(!tmp.path().join("generated").exists());
@@ -368,7 +372,7 @@ fn drafts_move_through_accept_and_cards_through_suspend() {
     assert!(srl(&["next", "id:saba01", "--dir", d]).stdout.is_empty());
     let accepted = srl(&["accept", "in:fish", "--dir", d]);
     assert_eq!(lines(&accepted), ["saba01"]);
-    assert!(read(&tmp, "kanji/fish.md").contains("<!-- srl id:saba01 -->"));
+    assert!(read(&tmp, "kanji/fish.md").contains("\n@ id:saba01\n"));
     assert_eq!(
         srl(&["accept", "in:fish", "--dir", d]).status.code(),
         Some(1)
@@ -389,17 +393,27 @@ fn edit_stdin_replaces_the_item_in_place() {
     let d = dir(&tmp);
     let output = srl_with_input(
         &["edit", "x7k2m9", "--stdin", "--dir", d],
-        "<!-- srl id:x7k2m9 -->\nQ: What does 〜をものともせず mean?\n\nA: Braving.\n",
+        "```srl id:x7k2m9\nQ: What does 〜をものともせず mean?\n\nA: Braving.\n```\n",
     );
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let text = read(&tmp, "japanese/grammar/wo.md");
     assert!(
-        text.contains("mean?\n\nA: Braving.\n\n<!-- srl id:k3m9q1 -->"),
+        text.contains("mean?\n\nA: Braving.\n```\n\n```srl id:k3m9q1\n"),
         "{text}"
+    );
+    // An item that starts with an `@` line keeps its place in its block.
+    let shown = srl(&["show", "tuna01", "--context", "none", "--dir", d]);
+    let block = stdout(&shown).replace("A: まぐろ — tuna", "A: まぐろ");
+    let block = block.split_once('\n').unwrap().1;
+    let output = srl_with_input(&["edit", "tuna01", "--stdin", "--dir", d], block);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        read(&tmp, "kanji/fish.md"),
+        FISH.replace("A: まぐろ — tuna", "A: まぐろ")
     );
     let wrong = srl_with_input(
         &["edit", "x7k2m9", "--stdin", "--dir", d],
-        "<!-- srl id:other -->\nQ: q\nA: a\n",
+        "```srl id:other\nQ: q\nA: a\n```\n",
     );
     assert_eq!(wrong.status.code(), Some(2));
 }
@@ -652,8 +666,8 @@ fn lint_finds_questions_without_headers() {
 fn excluded_notes_and_dot_folders_are_not_read() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "templates/t.md", "<!-- srl -->\nbroken\n");
-    write(&tmp, ".obsidian/x.md", "<!-- srl -->\nbroken\n");
+    write(&tmp, "templates/t.md", "```srl\nbroken\n```\n");
+    write(&tmp, ".obsidian/x.md", "```srl\nbroken\n```\n");
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(2));
     write(
         &tmp,
@@ -668,7 +682,7 @@ fn notes_lists_every_note_without_reading_it() {
     let tmp = japanese();
     let d = dir(&tmp);
     write(&tmp, "prose.md", "Only prose, no items.\n");
-    write(&tmp, "broken.md", "<!-- srl -->\nbroken\n");
+    write(&tmp, "broken.md", "```srl\nbroken\n```\n");
     write(&tmp, "plain.txt", "Not a note.\n");
     write(&tmp, ".obsidian/x.md", "Not a note.\n");
     write(&tmp, "templates/t.md", "Excluded.\n");
@@ -701,7 +715,7 @@ fn notes_lists_every_note_without_reading_it() {
 fn kinds_describes_qa_without_reading_the_notes() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "broken.md", "<!-- srl -->\nbroken\n");
+    write(&tmp, "broken.md", "```srl\nbroken\n```\n");
     let output = srl(&["kinds", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let lines = lines(&output);
@@ -715,14 +729,14 @@ fn kinds_describes_qa_without_reading_the_notes() {
     assert_eq!(kinds[0]["fields"][0]["name"], "Q");
 }
 
-const TEXT_NOTE: &str = "<!-- srl id:txt001 -->\nQ: From a text file?\nA: Yes.\n";
+const TEXT_NOTE: &str = "```srl id:txt001\nQ: From a text file?\nA: Yes.\n```\n";
 
 #[test]
 fn only_md_files_are_notes_by_default() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "plain.txt", "<!-- srl -->\nbroken\n");
-    write(&tmp, "page.html", "<!-- srl -->\nbroken\n");
+    write(&tmp, "plain.txt", "```srl\nbroken\n```\n");
+    write(&tmp, "page.html", "```srl\nbroken\n```\n");
     let output = srl(&["find", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert!(!stdout(&output).contains("plain.txt"));
@@ -773,7 +787,7 @@ fn include_replaces_the_default_rather_than_adding_to_it() {
 fn exclude_wins_over_include() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "drafts/broken.txt", "<!-- srl -->\nbroken\n");
+    write(&tmp, "drafts/broken.txt", "```srl\nbroken\n```\n");
     write(
         &tmp,
         ".srl/config.toml",
@@ -827,7 +841,7 @@ fn add_takes_paths_that_include_matches_and_exclude_does_not() {
     let output = srl_with_input(&["add", "new.txt", "--stdin", "--dir", d], item);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let id = stdout(&output).trim().to_owned();
-    assert!(read(&tmp, "new.txt").contains(&format!("<!-- srl id:{id} -->")));
+    assert!(read(&tmp, "new.txt").contains(&format!("```srl id:{id}\n")));
     assert_eq!(lines(&srl(&["find", "in:new", "--dir", d])).len(), 1);
 }
 
@@ -992,7 +1006,7 @@ fn store_with_kind(notes: &[(&str, &str)]) -> TempDir {
 
 #[test]
 fn cards_of_a_kind_program_in_their_own_groups_are_not_siblings() {
-    let tmp = store_with_kind(&[("a.md", "<!-- srl id:abc kind:fake -->\nGROUPS: a|b c\n")]);
+    let tmp = store_with_kind(&[("a.md", "```srl id:abc kind:fake\nGROUPS: a|b c\n```\n")]);
     let d = dir(&tmp);
     let first = next_card(d, &[]);
     assert_eq!(
@@ -1012,7 +1026,7 @@ fn cards_of_a_kind_program_in_their_own_groups_are_not_siblings() {
 fn kind_selects_items_by_their_kind() {
     let tmp = store_with_kind(&[(
         "a.md",
-        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\n\n<!-- srl id:def -->\nQ: q\nA: a\n",
+        "```srl\n@ id:abc kind:fake\nGROUPS: a|b\n\n@ id:def\nQ: q\nA: a\n```\n",
     )]);
     let d = dir(&tmp);
     let ids = |selector: &[&str]| -> Vec<String> {
@@ -1035,7 +1049,7 @@ fn kind_selects_items_by_their_kind() {
 fn next_fails_if_its_kind_program_fails_to_make_the_card() {
     let tmp = store_with_kind(&[(
         "a.md",
-        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\nFAIL_MAKE: a\n",
+        "```srl id:abc kind:fake\nGROUPS: a|b\nFAIL_MAKE: a\n```\n",
     )]);
     let d = dir(&tmp);
     // The same failure every time, and abc-b is never tried in its place.
@@ -1063,7 +1077,7 @@ fn next_fails_if_its_kind_program_fails_to_make_the_card() {
 fn cards_fails_at_once_if_a_kind_program_fails() {
     let tmp = store_with_kind(&[(
         "a.md",
-        "<!-- srl id:abc kind:fake -->\nGROUPS: a|b\nFAIL_MAKE: b\n",
+        "```srl id:abc kind:fake\nGROUPS: a|b\nFAIL_MAKE: b\n```\n",
     )]);
     let d = dir(&tmp);
     let output = srl(&["cards", "abc", "--dir", d]);
@@ -1079,7 +1093,7 @@ fn cards_fails_at_once_if_a_kind_program_fails() {
 fn an_item_validate_rejects_is_reported_like_any_error_in_a_note() {
     let tmp = store_with_kind(&[(
         "a.md",
-        "<!-- srl id:abc kind:fake -->\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}]}\n",
+        "```srl id:abc kind:fake\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}]}\n```\n",
     )]);
     let output = srl(&["check", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
@@ -1094,7 +1108,7 @@ fn an_item_validate_rejects_is_reported_like_any_error_in_a_note() {
 fn a_kind_program_that_fails_is_reported_once_and_stops_commands() {
     let tmp = store_with_kind(&[(
         "a.md",
-        "<!-- srl id:abc kind:fake -->\nBREAK_GROUPS: on purpose\n\n<!-- srl id:abd kind:fake -->\nX: y\n",
+        "```srl id:abc kind:fake\nBREAK_GROUPS: on purpose\n```\n\n```srl id:abd kind:fake\nX: y\n```\n",
     )]);
     let d = dir(&tmp);
     let output = srl(&["check", "--dir", d]);
@@ -1111,7 +1125,7 @@ fn a_kind_program_that_fails_is_reported_once_and_stops_commands() {
 fn kind_answers_are_kept_until_check_asks_again_or_the_cache_is_deleted() {
     let tmp = store_with_kind(&[(
         "a.md",
-        "<!-- srl id:abc kind:fake -->\nGROUPS: a b\nLOG: calls.log\n",
+        "```srl id:abc kind:fake\nGROUPS: a b\nLOG: calls.log\n```\n",
     )]);
     let d = dir(&tmp);
     let calls_after = |args: &[&str]| {

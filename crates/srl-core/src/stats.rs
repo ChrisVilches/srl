@@ -130,7 +130,7 @@ mod tests {
     fn items() -> Vec<Item> {
         read_items(
             "a.md",
-            "<!-- srl id:aaa1 -->\nQ: q\nA: a\n\n<!-- srl id:aaa2 -->\nQ: q\nA: a\n\n<!-- srl id:aaa3 -->\nQ: q\nA: a\n",
+            "```srl\n@ id:aaa1\nQ: q\nA: a\n\n@ id:aaa2\nQ: q\nA: a\n\n@ id:aaa3\nQ: q\nA: a\n```\n",
             &crate::kind::Programs::default(),
         )
         .0

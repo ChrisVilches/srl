@@ -153,7 +153,9 @@ impl Item {
         &self.fields
     }
 
-    /// The item's lines as written, header included, joined with `\n`.
+    /// The item as an srl block of its own, joined with `\n`: an opening
+    /// fence like its block's, with its entries, its field lines as written,
+    /// and the closing fence (see `docs/notes.md`, "The item syntax").
     pub fn text(&self) -> &str {
         &self.text
     }
@@ -482,6 +484,7 @@ fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<E
                 continue;
             }
         };
+        let text = raw.text(&lines);
         let Some(id) = raw.header.id else {
             problems.push(Error::MissingId {
                 path: path.to_owned(),
@@ -502,10 +505,7 @@ fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<E
             see: raw.header.see,
             draft: raw.header.draft,
             fields: raw.fields,
-            text: lines
-                .get(raw.line - 1..raw.end)
-                .unwrap_or_default()
-                .join("\n"),
+            text,
             cards: Vec::new(),
             groups: Vec::new(),
         });
@@ -565,14 +565,11 @@ mod tests {
 
     #[test]
     fn items_get_their_cards_and_text() {
-        let text = "# Title\n\n<!-- srl id:x7k2m9 -->\nQ: What?\nA: That.\n\n<!-- srl id:k3m9q1 draft see:a.md -->\nQ: {{c1::a}} {{c2::b}}\n";
+        let text = "# Title\n\n```srl\n@  id:x7k2m9 \nQ: What?\nA: That.\n\n@ id:k3m9q1 draft see:a.md\nQ: {{c1::a}} {{c2::b}}\n```\n";
         let (items, problems) = read_items("n.md", text, &Programs::default());
         assert!(problems.is_empty(), "{problems:?}");
         assert_eq!(items.len(), 2);
-        assert_eq!(
-            items[0].text(),
-            "<!-- srl id:x7k2m9 -->\nQ: What?\nA: That."
-        );
+        assert_eq!(items[0].text(), "```srl id:x7k2m9\nQ: What?\nA: That.\n```");
         assert_eq!(items[0].label(), "What?");
         assert_eq!(items[0].cards().len(), 1);
         assert!(items[1].is_draft());
@@ -589,7 +586,7 @@ mod tests {
     fn a_field_written_twice_is_a_problem_whatever_the_kind() {
         let (items, problems) = read_items(
             "n.md",
-            "<!-- srl id:abc -->\nQ: a\nQ: b\nA: c\n",
+            "```srl id:abc\nQ: a\nQ: b\nA: c\n```\n",
             &Programs::default(),
         );
         assert!(items.is_empty());
@@ -601,7 +598,7 @@ mod tests {
 
     #[test]
     fn missing_ids_unknown_kinds_and_bad_fields_are_problems() {
-        let text = "<!-- srl -->\nQ: a\nA: b\n\n<!-- srl id:abc kind:conj -->\nVERB: x\n\n<!-- srl id:abd -->\nQ: only a question\n";
+        let text = "```srl\nQ: a\nA: b\n```\n```srl id:abc kind:conj\nVERB: x\n```\n```srl\n@ id:abd\nQ: only a question\n```\n";
         let (items, problems) = read_items("n.md", text, &Programs::default());
         assert!(items.is_empty());
         assert!(matches!(problems[0], Error::MissingId { line: 1, .. }));
@@ -614,19 +611,19 @@ mod tests {
                 *line
             })
             .collect::<Vec<_>>();
-        assert_eq!(lines, [1, 5, 8]);
+        assert_eq!(lines, [1, 5, 9]);
     }
 
     #[test]
     fn a_duplicate_id_keeps_the_first_item() {
         let (first, _) = read_items(
             "a.md",
-            "<!-- srl id:abc -->\nQ: a\nA: b\n",
+            "```srl id:abc\nQ: a\nA: b\n```\n",
             &Programs::default(),
         );
         let (second, _) = read_items(
             "b.md",
-            "<!-- srl id:abc -->\nQ: c\nA: d\n",
+            "```srl id:abc\nQ: c\nA: d\n```\n",
             &Programs::default(),
         );
         let (kept, duplicates) = unique(first.into_iter().chain(second).collect());

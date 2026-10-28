@@ -106,7 +106,7 @@ note-taking app.
 |---|---|
 | **Store** | A folder of notes (Markdown files by default) with a `.srl/` folder in it, which holds the configuration, the log and caches. |
 | **Note** | A file in the store that `srl` reads for items: by default, any Markdown file. A note may hold items; the rest of it is yours. |
-| **Item** | A question written in a note: a header line `<!-- srl id:x7k2m9 -->` followed by fields such as `Q:` and `A:`. It has an ID, and gives one or more cards. |
+| **Item** | A question written in a note, in an srl block (a fenced code block whose language is `srl`): a header such as the fence ```` ```srl id:x7k2m9 ```` followed by fields such as `Q:` and `A:`. It has an ID, and gives one or more cards. |
 | **Kind** | How an item's fields become cards. `qa`, a question and an answer with optional cloze deletions, is built in and the default; any other kind is a program named in `.srl/config.toml`. A kind also decides which of an item's cards are siblings, and describes its fields (`srl kinds`). |
 | **Card** | One question, ready to show: an ID, a prompt, and, when the kind gives them, the prompt as revealed with the answer and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
 | **Context** | The note an item belongs to, or the note its `see:` names, which frontends show after the answer of its cards. |
@@ -118,8 +118,8 @@ note-taking app.
 
 ## The life of a review
 
-1. In a note, you write an item: a header line, a question and an answer.
-   `srl id` gives the header an ID.
+1. In a note, you write an item: a line ```` ```srl ````, a question, an
+   answer and a line ```` ``` ````. `srl id` gives it an ID.
 2. A frontend runs `srl next in:grammar --json`, which replays the log
    through FSRS, finds the most overdue card matching the selector, and
    prints it with its context.
@@ -222,7 +222,7 @@ The specification:
 | Document | Contents |
 |---|---|
 | [store.md](store.md) | Store layout, how a store is found, configuration, the index cache |
-| [notes.md](notes.md) | Notes and the item syntax: headers, fields, IDs, status, context, how `srl` writes to notes |
+| [notes.md](notes.md) | Notes and the item syntax: srl blocks, headers, fields, IDs, status, context, how `srl` writes to notes |
 | [cards.md](cards.md) | The `qa` kind, cloze deletions, kind programs and groups of siblings, card IDs, the card format and its text formatting |
 | [scheduling.md](scheduling.md) | Ratings, FSRS, days, choosing the next card, siblings, new-card limits, states |
 | [log.md](log.md) | The review log and its events |

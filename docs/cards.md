@@ -108,11 +108,12 @@ Each field may appear once, and any other field is an error.
 **Without cloze deletions**, the item gives one card, with the item's ID:
 the prompt is `Q`, `prompt_revealed` is `null`, and the answer is `A`.
 
-```markdown
-<!-- srl id:x7k2m9 -->
+````markdown
+```srl id:x7k2m9
 Q: What does 〜をものともせず mean?
 A: Undeterred by (adversity), braving.
 ```
+````
 
 ```json
 {"id": "x7k2m9", "prompt": "What does 〜をものともせず mean?",
@@ -149,11 +150,12 @@ The rules:
    with empty text, a deletion inside another, a number with leading zeros
    or `c0`, and deletions in `A`.
 
-```markdown
-<!-- srl id:k3m9q1 -->
+````markdown
+```srl id:k3m9q1
 Q: {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。
 A: Despite everyone's opposition, she started a company.
 ```
+````
 
 gives two cards:
 
@@ -320,11 +322,12 @@ without touching any card's history. The output of `groups` holds:
 
 Example: a conjugation kind.
 
-```markdown
-<!-- srl id:v81k3z kind:conj -->
+````markdown
+```srl id:v81k3z kind:conj
 VERB: 動く
 FORMS: te past negative
 ```
+````
 
 `validate` accepts the item, and `groups` gives cards `v81k3z-te`,
 `v81k3z-past` and `v81k3z-negative`, the first two in one group: 動いて

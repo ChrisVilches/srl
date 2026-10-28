@@ -64,7 +64,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
 | `srl add NOTE --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
-| `srl edit ID --stdin` | Replace the item's lines in its note with standard input, which must be exactly one item with the same ID. The rest of the note is unchanged. Prints nothing; with `--dry-run`, only checks the input. |
+| `srl edit ID --stdin` | Replace the item in its note with standard input, which must be exactly one srl block holding exactly one item, with the same ID (see "Editing an item" below). The rest of the note is unchanged. Prints nothing; with `--dry-run`, only checks the input. |
 | `srl accept SELECTOR` | Remove `draft` from the headers of the items of matching draft cards. |
 | `srl suspend SELECTOR` | Suspend matching active cards. |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
@@ -74,16 +74,44 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 
 ```json
 {"id": "k3m9q1-2", "item": "k3m9q1", "path": "japanese/grammar/wo-mono-tomo-sezu.md",
- "line": 9, "status": "active", "state": "due", "due": "2026-10-24"}
+ "line": 10, "status": "active", "state": "due", "due": "2026-10-24"}
 ```
 
 `due` is the study day the card is due, or `null` for a new card. `srl show
 --json` prints items as described in [notes.md](notes.md), "Items as JSON".
 Without `--json`, `srl show` prints, for each item: a line `PATH:LINE`, the
-item's lines as written, and, if there is a context, a line `---` and
-the context. Items are separated by blank lines. `--context MODE` chooses
-the context's mode (see [notes.md](notes.md), "Context"); it is `prose`
-without it.
+item as an srl block of its own, and, if there is a context, a line `---`
+and the context. Items are separated by blank lines. `--context MODE`
+chooses the context's mode (see [notes.md](notes.md), "Context"); it is
+`prose` without it.
+
+**An item as an srl block of its own** is: an opening fence made of the
+same backticks or tildes as its block's, `srl`, and the item's entries as
+written (after a space, when it has some); the item's field lines as
+written; and a closing fence like the opening one. `srl edit ID --stdin`
+takes this form, so that what `srl show` prints can be edited and given
+back.
+
+### Editing an item
+
+```sh
+srl show x7k2m9 --context none | tail -n +2 > item.md   # without its PATH:LINE
+$EDITOR item.md
+srl edit x7k2m9 --stdin < item.md
+```
+
+Standard input must be one srl block holding one item, in either form (see
+[notes.md](notes.md), "The item syntax"), whose ID is the one given, with
+nothing around it but blank lines. It must be a valid item, as in a note.
+How it is written depends on where the item is:
+
+- **An item that has its block to itself** is replaced, block and all, by
+  the item as a block of its own, made from standard input.
+- **An item that starts with an `@` line** keeps its place in its block:
+  its lines are replaced by an `@` line with the new entries (`@` alone
+  when there are none) and the new field lines. A field line that would
+  close the block is an error; open and close the block with a longer
+  fence.
 
 `srl cards` prints cards in the format of [cards.md](cards.md) with
 `--json`, one per line. Without it, each card is printed for people: a line
@@ -147,8 +175,12 @@ JSONL
   matched by `include`, not by `exclude`, and not in a folder that starts
   with `.` (see [notes.md](notes.md), "Which files are notes"). If it
   doesn't exist, it is created, with its folders.
-- The items are appended to the end of the note, each after a blank line,
+- The items are appended to the end of the note, each in an srl block of
+  its own with its entries on the opening fence, after a blank line,
   following the rules of [notes.md](notes.md), "How srl writes to notes".
+  The fence is three backticks, or one more than the longest run of
+  backticks that a line of the item's text starts with, so that a code
+  block in a field doesn't close it.
 - Every line is checked before anything is written: if any line is not a
   valid item (not a JSON object, a key that is neither a header entry nor
   a field name, a value of the wrong type, an unknown kind, a `see` that
@@ -273,36 +305,33 @@ the notes, for example paths too long for some programs on Windows, is not
 its concern.
 
 `srl lint` looks for mistakes `srl check` can't call errors, because only
-headers make items (see [notes.md](notes.md), "The item syntax"), and
+srl blocks make items (see [notes.md](notes.md), "The item syntax"), and
 because an item can be valid and still not be what you meant. It reports,
 as `PATH:LINE: message` on standard output, in the order of the notes and
 their lines:
 
-- outside items, lines that look like part of one. Each may come at the
-  start of a line, or after spaces, a list marker (`-`, `*`, `+`, `1.`)
-  or a quote marker (`>`):
-  - a header that isn't at column 0, such as an indented `<!-- srl -->`;
-  - a misspelled header: an HTML comment whose first word is `srl` or
-    `slr` in any case, however its dashes are written, such as
-    `<!-- SRL -->`, `<!— srl —>` or `<! -- srl -->`;
+- outside srl blocks, lines that look like part of one. Each may come at
+  the start of a line, or after spaces, a list marker (`-`, `*`, `+`,
+  `1.`) or a quote marker (`>`):
+  - an srl block's opening fence that isn't at column 0, such as an
+    indented ```` ```srl ````;
+  - a misspelled opening fence: a fence of three or more backticks or
+    tildes followed, after any spaces, by `srl` or `slr` in any case, then
+    by nothing, a space or a character other than a letter, a digit, `-`
+    or `_`, such as ```` ```SRL ```` or ```` ```srl{id:x7k2m9} ````;
   - a field of the `qa` kind: `Q:` or `A:`, with or without the space
     after the colon, `q:`, or `Q` with a full-width colon or letter
     (`Q：`, `Ｑ:`);
   - a cloze deletion (`{{c1::…}}`);
-  - a line right after the last line of an item, with no blank line
-    between, unless it is a Markdown heading (`#`) or an HTML comment: it
-    is usually a continuation line without its two spaces, and the field
-    above ends before it;
 - in the `Q` of a `qa` item, something that was probably meant to be a
   cloze deletion (`{{C1::…}}`, or `{{c1:…}}` with one colon), and a
   deletion whose hint is the text it hides;
-- a fenced code block that is never closed, when headers come after it.
+- a fenced code block that is never closed, when srl blocks come after it.
 
-Outside items, a paragraph (a run of lines without a blank line) is
+Outside srl blocks, a paragraph (a run of lines without a blank line) is
 reported once, at its first suspicious line, since the lines after it are
-usually the same mistake. A line that starts like a header but isn't one
-is an error, which `srl check` reports, so `srl lint` reports nothing in
-its paragraph.
+usually the same mistake. Lines inside an srl block are never reported:
+mistakes there are errors, which `srl check` reports.
 
 Only the item syntax and the `qa` kind are known to `srl lint`: it doesn't
 look at the fields of items of kind programs, nor for their fields outside

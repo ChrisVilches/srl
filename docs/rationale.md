@@ -69,24 +69,40 @@ a database without export and import machinery.
 
 Trade-off: validation happens on read rather than on write.
 
-## Why headers are HTML comments
+## Why items are fenced blocks
 
-A header must say "this is an item" and carry its ID without spoiling the
-note. HTML comments are part of CommonMark, so every renderer hides them,
-and in an editor they read as what they are: a short remark above the
-question. No syntax specific to one app is needed.
+Items must be told apart from the note around them, and carry their IDs,
+with a syntax every tool already knows. A fenced code block is part of
+CommonMark: renderers, editors and formats built on Markdown (MDX, Quarto)
+all agree on where it starts and where it ends, and its language, `srl`,
+says what it holds. So an item ends where its block does, not where `srl`
+guesses the next paragraph starts, and every line inside a block can be
+checked: a stray line is an error, not prose silently left out of a field.
+Renderers show a block's lines as written, so a question and its answer
+are never joined into one paragraph, and a viewer can show `srl` blocks
+in its own way, as it does for any language. No syntax specific to one app
+is needed.
 
-Trade-off: `<!-- srl -->` is longer to type than a symbol would be. An
-editor snippet makes it one keystroke.
+A block holds one item, with the item's entries on its fence, so that a
+single question is its fields between two fences; or several, each
+starting with an `@` line, so that a list of questions needs one pair of
+fences, not one per question. The first line of the block says which, and
+a block can't mix the two, so there is one rule to read each.
 
-## Why only headers make items
+Trade-off: in a renderer that knows nothing of `srl`, items show as code,
+not as prose, and a field that holds a fenced code block needs a longer
+fence around its block. The syntax is also Markdown's: it suits Markdown
+and the formats built on it, and any other file read as a note has to use
+it too (see [notes.md](notes.md), "Which files are notes").
+
+## Why only srl blocks make items
 
 If any `Q:` line made an item, ordinary text would be read as questions:
-an interview transcript, an FAQ, a quote. With one rule, "an item starts
-with a header", `srl` never reads into your prose, and everything it reads
-it can check strictly.
+an interview transcript, an FAQ, a quote. With one rule, "an item is in an
+srl block", `srl` never reads into your prose, and everything it reads it
+can check strictly.
 
-Trade-off: a question typed without a header is silently not studied.
+Trade-off: a question typed outside a block is silently not studied.
 `srl lint` looks for these, as a convenience.
 
 ## Why one error stops everything
@@ -120,7 +136,8 @@ less annoying are still to be designed (see [overview.md](overview.md),
 
 Your notes are yours. `srl id` and `srl accept` change header lines only,
 adding an ID or removing `draft`; `srl add` only appends new items; and
-`srl edit ID --stdin` replaces the lines of the one item it was given. No
+`srl edit ID --stdin` replaces the lines of the one item it was given, or
+its block when the item has the block to itself. No
 command rewrites a note, so a change by `srl` can't damage text you wrote,
 and is easy to see in a diff.
 

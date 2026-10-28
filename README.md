@@ -53,24 +53,28 @@ built by you.
 
 ## Your data: questions inside your notes
 
-```markdown
+````markdown
 # 食い倒れ
 
 Eating yourself into ruin. Osaka's motto, lived nightly along Dotonbori:
 京の着倒れ、大阪の食い倒れ (Kyoto spends it on clothes, Osaka on food).
 
-<!-- srl id:x7k2m9 -->
+```srl
+@ id:x7k2m9
 Q: What does 食い倒れ mean?
 A: Eating until you drop, or go broke.
 
-<!-- srl id:p4n8d2 -->
+@ id:p4n8d2
 Q: 道頓堀で{{c1::食い倒れ}}の一日を過ごした。
 ```
+````
 
-That's a complete note with two cards in it. Rendered, the `<!-- srl -->`
-lines disappear and the note reads as ordinary questions and answers, so it
-stays a normal Markdown file for your editor, your viewer or GitHub. When
-you study a card, the note around it is shown as context after the answer.
+That's a complete note with two cards in it. The questions live in a
+fenced `srl` block, so the note stays a normal Markdown file for your
+editor, your viewer or GitHub, which show the block as code; a block can
+also hold a single question, with its ID on the fence (```` ```srl
+id:x7k2m9 ````). When you study a card, the note around it is shown as
+context after the answer.
 
 A card's identity is its ID, so you can reword a question or move its note
 without losing its schedule. Your folders are your topics:
@@ -172,7 +176,7 @@ cargo install srl
 ```sh
 srl init ~/notes          # make a folder of notes into a store
 cd ~/notes
-$EDITOR rust/ownership.md # write an item: <!-- srl -->, then Q: and A: lines
+$EDITOR rust/ownership.md # write an item: ```srl, Q: and A: lines, then ```
 srl id                    # give new items their IDs
 srl next                  # the next card to study (frontends use srl next --json)
 srl review ID --rating 3  # rate it: 1 Again, 2 Hard, 3 Good, 4 Easy
