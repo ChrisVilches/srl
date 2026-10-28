@@ -571,19 +571,6 @@ fn stats_counts_cards_reviews_and_retention() {
 }
 
 #[test]
-fn editing_in_the_editor_refuses_without_a_terminal() {
-    let tmp = japanese();
-    let d = dir(&tmp);
-    let output = srl_with_input(&["edit", "x7k2m9", "--dir", d], "");
-    assert_eq!(output.status.code(), Some(2));
-    assert!(
-        stderr(&output).contains("needs a terminal"),
-        "{}",
-        stderr(&output)
-    );
-}
-
-#[test]
 fn orphans_are_reported_and_their_history_moves() {
     let tmp = japanese();
     let d = dir(&tmp);

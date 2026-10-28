@@ -48,8 +48,9 @@ knows where the card came from, such as a kind whose program asks an LLM
 to write the question.
 
 A frontend may offer more, with the other commands everyone has: suspending the
-card (`srl suspend id:ID`), opening its note (`srl edit ID`, or the file at
-`path` in an editor of its own), or a summary at the end, counting the
+card (`srl suspend id:ID`), opening its note (the file at `path`, relative
+to the store's folder, in an editor of its choice), or a summary at the
+end, counting the
 cards whose `state` was `new`.
 
 A frontend never computes schedules. That belongs to `srl`, so every

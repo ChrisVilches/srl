@@ -5,10 +5,10 @@
 
 use std::collections::HashSet;
 use std::env;
-use std::io::{self, IsTerminal};
+use std::io;
 use std::path::PathBuf;
 
-use anyhow::{Context, bail};
+use anyhow::Context;
 use jiff::Zoned;
 use jiff::civil::Date;
 use serde::Serialize;
@@ -18,7 +18,7 @@ use srl_core::{
 };
 
 use crate::args::{AddArgs, By, Cli, Command, ReviewArgs};
-use crate::{Outcome, editor, output};
+use crate::{Outcome, output};
 
 pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
     let store = || -> anyhow::Result<Store> { Ok(Store::open(&lookup(cli.dir.clone())?)?) };
@@ -45,13 +45,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         }
         Command::Cards { ids, json } => cards(&store()?, &ids, json.json),
         Command::Add(args) => add(&store()?, &args),
-        Command::Edit { id, stdin, dry_run } => match (stdin, dry_run.dry_run) {
-            (true, dry_run) => edit_stdin(&store()?, &id, dry_run),
-            (false, false) => edit_in_editor(&store()?, &id),
-            (false, true) => {
-                bail!("--dry-run only works with --stdin; `srl edit ID` opens the editor")
-            }
-        },
+        Command::Edit { id, dry_run, .. } => edit(&store()?, &id, dry_run.dry_run),
         Command::Accept {
             selector: terms,
             dry_run,
@@ -409,20 +403,8 @@ fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
     Ok(found_anything(!added.ids.is_empty()))
 }
 
-/// `srl edit ID`: opens the item's note in the editor. Refuses without a
-/// terminal, as the one interactive command.
-fn edit_in_editor(store: &Store, id: &str) -> anyhow::Result<Outcome> {
-    if !io::stdin().is_terminal() {
-        bail!("`srl edit ID` needs a terminal; in scripts and pipes, use `srl edit ID --stdin`");
-    }
-    let (_, notes) = load(store)?;
-    let item = notes.item_of(id)?;
-    editor::open(&store.note_file(item.path()))?;
-    Ok(Outcome::Done)
-}
-
 /// `srl edit ID --stdin`: replaces the item with standard input.
-fn edit_stdin(store: &Store, id: &str, dry_run: bool) -> anyhow::Result<Outcome> {
+fn edit(store: &Store, id: &str, dry_run: bool) -> anyhow::Result<Outcome> {
     let (_, notes) = load(store)?;
     let item = notes.item_of(id)?;
     srl_core::replace(store, &notes, item, &stdin()?, dry_run)?;

@@ -212,8 +212,7 @@ Only four commands ever change a note:
 | `srl add NOTE` | Appends new items to the end of `NOTE`, or creates it. |
 | `srl edit ID --stdin` | Replaces the lines of one item with new ones, for scripts and agents. |
 
-Every other command only reads notes (`srl edit ID` opens the note in your
-editor, which is you changing it). The rules for writing:
+Every other command only reads notes. The rules for writing:
 
 1. **`srl id` and `srl accept` change header lines only.** `id:ID` is added
    right after `srl`, with one space before it. `draft` is removed together

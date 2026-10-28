@@ -220,7 +220,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl show ID` | print an item and its context |
 | `srl cards ID` | print the cards of an item |
 | `srl add NOTE --stdin` | append items (JSONL) |
-| `srl edit ID` | open the item's note in the editor |
+| `srl edit ID --stdin` | replace an item |
 | `srl find status:draft` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |
 | `srl review ID --rating N` | record a rating |

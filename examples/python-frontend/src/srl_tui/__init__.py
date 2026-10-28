@@ -9,8 +9,8 @@ It is a starting point: copy it, rename it, change it.
 It runs the frontend loop of docs/frontends.md: `srl next --json --context
 CONTEXT` for the card and its context, `srl review --stdin` for the rating.
 Keys act at once, without Enter: space or Enter shows the answer, 1-4 rate,
-j/k or the arrows scroll the context, Ctrl-D/Ctrl-U by half of it, e edits
-the note, s suspends the card, q quits.
+j/k or the arrows scroll the context, Ctrl-D/Ctrl-U by half of it, s
+suspends the card, q quits.
 """
 
 import json
@@ -151,9 +151,9 @@ def wait_for(keys):
 
 
 # The keys each side of the card takes, and the end of the bar that lists them.
-QUESTION_KEYS = {" ", "\n", "e", "s", "q"}
-ANSWER_KEYS = {"1", "2", "3", "4", "j", "k", "up", "down", CTRL_D, CTRL_U, "e", "s", "q"}
-OTHER_KEYS = "   e edit  s suspend  q quit"
+QUESTION_KEYS = {" ", "\n", "s", "q"}
+ANSWER_KEYS = {"1", "2", "3", "4", "j", "k", "up", "down", CTRL_D, CTRL_U, "s", "q"}
+OTHER_KEYS = "   s suspend  q quit"
 
 
 class Session:
@@ -270,11 +270,6 @@ class Session:
                     scroll += shown // 2
                 elif key == CTRL_U:
                     scroll -= shown // 2
-                elif key == "e":
-                    # Not through srl(), which captures the output: the
-                    # editor needs the terminal.
-                    subprocess.run(["srl", "edit", card["id"]])
-                    break  # the note may have changed: get the card again
                 elif key == "s":
                     srl("suspend", f"id:{card['id']}")
                     break

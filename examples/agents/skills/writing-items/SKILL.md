@@ -176,5 +176,6 @@ ITEM
 ```
 
 `--dry-run` only checks the input. Editing never changes the card's
-schedule. To open the note in the person's editor instead, they run
-`srl edit x7k2m9`.
+schedule. To change it themselves instead, the person opens the note in
+their editor: `srl show x7k2m9` prints its `PATH:LINE`, relative to the
+store's folder.

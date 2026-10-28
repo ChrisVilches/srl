@@ -10,19 +10,17 @@ shows (see [frontends.md](frontends.md)). `srl cards --json` prints cards
 in the same format, the one a frontend requires (see [cards.md](cards.md)),
 without what `srl next --json` adds around them; frontends rely on
 `srl next` only. No command shows cards
-interactively or runs other programs for you, except `srl edit ID`, which
-opens a note in your editor, and the kind programs of `[kinds]`, which
-commands that read items run for the items whose answers aren't kept
-(see [cards.md](cards.md), "Kind programs").
+interactively or runs other programs for you, except the kind programs of
+`[kinds]`, which commands that read items run for the items whose answers
+aren't kept (see [cards.md](cards.md), "Kind programs").
 
 ## Conventions
 
 - **`--json` everywhere.** Every command that prints data can print JSON
   instead (JSONL for lists). The default output is for people.
-- **Never ask questions when standard input is not a terminal.** The one
-  interactive command, `srl edit ID`, refuses in a pipe; every action has a
-  non-interactive form. Studying is up to frontends (see
-  [frontends.md](frontends.md)).
+- **Never interactive.** No command asks questions or waits for a person.
+  Studying is up to frontends (see [frontends.md](frontends.md)), and
+  editing notes is up to your editor.
 - **Standard output carries results only.** Errors and warnings go to standard
   error, as one plain message each, saying what to do about it.
 - **Exit codes:** 0 success (or something found), 1 nothing found or nothing
@@ -67,7 +65,6 @@ commands that read items run for the items whose answers aren't kept
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
 | `srl add NOTE --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
-| `srl edit ID` | Open the note of the item in the editor (see "Editing in the editor" below). |
 | `srl edit ID --stdin` | Replace the item's lines in its note with standard input, which must be exactly one item with the same ID. The rest of the note is unchanged. Prints nothing; with `--dry-run`, only checks the input. |
 | `srl accept SELECTOR` | Remove `draft` from the headers of the items of matching draft cards. |
 | `srl suspend SELECTOR` | Suspend matching active cards. |
@@ -165,33 +162,6 @@ JSONL
 
 It prints the new item IDs, one per line. With `--dry-run` it prints the
 items it would write, as they would appear in the note, and writes nothing.
-
-### Editing in the editor
-
-`srl edit ID` opens the item's note in the editor:
-
-- The editor is `VISUAL` if it is set and not empty, else `EDITOR`, else
-  the platform's default, as in git: `notepad` on Windows, `vi` everywhere
-  else.
-- The value is split at spaces into a program and its arguments
-  (`code --wait`). A value that starts with `"` names the program up to the
-  next `"`, so a path with spaces can have arguments too
-  (`"C:\Program Files\Microsoft VS Code\bin\code.cmd" --wait`). There is no
-  other quoting. The program is found on `PATH`, or given as a path. The
-  note's file comes last.
-- The editor works on the note itself. A note is yours, so `srl` doesn't
-  check it when the editor exits; the next command that reads items reports
-  any error in it.
-
-> **TODO (design):** `srl edit` opens the note at its start. Editors take a
-> line number in different ways (`+LINE`, `FILE:LINE`, `--goto`), and how
-> to say which one yours uses is undecided (see
-> [overview.md](overview.md), "Open questions").
-
-> **TODO (platform):** not run on Windows yet. Notepad, the default there,
-> is the one editor every Windows has, but Windows 11's Notepad may open the
-> file in a tab of a Notepad window that is already open and return at
-> once. That is harmless, since `srl` doesn't check the note afterwards.
 
 ### Studying
 

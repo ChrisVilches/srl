@@ -57,10 +57,9 @@ note-taking app.
   as common to most Markdown flavours.
 - `srl` does not contain, call or assume an LLM.
 - `srl` is not a sync service or a multi-user system.
-- `srl` is not a frontend, and does not launch other programs for you. The
-  exceptions are `srl edit ID`, which opens a note in your editor, and
-  the kind programs you name in `.srl/config.toml`, which `srl` runs to
-  turn items into cards.
+- `srl` is not a frontend or an editor, and does not launch other programs
+  for you. The exception is the kind programs you name in
+  `.srl/config.toml`, which `srl` runs to turn items into cards.
 
 ## Principles
 
@@ -271,9 +270,6 @@ Main design decisions still to take:
 - **Media in cards (audio, images) and furigana markup.** Today card text is
   Markdown with `==highlight==` only ([cards.md](cards.md), "Text
   formatting").
-- **Opening the editor at an item's line.** Today `srl edit ID` opens the
-  note at its start, because editors take a line number in different ways
-  ([cli.md](cli.md), "Editing in the editor").
 - **Making strictness less annoying.** Today every error in a note stops
   every command that reads items ([notes.md](notes.md), "Errors"), and a
   card its kind program can't make stops `srl next`

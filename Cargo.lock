@@ -896,7 +896,6 @@ dependencies = [
  "serde_json",
  "srl-core",
  "tempfile",
- "which",
 ]
 
 [[package]]

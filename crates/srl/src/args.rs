@@ -124,12 +124,12 @@ pub(crate) enum Command {
     },
     /// Append items (JSONL of fields from standard input) to a note.
     Add(AddArgs),
-    /// Open an item's note in $EDITOR, or replace the item with standard input.
+    /// Replace an item with standard input.
     Edit {
         /// A card or item ID.
         id: String,
-        /// Replace the item with standard input, which must be one item with the same ID.
-        #[arg(long)]
+        /// Read the new item from standard input: one item with the same ID.
+        #[arg(long, required = true)]
         stdin: bool,
         #[command(flatten)]
         dry_run: DryRun,
@@ -282,6 +282,12 @@ mod tests {
         assert!(parse(&["add", "a.md"]).is_err());
         assert!(parse(&["add", "a.md", "--stdin", "--dry-run"]).is_ok());
         assert!(parse(&["add", "a.md", "--stdin", "--draft"]).is_err());
+    }
+
+    #[test]
+    fn edit_needs_stdin() {
+        assert!(parse(&["edit", "x7k2m9"]).is_err());
+        assert!(parse(&["edit", "x7k2m9", "--stdin", "--dry-run"]).is_ok());
     }
 
     #[test]

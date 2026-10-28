@@ -28,8 +28,7 @@ screen needs a modern terminal such as Windows Terminal.
   own, inside its panel.
 - Keys act at once, without Enter: space (or Enter) shows the answer,
   `1`–`4` rate, `j`/`k` or the arrows scroll the context, Ctrl-D/Ctrl-U
-  by half of it, `e` edits the note (`srl edit`), `s` suspends the card,
-  `q` (or Ctrl-C) quits.
+  by half of it, `s` suspends the card, `q` (or Ctrl-C) quits.
 - It ends with a summary: the cards reviewed, the new ones among them, and
   the Again ratings. If `srl` fails, it prints what `srl` said and exits
   with 2.
