@@ -55,7 +55,7 @@ A leech is almost always a badly written question, not a lack of effort:
 too much in one card, an ambiguous prompt, or two cards that look alike.
 Propose a rewrite (split it, add a distinguishing detail, turn it into
 cloze), as a new draft item or, if the person asks, with
-`srl edit ID --stdin` (see the `writing-items` skill). Then they may
+`srl edit --stdin` (see the `writing-items` skill). Then they may
 `srl suspend` the old card or `srl reset` it.
 
 ## `srl log [SELECTOR]`

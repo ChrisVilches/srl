@@ -41,7 +41,7 @@ export type KindDescription = {
   fields: { name: string; description: string }[];
 };
 
-// An item for `srl add --stdin` (docs/cli.md, "Adding items"): its header
+// An item object for `srl add --stdin` (docs/notes.md, "The item object"): its header
 // entries kind, see and draft, and its fields.
 export type NewItem = Record<string, string | boolean>;
 

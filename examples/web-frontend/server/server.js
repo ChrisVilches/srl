@@ -102,7 +102,8 @@ export function createSrlServer({ dir, selector, staticDir }) {
       return {
         cards: cards.map((card) => {
           const item = items.get(card.item);
-          const first = Object.values(item.fields)[0] ?? '';
+          // Field names are the item object's uppercase keys.
+          const first = Object.entries(item).find(([key]) => /^[A-Z]/.test(key))?.[1] ?? '';
           return { ...card, kind: item.kind, excerpt: first.split('\n')[0] };
         }),
       };

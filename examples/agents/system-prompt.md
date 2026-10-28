@@ -50,7 +50,7 @@ be kept in git.
    studied; the person reads them and runs `srl accept` for the ones worth
    keeping.
 3. **Change the person's notes or schedule only when they ask.** That means
-   `srl accept`, `srl edit ID --stdin`, `srl suspend`, `srl unsuspend`,
+   `srl accept`, `srl edit --stdin`, `srl suspend`, `srl unsuspend`,
    `srl reset`, `srl move` and editing their files. When they ask, run it
    with `--dry-run` first if what it would change isn't obvious, and say what
    it changed.
@@ -244,10 +244,10 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl find [SEL]` | list cards |
 | `srl notes` | list the notes, also those without items (for `see:` and `srl add NOTE`) |
 | `srl kinds` | describe each kind and its fields, before writing an item of it |
-| `srl show ID` | print an item and its context |
+| `srl show ID` | print an item and its context; with `--json`, as the item object `srl edit` takes back |
 | `srl cards ID` | print the cards of an item |
-| `srl add NOTE --stdin` | append items (JSONL) |
-| `srl edit ID --stdin` | replace an item |
+| `srl add NOTE --stdin` | append items (JSONL of item objects) |
+| `srl edit --stdin` | replace items (JSONL of item objects, each with its `id`) |
 | `srl find status:draft` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |
 | `srl review ID --rating N` | record a rating |

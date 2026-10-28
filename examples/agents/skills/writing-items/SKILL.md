@@ -1,9 +1,15 @@
 ---
 name: writing-items
-description: The full syntax of srl items (srl blocks, headers, fields, continuation lines, code blocks, cloze deletions), how to write good questions, and how to add or replace items with srl add and srl edit --stdin. Load before writing items for the person, when an item gives an error, or when they ask how to write a particular kind of question.
+description: The full syntax of srl items (srl blocks, headers, fields, continuation lines, code blocks, cloze deletions, JSONL notes), how to write good questions, and how to add or replace items with srl add and srl edit --stdin. Load before writing items for the person, when an item gives an error, or when they ask how to write a particular kind of question.
 ---
 
 # Writing items
+
+Items live in Markdown notes, in srl blocks (below), or in JSONL notes,
+whose names end in `.jsonl`: one JSON object per line, the same item
+object that `srl add` takes (see "Adding items with `srl add`"), and
+nothing else. A JSONL note is read only if `include` in
+`.srl/config.toml` names it.
 
 ## The syntax, in full
 
@@ -164,17 +170,19 @@ leaves the old card's history behind; see the `fixing-problems` skill.
 srl add NOTE [--dry-run] --stdin
 ```
 
-One JSON object per line on standard input. The lowercase keys are the
-item's header entries: `"kind"` (text, default `qa`), `"see"` (text, the
-note shown as its context) and `"draft"` (`true` or `false`). Every other
-key is a field, and its value the field's text. A newline in a value (`\n`
-in JSON) becomes a continuation line, and each item gets an srl block of
-its own, with a fence long enough for the code blocks in its fields.
-`NOTE` is relative to the store's folder, must be a note (by default, end
-in `.md`; see `include` in `.srl/config.toml`), and is created
-with its folders if it doesn't exist. `srl notes` lists the notes, also
-those without items, for `NOTE` and `"see"`. Items are appended at the
-end, each gets a new ID, and the IDs are printed. Every line is checked
+One item object per line on standard input: one JSON object. The
+lowercase keys are the item's header entries: `"id"` (leave it out to get a
+new one), `"kind"` (text, default `qa`), `"see"` (text, the note shown as
+its context) and `"draft"` (`true` or `false`). The uppercase keys are
+fields, and their values the fields' text. In a Markdown note, a newline in
+a value (`\n` in JSON) becomes a continuation line, and each item gets an
+srl block of its own, with a fence long enough for the code blocks in its
+fields; in a JSONL note (a name ending in `.jsonl`), each item is one line,
+the object itself. `NOTE` is relative to the store's folder, must be a
+note (by default, end in `.md`; see `include` in `.srl/config.toml`), and
+is created with its folders if it doesn't exist. `srl notes` lists the
+notes, also those without items, for `NOTE` and `"see"`. Items are
+appended at the end, and their IDs are printed. Every line is checked
 first, by the same rules as reading notes, kind programs included: one
 bad line and nothing is added. So `--dry-run` is the way to know whether
 an item is valid; `srl kinds` only describes the fields.
@@ -190,35 +198,40 @@ As an agent, always give every item `"draft": true`, write into a note of
 your own (for example under `generated/`), and give each item a `"see"`
 when it is about one of the person's notes. Items about different notes
 can go in one call. Use `--dry-run` to show the person the items before
-writing them. A note of your own may also hold prose: write the note with
-its explanation first, then add the items to it.
+writing them. A Markdown note of your own may also hold prose: write the
+note with its explanation first, then add the items to it. If the store
+reads JSONL notes (`srl notes` lists some, or `include` names `*.jsonl`),
+prefer one, such as `generated/rust.jsonl`, for items alone: there is no
+fence to get wrong. An item of a JSONL note has no context but its
+`"see"`, so give it one.
 
 The person accepts drafts with `srl accept SELECTOR`, for example
 `srl accept path:generated/ownership.md` or `srl accept id:x7k2m9`.
 
-## Replacing an item with `srl edit ID --stdin`
+## Replacing items with `srl edit --stdin`
 
-Only when the person asks you to change one of their items. Standard input
-must be exactly one srl block holding exactly one item, with the same ID;
-the rest of the note is untouched. `srl show ID` prints the item in that
-form, after its `PATH:LINE`. An item that shares its block with others
-keeps its place there: `srl` writes it back as an `@` line and its fields.
+Only when the person asks you to change their items. Standard input holds
+item objects, one per line, as for `srl add`, each with the `"id"` of the
+item it replaces, in any note; the rest of each note is untouched. `srl
+show --json ID` prints the item in that form, with `path`, `line`, `cards`
+and `context`, which `srl edit` ignores: change what you need and give the
+line back. Each object is the whole new item: a field or entry left out is
+gone, not kept.
 
-````sh
-srl show x7k2m9          # see the item as a block of its own
-srl edit x7k2m9 --stdin <<'ITEM'
-```srl id:x7k2m9
-Q: What does 〜をものともせず mean, and who is it used about?
-A: Undeterred by (adversity). Used admiringly about others, not oneself.
+```sh
+srl show --json x7k2m9   # the item object, to change
+srl edit --stdin <<'JSONL'
+{"id": "x7k2m9", "Q": "What does 〜をものともせず mean, and who is it used about?", "A": "Undeterred by (adversity). Used admiringly about others, not oneself."}
+JSONL
 ```
-ITEM
-````
 
-Quote the heredoc's delimiter (`<<'ITEM'`, not `<<ITEM`): unquoted, the
-shell runs the backticks as commands and `srl` gets something else. When a
-field holds a code block, give the item as `~~~srl` … `~~~`, as above. An
-item that keeps its place in a block shared with others must not close
-that block: `srl edit` refuses a field line that would, and says so.
+Quote the heredoc's delimiter (`<<'JSONL'`, not `<<JSONL`): unquoted, the
+shell runs backticks as commands and `srl` gets something else. `srl`
+writes each item in its note's syntax. An item that shares its srl block
+with others keeps its place there, as an `@` line and its fields, and must
+not close that block: `srl edit` refuses a field line that would, and says
+so. Every line is checked before anything is written, and the IDs are
+printed.
 
 `--dry-run` only checks the input. Editing never changes the card's
 schedule. To change it themselves instead, the person opens the note in
