@@ -1,6 +1,17 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+/* Dark when <html> has the dark class, set from the theme button
+   (src/theme.ts), not from the system's setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
+}
+
 /* Highlights (==…==) are the important part of a card: the blank in a cloze
    prompt, the revealed text in its revealed prompt (docs/cards.md). */
 @layer components {

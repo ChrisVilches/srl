@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>srl</title>
+    <script>
+      // The theme, chosen with the button in the top bar and kept in
+      // localStorage; dark unless set to light. Set here, before the page is
+      // drawn, so it doesn't flash the other theme first (src/theme.ts).
+      try {
+        document.documentElement.classList.toggle('dark', localStorage.getItem('srl-web-theme') !== 'light');
+      } catch {
+        document.documentElement.classList.add('dark');
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

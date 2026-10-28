@@ -147,7 +147,7 @@ current preferences, not requirements: follow them unless the user asks
 for something else, and update this section when they change.
 
 - **Dark theme only.** The web shots are dark (`SCHEMES` in `shoot.mjs`).
-  `srl-web` follows the system's setting and also has a light theme; the
+  `srl-web` is dark unless its theme button switches it to light; the
   user is used to dark.
 - **Web width:** 980 CSS pixels for Study and Add, so the page has little
   empty space at its sides, and 1280 for Browse, which stacks its list
@@ -171,9 +171,10 @@ for something else, and update this section when they change.
 - xterm.js's canvas renderer draws everything twice too big when the page
   is zoomed (`deviceScaleFactor`), so the TUI is drawn at scale 1 with a
   font twice as big instead, which gives the same resolution.
-- Firefox over WebDriver BiDi can't emulate `prefers-color-scheme`;
-  `shoot.mjs` sets Firefox's own preference for it instead, with a
-  browser per scheme. It also has no key named `"Space"`: press `" "`.
+- `srl-web` doesn't follow the system's color scheme: its theme is kept in
+  localStorage (`srl-web-theme`, `dark` or `light`), so `shoot.mjs` sets
+  that, in a browser per scheme. Firefox over WebDriver BiDi has no key
+  named `"Space"`: press `" "`.
 - Firefox's scrollbars stay light in the dark scheme, so `shoot.mjs` hides
   them.
 - Playwright's own browsers are a large download that may stall; that is

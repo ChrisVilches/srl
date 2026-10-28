@@ -25,17 +25,14 @@ const COLS = 108;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Firefox over BiDi can't emulate prefers-color-scheme, so each scheme gets
-// a browser of its own with the content override pref (0 dark, 1 light).
-const launch = (scheme) => puppeteer.launch({
+const launch = () => puppeteer.launch({
   browser: 'firefox',
   executablePath: firefox,
   headless: true,
-  extraPrefsFirefox: { 'layout.css.prefers-color-scheme.content-override': scheme === 'dark' ? 0 : 1 },
 });
 
 async function tui(ansiDir, out) {
-  const browser = await launch('dark');
+  const browser = await launch();
   const page = await browser.newPage();
   // Scale 1 with a 30 px font in tui.html: xterm's canvas renderer draws
   // twice too big when the page is zoomed with deviceScaleFactor.
@@ -57,8 +54,12 @@ async function tui(ansiDir, out) {
 async function web(out) {
   const url = `http://localhost:${PORT}/`;
   for (const scheme of SCHEMES) {
-    const browser = await launch(scheme);
+    const browser = await launch();
     const page = await browser.newPage();
+    // srl-web's theme is the one kept in localStorage by its theme button,
+    // not the system's setting.
+    await page.goto(url);
+    await page.evaluate((s) => localStorage.setItem('srl-web-theme', s), scheme);
     const size = (width) => page.setViewport({ width, height: 900, deviceScaleFactor: 2 });
     const shot = async (name) => {
       // Firefox's scrollbars stay light in the dark scheme.

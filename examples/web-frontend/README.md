@@ -21,7 +21,10 @@ macOS and Windows (it is tried on Linux only).
   card without recording a review.
 - The selector can be changed in the page; the counters at the top are the
   cards reviewed, the new ones among them, and the Again ratings.
-- Dark or light, as the system is set.
+- Dark, or light with the button at the right of the top bar. The choice
+  is kept in the browser's localStorage, not taken from the system's
+  setting, and is applied before the page is drawn, so it doesn't flash
+  the other theme.
 
 It also has a **card browser** (the Browse tab, or `#browse` in the
 address), for seeing what a store holds and how a kind's cards look, such

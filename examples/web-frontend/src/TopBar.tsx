@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { QUIET_BUTTON } from './CardParts';
+import { currentTheme, setTheme } from './theme';
+
 // The views: studying (the page's start), the card browser (#browse), and
 // adding items (#add).
 export type View = 'study' | 'browse' | 'add';
@@ -31,8 +34,27 @@ export function TopBar({ view, wide, children }: { view: View; wide?: boolean; c
           {tab('add', '#add', 'Add')}
         </nav>
         {children}
+        <ThemeButton />
       </div>
     </header>
+  );
+}
+
+// Switches between the dark and light themes, naming the one it switches to.
+function ThemeButton() {
+  const [theme, setThemeState] = useState(currentTheme);
+  const other = theme === 'dark' ? 'light' : 'dark';
+  return (
+    <button
+      onClick={() => {
+        setTheme(other);
+        setThemeState(other);
+      }}
+      title="Switch the theme, kept in this browser"
+      className={`ml-auto py-1 text-sm ${QUIET_BUTTON}`}
+    >
+      {other === 'light' ? 'Light' : 'Dark'}
+    </button>
   );
 }
 
