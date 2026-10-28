@@ -227,7 +227,10 @@ types, so that the compiler checks them:
 - **Nothing deprecated**: no deprecated functions, macros or attributes, and
   no deprecated or unmaintained crates. If the compiler or a crate marks
   something as deprecated, replace it in the same change.
-- **Use the current edition** (2024) and the current stable toolchain.
+- **Use the current edition** (2024) and the toolchain pinned in
+  `rust-toolchain.toml`, which rustup picks up by itself. Moving to a newer
+  stable release means changing its `channel` and the workspace's
+  `rust-version` in `Cargo.toml` together.
 
 ### Platform independence
 
