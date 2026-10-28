@@ -155,8 +155,9 @@ types, so that the compiler checks them:
 - **Parse, don't validate.** Input from outside (notes, log lines,
   JSON on standard input) is parsed once, at the boundary, into
   types that can only hold valid values. After that, code doesn't check again.
-  For example, a note is read line by line and turned into `Item`s whose
-  headers and fields are known to be valid.
+  For example, a note is read once by the item syntax (see "The item
+  syntax") and turned into `Item`s whose entries and fields are known to
+  be valid.
 - **serde derives are the formats.** A contract's struct, with its
   `#[derive(Serialize, Deserialize)]` and attributes, is the readable
   definition of that format in code.
@@ -323,7 +324,7 @@ SQLite, Unicode normalization, FSRS, temporary files.
 
 **Write it yourself** when the code fits in a screen and has no tricky edge
 cases. Examples: joining selector terms, finding the store directory,
-parsing item headers, mapping outcomes to exit codes. Running the
+parsing the item syntax, mapping outcomes to exit codes. Running the
 binary in integration tests needs no crate either, because
 `std::process::Command` is enough.
 
@@ -459,7 +460,9 @@ as an `Edit` (see "The item syntax"), with these rules:
 5. **It has thorough tests**, including CRLF line endings, a UTF-8 BOM, no
    trailing newline, fences with extra spaces, fences of tildes and of more
    than three backticks, `@` lines, quoted values, non-ASCII text around
-   the edited line, and a note changed between reading and writing.
+   the edited line, and a note changed between reading and writing. The
+   edits themselves (which lines, what they become) are tested in the item
+   syntax, and applying them to real files in `write.rs`.
 
 ## The command line
 
