@@ -182,7 +182,8 @@ The sibling rule decides which cards are candidates before any skipping,
 so skipping can never show two siblings in a day.
 
 Trade-off: `srl next` no longer gives the same answer twice when
-`max_skip` is above 0; the default, 0, keeps it fixed.
+`max_skip` is above 0; the default, 0, keeps it fixed, and so does
+`SRL_SEED`, for tests and scripts.
 
 ## Why you always rate yourself
 

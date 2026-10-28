@@ -45,7 +45,8 @@ crates/
     src/argv.rs         lets selector terms start with `-`
     src/commands.rs     one function per command: gather inputs, call the core, print
     src/output.rs       the only module that prints
-    tests/cli.rs        tests that run the real binary
+    tests/cli.rs        tests that run the real binary, one rule at a time
+    tests/scenarios.rs  tests that run the real binary through a person's usual days
   srl-test-kind/        a kind program for the tests (see "Testing"); not published
 ```
 
@@ -354,7 +355,7 @@ Current dependencies:
 |---|---|---|
 | `clap` (derive) | `srl` | Argument parsing, help and usage errors |
 | `anyhow` | `srl` | Error type with context in the CLI |
-| `getrandom` | `srl` | The random seeds for new item IDs and for `srl next`'s pick (the core derives both from them) |
+| `getrandom` | `srl` | The random seeds for new item IDs and for `srl next`'s pick (the core derives both from them), unless `SRL_SEED` gives one |
 | `dirs` | `srl` | The platform's data directory, for the default store |
 | `which` | `srl-core` | Finding kind programs on `PATH`, with `PATHEXT` on Windows |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |

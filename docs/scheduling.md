@@ -73,7 +73,9 @@ Scheduling works in whole **study days**. A study day starts at
 the day it began: the study day of a moment is its local date, or the day
 before if the hour is earlier than `day_starts_at`. Local time is the
 system's time zone. If `srl` can't find the time zone, commands that need
-the study day fail and say so, rather than assume UTC.
+the study day fail and say so, rather than assume UTC. The current time
+is the system's clock, or `SRL_NOW` when it is set (see [cli.md](cli.md),
+"Conventions").
 
 - Every interval is at least one day. A card rated Again is due again the next
   study day.
@@ -100,7 +102,9 @@ keeps those that the sibling rule allows:
 first card. At 3, it skips 0, 1, 2 or 3 cards, each as likely; when fewer
 than 4 cards are left, it picks uniformly among those left. The cards it
 skips are not set aside: `srl next` writes nothing, so they are still at
-the front of the order the next time, and each call picks afresh. Asking
+the front of the order the next time, and each call picks afresh (with
+`SRL_SEED` set, every call picks the same way; see [cli.md](cli.md),
+"Conventions"). Asking
 again without reviewing, such as by reloading a frontend, can give a
 different card.
 

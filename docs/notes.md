@@ -172,8 +172,9 @@ fields, and a line ```` ``` ````. `srl id` adds the ID.
 ## Identity
 
 - **An item ID** is made of lowercase letters `a`–`z` and digits, 1 to 32
-  characters. `srl id` and `srl add` make random ones of 6 characters; you
-  may also type one yourself.
+  characters. `srl id` and `srl add` make random ones of 6 characters
+  (`SRL_SEED` makes them repeatable; see [cli.md](cli.md),
+  "Conventions"); you may also type one yourself.
 - **IDs are unique in the store.** Two items with the same ID are an error,
   which happens when an item is copied: delete the ID from the copy and run
   `srl id`.
