@@ -96,6 +96,18 @@ The repository has two fuller ones to start from: `srl-web`, a local web
 viewer with a card browser and a form for adding items, and `srl-tui`, a
 terminal frontend in Python.
 
+> **Note:** `srl` doesn't include a frontend in its core. These two are
+> ready-to-use examples that ship with the repository, in
+> [examples/](examples/), to use as they are or to change.
+
+`srl-web`, with the answer of a card revealed and the ratings below it:
+
+![srl-web showing the answer of a card about Rust ownership, with its note as context and the rating buttons](examples/screenshots/images/web-3-rust-answer-dark.png)
+
+`srl-tui`, on the same card:
+
+![srl-tui showing the answer of a card about Rust ownership, with its note as context and the rating keys](examples/screenshots/images/tui-2-rust-answer.png)
+
 ### LLM agents
 
 An agent works with a store the way a person does: it runs commands and
