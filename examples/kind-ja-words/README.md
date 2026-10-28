@@ -3,10 +3,11 @@
 `ja_words.py` is the `ja-words` kind: a lazy way to study words in
 context. You write a sentence and put braces around the words to study:
 
-```markdown
-<!-- srl id:v81k3z kind:ja-words -->
+````markdown
+```srl id:v81k3z kind:ja-words
 TEXT: 東京{都}は、日本の関東{地方}に{位置}する{都}
 ```
+````
 
 Each distinct word in braces is a card. The card shows the whole sentence
 with that word highlighted, not hidden: you say the word to yourself, look

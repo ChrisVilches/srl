@@ -21,8 +21,9 @@ would forget it.
   (`.srl/log/*.jsonl`). Everything outside `.srl/` belongs to the person.
 - A **note** is any `.md` file in the store, unless `include` in
   `.srl/config.toml` names other files.
-- An **item** is a question written in a note: a header line
-  `<!-- srl -->` followed by fields `Q:` and `A:`. It has an ID.
+- An **item** is a question written in a note, in an srl block (a fenced
+  code block whose language is `srl`): fields `Q:` and `A:` after a
+  header. It has an ID.
 - A **card** is one question, ready to show: an ID, a prompt, the prompt as
   revealed with the answer (a cloze's blanks filled in), and an answer.
   The last two may be `null`: the revealed prompt is then the prompt, and
@@ -86,43 +87,65 @@ srl init                       # makes .srl/config.toml and .srl/log/
 
 Write a note, for example `rust/ownership.md`:
 
-```markdown
+````markdown
 # Ownership
 
 Each value in Rust has one owner. When the owner goes out of scope, the
 value is dropped.
 
-<!-- srl -->
+```srl
+@
 Q: What happens to a value when its owner goes out of scope?
 A: It is dropped.
 
-<!-- srl -->
+@
 Q: A {{c1::reference}} lets you use a value without taking {{c2::ownership}}.
 ```
+````
 
 ```sh
-srl id          # gives each new item an ID: <!-- srl id:x7k2m9 -->
+srl id          # gives each new item an ID: @ id:x7k2m9
 srl find        # lists the cards
 srl-web         # studies them in the browser, once srl-web is installed
 ```
 
 ## Writing items
 
-```markdown
-<!-- srl -->
+A block of one item, whose header is the opening fence:
+
+````markdown
+```srl
 Q: The question.
 A: The answer.
 ```
+````
 
-- The header and the field keys start at column 0. The line right after a
-  header must be a field.
+or a block of several, each starting with an `@` line, its header:
+
+````markdown
+```srl
+@
+Q: The first question.
+A: Its answer.
+
+@
+Q: The second question.
+A: Its answer.
+```
+````
+
+- The fences, `@` lines and field keys start at column 0. The line right
+  after a header must be a field. A block holds either one item or `@`
+  items, never both.
 - A field continues on the next lines when they start with exactly **two
   spaces**. One space or a tab inside an item is an error. Blank lines may
   appear inside a field, before more continuation lines.
 - A field may start empty and continue below: `A:` alone, then indented
-  lines. This is how code blocks and several paragraphs go in.
-- An item ends at the first line that is neither a field nor a continuation
-  (a heading, a paragraph, another header).
+  lines. This is how code blocks and several paragraphs go in. A field
+  holding a fenced code block needs a longer fence around its srl block:
+  open it with ```` ````srl ```` and close it with ```` ```` ````.
+- An item ends at the next `@` line or the closing fence. Any other line
+  in a block outside the items is an error.
 - Header entries: `id:ID` (added by `srl id` or `srl add`), `draft`,
   `see:PATH` (the note to show as context), `kind:NAME` (`qa` by
   default, or a kind program named in `[kinds]` of `.srl/config.toml`).

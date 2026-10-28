@@ -17,8 +17,10 @@ since the notes and the log can't be read without it. Fix it and run
 
 | Error | Usual cause | Fix |
 |---|---|---|
-| line starts like a header but isn't one | `<!-- srl` without `-->` on the same line, or text after `-->` | Put the whole header on one line. |
-| header not followed by a field line | a blank line or a paragraph right after the header | Put `Q:` on the line right after the header. |
+| srl block never closed | a ```` ```srl ```` without its closing ```` ``` ````, or a field's code block that closed it early | Close the block; a field holding a code block needs a longer fence around the srl block (```` ````srl ````). |
+| first line of an srl block, or block that mixes forms | a blank line or text right after the fence, entries on the fence of a block of `@` items, or an `@` line in a block of one item | Start the block with a field line (one item) or an `@` line (several); put entries on the `@` lines when there are some. |
+| line not part of an item in an srl block | a continuation line without its two spaces, or prose inside the block | Indent the continuation with two spaces, or move the prose out of the block. |
+| header not followed by a field line | a blank line or a paragraph right after an `@` line | Put `Q:` on the line right after it. |
 | line starts with one space or a tab | a continuation line indented wrong | Indent continuation lines with exactly two spaces. |
 | item without an ID | a new item | Run `srl id`. |
 | duplicate ID | an item was copied | Delete `id:...` from the copy, then `srl id`. |
@@ -53,10 +55,11 @@ The person can also see it rendered in the Browse tab of `srl-web`.
 
 ## Text that should be an item but isn't
 
-Only a header makes an item, so `Q:` lines without one are ordinary text,
+Only srl blocks make items, so `Q:` lines outside one are ordinary text,
 and no error is reported. `srl lint` finds such likely mistakes: `Q:` or
-`A:` lines outside items (also in lists and quotes), indented headers, and
-cloze deletions outside items. It prints `PATH:LINE: message` and never
+`A:` lines outside blocks (also in lists and quotes), indented or
+misspelled block fences (```` ```SRL ````, ```` ```srl{…} ````), and cloze
+deletions outside items. It prints `PATH:LINE: message` and never
 fails; exit 0 means it found something.
 
 ## History left behind: orphans and `srl move`

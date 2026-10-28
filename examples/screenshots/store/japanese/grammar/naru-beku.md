@@ -12,15 +12,17 @@ writing. It asks for, or promises, a reasonable effort, not the utmost:
 Compare **できるだけ**, which means the same but sounds a little stronger:
 "as much as one is able to", to the limit of one's ability.
 
-<!-- srl id:acy0x6 -->
+```srl
+@ id:acy0x6
 Q: What does なるべく express, and how does it differ from できるだけ?
 A: A reasonable effort, "as much as possible, where you can". できるだけ
   means the same but is a little stronger: to the limit of one's ability.
 
-<!-- srl id:yekox3 -->
+@ id:yekox3
 Q: {{c1::なるべく::adverb}}早く返事をください。
 A: Please reply as soon as you can.
 
-<!-- srl id:moai8k -->
+@ id:moai8k
 Q: 夜はなるべく甘いものを{{c1::食べないようにしている}}。
 A: I try not to eat sweets at night, as far as I can.
+```

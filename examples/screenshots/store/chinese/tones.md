@@ -13,14 +13,16 @@ different tone is a different word:
 **Tone sandhi:** two third tones in a row become second + third:
 你好 is written nǐ hǎo but said ní hǎo.
 
-<!-- srl id:p7nr1e -->
+```srl
+@ id:p7nr1e
 Q: How is 你好 (nǐ hǎo) actually pronounced, and why?
 A: ní hǎo: a third tone before another third tone becomes a second tone.
 
-<!-- srl id:iidwv9 -->
+@ id:iidwv9
 Q: 妈妈{{c1::骂}}马。 (Mother scolds the horse.)
 A: mā ma mà mǎ
 
-<!-- srl id:n97icl -->
+@ id:n97icl
 Q: What is the contour of the third tone?
 A: Dipping: it falls, then rises.
+```

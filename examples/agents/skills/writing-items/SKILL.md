@@ -1,38 +1,61 @@
 ---
 name: writing-items
-description: The full syntax of srl items (headers, fields, continuation lines, code blocks, cloze deletions), how to write good questions, and how to add or replace items with srl add and srl edit --stdin. Load before writing items for the person, when an item gives an error, or when they ask how to write a particular kind of question.
+description: The full syntax of srl items (srl blocks, headers, fields, continuation lines, code blocks, cloze deletions), how to write good questions, and how to add or replace items with srl add and srl edit --stdin. Load before writing items for the person, when an item gives an error, or when they ask how to write a particular kind of question.
 ---
 
 # Writing items
 
 ## The syntax, in full
 
-```markdown
-<!-- srl id:x7k2m9 -->
+Items live in **srl blocks**: fenced code blocks whose language is `srl`.
+A block holds one item, with its entries on the opening fence:
+
+````markdown
+```srl id:x7k2m9
 Q: What does 〜をものともせず mean?
 A: Undeterred by (adversity), braving.
 ```
+````
 
-1. **A header** is a line starting at column 0 with `<!--`, then `srl`, and
-   ending with `-->`, all on one line, with nothing after it. Spaces inside
-   are free: `<!--srl-->` and `<!-- srl id:x7k2m9 -->` are both headers.
-   A line that starts like a header but isn't one (no `-->`, or text after
-   it) is an error.
-2. **Only headers make items.** `Q:` lines without a header above them are
-   ordinary text.
-3. **A field line** starts at column 0 with a key of uppercase letters,
+or several, each starting with an `@` line that holds its entries:
+
+````markdown
+```srl
+@ id:x7k2m9
+Q: What does 〜をものともせず mean?
+A: Undeterred by (adversity), braving.
+
+@ id:p4n8d2 draft
+Q: 嵐を{{c1::ものともせず}}、漁師たちは海へ出た。
+```
+````
+
+1. **A block opens** with a line starting at column 0 with three or more
+   backticks or tildes, any spaces, `srl`, then a space or the end of the
+   line; the rest of that line is its entries. It closes at the first line
+   of at least as many of the same character. A block never closed is an
+   error. A fence of backticks can't have a backtick after `srl`; use
+   tildes.
+2. **The first line of a block decides what it holds**: a field line means
+   one item, whose header is the opening fence; an `@` line (`@`, or `@`, a
+   space and entries) means every item starts with one, and the fence has
+   no entries. An empty block, one starting with anything else, or one
+   mixing the two is an error.
+3. **Only srl blocks make items.** `Q:` lines outside a block are ordinary
+   text.
+4. **A field line** starts at column 0 with a key of uppercase letters,
    digits and `_`, a colon, and a space or the end of the line: `Q: text`,
    `A:`. The line right after a header must be a field line.
-4. **A continuation line** starts with exactly two spaces and continues the
+5. **A continuation line** starts with exactly two spaces and continues the
    field above it. Further spaces are kept, so indented code keeps its
    indentation. A line starting with one space or a tab inside an item is
    an error.
-5. **Blank lines** may appear inside an item when more field or
+6. **Blank lines** may appear inside an item when more field or
    continuation lines follow. Inside a field they are part of its text.
-6. **An item ends** at the first non-blank line that is neither a field nor
-   a continuation line, or at the end of the file.
-7. Lines inside fenced code blocks of the note (outside items) are ignored,
-   so a note can show the item syntax as an example. YAML front-matter is
+7. **An item ends** at the next `@` line or the closing fence. Any other
+   line in a block that is not part of an item is an error.
+8. Lines inside other fenced code blocks of the note are ignored, so a
+   note can show the item syntax as an example. YAML front-matter is
    skipped.
 
 Header entries, in any order, each at most once:
@@ -62,10 +85,13 @@ No other field is allowed, and each appears once.
 
 ## Multi-line fields and code
 
-A field written as `KEY:` alone starts on the next line:
+A field written as `KEY:` alone starts on the next line. A field holding
+a fenced code block needs a block with a longer fence (or tildes), because
+the code block's closing ```` ``` ```` would close a block opened with
+```` ``` ````:
 
-~~~markdown
-<!-- srl -->
+`````markdown
+````srl
 Q: Does this compile?
   ```rust
   let a = String::new();
@@ -77,11 +103,8 @@ A:
   No. `a` was moved into `b`, so it can't be used.
 
   Types that implement `Copy` are copied instead.
-~~~
-
-Many Markdown viewers join consecutive lines into one paragraph, so put a
-blank line between `Q` and `A` if the person's viewer shows them on one
-line. `srl` reads both the same.
+````
+`````
 
 ## Cloze deletions
 
@@ -99,11 +122,12 @@ Written in `Q`, as in Anki:
   `c0` or leading zeros (`c01`), and deletions in `A`.
 - Any other `{{` (as in code) is ordinary text.
 
-```markdown
-<!-- srl -->
+````markdown
+```srl
 Q: {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。
 A: Despite everyone's opposition, she started a company.
 ```
+````
 
 Cloze numbers are card identities. Renumbering them, or adding the first
 cloze to an item that had none (its card `x7k2m9` becomes `x7k2m9-1`),
@@ -133,7 +157,8 @@ One JSON object per line on standard input. The lowercase keys are the
 item's header entries: `"kind"` (text, default `qa`), `"see"` (text, the
 note shown as its context) and `"draft"` (`true` or `false`). Every other
 key is a field, and its value the field's text. A newline in a value (`\n`
-in JSON) becomes a continuation line.
+in JSON) becomes a continuation line, and each item gets an srl block of
+its own, with a fence long enough for the code blocks in its fields.
 `NOTE` is relative to the store's folder, must be a note (by default, end
 in `.md`; see `include` in `.srl/config.toml`), and is created
 with its folders if it doesn't exist. `srl notes` lists the notes, also
@@ -163,17 +188,20 @@ The person accepts drafts with `srl accept SELECTOR`, for example
 ## Replacing an item with `srl edit ID --stdin`
 
 Only when the person asks you to change one of their items. Standard input
-must be exactly one item, header included, with the same ID; the rest of
-the note is untouched.
+must be exactly one srl block holding exactly one item, with the same ID;
+the rest of the note is untouched. `srl show ID` prints the item in that
+form, after its `PATH:LINE`. An item that shares its block with others
+keeps its place there: `srl` writes it back as an `@` line and its fields.
 
-```sh
-srl show x7k2m9          # see the item as written
+````sh
+srl show x7k2m9          # see the item as a block of its own
 srl edit x7k2m9 --stdin <<'ITEM'
-<!-- srl id:x7k2m9 -->
+```srl id:x7k2m9
 Q: What does 〜をものともせず mean, and who is it used about?
 A: Undeterred by (adversity). Used admiringly about others, not oneself.
-ITEM
 ```
+ITEM
+````
 
 `--dry-run` only checks the input. Editing never changes the card's
 schedule. To change it themselves instead, the person opens the note in

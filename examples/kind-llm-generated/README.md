@@ -4,10 +4,11 @@
 should be about, and an LLM writes a new question and its answer every
 time the card is shown.
 
-```markdown
-<!-- srl id:q4n8w2 kind:llm-generated -->
+````markdown
+```srl id:q4n8w2 kind:llm-generated
 PROMPT: question about Ohm's law, related to circuits, when it's used, what edge cases there are, following a Circuit Analysis I course
 ```
+````
 
 It is the idea of [docs/guides/ideas.md](../../docs/guides/ideas.md),
 "Questions written by an LLM", made to work: a proof of concept of a
