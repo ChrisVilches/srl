@@ -351,6 +351,97 @@ fn drafts_added_by_a_tool_are_studied_once_accepted() {
 }
 
 #[test]
+fn an_agents_questions_in_a_jsonl_note_are_studied_like_any_other() {
+    // The person keeps notes in Markdown, and lets the store read the
+    // JSONL notes an agent writes under generated/.
+    let store = Store::new(&[
+        ("geography/capitals.md", CAPITALS),
+        (
+            ".srl/config.toml",
+            "[notes]\ninclude = [\"**/*.md\", \"generated/**/*.jsonl\"]\n",
+        ),
+    ]);
+    let now = at(1, 19);
+    assert_eq!(store.study(&now, 3).len(), 4);
+    // The agent adds drafts to a JSONL note of its own: two about the
+    // person's note, and one that stands alone.
+    let input = concat!(
+        "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Peru?\", \"A\": \"Lima\"}\n",
+        "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Egypt?\", \"A\": \"Cairo\"}\n",
+        "{\"draft\": true, \"Q\": \"{{c1::Ulaanbaatar}} is the coldest capital.\"}\n",
+    );
+    let added = store.expect(
+        0,
+        &now,
+        &["add", "generated/capitals.jsonl", "--stdin"],
+        input,
+    );
+    let ids = added.lines().map(str::to_owned).collect::<Vec<_>>();
+    assert_eq!(ids.len(), 3);
+    let note = store.read("generated/capitals.jsonl");
+    assert_eq!(note.lines().count(), 3);
+    assert!(
+        note.lines().all(|line| line.starts_with("{\"id\":")),
+        "{note}"
+    );
+    // Drafts wait for the person, who accepts them all.
+    assert!(store.next(&now, &[]).is_none());
+    assert_eq!(store.ok(&now, &["find", "status:draft"]).lines().count(), 3);
+    store.ok(&now, &["accept", "path:generated/capitals.jsonl"]);
+    assert!(!store.read("generated/capitals.jsonl").contains("draft"));
+    // Studied as any card: the person's note is the context of the items
+    // that name it, and the item without `see` has none.
+    let mut contexts = Vec::new();
+    while let Some(card) = store.next(&now, &[]) {
+        let id = text(&card, "id");
+        assert_eq!(text(&card, "path"), "generated/capitals.jsonl");
+        contexts.push((id.clone(), card["context"].clone()));
+        // Peru is forgotten.
+        let rating = if id == ids[0] { 1 } else { 3 };
+        store.review(&now, &id, rating);
+    }
+    assert_eq!(contexts.len(), 3);
+    for (id, context) in &contexts {
+        if id.starts_with(ids[2].as_str()) {
+            assert_eq!(context, &Value::Null);
+        } else {
+            assert!(text_of(context).starts_with("# Capitals"), "{context}");
+        }
+    }
+    // The next day, the forgotten card comes back, and only it.
+    let tomorrow = at(2, 19);
+    assert_eq!(store.study(&tomorrow, 3), [ids[0].clone()]);
+    // The person fixes an answer through `srl show --json` and `srl edit`:
+    // its line is written again, the others stay as they were, and the
+    // schedule is kept.
+    let due = store.due(&tomorrow, &ids[1]);
+    let before = store.read("generated/capitals.jsonl");
+    let shown = store.ok(&tomorrow, &["show", &ids[1], "--json"]);
+    let edited = store.expect(
+        0,
+        &tomorrow,
+        &["edit", "--stdin"],
+        &shown.replace("\"Cairo\"", "\"Cairo (القاهرة)\""),
+    );
+    assert_eq!(edited.trim(), ids[1]);
+    let after = store.read("generated/capitals.jsonl");
+    let changed = before
+        .lines()
+        .zip(after.lines())
+        .filter(|(old, new)| old != new)
+        .count();
+    assert_eq!(changed, 1);
+    assert!(after.contains("Cairo (القاهرة)"), "{after}");
+    assert_eq!(store.due(&tomorrow, &ids[1]), due);
+    store.ok(&tomorrow, &["check"]);
+}
+
+/// The text of a JSON value, or "" if it is not text.
+fn text_of(value: &Value) -> &str {
+    value.as_str().unwrap_or_default()
+}
+
+#[test]
 fn fixing_a_typo_keeps_the_cards_schedule() {
     let store = Store::new(&[(
         "geography/capitals.md",

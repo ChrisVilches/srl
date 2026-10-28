@@ -433,7 +433,7 @@ which syntax it holds. No code outside `note/syntax/` matches on a syntax.
 |---|---|
 | `parse(text)` | The note's items, as `ParsedItem`s (entries, fields, the line that names the item in messages, where each field is written, the item written on its own), in the order they are written, and its errors. |
 | `own_context(text, mode)` | What the note shows as the context of its own items, those without `see`. srl blocks: the note without its items in mode `prose`. JSONL: nothing, ever. |
-| `context(text, mode)` | What the note shows as the context of the items that name it with `see`, in any syntax. srl blocks: the same as `own_context`. JSONL: the note as it is. |
+| `context(text, mode)` | What the note shows as the context of the items that name it with `see`, in any syntax. srl blocks: the same as `own_context`. JSONL: the note as it is, without a byte order mark. |
 | `with_id(text, item, id)` | The `Edit` that gives item number `item` (its position among the items `parse` gives) an ID. |
 | `without_draft(text, item)` | The `Edit` that removes `draft` from it. |
 | `replace(text, item, entries, fields)` | The `Edit` that replaces it with an item of these entries and fields, as `srl edit --stdin` takes them. |

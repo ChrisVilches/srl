@@ -46,9 +46,10 @@ impl Syntax for Jsonl {
         None
     }
 
-    /// The note as it is, in every mode: nothing is removed.
+    /// The note as it is, in every mode: nothing is removed but a byte
+    /// order mark, which is no part of a note's text.
     fn context(&self, text: &str, _mode: ContextMode) -> Option<String> {
-        unless_blank(text.to_owned())
+        unless_blank(text.strip_prefix('\u{feff}').unwrap_or(text).to_owned())
     }
 
     fn with_id(&self, text: &str, item: usize, id: &ItemId) -> Option<Edit> {
@@ -172,6 +173,12 @@ mod tests {
             assert_eq!(Jsonl.context(text, mode).as_deref(), Some(text));
             assert_eq!(Jsonl.own_context(text, mode), None);
             assert_eq!(Jsonl.context("\n  \n", mode), None);
+            // A byte order mark is the one thing left out.
+            let marked = "\u{feff}{\"Q\": \"q\"}\r\n";
+            assert_eq!(
+                Jsonl.context(marked, mode).as_deref(),
+                Some("{\"Q\": \"q\"}\r\n")
+            );
         }
     }
 

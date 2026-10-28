@@ -309,7 +309,9 @@ runs of blank lines become one, and blank lines at the start and the end
 are removed. A block with an error is removed in every mode.
 
 **A JSONL note named by `see` is given as it is**, in modes `prose` and
-`full` alike: every line, with nothing removed, as the file holds it.
+`full` alike: every line, with nothing removed, as the file holds it,
+line endings included. Only a UTF-8 byte order mark is left out, as it is
+from every note.
 
 **A context with nothing but blank space left is no context**, exactly as
 in mode `none`: frontends show nothing, and `context` is `null` in JSON. So

@@ -163,7 +163,7 @@ impl Store {
     /// Every note: each file under the store's folder, at any depth,
     /// outside folders whose name starts with `.`, matched by `include` and
     /// not by `exclude` (see `docs/notes.md`, "Which files are notes"). Paths are relative to the store's folder, with `/`
-    /// between folders, as named on disk, and sorted by their [NFC](nfc)
+    /// between folders, as named on disk, and sorted by their NFC
     /// form, so that the Unicode form a file system gives names in never
     /// changes the order (see `docs/store.md`, "File names").
     pub fn note_paths(&self, include: &GlobSet, exclude: &GlobSet) -> Result<Vec<String>> {

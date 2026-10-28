@@ -190,7 +190,7 @@ impl Item {
     }
 
     /// The item written on its own, lines joined with `\n`, as the syntax
-    /// gives it (see [`syntax::ParsedItem::text`]): what `srl show` prints.
+    /// gives it: what `srl show` prints.
     pub fn text(&self) -> &str {
         &self.text
     }
