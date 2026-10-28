@@ -107,12 +107,12 @@ schedule.
   and line. Every other command carries on without it. The log is the
   person's review history: show them the line, and change nothing in it
   yourself.
-- **Index cache messages**: `.srl/cache/` is only a cache. `srl reindex`
-  rebuilds it, and deleting it loses nothing.
+- **Index cache messages**: `.srl/cache/` is only a cache. Deleting it
+  loses nothing; the next command builds it again.
 - **A kind program was changed, but items of its kind act as before**:
   srl keeps the answers of `validate` and `groups` per item, and can't see
-  that the program changed. Run `srl reindex` (or `srl check`) so it asks
-  again about every item.
+  that the program changed. Run `srl check` so it asks again about every
+  item.
 - **unrecognized subcommand `study`, `web` or `tui`**: `srl` has no
   built-in frontend, and doesn't run other programs. Study with a frontend
   run by its own name, such as `srl-web` or `srl-tui` (see the `studying`

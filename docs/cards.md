@@ -296,8 +296,9 @@ an orphan, starts again as a new card, and loses its suspension (see
 
   And document the change where the program's users will read it: which
   suffixes change, and the steps. After installing a new version,
-  `srl reindex` (so that `srl` asks the program again, see "How srl calls
-  them" below), then the migration, then `srl check`, which reports no
+  `srl check` (which asks the program again about every item, see "How
+  srl calls them" below), then the migration, then `srl check` again,
+  which reports no
   orphan of the kind once every history has moved. A wrong `srl move`
   can't be undone, so a migration prints the commands, or runs them with
   `--dry-run` first, rather than running them unasked.
@@ -353,9 +354,9 @@ asked about the item.
   again next time.
   `srl check` asks about every item, and keeps the new answers.
 - **After changing a kind program**, without changing its command in
-  `[kinds]`, run `srl reindex`, which forgets every kept answer, or
-  `srl check`. `srl` can't see that a program changed: the answers it
-  kept come from the old program until then.
+  `[kinds]`, run `srl check`, or delete `.srl/cache/`, which forgets
+  every kept answer. `srl` can't see that a program changed: the answers
+  it kept come from the old program until then.
 - **Making cards**: `srl next` makes its one card with a `make` call of
   one line; `srl cards` makes the cards it prints with one `make` call per
   kind program. A `make` call with N lines is stopped after N times

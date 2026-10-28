@@ -154,12 +154,6 @@ pub enum Error {
         path.display()
     )]
     CacheUnusable { path: PathBuf, reason: String },
-
-    #[error(
-        "cannot build the index cache {}: {reason}; check that you may write to the store's .srl/cache folder",
-        path.display()
-    )]
-    Reindex { path: PathBuf, reason: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

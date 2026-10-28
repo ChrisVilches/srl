@@ -80,8 +80,6 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Rebuild the index cache.
-    Reindex,
     /// List the notes of the store, without reading them.
     Notes {
         #[command(flatten)]

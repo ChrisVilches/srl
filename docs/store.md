@@ -129,10 +129,11 @@ programs are run, and what `card_timeout` limits, is in
 `.srl/cache/index.sqlite` holds what is slow to compute from the files: the
 log replayed through FSRS (each card's memory, every review, and the log
 lines that are not valid events), and the answers of kind programs'
-`validate` and `groups` calls. It is only ever an optimization: every
-command gives the same results with it, without it, or after it was
-deleted, as long as no kind program changed without `srl reindex` (see
-below).
+`validate` and `groups` calls. It is never a source of truth, only an
+optimization: every command gives the same results with it, without it,
+or after it was deleted, as long as no kind program changed in place (see
+below). Deleting `.srl/cache/` loses nothing; the next command builds it
+again.
 
 - **Every log file is still read on every use**, and compared with the
   cache by a hash of its content (BLAKE3). Modification times are never
@@ -151,8 +152,9 @@ below).
   only the items without a kept answer are asked about (see
   [cards.md](cards.md), "How srl calls them"). Each kept answer also
   names its kind, call and item, only for people reading the cache. A
-  program changed in place is not noticed: run `srl reindex` after
-  changing one. Old answers are kept until then.
+  program changed in place is not noticed: after changing one, run
+  `srl check`, which asks again about every item, or delete
+  `.srl/cache/`. Old answers are kept until then.
 - **Settings:** the whole log is replayed when `day_starts_at`,
   `desired_retention` or `weights` differ from those the cache was built
   with.
@@ -168,8 +170,6 @@ below).
   `.gitignore` that ignores everything in it.
 - Each update is one SQLite transaction, so several `srl` processes can
   share the cache.
-- `srl reindex` deletes it and builds it again, forgetting every kept
-  answer of a kind program. Deleting it by hand loses nothing.
 - `srl log` lists events, so it reads the log files directly. `srl check`
   reads the log through the cache, like other commands, since a log file
   that changed is always noticed; but it asks kind programs about every

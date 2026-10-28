@@ -35,7 +35,7 @@ questions", once it is planned.
     `mode = "batch"`, `"item"` or `"http"`. Asking the program how it
     wants to be run would start it on every command, which is what kept
     answers avoid; it is the same reason `srl` doesn't ask a program for
-    its version and you run `srl reindex` after changing one instead (see
+    its version and you run `srl check` after changing one instead (see
     [rationale.md](rationale.md), "Why answers of kind programs are kept
     under the kind and its command"). So the author documents which
     modes the program supports and gives an example of its `[kinds]`
@@ -58,7 +58,7 @@ questions", once it is planned.
     program (about 20 ms to start): with every answer kept, both modes
     take the same few milliseconds; with none kept, 1,000 items take about
     48 seconds instead of about 60 ms, and 5,000 items several minutes.
-    No answer is kept after `srl reindex`, a new version of `srl`, a
+    No answer is kept after deleting the cache, a new version of `srl`, a
     fresh clone of the store or a new computer (the cache is left out of
     version control), and `srl check` asks about every item every time. `srl
     cards` and `srl add`, which ask about many items at once, are 10 to

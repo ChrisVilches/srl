@@ -91,7 +91,7 @@ open the Browse tab of `srl-web` (see
 Every command that reads items runs `ja_words.py validate`, then
 `ja_words.py groups`, once each for the `ja-words` items of the store
 whose answers srl hasn't kept: new or changed items. After changing
-`ja_words.py`, run `srl reindex` so that srl asks it again about every
+`ja_words.py`, run `srl check` so that srl asks it again about every
 item.
 `make`, which runs MeCab, only runs for the cards about to be shown or
 printed.

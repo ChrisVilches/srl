@@ -89,8 +89,8 @@ history). Add this to the store's `.gitignore`:
 .srl-*.tmp
 ```
 
-`.srl/cache/` ignores itself. It is only a cache: deleting it, or
-`srl reindex`, loses nothing.
+`.srl/cache/` ignores itself. It is only a cache: deleting it loses
+nothing.
 
 Some sync tools skip folders whose names start with `.`. Check that
 `.srl/` is synced, or the review history stays on one device. Keep the

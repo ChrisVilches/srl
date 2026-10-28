@@ -447,7 +447,7 @@ through one module, `write.rs`, with these rules:
 `index.rs` keeps `.srl/cache/index.sqlite` (see [store.md](store.md), "The
 index cache"). It must never change a result, only skip work; the one
 exception, by design, is a kind program changed in place, whose kept
-answers stay in use until `srl reindex` or `srl check`:
+answers stay in use until `srl check` or until the cache is deleted:
 
 - **One code path for both.** New log lines go through the same
   `Replayer::apply` as a full replay. Don't add a second way to compute

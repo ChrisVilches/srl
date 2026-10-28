@@ -281,13 +281,15 @@ rejected:
   Asking only now and then would make results depend on the clock.
 
 So `srl` doesn't try: after changing a kind program, you run
-`srl reindex`, which forgets every kept answer, or `srl check`, which
-asks again about every item.
+`srl check`, which asks again about every item, or delete the cache,
+which forgets every kept answer. There is no command for deleting it:
+the cache is never a source of truth, so deleting `.srl/cache/` by hand
+loses nothing.
 
-Trade-off: forgetting to run `srl reindex` after changing a program
+Trade-off: forgetting to run `srl check` after changing a program
 leaves its old answers in use, until an item changes or the cache is
-rebuilt. Answers about earlier versions of items are kept until a
-rebuild too, unused.
+deleted. Answers about earlier versions of items are kept until then
+too, unused.
 
 ## Why `groups` sees only the fields
 

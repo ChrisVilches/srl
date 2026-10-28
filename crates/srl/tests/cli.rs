@@ -877,14 +877,8 @@ fn the_index_cache_never_changes_what_commands_print() {
     assert!(built[4].1.contains("skipped line"), "{}", built[4].1);
     assert_eq!(snapshot(d), built);
 
-    // srl reindex starts over, prints nothing, and reports the log's problems.
-    let reindex = srl(&["reindex", "--dir", d]);
-    assert_eq!(reindex.status.code(), Some(0));
-    assert!(reindex.stdout.is_empty());
-    assert!(stderr(&reindex).contains("skipped line"));
-    assert_eq!(snapshot(d), built);
-
-    // Deleting the cache loses nothing.
+    // Deleting the cache loses nothing, and the log's problems are still
+    // reported.
     fs::remove_dir_all(&cache).unwrap();
     assert_eq!(snapshot(d), built);
 
@@ -916,7 +910,6 @@ fn the_index_cache_never_changes_what_commands_print() {
     assert_eq!(stdout(&found), cached[0].0);
     let next = srl(&["next", "--json", "--dir", d]);
     assert_eq!(stdout(&next), cached[3].0);
-    assert_eq!(srl(&["reindex", "--dir", d]).status.code(), Some(2));
 }
 
 #[test]
@@ -1115,7 +1108,7 @@ fn a_kind_program_that_fails_is_reported_once_and_stops_commands() {
 }
 
 #[test]
-fn kind_answers_are_kept_until_check_or_reindex_asks_again() {
+fn kind_answers_are_kept_until_check_asks_again_or_the_cache_is_deleted() {
     let tmp = store_with_kind(&[(
         "a.md",
         "<!-- srl id:abc kind:fake -->\nGROUPS: a b\nLOG: calls.log\n",
@@ -1132,8 +1125,8 @@ fn kind_answers_are_kept_until_check_or_reindex_asks_again() {
     // srl check asks kind programs about every item.
     assert_eq!(calls_after(&["check"]), "validate 1\ngroups 1\n");
     assert_eq!(calls_after(&["find"]), "");
-    // srl reindex forgets the answers; the next command asks again.
-    assert_eq!(calls_after(&["reindex"]), "");
+    // Deleting the cache forgets the answers; the next command asks again.
+    fs::remove_dir_all(tmp.path().join(".srl").join("cache")).unwrap();
     assert_eq!(calls_after(&["find"]), "validate 1\ngroups 1\n");
 }
 

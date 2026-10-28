@@ -33,7 +33,6 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Check => check(&store()?),
         Command::Lint => lint(&store()?),
         Command::Id { dry_run } => id(&store()?, dry_run.dry_run),
-        Command::Reindex => reindex(&store()?),
         Command::Notes { json } => notes(&store()?, json.json),
         Command::Kinds { json } => kinds(&store()?, json.json),
         Command::Find {
@@ -218,15 +217,6 @@ fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
     let written = srl_core::assign_ids(store, &notes, seed()?, dry_run)?;
     output::written(&written);
     Ok(found_anything(!written.is_empty()))
-}
-
-/// `srl reindex`: builds the index cache from scratch.
-fn reindex(store: &Store) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    Index::rebuild(store, &config)?
-        .iter()
-        .for_each(output::problem);
-    Ok(Outcome::Done)
 }
 
 /// `srl notes`: lists every note's path, without reading the notes, so

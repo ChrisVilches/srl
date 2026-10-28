@@ -121,8 +121,6 @@ pub struct Index {
     /// Set once the cache turned out to be unusable: from then on the files
     /// are read directly.
     disabled: bool,
-    /// For `srl reindex`: fail instead of reading the files directly.
-    strict: bool,
     problems: Vec<Error>,
 }
 
@@ -133,22 +131,8 @@ impl Index {
             store: store.clone(),
             connection: None,
             disabled: false,
-            strict: false,
             problems: Vec::new(),
         }
-    }
-
-    /// Deletes the cache and builds it again from the files (`srl
-    /// reindex`). Returns the log lines that were skipped. Fails if the
-    /// cache can't be written.
-    pub fn rebuild(store: &Store, config: &Config) -> Result<Vec<Error>> {
-        let mut index = Self {
-            strict: true,
-            ..Self::open(store)
-        };
-        remove(&index.file()).map_err(|reason| index.reindex_error(reason))?;
-        let (_, problems) = index.memories(config)?;
-        Ok(problems)
     }
 
     /// The store this index belongs to.
@@ -284,9 +268,6 @@ impl Index {
             }
             Err(Failure::Unusable(reason)) => reason,
         };
-        if self.strict {
-            return Err(self.reindex_error(failure));
-        }
         self.connection = None;
         self.disabled = true;
         self.problems.push(Error::CacheUnusable {
@@ -311,13 +292,6 @@ impl Index {
         let value = cached(&transaction, &self.store)?;
         transaction.commit()?;
         Ok(value)
-    }
-
-    fn reindex_error(&self, reason: String) -> Error {
-        Error::Reindex {
-            path: self.file(),
-            reason,
-        }
     }
 }
 
@@ -1003,8 +977,8 @@ mod tests {
         let (memories, _) = Index::open(&store).memories(&config).unwrap();
         assert_eq!(memories[&card].lapses, 42);
         assert_eq!(memories[&card].reviews, 2);
-        // srl reindex starts over.
-        Index::rebuild(&store, &config).unwrap();
+        // A deleted cache starts over.
+        remove(&store.cache_dir().join(FILE)).unwrap();
         let (memories, _) = Index::open(&store).memories(&config).unwrap();
         assert_eq!(memories[&card].lapses, 0);
     }
@@ -1066,10 +1040,6 @@ mod tests {
         // Reported once: the files are read directly from then on.
         index.memories(&Config::default()).unwrap();
         assert!(index.problems().is_empty());
-        assert!(matches!(
-            Index::rebuild(&store, &Config::default()),
-            Err(Error::Reindex { .. })
-        ));
     }
 
     #[test]
