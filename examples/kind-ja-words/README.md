@@ -44,7 +44,10 @@ Tried on Arch Linux only.
   `v81k3z-e983bd`, 位置 gives `v81k3z-e4bd8de7bdae`. It comes from the
   word alone, so adding, removing or moving words doesn't give one card's
   history to another, and it can be read back with
-  `echo e983bd | xxd -r -p`. Changing a word makes a new card.
+  `echo e983bd | xxd -r -p`. Changing a word makes a new card. This rule
+  must never change in a new version of `ja_words.py`: every card's
+  history is kept under its suffix (see
+  [docs/cards.md](../../docs/cards.md), "Kind programs").
 - **A word is taken as it reads, not as it was typed.** Spaces at either
   end, full-width ones included, aren't part of it: `{ 都}` is the card
   of 都, and the space stays in the sentence, outside the highlight. The

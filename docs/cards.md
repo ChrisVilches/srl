@@ -258,6 +258,30 @@ on the item's fields alone (see [rationale.md](rationale.md), "Why
 in mode `prose`, whatever mode a frontend asks for, so a card doesn't
 depend on the frontend that shows it.
 
+**Rule for kind authors: a new version of a program must give the same
+card suffixes for the same fields.** Review history is kept per card ID
+(see [log.md](log.md)), so a suffix is part of a card's identity, not a
+detail of the program. A version that gives other suffixes for fields
+that haven't changed is a breaking change for every store that uses it:
+each card whose ID changed loses its history, which stays in the log as
+an orphan, starts again as a new card, and loses its suspension (see
+[scheduling.md](scheduling.md), "Moving history"). So:
+
+- **Derive suffixes from the fields alone**, by a rule you never change:
+  `examples/kind-ja-words` makes a word's suffix from its bytes in hex,
+  so changing that encoding would change every card it has ever given.
+- **Only add.** A new version may give cards to fields that gave none,
+  or new cards beside the old ones; it never renames, renumbers or drops
+  the suffixes it gave before.
+- **If a change is unavoidable**, say so where the program's users will
+  read it. After installing it, they run `srl reindex` (so that `srl`
+  asks the program again, see "How srl calls them" below), then
+  `srl check`, and move the history of each orphan to its new card with
+  `srl move`.
+
+Changing groups is not a breaking change: groups have no names, so
+moving cards between them touches no history (see below).
+
 **Groups decide siblings.** The cards of one group are siblings (see
 [scheduling.md](scheduling.md), "Siblings"). A kind whose cards give
 each other away puts them in one group, as `qa` does; a kind whose cards
