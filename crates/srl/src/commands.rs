@@ -214,7 +214,7 @@ fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
         .iter()
         .filter(|problem| !matches!(problem, Error::MissingId { .. }))
         .for_each(output::problem);
-    let written = srl_core::assign_ids(store, &notes, seed()?, dry_run)?;
+    let written = srl_core::assign_ids(store, &notes, seed("for new IDs")?, dry_run)?;
     output::written(&written);
     Ok(found_anything(!written.is_empty()))
 }
@@ -384,7 +384,15 @@ fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
     let (config, notes) = load(store)?;
     let input = stdin()?;
     let dry_run = args.dry_run.dry_run;
-    let added = srl_core::add(store, &config, &notes, &args.note, &input, seed()?, dry_run)?;
+    let added = srl_core::add(
+        store,
+        &config,
+        &notes,
+        &args.note,
+        &input,
+        seed("for new IDs")?,
+        dry_run,
+    )?;
     if dry_run {
         output::text(&added.text);
     } else {
@@ -474,7 +482,7 @@ fn next(
         selector,
         &loaded.config,
         loaded.memories.today(),
-        getrandom::u64().context("cannot get random numbers to pick the next card")?,
+        seed("to pick the next card")?,
     )?;
     let Some((item, card)) = next else {
         return Ok(Outcome::Nothing);
@@ -596,7 +604,13 @@ fn now() -> anyhow::Result<Zoned> {
     let zone = jiff::tz::TimeZone::try_system().context(
         "cannot find the system's time zone, which decides the study day; set the TZ environment variable",
     )?;
-    Ok(jiff::Timestamp::now().to_zoned(zone))
+    let instant = match env_value("SRL_NOW")? {
+        None => jiff::Timestamp::now(),
+        Some(value) => value
+            .parse()
+            .with_context(|| format!("SRL_NOW is not a time like 2026-01-05T09:00:00Z: {value}"))?,
+    };
+    Ok(instant.to_zoned(zone))
 }
 
 /// Today's study day.
@@ -609,9 +623,23 @@ fn stdin() -> anyhow::Result<String> {
     io::read_to_string(io::stdin()).context("cannot read standard input")
 }
 
-/// The random seed new item IDs are made from.
-fn seed() -> anyhow::Result<u64> {
-    getrandom::u64().context("cannot get random numbers for new IDs")
+/// A random seed: `SRL_SEED` if it is set, else random numbers.
+fn seed(purpose: &str) -> anyhow::Result<u64> {
+    match env_value("SRL_SEED")? {
+        None => getrandom::u64().with_context(|| format!("cannot get random numbers {purpose}")),
+        Some(value) => value.parse().with_context(|| {
+            format!("SRL_SEED is not a whole number from 0 to 18446744073709551615: {value}")
+        }),
+    }
+}
+
+/// The value of an environment variable, or `None` if it is unset or empty.
+fn env_value(name: &str) -> anyhow::Result<Option<String>> {
+    match env::var(name) {
+        Ok(value) => Ok(Some(value).filter(|value| !value.is_empty())),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(env::VarError::NotUnicode(_)) => anyhow::bail!("{name} is not valid Unicode"),
+    }
 }
 
 /// Gathers what `Store::locate` needs from the flag and the environment.

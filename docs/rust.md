@@ -296,6 +296,12 @@ Write tests for every module that has logic, which is nearly all of
   no interpreter, so the tests run the same on every platform. Tests find
   it next to their own binary, where `cargo test --workspace` builds it;
   with `cargo test -p srl` alone it isn't built, and those tests say so.
+- **Integration tests control the time and the random numbers** with
+  `SRL_NOW` and `SRL_SEED`, setting `TZ` too when the time zone matters
+  (see [cli.md](cli.md), "Conventions"). Tests that span several days set
+  `SRL_NOW` for each command instead of waiting or editing the log.
+  `srl_command()` in `tests/cli.rs` removes the `SRL_` variables, so the
+  environment of whoever runs the tests changes nothing.
 - **Tests that need files** create a temporary directory with `tempfile` and
   build exactly the tree they need. They never touch a real store, the home
   directory or the current directory.

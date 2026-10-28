@@ -7,21 +7,27 @@ use std::process::{Command, Output, Stdio};
 
 use tempfile::TempDir;
 
+/// The `srl` binary, unaffected by the `SRL_` variables of whoever runs the
+/// tests.
+fn srl_command() -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_srl"));
+    command
+        .env_remove("SRL_DIR")
+        .env_remove("SRL_NOW")
+        .env_remove("SRL_SEED");
+    command
+}
+
 #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
 fn srl(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_srl"))
-        .args(args)
-        .env_remove("SRL_DIR")
-        .output()
-        .unwrap()
+    srl_command().args(args).output().unwrap()
 }
 
 /// Runs `srl` with `input` on standard input.
 #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
 fn srl_with_input(args: &[&str], input: &str) -> Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_srl"))
+    let mut child = srl_command()
         .args(args)
-        .env_remove("SRL_DIR")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -931,10 +937,9 @@ fn concurrent_srl_processes_share_the_log_and_the_cache() {
     let tmp = japanese();
     let d = dir(&tmp);
     let spawn = |args: &[&str]| {
-        Command::new(env!("CARGO_BIN_EXE_srl"))
+        srl_command()
             .args(args)
             .args(["--dir", d])
-            .env_remove("SRL_DIR")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -972,10 +977,9 @@ fn notes_can_live_anywhere_under_the_store() {
     let tmp = japanese();
     fs::create_dir_all(tmp.path().join("deep").join("er")).unwrap();
     let cwd = tmp.path().join("deep").join("er");
-    let output = Command::new(env!("CARGO_BIN_EXE_srl"))
+    let output = srl_command()
         .args(["find", "in:fish"])
         .current_dir(&cwd)
-        .env_remove("SRL_DIR")
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
@@ -1160,4 +1164,63 @@ fn add_checks_every_new_item_at_once_and_names_the_line_at_fault() {
         stderr(&output)
     );
     assert_eq!(read(&tmp, "calls.log"), "validate 3\ngroups 2\n");
+}
+
+/// Runs `srl` as if it were `now`, in UTC.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn srl_at(now: &str, args: &[&str]) -> Output {
+    srl_command()
+        .args(args)
+        .env("SRL_NOW", now)
+        .env("TZ", "UTC")
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn srl_now_is_the_time_of_reviews_and_of_the_study_day() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let day = "2026-01-05T09:00:00Z";
+    let reviewed = srl_at(day, &["review", "tuna01", "--rating", "3", "--dir", d]);
+    assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
+    let log = json_lines(&srl(&["log", "--json", "--dir", d]));
+    assert_eq!(log[0]["t"], "2026-01-05T09:00:00+00:00");
+    let today = srl_at(day, &["next", "id:tuna01", "--dir", d]);
+    assert_eq!(today.status.code(), Some(1), "{}", stderr(&today));
+    let next_year = srl_at("2027-01-05T09:00:00Z", &["next", "id:tuna01", "--dir", d]);
+    assert_eq!(next_year.status.code(), Some(0), "{}", stderr(&next_year));
+}
+
+#[test]
+fn srl_seed_makes_new_ids_repeatable() {
+    let ids = || {
+        let tmp = store(&[("n.md", "```srl\n@\nQ: a\nA: b\n\n@\nQ: c\nA: d\n```\n")]);
+        let output = srl_command()
+            .args(["id", "--dir", dir(&tmp)])
+            .env("SRL_SEED", "7")
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+        read(&tmp, "n.md")
+    };
+    let first = ids();
+    assert!(first.contains("id:"), "{first}");
+    assert_eq!(ids(), first);
+}
+
+#[test]
+fn invalid_srl_now_and_srl_seed_exit_with_2_and_explain() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let now = srl_at("yesterday", &["next", "--dir", d]);
+    assert_eq!(now.status.code(), Some(2));
+    assert!(stderr(&now).contains("SRL_NOW"), "{}", stderr(&now));
+    let seed = srl_command()
+        .args(["next", "--dir", d])
+        .env("SRL_SEED", "-1")
+        .output()
+        .unwrap();
+    assert_eq!(seed.status.code(), Some(2));
+    assert!(stderr(&seed).contains("SRL_SEED"), "{}", stderr(&seed));
 }

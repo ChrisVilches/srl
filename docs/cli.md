@@ -32,6 +32,15 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
   nothing.
 - **`--dir DIR`** on every command, to choose the store (see
   [store.md](store.md)).
+- **The time and the random numbers can be fixed**, for tests and
+  scripts. `SRL_NOW`, a time such as `2026-01-05T09:00:00Z`, is the
+  current time for every command: the time that reviews are recorded
+  with, and the time today's study day is worked out from. The time zone
+  is still the system's, or `TZ`. `SRL_SEED`, a whole number from 0 to
+  18446744073709551615, replaces the random numbers that new IDs are made
+  from and that `srl next` uses to pick a card, so the same store gives
+  the same results. An empty variable counts as unset. A value that can't
+  be read is an error (exit code 2).
 - **IDs** given to commands are card IDs or item IDs. An item ID stands for
   every card of the item, as in the selector `id:`.
 - **Platform independence.** `srl` behaves the same on Linux, macOS and
