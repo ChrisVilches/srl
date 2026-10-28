@@ -11,7 +11,7 @@
 //!   with their entries and fields, and its errors.
 //! - Context: [`Syntax::own_context`] and [`Syntax::context`] give what a
 //!   note shows as the context of its own items, and of the items that
-//!   name it with `see`.
+//!   name it with `see`, and [`Syntax::context_format`] its format.
 //! - Writing: [`Syntax::with_id`], [`Syntax::without_draft`] and
 //!   [`Syntax::replace`] give the [`Edit`] that makes a change to an item,
 //!   named by its position in the note, and [`Syntax::format`] writes a new
@@ -29,7 +29,7 @@ mod jsonl;
 
 use std::path::Path;
 
-use crate::context::ContextMode;
+use crate::context::{ContextFormat, ContextMode};
 use crate::note::{Entries, Field, ItemId};
 use blocks::Blocks;
 use jsonl::Jsonl;
@@ -64,6 +64,10 @@ pub(crate) trait Syntax {
     /// that name it with `see`, wherever they are, in `mode` (never
     /// `none`). `None` when there is nothing to show.
     fn context(&self, text: &str, mode: ContextMode) -> Option<String>;
+
+    /// The format of what [`Syntax::own_context`] and [`Syntax::context`]
+    /// give, the same for both.
+    fn context_format(&self) -> ContextFormat;
 
     /// The edit that gives item `item` of `text` the ID `id`, or `None` if
     /// there is no such item.

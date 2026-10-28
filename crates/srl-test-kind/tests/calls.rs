@@ -61,11 +61,11 @@ fn each_input_line_gets_one_line_in_order() {
 
 #[test]
 fn a_card_tells_what_the_program_got() {
-    let input = "{\"id\": \"abc\", \"fields\": {}, \"suffix\": \"a\", \"context\": null, \"day\": \"2026-10-27\"}\n";
+    let input = "{\"id\": \"abc\", \"fields\": {}, \"suffix\": \"a\", \"context\": \"c\", \"context_format\": \"markdown\", \"day\": \"2026-10-27\"}\n";
     let (ok, output) = run("make", input);
     assert!(ok);
     assert!(output[0].starts_with(
-        r#"{"prompt":"a?","prompt_revealed":"a!","answer":"day \"2026-10-27\"; context null; in "#
+        r#"{"prompt":"a?","prompt_revealed":"a!","answer":"day \"2026-10-27\"; context \"c\" (\"markdown\"); in "#
     ));
     let input = "{\"id\": \"abc\", \"fields\": {\"FAIL_MAKE\": \"a\"}, \"suffix\": \"a\", \"context\": null, \"day\": \"2026-10-27\"}\n";
     assert_eq!(

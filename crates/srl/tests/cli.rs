@@ -514,26 +514,50 @@ fn a_jsonl_note_is_a_context_as_it_is_in_every_mode_but_none() {
         ),
     ]);
     let d = dir(&tmp);
+    // The context and its format.
     let context = |id: &str, mode: &str| {
         let output = srl(&["show", id, "--json", "--context", mode, "--dir", d]);
         assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-        json_lines(&output)[0]["context"].clone()
+        let shown = &json_lines(&output)[0];
+        (shown["context"].clone(), shown["context_format"].clone())
     };
+    let nothing = (serde_json::Value::Null, serde_json::Value::Null);
     for mode in ["prose", "full"] {
-        assert_eq!(context("see001", mode), items, "{mode}");
-        assert_eq!(context("own001", mode), serde_json::Value::Null, "{mode}");
-        assert_eq!(context("see002", mode), serde_json::Value::Null, "{mode}");
+        assert_eq!(
+            context("see001", mode),
+            (items.into(), "jsonl".into()),
+            "{mode}"
+        );
+        assert_eq!(context("own001", mode), nothing, "{mode}");
+        assert_eq!(context("see002", mode), nothing, "{mode}");
     }
-    assert_eq!(context("see001", "none"), serde_json::Value::Null);
+    assert_eq!(context("see001", "none"), nothing);
     // The frontend contract gives the same.
     let next = next_card(d, &["id:own001"]);
     assert_eq!(next["path"], "items.jsonl");
     assert_eq!(next["see"], serde_json::Value::Null);
     assert_eq!(next["context"], serde_json::Value::Null);
-    assert_eq!(
-        next_card(d, &["id:see001", "--context", "full"])["context"],
-        items
-    );
+    assert_eq!(next["context_format"], serde_json::Value::Null);
+    let seen = next_card(d, &["id:see001", "--context", "full"]);
+    assert_eq!(seen["context"], items);
+    assert_eq!(seen["context_format"], "jsonl");
+}
+
+#[test]
+fn a_markdown_note_named_by_see_from_a_jsonl_note_is_a_markdown_context() {
+    let tmp = store_with_jsonl(&[
+        (
+            "items.jsonl",
+            "{\"id\": \"see001\", \"see\": \"a.md\", \"Q\": \"q\", \"A\": \"a\"}\n",
+        ),
+        ("a.md", "# A\n\nProse.\n"),
+    ]);
+    let d = dir(&tmp);
+    let shown = srl(&["show", "see001", "--json", "--dir", d]);
+    assert_eq!(shown.status.code(), Some(0), "{}", stderr(&shown));
+    let shown = &json_lines(&shown)[0];
+    assert_eq!(shown["context"], "# A\n\nProse.\n");
+    assert_eq!(shown["context_format"], "markdown");
 }
 
 #[test]
@@ -639,12 +663,12 @@ fn next_json_gives_the_card_with_its_state_note_and_context() {
             "path": "japanese/grammar/wo.md",
             "see": null,
             "context": "# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n",
+            "context_format": "markdown",
         })
     );
-    assert_eq!(
-        next_card(d, &["--context", "none"])["context"],
-        serde_json::Value::Null
-    );
+    let none = next_card(d, &["--context", "none"]);
+    assert_eq!(none["context"], serde_json::Value::Null);
+    assert_eq!(none["context_format"], serde_json::Value::Null);
     assert!(
         next_card(d, &["--context", "full"])["context"]
             .as_str()

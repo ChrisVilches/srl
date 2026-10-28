@@ -1005,7 +1005,9 @@ mod tests {
                 "id": "abc-te",
                 "prompt": "te?",
                 "prompt_revealed": "te!",
-                "answer": format!("day \"2026-10-27\"; context \"# Verbs\\n\"; in {folder}"),
+                "answer": format!(
+                    "day \"2026-10-27\"; context \"# Verbs\\n\" (\"markdown\"); in {folder}"
+                ),
             })]
         );
     }

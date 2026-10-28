@@ -338,7 +338,7 @@ fn show(store: &Store, ids: &[String], mode: ContextMode, json: bool) -> anyhow:
     if json {
         let lines = shown
             .iter()
-            .map(|(item, context)| item.json(context.as_deref()))
+            .map(|(item, context)| item.json(context.as_ref()))
             .collect::<Vec<_>>();
         output::json_lines(&lines)?;
     } else {
@@ -499,14 +499,17 @@ fn next(
             path: &'a str,
             see: Option<&'a str>,
             context: Option<String>,
+            context_format: Option<&'static str>,
         }
+        let context = srl_core::context(store, item, mode)?;
         output::json_lines(&[Next {
             card: &card,
             state: state_name(loaded.memories.state(card.id())),
             kind: item.kind().as_str(),
             path: item.path(),
             see: item.see(),
-            context: srl_core::context(store, item, mode)?,
+            context_format: context.as_ref().map(|context| context.format.as_str()),
+            context: context.map(|context| context.text),
         }])?;
     } else {
         output::cards(&[card]);

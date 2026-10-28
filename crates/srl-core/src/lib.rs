@@ -27,7 +27,7 @@ mod write;
 pub use card::{Card, CardId};
 pub use check::{Lint, lint, orphans};
 pub use config::Config;
-pub use context::{ContextMode, context};
+pub use context::{Context, ContextFormat, ContextMode, context};
 pub use error::{Error, Result};
 pub use index::Index;
 pub use kind::{FieldDescription, Kind, KindDescription, kinds};

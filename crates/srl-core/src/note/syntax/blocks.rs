@@ -6,7 +6,7 @@
 //! on, so that one run lists all of them.
 
 use super::{Edit, Lines, Parsed, ParsedItem, Syntax, unless_blank};
-use crate::context::ContextMode;
+use crate::context::{ContextFormat, ContextMode};
 use crate::kind::has_deletion;
 use crate::note::{Entries, Field, ItemId, is_field_key, lines};
 
@@ -31,6 +31,11 @@ impl Syntax for Blocks {
     /// mode `prose` (see [`context`]).
     fn context(&self, text: &str, mode: ContextMode) -> Option<String> {
         context(text, mode)
+    }
+
+    /// Markdown, whatever the note's extension.
+    fn context_format(&self) -> ContextFormat {
+        ContextFormat::Markdown
     }
 
     /// Adds `id:ID` right after the `srl` of the item's opening fence or

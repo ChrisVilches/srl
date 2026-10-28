@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::card::{Card, CardId};
-use crate::context::{ContextMode, context};
+use crate::context::{Context, ContextMode, context};
 use crate::kind::{Answer, Asked, Cache, Kind, Programs, ToMake, check};
 use crate::store::nfc;
 use crate::{Config, Error, Index, Result, Store};
@@ -234,8 +234,9 @@ impl Item {
     }
 
     /// The item object, with every entry and the keys only `srl` gives
-    /// (see `docs/notes.md`, "The item object"), with its context.
-    pub fn json(&self, context: Option<&str>) -> Value {
+    /// (see `docs/notes.md`, "The item object"), with its context and the
+    /// context's format.
+    pub fn json(&self, context: Option<&Context>) -> Value {
         let mut object = Map::new();
         object.insert("id".to_owned(), Value::from(self.id.as_str()));
         object.insert("kind".to_owned(), Value::from(self.kind.as_str()));
@@ -247,7 +248,14 @@ impl Item {
         object.insert("path".to_owned(), Value::from(self.path.as_str()));
         object.insert("line".to_owned(), Value::from(self.line));
         object.insert("cards".to_owned(), serde_json::json!(self.cards));
-        object.insert("context".to_owned(), Value::from(context));
+        object.insert(
+            "context".to_owned(),
+            Value::from(context.map(|context| context.text.as_str())),
+        );
+        object.insert(
+            "context_format".to_owned(),
+            Value::from(context.map(|context| context.format.as_str())),
+        );
         Value::Object(object)
     }
 }
@@ -352,7 +360,7 @@ impl Notes {
                 card,
                 kind: &item.kind,
                 fields: &item.fields,
-                context: contexts.get(&item.id).and_then(Option::as_deref),
+                context: contexts.get(&item.id).and_then(Option::as_ref),
             })
             .collect::<Vec<_>>();
         crate::kind::make(&wanted, &self.programs, day)
@@ -655,7 +663,7 @@ mod tests {
         assert_eq!(items[1].text(), text.lines().nth(1).unwrap());
         assert_eq!(
             items[0].json(None).to_string(),
-            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","path":"n.jsonl","line":1,"cards":["abc"],"context":null}"#
+            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","path":"n.jsonl","line":1,"cards":["abc"],"context":null,"context_format":null}"#
         );
         // The same text in any other note is prose, with no item.
         let (md, problems) = read_items("n.md", text, &Programs::default());

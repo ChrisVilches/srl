@@ -434,6 +434,7 @@ which syntax it holds. No code outside `note/syntax/` matches on a syntax.
 | `parse(text)` | The note's items, as `ParsedItem`s (entries, fields, the line that names the item in messages, where each field is written, the item written on its own), in the order they are written, and its errors. |
 | `own_context(text, mode)` | What the note shows as the context of its own items, those without `see`. srl blocks: the note without its items in mode `prose`. JSONL: nothing, ever. |
 | `context(text, mode)` | What the note shows as the context of the items that name it with `see`, in any syntax. srl blocks: the same as `own_context`. JSONL: the note as it is, without a byte order mark. |
+| `context_format()` | The format of what `own_context` and `context` give, as `context_format` names it in JSON: `Markdown` for srl blocks, `Jsonl` for JSONL. |
 | `with_id(text, item, id)` | The `Edit` that gives item number `item` (its position among the items `parse` gives) an ID. |
 | `without_draft(text, item)` | The `Edit` that removes `draft` from it. |
 | `replace(text, item, entries, fields)` | The `Edit` that replaces it with an item of these entries and fields, as `srl edit --stdin` takes them. |
@@ -451,7 +452,9 @@ input of `srl add` and `srl edit`. `Item::json` writes it for `srl show
   `context.rs` only picks the note: the one `see` names, through its
   syntax's `context`, or the item's own, through its syntax's
   `own_context`. So an item of one syntax can name a note of another,
-  and each note is shown by its own rules. Mode `none` shows nothing
+  and each note is shown by its own rules. The same syntax gives the
+  context's format (`context_format`), so the format always matches the
+  text, and no frontend guesses it from a path. Mode `none` shows nothing
   whatever the syntax, and reads nothing.
 - **An `Edit` is lines replaced by other lines**, numbered from 1 as
   `note::lines` splits them. The syntax decides which lines and what they

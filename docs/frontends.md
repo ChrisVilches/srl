@@ -69,7 +69,8 @@ context:
  "answer": "Despite everyone's opposition, she started a company.",
  "state": "due", "kind": "qa",
  "path": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
- "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
+ "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
+ "context_format": "markdown"}
 ```
 
 | Field | Meaning |
@@ -80,6 +81,7 @@ context:
 | `path` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "The item object"). |
 | `see` | The note its `see` names, or `null`. |
 | `context` | The context, in the mode the frontend chose, or `null` when there is none (see [notes.md](notes.md), "Context"). |
+| `context_format` | What the context's text is: `markdown` or `jsonl` for now (see "Rendering"). `null` when `context` is. |
 
 **The frontend chooses the context's mode** with `--context`: `prose` (the
 default), `full` or `none`. How much of the note to show is a choice about
@@ -87,11 +89,20 @@ presentation, so it belongs to the frontend, not to the store.
 
 ## Rendering
 
-Card text and context are Markdown; card text may also hold `==highlight==`
-(see [cards.md](cards.md), "Text formatting"). The one exception is a
-context that is a JSONL note, named by `see`: it is the note's JSON lines
-as they are (see [notes.md](notes.md), "Context"), which a frontend can
-tell by `see` ending in `.jsonl`.
+Card text is Markdown, and may also hold `==highlight==` (see
+[cards.md](cards.md), "Text formatting"). **The context's text is in the
+format `context_format` names**, which `srl` takes from the syntax of the
+note it comes from (see [notes.md](notes.md), "Context"), so a frontend
+never has to guess it from a file name:
+
+| `context_format` | The text |
+|---|---|
+| `markdown` | The note's Markdown. |
+| `jsonl` | A JSONL note's lines, as they are. |
+
+A frontend renders the formats it supports as it likes, and **shows any
+other format as plain text**, including values added after it was
+written. Supporting only `markdown`, or no format at all, is fine.
 
 - The context is the note as written, so it may use syntax beyond
   CommonMark that notes commonly have, such as GFM tables. A frontend may

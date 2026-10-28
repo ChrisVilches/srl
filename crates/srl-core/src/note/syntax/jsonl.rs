@@ -6,7 +6,7 @@
 use serde_json::Value;
 
 use super::{Edit, Lines, Parsed, ParsedItem, Syntax, unless_blank};
-use crate::context::ContextMode;
+use crate::context::{ContextFormat, ContextMode};
 use crate::note::object::{self, Object};
 use crate::note::{Entries, Field, ItemId};
 
@@ -50,6 +50,11 @@ impl Syntax for Jsonl {
     /// order mark, which is no part of a note's text.
     fn context(&self, text: &str, _mode: ContextMode) -> Option<String> {
         unless_blank(text.strip_prefix('\u{feff}').unwrap_or(text).to_owned())
+    }
+
+    /// JSON lines, not Markdown.
+    fn context_format(&self) -> ContextFormat {
+        ContextFormat::Jsonl
     }
 
     fn with_id(&self, text: &str, item: usize, id: &ItemId) -> Option<Edit> {

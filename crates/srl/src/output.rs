@@ -10,7 +10,7 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use serde::Serialize;
-use srl_core::{By, Card, CardId, Event, Item, KindDescription, Lint, Stats, Written};
+use srl_core::{By, Card, CardId, Context, Event, Item, KindDescription, Lint, Stats, Written};
 
 /// Prints one path per line.
 pub(crate) fn paths(paths: &[PathBuf]) {
@@ -59,7 +59,7 @@ pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
 /// Prints items for people: for each, a line `PATH:LINE`, the item as
 /// written, and the context after a line `---` if there is one. Items are
 /// separated by blank lines.
-pub(crate) fn items(items: &[(&Item, Option<String>)]) {
+pub(crate) fn items(items: &[(&Item, Option<Context>)]) {
     for (index, (item, context)) in items.iter().enumerate() {
         if index > 0 {
             println!();
@@ -68,7 +68,7 @@ pub(crate) fn items(items: &[(&Item, Option<String>)]) {
         println!("{}", item.text());
         if let Some(context) = context {
             println!("---");
-            print!("{context}");
+            print!("{}", context.text);
         }
     }
 }

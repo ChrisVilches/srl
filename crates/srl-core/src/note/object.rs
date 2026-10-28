@@ -14,7 +14,7 @@ use crate::note::{Entries, Field, ItemId, is_field_key};
 
 /// The keys that `srl show --json` prints and nothing reads: they are
 /// ignored wherever an item object is read.
-pub(crate) const READ_ONLY: [&str; 4] = ["path", "line", "cards", "context"];
+pub(crate) const READ_ONLY: [&str; 5] = ["path", "line", "cards", "context", "context_format"];
 
 /// An item object as read: its entries and its fields, in order.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -76,7 +76,7 @@ pub(crate) fn read(text: &str) -> Result<Object, String> {
                 return Err(format!(
                     "`{key}` is neither a header entry (`id`, `kind`, `see`, `draft`), a field \
                      name (uppercase letters, digits and _, starting with a letter), nor a key \
-                     only srl gives (`path`, `line`, `cards`, `context`)"
+                     only srl gives (`path`, `line`, `cards`, `context`, `context_format`)"
                 ));
             }
         }
@@ -156,7 +156,7 @@ mod tests {
     #[test]
     fn entries_and_fields_are_read_in_order() {
         let object = read(
-            r#"{"id": "abc", "kind": "words", "see": "a b.md", "draft": true, "Q": "q", "A": "a", "path": "x", "line": 3, "cards": [], "context": null}"#,
+            r#"{"id": "abc", "kind": "words", "see": "a b.md", "draft": true, "Q": "q", "A": "a", "path": "x", "line": 3, "cards": [], "context": null, "context_format": null}"#,
         )
         .unwrap();
         assert_eq!(object.entries.id.unwrap().as_str(), "abc");

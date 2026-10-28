@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::card::{Card, CardId};
+use crate::context::Context;
 use crate::note::{Field, ItemId};
 use crate::{Config, Error, Index, Store};
 
@@ -149,7 +150,7 @@ pub(crate) struct ToMake<'a> {
     pub(crate) card: &'a CardId,
     pub(crate) kind: &'a Kind,
     pub(crate) fields: &'a [Field],
-    pub(crate) context: Option<&'a str>,
+    pub(crate) context: Option<&'a Context>,
 }
 
 /// Makes each card of `cards` for the study day `day`: `qa` here, and each
@@ -177,7 +178,14 @@ pub(crate) fn make(
             .map(|(_, wanted)| {
                 let mut input = input(wanted.card.item(), wanted.fields);
                 input.insert("suffix".to_owned(), Value::from(wanted.card.suffix()));
-                input.insert("context".to_owned(), Value::from(wanted.context));
+                input.insert(
+                    "context".to_owned(),
+                    Value::from(wanted.context.map(|context| context.text.as_str())),
+                );
+                input.insert(
+                    "context_format".to_owned(),
+                    Value::from(wanted.context.map(|context| context.format.as_str())),
+                );
                 input.insert("day".to_owned(), Value::from(day.to_string()));
                 Value::Object(input)
             })
