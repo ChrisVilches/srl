@@ -187,7 +187,7 @@ def scrolled(lines, height, scroll, focused, **panel):
     shown = max(height - 2 - 2 * panel["padding"][0], 1)  # the borders take 2 lines
     scroll = max(0, min(scroll, len(lines) - shown))
     if len(lines) > shown:
-        hint = "j/k scroll" if focused else "tab to scroll"
+        hint = "j/k scroll" if focused else "tab to focus"
         panel["subtitle"] = Text(f"{scroll + 1}–{scroll + shown} of {len(lines)}  {hint}", "dim")
     return Panel(Lines(lines[scroll:scroll + shown]), subtitle_align="right", **panel), scroll, shown
 
