@@ -30,7 +30,7 @@ crates/
     src/config.rs         store.md, "Configuration"; the study day
     src/card.rs           cards.md: the card format and card IDs
     src/kind.rs           cards.md, "Kinds": the `qa` kind, asking kinds about items and making cards, describing kinds
-    src/kind/program.rs   cards.md, "Kind programs": running the calls in batches, checking what they print
+    src/kind/program.rs   cards.md, "Kind programs": running the calls in batches, keeping their answers, checking what they print
     src/kind/cloze.rs     cards.md, "Cloze deletions"
     src/log.rs            log.md: reading and appending events
     src/review.rs         log.md and scheduling.md: recording reviews, resets, moves, suspensions
@@ -447,7 +447,9 @@ through one module, `write.rs`, with these rules:
 ## The index cache
 
 `index.rs` keeps `.srl/cache/index.sqlite` (see [store.md](store.md), "The
-index cache"). It must never change a result, only skip work:
+index cache"). It must never change a result, only skip work; the one
+exception, by design, is a kind program changed in place, whose kept
+answers stay in use until `srl reindex` or `srl check`:
 
 - **One code path for both.** New log lines go through the same
   `Replayer::apply` as a full replay. Don't add a second way to compute

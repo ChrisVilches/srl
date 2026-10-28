@@ -203,8 +203,10 @@ per `{word}` of a Japanese sentence.
   (on `PATH`).
 - **`qa` can't be configured.**
 - **Running a program is your choice.** `srl` runs whatever command
-  `[kinds]` names, with your rights, whenever a command reads an item of
-  that kind, and neither checks nor limits it, as with plugins in most
+  `[kinds]` names, with your rights, whenever a command needs it: to
+  read items of that kind it has no kept answer for, to make their
+  cards, or to describe the kind (see "How srl calls them" below). It
+  neither checks nor limits the program, as with plugins in most
   tools. A store you copy from someone else runs their programs: read its
   `[kinds]` first.
 
@@ -344,10 +346,11 @@ asked about the item.
   each under the kind's name and its command as written in `[kinds]`,
   the call, and the item's input line. An item whose input line hasn't
   changed since it was answered is not asked about again; renaming a
-  kind, or changing its command, asks about all of its items again. Only the answers of a call
-  that succeeded are kept, including answers that say an item is
-  invalid or that don't follow the rules; a call that fails as a whole
-  keeps nothing, and its items are asked about again next time.
+  kind, or changing its command, asks about all of its items again.
+  Only the answers of a call that succeeded are kept, including answers
+  that say an item is invalid or that don't follow the rules; a call
+  that fails as a whole keeps nothing, and its items are asked about
+  again next time.
   `srl check` asks about every item, and keeps the new answers.
 - **After changing a kind program**, without changing its command in
   `[kinds]`, run `srl reindex`, which forgets every kept answer, or

@@ -148,12 +148,11 @@ below).
 - **Kind programs:** an answer of `validate` or `groups` is kept under
   the kind's name and its command as written in `[kinds]`, the call, and
   the item's input line, and used for as long as all four are the same;
-  only the
-  items without a kept answer are asked about (see [cards.md](cards.md),
-  "How srl calls them"). Each kept answer also names its kind, call and
-  item, only for people reading the cache. A program changed in place is
-  not noticed: run
-  `srl reindex` after changing one. Old answers are kept until then.
+  only the items without a kept answer are asked about (see
+  [cards.md](cards.md), "How srl calls them"). Each kept answer also
+  names its kind, call and item, only for people reading the cache. A
+  program changed in place is not noticed: run `srl reindex` after
+  changing one. Old answers are kept until then.
 - **Settings:** the whole log is replayed when `day_starts_at`,
   `desired_retention` or `weights` differ from those the cache was built
   with.
@@ -164,7 +163,7 @@ below).
 - **No access:** if the cache can't be created, opened or written (for
   example a read-only store, or another `srl` holding it for more than 5
   seconds), this is reported on standard error and the command reads the
-  files directly.
+  files directly, and asks kind programs about every item.
 - `.srl/cache/` is created by the first command that needs it, with a
   `.gitignore` that ignores everything in it.
 - Each update is one SQLite transaction, so several `srl` processes can

@@ -268,9 +268,8 @@ An answer is kept under the kind's name, its command as written, the
 call and the item's input line, and nothing else. The command is what
 says which program answered: changing it in `[kinds]`, for example to
 choose another version, asks again on its own. The name says which kind
-an answer belongs to, so that a kind is never answered for by what
-another kind was told, at the cost of asking again when a kind is
-renamed. Two other ways to notice a changed program in place were
+an answer belongs to, so that one kind never uses answers given to
+another, at the cost of asking again when a kind is renamed. Two other ways to notice a changed program in place were
 rejected:
 
 - **Hashing the files the command names**, such as `kinds/ja_words.py`.
@@ -287,7 +286,8 @@ asks again about every item.
 
 Trade-off: forgetting to run `srl reindex` after changing a program
 leaves its old answers in use, until an item changes or the cache is
-rebuilt. The keys of old answers are kept until then too.
+rebuilt. Answers about earlier versions of items are kept until a
+rebuild too, unused.
 
 ## Why `groups` sees only the fields
 
