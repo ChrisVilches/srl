@@ -26,10 +26,11 @@ the agent does it, outside `srl`, and records the rating it decided.
    (`"draft": true` in `srl add`'s input). They enter your study queue
    only after `srl accept`.
 2. **Agents write new notes, not into yours.** Items an agent generates go
-   into a note of their own, such as `generated/wo-mono-tomo-sezu.md`, with
-   `see:` naming the note they ask about. They then show your note as their
+   into a note of their own, such as `generated/wo-mono-tomo-sezu.md`, or a
+   JSONL note (`generated/wo-mono-tomo-sezu.jsonl`) when `include` names
+   them, with `see` naming the note they ask about. They then show your note as their
    context, and your note stays as you wrote it. The one exception is
-   `srl edit ID --stdin`, for an agent you allow to edit your items.
+   `srl edit --stdin`, for an agent you allow to edit your items.
 3. **Reviews go through `srl review`.** An agent never writes to the log, and
    marks its reviews with `--by agent` (or `"by": "agent"`).
 
@@ -47,7 +48,7 @@ use. For example:
 |---|---|
 | `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_notes`, `srs_kinds`, `srs_check`, `srs_lint` | Reading (`srs_notes` and `srs_kinds` tell which notes and which fields an item can have; `srs_check` and `srs_lint` find mistakes in what was written) |
 | `srs_add` | `srl add NOTE --stdin` (always draft: the tool sets `"draft": true` on every line, for example with `jq -c '.draft = true'`) |
-| `srs_edit` | `srl edit ID --stdin` (only if you want agents to edit items) |
+| `srs_edit` | `srl edit --stdin` (only if you want agents to edit items) |
 | `srs_next`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
 | `read_file` | Reading source material (notes, articles) |
 
@@ -76,13 +77,19 @@ agi --sys base.md --sys tutor.md --sys me.md --resources srl-agent/tutor "…"
 
 ## Limitations of the item syntax for LLMs
 
-Items are written in srl blocks, fenced code blocks whose language is `srl`
-(see [notes.md](../notes.md), "The item syntax"). For a model, that is
-mostly easy: fenced blocks are familiar, a block says where its items end,
-a mistake inside a block is an error that names its line, and `srl show`
-prints an item as one block that `srl edit ID --stdin` takes back. Three
-things are harder, and the first can lose text that only `srl lint`
-reports.
+An agent that works through the CLI never needs to write srl blocks: `srl
+add` and `srl edit --stdin` take item objects, one JSON object per line,
+and write them in the note's syntax themselves, and JSONL notes hold
+nothing but item objects (see [notes.md](../notes.md), "Item syntaxes").
+JSON is what models write most reliably: a field holds any text, code
+blocks included, with nothing to count.
+
+The limitations below are those of srl blocks written by hand, in
+Markdown notes (see [notes.md](../notes.md), "The srl block syntax"). For
+a model, that is mostly easy: fenced blocks are familiar, a block says
+where its items end, and a mistake inside a block is an error that names
+its line. Three things are harder, and the first can lose text that only
+`srl lint` reports.
 
 1. **Fences inside fields.** A field that holds a fenced code block needs
    its srl block to be opened with a longer fence, or with tildes, and
@@ -105,14 +112,18 @@ reports.
    error, which says what to do; the rule is one more to get right.
 3. **Fences inside other text.** An item shown inside a Markdown reply sits
    inside another fenced block, which needs a longer fence again. In a
-   shell, backticks start command substitution, so an item given to
-   `srl edit ID --stdin` through a heredoc needs a quoted delimiter
-   (`<<'ITEM'`) to reach `srl` as written.
+   shell, backticks start command substitution, so any text with them
+   given to `srl` through a heredoc, srl blocks or JSON, needs a quoted
+   delimiter (`<<'JSONL'`) to reach `srl` as written.
 
 What keeps them small:
 
-- **Write new items with `srl add`.** Its input is JSON, with no item
-  syntax at all, and it picks a fence long enough for the fields.
+- **Write items with `srl add` and `srl edit --stdin`.** Their input is
+  item objects, with no srl block syntax at all, and they pick a fence long
+  enough for the fields when the note is Markdown.
+- **Keep generated items in JSONL notes**, such as
+  `generated/wo-mono-tomo-sezu.jsonl`, once `include` names them: there is
+  no fence anywhere, and `jq` reads and changes them.
 - **Open blocks written by hand with `~~~srl`** when a field holds code:
   a tilde fence is never closed by backticks, so there is nothing to count.
 - **Run `srl lint` after writing items by hand**, as well as `srl check`:
@@ -189,7 +200,7 @@ asks questions in the chat.
 
 A batch job (for example nightly) writes more draft items for notes whose
 cards keep lapsing, or adds cloze deletions to existing items with
-`srl edit ID --stdin`. Studying then needs no LLM at all.
+`srl edit --stdin`. Studying then needs no LLM at all.
 
 Adding the first cloze deletion to an item changes its card ID (`x7k2m9`
 becomes `x7k2m9-1`), which leaves the old card's history orphaned. The job

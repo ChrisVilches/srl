@@ -301,7 +301,7 @@ fn show_prints_the_item_and_its_context() {
     let full = srl(&["show", "x7k2m9", "--context", "full", "--json", "--dir", d]);
     let shown = &json_lines(&full)[0];
     assert_eq!(shown["kind"], "qa");
-    assert_eq!(shown["fields"]["Q"], "What does 〜をものともせず mean?");
+    assert_eq!(shown["Q"], "What does 〜をものともせず mean?");
     assert_eq!(shown["cards"], serde_json::json!(["x7k2m9"]));
     assert!(shown["context"].as_str().unwrap().contains("Q: {{c1::"));
     let none = srl(&["show", "tuna01", "--json", "--dir", d]);
@@ -404,34 +404,91 @@ fn drafts_move_through_accept_and_cards_through_suspend() {
 }
 
 #[test]
-fn edit_stdin_replaces_the_item_in_place() {
+fn edit_stdin_replaces_the_items_in_place() {
     let tmp = japanese();
     let d = dir(&tmp);
     let output = srl_with_input(
-        &["edit", "x7k2m9", "--stdin", "--dir", d],
-        "```srl id:x7k2m9\nQ: What does 〜をものともせず mean?\n\nA: Braving.\n```\n",
+        &["edit", "--stdin", "--dir", d],
+        "{\"id\": \"x7k2m9\", \"Q\": \"What does 〜をものともせず mean?\", \"A\": \"Braving.\"}\n",
     );
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(lines(&output), ["x7k2m9"]);
     let text = read(&tmp, "japanese/grammar/wo.md");
     assert!(
-        text.contains("mean?\n\nA: Braving.\n```\n\n```srl id:k3m9q1\n"),
+        text.contains("```srl id:x7k2m9\nQ: What does 〜をものともせず mean?\nA: Braving.\n```\n\n```srl id:k3m9q1\n"),
         "{text}"
     );
-    // An item that starts with an `@` line keeps its place in its block.
-    let shown = srl(&["show", "tuna01", "--context", "none", "--dir", d]);
-    let block = stdout(&shown).replace("A: まぐろ — tuna", "A: まぐろ");
-    let block = block.split_once('\n').unwrap().1;
-    let output = srl_with_input(&["edit", "tuna01", "--stdin", "--dir", d], block);
+    // What `srl show --json` prints goes back as it is, and an item that
+    // starts with an `@` line keeps its place in its block.
+    let shown = stdout(&srl(&["show", "tuna01", "--json", "--dir", d]));
+    let changed = shown.replace("まぐろ — tuna", "まぐろ");
+    let output = srl_with_input(&["edit", "--stdin", "--dir", d], &changed);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(
         read(&tmp, "kanji/fish.md"),
         FISH.replace("A: まぐろ — tuna", "A: まぐろ")
     );
     let wrong = srl_with_input(
-        &["edit", "x7k2m9", "--stdin", "--dir", d],
-        "```srl id:other\nQ: q\nA: a\n```\n",
+        &["edit", "--stdin", "--dir", d],
+        "{\"id\": \"other\", \"Q\": \"q\", \"A\": \"a\"}\n",
     );
     assert_eq!(wrong.status.code(), Some(2));
+    assert!(stderr(&wrong).contains("line 1"), "{}", stderr(&wrong));
+}
+
+#[test]
+fn jsonl_notes_hold_one_item_per_line_and_no_context() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[notes]\ninclude = [\"**/*.md\", \"**/*.jsonl\"]\n",
+    );
+    let items = "{\"Q\": \"鯛\", \"A\": \"たい — sea bream\"}\n{\"id\": \"wo0001\", \"see\": \"japanese/grammar/wo.md\", \"Q\": \"{{c1::嵐}}をものともせず\"}\n";
+    write(&tmp, "generated/items.jsonl", items);
+    let ids = srl(&["id", "--dir", d]);
+    assert_eq!(ids.status.code(), Some(0), "{}", stderr(&ids));
+    assert!(stdout(&ids).contains("generated/items.jsonl:1"));
+    let found = srl(&["find", "in:generated", "--dir", d]);
+    let found = lines(&found);
+    assert_eq!(found.len(), 2);
+    assert!(found[1].starts_with("wo0001-1  generated/items.jsonl:2  "));
+    let id = found[0].split_whitespace().next().unwrap().to_owned();
+    // Without `see`, an item of a JSONL note has no context.
+    let own = srl(&["show", &id, "--json", "--context", "full", "--dir", d]);
+    assert_eq!(json_lines(&own)[0]["context"], serde_json::Value::Null);
+    let seen = srl(&["show", "wo0001", "--json", "--dir", d]);
+    assert!(
+        json_lines(&seen)[0]["context"]
+            .as_str()
+            .unwrap()
+            .contains("Admiring tone")
+    );
+    // A `see` naming a JSONL note gives it as it is.
+    let input =
+        "{\"Q\": \"Which fish?\", \"A\": \"Sea bream.\", \"see\": \"generated/items.jsonl\"}\n";
+    let added = srl_with_input(&["add", "fish.md", "--stdin", "--dir", d], input);
+    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+    let shown = srl(&["show", &lines(&added)[0], "--json", "--dir", d]);
+    assert_eq!(
+        json_lines(&shown)[0]["context"],
+        read(&tmp, "generated/items.jsonl")
+    );
+    // Without --json, the item is printed as its line.
+    let plain = srl(&["show", "wo0001", "--context", "none", "--dir", d]);
+    assert_eq!(
+        stdout(&plain),
+        format!(
+            "generated/items.jsonl:2\n{}\n",
+            items.lines().nth(1).unwrap()
+        )
+    );
+    // An invalid line stops every command that reads items.
+    write(&tmp, "generated/items.jsonl", "{\"Q\": \"q\", \"B\": 1}\n");
+    let broken = srl(&["find", "--dir", d]);
+    assert_eq!(broken.status.code(), Some(2));
+    assert!(stderr(&broken).contains("generated/items.jsonl:1:"));
 }
 
 fn next_card(d: &str, extra: &[&str]) -> serde_json::Value {

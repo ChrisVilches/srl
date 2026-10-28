@@ -1,10 +1,10 @@
 //! The only place that changes notes: `srl id`, `srl accept`, `srl add`
-//! and `srl edit ID --stdin` (see `docs/notes.md`, "How srl writes to
-//! notes", and `docs/rust.md`, "Note editing").
+//! and `srl edit --stdin` (see `docs/notes.md`, "How srl writes to notes",
+//! and `docs/rust.md`, "Note editing").
 //!
 //! Every change edits lines, never data. Which lines, and what they become,
-//! is the business of the item syntax ([`syntax::with_id`],
-//! [`syntax::without_draft`], [`syntax::replace`], [`syntax::format`]);
+//! is the business of the note's item syntax ([`Syntax::with_id`],
+//! [`Syntax::without_draft`], [`Syntax::replace`], [`Syntax::format`]);
 //! this module makes the change safe: the new text is parsed again and
 //! compared with the old before it is written, the file must not have
 //! changed since it was read, and it is replaced atomically.
@@ -14,10 +14,9 @@ use std::fs;
 use std::io::Write as _;
 use std::path::Path;
 
-use serde_json::{Map, Value};
-
-use crate::note::syntax::{self, Edit, RawItem};
-use crate::note::{Entries, Field, is_field_key, read_items, read_note};
+use crate::note::object::{self, Object};
+use crate::note::syntax::{Edit, RawItem, Syntax};
+use crate::note::{Entries, Field, check_new, read_note};
 use crate::store::nfc;
 use crate::{Config, Error, Item, ItemId, Notes, Result, Store, random};
 
@@ -27,14 +26,6 @@ pub struct Written {
     pub id: ItemId,
     pub path: String,
     pub line: usize,
-}
-
-/// One line of `srl add --stdin`: its header entries, without an ID, and
-/// its fields.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-struct NewItem {
-    entries: Entries,
-    fields: Vec<Field>,
 }
 
 /// What `srl add` did, or would do.
@@ -66,9 +57,10 @@ pub fn assign_ids(store: &Store, notes: &Notes, seed: u64, dry_run: bool) -> Res
                 by_note
             },
         );
-    let mut fresh = fresh_ids(notes, seed);
+    let mut fresh = fresh_ids(notes, HashSet::new(), seed);
     let mut written = Vec::new();
     for (path, lines) in missing {
+        let syntax = Syntax::of(&path);
         let old = read_note(store, &path)?;
         let ids = lines
             .iter()
@@ -78,11 +70,12 @@ pub fn assign_ids(store: &Store, notes: &Notes, seed: u64, dry_run: bool) -> Res
             })
             .collect::<Vec<_>>();
         let new = ids.iter().try_fold(old.clone(), |text, (line, id)| {
-            syntax::with_id(&text, *line, id)
+            syntax
+                .with_id(&text, *line, id)
                 .map(|edit| apply(&text, &edit))
                 .ok_or_else(|| no_header(&path, *line))
         })?;
-        let expected = keys(&old)
+        let expected = keys(syntax, &old)
             .into_iter()
             .map(|(line, entries, fields)| {
                 let id = ids
@@ -123,14 +116,16 @@ pub fn accept(
     );
     let mut written = Vec::new();
     for (path, drafts) in by_note {
+        let syntax = Syntax::of(path);
         let old = read_note(store, path)?;
         let new = drafts.iter().try_fold(old.clone(), |text, item| {
-            syntax::without_draft(&text, item.line())
+            syntax
+                .without_draft(&text, item.line())
                 .map(|edit| apply(&text, &edit))
                 .ok_or_else(|| no_header(path, item.line()))
         })?;
         let lines = drafts.iter().map(|item| item.line()).collect::<Vec<_>>();
-        let expected = keys(&old)
+        let expected = keys(syntax, &old)
             .into_iter()
             .map(|(line, entries, fields)| {
                 let draft = entries.draft && !lines.contains(&line);
@@ -147,8 +142,9 @@ pub fn accept(
     Ok(written)
 }
 
-/// `srl add NOTE`: appends the items of `input` (one JSON object of header
-/// entries and fields per line) to the note at `path`, or creates it.
+/// `srl add NOTE`: appends the items of `input`, one item object per line,
+/// to the note at `path`, or creates it. An item without an `id` gets a new
+/// one.
 pub fn add(
     store: &Store,
     config: &Config,
@@ -160,109 +156,196 @@ pub fn add(
 ) -> Result<Added> {
     refuse_problems(notes, false)?;
     check_note_path(config, path)?;
-    let lines = input
+    let syntax = Syntax::of(path);
+    let lines = read_input(notes, input)?;
+    let mut given = HashSet::new();
+    for (line, object) in &lines {
+        let Some(id) = &object.entries.id else {
+            continue;
+        };
+        let reason = if notes.item(id).is_some() {
+            format!("the ID {id} is already used by an item; leave `id` out to get a new one")
+        } else if !given.insert(id.clone()) {
+            format!("the ID {id} is given twice")
+        } else {
+            continue;
+        };
+        return Err(Error::InvalidLine {
+            line: *line,
+            reason,
+        });
+    }
+    let mut fresh = fresh_ids(notes, given, seed);
+    let new = lines
+        .iter()
+        .map(|(_, object)| {
+            let id = object
+                .entries
+                .id
+                .clone()
+                .or_else(|| fresh.next())
+                .expect("random IDs should never run out");
+            let entries = Entries {
+                id: Some(id),
+                ..object.entries.clone()
+            };
+            (entries, object.fields.clone())
+        })
+        .collect::<Vec<_>>();
+    let items = new
+        .iter()
+        .zip(&lines)
+        .map(|((entries, fields), (line, _))| {
+            syntax
+                .format(entries, fields)
+                .map_err(|reason| Error::InvalidLine {
+                    line: *line,
+                    reason,
+                })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    check_lines(&new, &lines, notes)?;
+    let old = read_if_exists(&store.note_file(path))?;
+    let ending = line_ending(old.as_deref().unwrap_or_default());
+    let gap = syntax.gap();
+    let added = format!("{}\n", items.join(gap));
+    let tail = added.replace('\n', ending);
+    let new_text = match old.as_deref() {
+        None | Some("") => tail,
+        Some(text) => {
+            // The note's last line ending is the first of the gap.
+            let separator = if text.ends_with('\n') {
+                gap.get(1..).unwrap_or_default()
+            } else {
+                gap
+            };
+            format!("{text}{}{tail}", separator.replace('\n', ending))
+        }
+    };
+    let expected = keys(syntax, old.as_deref().unwrap_or_default())
+        .into_iter()
+        .chain(items.iter().flat_map(|item| keys(syntax, item)))
+        .map(|(_, entries, fields)| (entries, fields))
+        .collect::<Vec<_>>();
+    commit(store, path, old.as_deref(), &new_text, &expected, dry_run)?;
+    let ids = new
+        .into_iter()
+        .filter_map(|(entries, _)| entries.id)
+        .collect();
+    Ok(Added { ids, text: added })
+}
+
+/// `srl edit --stdin`: replaces, for each line of `input`, one item object
+/// per line, the item its `id` names. Every line is checked, and every
+/// change made and verified, before any note is written. Gives the IDs of
+/// the items, in the order of `input`.
+pub fn edit(store: &Store, notes: &Notes, input: &str, dry_run: bool) -> Result<Vec<ItemId>> {
+    refuse_problems(notes, false)?;
+    let lines = read_input(notes, input)?;
+    let mut seen = HashSet::new();
+    let mut targets = Vec::new();
+    for (line, object) in &lines {
+        let invalid = |reason: String| Error::InvalidLine {
+            line: *line,
+            reason,
+        };
+        let id = object.entries.id.as_ref().ok_or_else(|| {
+            invalid("it has no `id`; give the ID of the item it replaces".to_owned())
+        })?;
+        let item = notes
+            .item(id)
+            .ok_or_else(|| invalid(format!("no item has the ID {id}")))?;
+        if !seen.insert(id) {
+            return Err(invalid(format!("the item {id} is given twice")));
+        }
+        targets.push((*line, item, object));
+    }
+    let new = lines
+        .iter()
+        .map(|(_, object)| (object.entries.clone(), object.fields.clone()))
+        .collect::<Vec<_>>();
+    check_lines(&new, &lines, notes)?;
+    let by_note = targets.into_iter().fold(
+        BTreeMap::<&str, Vec<(usize, &Item, &Object)>>::new(),
+        |mut by_note, target| {
+            by_note.entry(target.1.path()).or_default().push(target);
+            by_note
+        },
+    );
+    let mut changed = Vec::new();
+    for (path, mut edits) in by_note {
+        let syntax = Syntax::of(path);
+        let old = read_note(store, path)?;
+        let written = syntax.parse(&old).items;
+        let still_there = edits.iter().all(|(_, item, _)| {
+            written
+                .iter()
+                .any(|raw| raw.line == item.line() && raw.entries.id.as_ref() == Some(item.id()))
+        });
+        if !still_there {
+            return Err(Error::ChangedMeanwhile {
+                path: path.to_owned(),
+            });
+        }
+        // From the last item up, so that the lines of the others stay put.
+        edits.sort_by_key(|(_, item, _)| std::cmp::Reverse(item.line()));
+        let mut text = old.clone();
+        let mut replaced = Vec::new();
+        for (line, item, object) in edits {
+            let invalid = |reason: String| Error::InvalidLine { line, reason };
+            let (entries, fields) = (&object.entries, &object.fields);
+            let edit = syntax
+                .replace(&text, item.line(), entries, fields)
+                .map_err(invalid)?;
+            text = apply(&text, &edit);
+            let formatted = syntax.format(entries, fields).map_err(invalid)?;
+            let (_, entries, fields) = keys(syntax, &formatted)
+                .into_iter()
+                .next()
+                .ok_or_else(|| no_header(path, item.line()))?;
+            replaced.push((item.line(), entries, fields));
+        }
+        let expected = keys(syntax, &old)
+            .into_iter()
+            .map(|(line, entries, fields)| {
+                replaced
+                    .iter()
+                    .find(|(at, _, _)| *at == line)
+                    .map_or((entries, fields), |(_, entries, fields)| {
+                        (entries.clone(), fields.clone())
+                    })
+            })
+            .collect::<Vec<_>>();
+        verify(path, &text, &expected)?;
+        changed.push((path, old, text));
+    }
+    if !dry_run {
+        for (path, old, new) in changed {
+            replace_file(store, path, Some(&old), &new)?;
+        }
+    }
+    Ok(new
+        .into_iter()
+        .filter_map(|(entries, _)| entries.id)
+        .collect())
+}
+
+/// The item objects of `input`, one per line, each with its line, counting
+/// from 1; blank lines are skipped. A `see` must name a note of `notes`.
+fn read_input(notes: &Notes, input: &str) -> Result<Vec<(usize, Object)>> {
+    input
         .lines()
         .enumerate()
         .filter(|(_, line)| !line.trim().is_empty())
         .map(|(index, line)| {
             item_of(notes, line)
-                .map(|item| (index + 1, item))
+                .map(|object| (index + 1, object))
                 .map_err(|reason| Error::InvalidLine {
                     line: index + 1,
                     reason,
                 })
         })
-        .collect::<Result<Vec<_>>>()?;
-    let ids = fresh_ids(notes, seed).take(lines.len()).collect::<Vec<_>>();
-    let items = lines
-        .iter()
-        .zip(&ids)
-        .map(|((line, item), id)| {
-            let entries = Entries {
-                id: Some(id.clone()),
-                ..item.entries.clone()
-            };
-            syntax::format(&entries, &item.fields).map_err(|reason| Error::InvalidLine {
-                line: *line,
-                reason,
-            })
-        })
-        .collect::<Result<Vec<_>>>()?;
-    check_added(
-        path,
-        &items,
-        &lines.iter().map(|(line, _)| *line).collect::<Vec<_>>(),
-        notes,
-    )?;
-    let old = read_if_exists(&store.note_file(path))?;
-    let ending = line_ending(old.as_deref().unwrap_or_default());
-    let added = format!("{}\n", items.join("\n\n"));
-    let tail = added.replace('\n', ending);
-    let new = match old.as_deref() {
-        None | Some("") => tail,
-        Some(text) => {
-            let separator = if text.ends_with('\n') { "\n" } else { "\n\n" };
-            format!("{text}{}{tail}", separator.replace('\n', ending))
-        }
-    };
-    let expected = keys(old.as_deref().unwrap_or_default())
-        .into_iter()
-        .map(|(_, entries, fields)| (entries, fields))
-        .chain(items.iter().flat_map(|item| {
-            keys(item)
-                .into_iter()
-                .map(|(_, entries, fields)| (entries, fields))
-        }))
-        .collect::<Vec<_>>();
-    commit(store, path, old.as_deref(), &new, &expected, dry_run)?;
-    Ok(Added { ids, text: added })
-}
-
-/// `srl edit ID --stdin`: replaces `item` with `input`, which must be
-/// exactly one item with the same ID, as the syntax reads one given on its
-/// own (see [`syntax::parse_one`] and [`syntax::replace`]).
-pub fn replace(
-    store: &Store,
-    notes: &Notes,
-    item: &Item,
-    input: &str,
-    dry_run: bool,
-) -> Result<()> {
-    refuse_problems(notes, false)?;
-    let invalid = |reason: String| Error::InvalidEdit {
-        id: item.id().to_string(),
-        reason,
-    };
-    let new_item = syntax::parse_one(input).map_err(invalid)?;
-    if new_item.entries.id.as_ref() != Some(item.id()) {
-        return Err(invalid("its header has another ID, or none".to_owned()));
-    }
-    if let Some(problem) = read_items(item.path(), input, notes.programs()).1.first() {
-        return Err(invalid(reason_of(problem)));
-    }
-    let old = read_note(store, item.path())?;
-    let still_there = syntax::parse(&old)
-        .items
-        .iter()
-        .any(|raw| raw.line == item.line() && raw.entries.id.as_ref() == Some(item.id()));
-    if !still_there {
-        return Err(Error::ChangedMeanwhile {
-            path: item.path().to_owned(),
-        });
-    }
-    let edit = syntax::replace(&old, item.line(), input).map_err(invalid)?;
-    let new = apply(&old, &edit);
-    let expected = keys(&old)
-        .into_iter()
-        .map(|(line, entries, fields)| {
-            if line == item.line() {
-                (new_item.entries.clone(), new_item.fields.clone())
-            } else {
-                (entries, fields)
-            }
-        })
-        .collect::<Vec<_>>();
-    commit(store, item.path(), Some(&old), &new, &expected, dry_run)
+        .collect()
 }
 
 /// The error for a change to a header that is not on line `line` of the
@@ -274,14 +357,10 @@ fn no_header(path: &str, line: usize) -> Error {
     }
 }
 
-/// New item IDs from `seed`, each used by no item of `notes` and given
-/// only once.
-fn fresh_ids(notes: &Notes, seed: u64) -> impl Iterator<Item = ItemId> {
-    let mut taken = notes
-        .items()
-        .iter()
-        .map(|item| item.id().clone())
-        .collect::<HashSet<_>>();
+/// New item IDs from `seed`, each used by no item of `notes`, not in
+/// `taken`, and given only once.
+fn fresh_ids(notes: &Notes, mut taken: HashSet<ItemId>, seed: u64) -> impl Iterator<Item = ItemId> {
+    taken.extend(notes.items().iter().map(|item| item.id().clone()));
     random::numbers(seed)
         .map(ItemId::from_number)
         .filter(move |id| taken.insert(id.clone()))
@@ -329,60 +408,35 @@ fn refuse_problems(notes: &Notes, missing_ids: bool) -> Result<()> {
     }
 }
 
-/// The reason of a problem in a note, without its place.
-/// Checks `items`, the text of new items for the note at `path` that came
-/// from the lines `lines` of standard input, as they would be read once
-/// added, all at once, so that each kind program is asked once about all of
-/// them. The first problem is an error about its line, unless it is a kind
-/// program failing as a whole, which is no line's fault.
-fn check_added(path: &str, items: &[String], lines: &[usize], notes: &Notes) -> Result<()> {
-    // The items as `srl add` appends them, a blank line between two, and
-    // the line each starts at.
-    let mut starts = Vec::new();
-    let mut text = String::new();
-    let mut next = 1;
-    for item in items {
-        if !text.is_empty() {
-            text.push('\n');
-        }
-        starts.push(next);
-        next += item.lines().count() + 1;
-        text.push_str(item);
-        text.push('\n');
-    }
-    let Some(problem) = read_items(path, &text, notes.programs())
-        .1
-        .into_iter()
-        .next()
-    else {
+/// Checks the `new` items of the `lines` of standard input, as they would
+/// be read in a note, all at once, so that each kind program is asked once
+/// about all of them (see [`check_new`]). The first problem is an error
+/// about its line, unless it is a kind program failing as a whole, which is
+/// no line's fault.
+fn check_lines(
+    new: &[(Entries, Vec<Field>)],
+    lines: &[(usize, Object)],
+    notes: &Notes,
+) -> Result<()> {
+    let Some(problem) = check_new(new, notes.programs()).into_iter().next() else {
         return Ok(());
     };
     let Some((_, at)) = problem.place() else {
         return Err(problem);
     };
-    let line = starts
-        .iter()
-        .zip(lines)
-        .rev()
-        .find(|(start, _)| **start <= at)
-        .map_or(0, |(_, line)| *line);
-    Err(Error::InvalidLine {
-        line,
-        reason: reason_of(&problem),
-    })
-}
-
-fn reason_of(problem: &Error) -> String {
-    if let Error::Note { reason, .. } = problem {
+    let line = lines.get(at - 1).map_or(0, |(line, _)| *line);
+    let reason = if let Error::Note { reason, .. } = &problem {
         reason.clone()
     } else {
         problem.to_string()
-    }
+    };
+    Err(Error::InvalidLine { line, reason })
 }
 
 /// What verification compares: each item's line, entries and fields.
-fn keys(text: &str) -> Vec<(usize, Entries, Vec<Field>)> {
-    syntax::parse(text)
+fn keys(syntax: Syntax, text: &str) -> Vec<(usize, Entries, Vec<Field>)> {
+    syntax
+        .parse(text)
         .items
         .into_iter()
         .map(
@@ -399,7 +453,7 @@ fn keys(text: &str) -> Vec<(usize, Entries, Vec<Field>)> {
 /// Checks that `new` parses without errors into exactly the `expected`
 /// items. A mismatch is a bug in `srl`, so nothing is written.
 fn verify(path: &str, new: &str, expected: &[(Entries, Vec<Field>)]) -> Result<()> {
-    let parsed = syntax::parse(new);
+    let parsed = Syntax::of(path).parse(new);
     let found = parsed
         .items
         .into_iter()
@@ -515,52 +569,20 @@ fn check_note_path(config: &Config, path: &str) -> Result<()> {
     Ok(())
 }
 
-/// One line of `srl add --stdin`: a JSON object whose keys are field names,
-/// with text values, or the header entries `kind` and `see`, with text
-/// values, and `draft`, with `true` or `false`. A `see` must name a note of
-/// `notes`. Errors are plain reasons.
-fn item_of(notes: &Notes, line: &str) -> std::result::Result<NewItem, String> {
-    let object = serde_json::from_str::<Map<String, Value>>(line)
-        .map_err(|error| format!("it is not a JSON object ({error})"))?;
-    let mut item = NewItem::default();
-    for (key, value) in object {
-        if key == "draft" {
-            let Value::Bool(draft) = value else {
-                return Err(format!(
-                    "the value of `draft` must be true or false, not {value}"
-                ));
-            };
-            item.entries.draft = draft;
-            continue;
-        }
-        let Value::String(text) = value else {
-            return Err(format!("the value of `{key}` must be text, not {value}"));
-        };
-        if key == "kind" {
-            item.entries.kind = Some(text);
-        } else if key == "see" {
-            let see_nfc = nfc(&text);
-            if !notes.paths().iter().any(|known| nfc(known) == see_nfc) {
-                return Err(format!(
-                    "`see` {text} doesn't name a note of the store; give a path relative to the \
-                     store's folder"
-                ));
-            }
-            item.entries.see = Some(text);
-        } else if is_field_key(&key) {
-            item.fields.push(Field { key, text });
-        } else {
+/// One line of `srl add --stdin` or `srl edit --stdin`: an item object
+/// whose `see`, if any, names a note of `notes`. Errors are plain reasons.
+fn item_of(notes: &Notes, line: &str) -> std::result::Result<Object, String> {
+    let object = object::read(line)?;
+    if let Some(see) = &object.entries.see {
+        let see_nfc = nfc(see);
+        if !notes.paths().iter().any(|known| nfc(known) == see_nfc) {
             return Err(format!(
-                "`{key}` is neither a header entry (`kind`, `see`, `draft`; every item gets a \
-                 new ID) nor a field name (uppercase letters, digits and _, starting with a \
-                 letter)"
+                "`see` {see} doesn't name a note of the store; give a path relative to the \
+                 store's folder"
             ));
         }
     }
-    if item.fields.is_empty() {
-        return Err("it has no fields".to_owned());
-    }
-    Ok(item)
+    Ok(object)
 }
 
 #[cfg(test)]
@@ -673,7 +695,7 @@ mod tests {
             panic!("expected two IDs");
         };
         let expected = format!(
-            "```srl id:{one} see:\"my notes/b c.md\" draft\nQ: Two\n  lines\n\n  and more\nA: x\n```\n\n`````srl id:{two} kind:qa\nQ: {{{{c1::y}}}}\n  ```\n  ````rust\n`````\n"
+            "```srl id:{one} see:\"my notes/b c.md\" draft\nQ: Two\n  lines\n\n  and more\nA: x\n```\n\n`````srl id:{two}\nQ: {{{{c1::y}}}}\n  ```\n  ````rust\n`````\n"
         );
         assert_eq!(added.text, expected);
         assert_eq!(
@@ -708,7 +730,8 @@ mod tests {
             "{\"Q\": \"q\", \"A\": \"a\", \"kind\": \"nope\"}",
             "{\"Q\": \"q\", \"A\": \"a\", \"kind\": \"\"}",
             "{\"Q\": \"q\", \"A\": \"a\", \"draft\": \"yes\"}",
-            "{\"Q\": \"q\", \"A\": \"a\", \"id\": \"abc123\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"id\": \"ABC\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"id\": \"abc\"}\n{\"Q\": \"r\", \"A\": \"a\", \"id\": \"abc\"}",
             "{\"Q\": \"q\", \"A\": \"a\"}\nnot json",
         ] {
             assert!(
@@ -762,64 +785,97 @@ mod tests {
     }
 
     #[test]
-    fn replace_swaps_one_item_and_keeps_the_rest() {
-        let text = "Before.\n```srl id:aaa1\nQ: old\nA: old\n```\n\n````srl\n@ id:aaa2\nQ: old\nA: old\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n";
-        let (_tmp, store) = store(&[("a.md", text)]);
-        let notes = notes(&store);
-        replace(
-            &store,
-            &notes,
-            &notes.items()[0],
-            "~~~srl id:aaa1 draft\nQ: new\n\nA: new\n  more\n~~~\n",
-            false,
-        )
-        .unwrap();
-        let notes = self::notes(&store);
-        replace(
-            &store,
-            &notes,
-            &notes.items()[1],
-            "````srl id:aaa2  kind:qa\nQ: new\n  ```\n  code\n  ```\nA: a\n````\n",
-            false,
-        )
-        .unwrap();
+    fn add_writes_json_lines_to_a_jsonl_note_and_keeps_given_ids() {
+        let mut config = Config::default();
+        config.notes.include = vec!["**/*.md".to_owned(), "**/*.jsonl".to_owned()];
+        let (_tmp, store) = store(&[("a.jsonl", "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}")]);
+        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let input = "{\"id\": \"mine\", \"Q\": \"r\", \"A\": \"b\", \"kind\": \"qa\", \"see\": \"a.jsonl\"}\n{\"draft\": true, \"Q\": \"{{c1::s}}\"}\n";
+        let added = add(&store, &config, &notes, "a.jsonl", input, 3, false).unwrap();
+        assert_eq!(added.ids[0].as_str(), "mine");
+        let two = &added.ids[1];
         assert_eq!(
-            read(&store, "a.md"),
-            "Before.\n~~~srl id:aaa1 draft\nQ: new\n\nA: new\n  more\n~~~\n\n````srl\n@ id:aaa2  kind:qa\nQ: new\n  ```\n  code\n  ```\nA: a\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n"
-        );
-        let notes = self::notes(&store);
-        assert!(
-            replace(
-                &store,
-                &notes,
-                &notes.items()[2],
-                "`````srl id:aaa3\nQ: q\n  ````\n`````\n",
-                false,
+            read(&store, "a.jsonl"),
+            format!(
+                "{{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}}\n{{\"id\":\"mine\",\"see\":\"a.jsonl\",\"Q\":\"r\",\"A\":\"b\"}}\n{{\"id\":\"{two}\",\"draft\":true,\"Q\":\"{{{{c1::s}}}}\"}}\n"
             )
-            .is_err()
+        );
+        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        assert!(notes.problems().is_empty(), "{:?}", notes.problems());
+        let taken = "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}";
+        assert!(add(&store, &config, &notes, "a.jsonl", taken, 3, false).is_err());
+    }
+
+    #[test]
+    fn ids_and_accept_write_json_lines_again() {
+        let mut config = Config::default();
+        config.notes.include = vec!["*.jsonl".to_owned()];
+        let text = "{\"Q\": \"q\", \"A\": \"a\", \"draft\": true}\r\n\r\n{\"id\": \"keep\", \"Q\": \"r\", \"A\": \"b\"}\r\n";
+        let (_tmp, store) = store(&[("a.jsonl", text)]);
+        let load = || Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let written = assign_ids(&store, &load(), 7, false).unwrap();
+        let id = &written[0].id;
+        let notes = load();
+        let drafts = notes.items().iter().collect::<Vec<_>>();
+        accept(&store, &notes, &drafts, false).unwrap();
+        assert_eq!(
+            read(&store, "a.jsonl"),
+            format!(
+                "{{\"id\":\"{id}\",\"Q\":\"q\",\"A\":\"a\"}}\r\n\r\n{{\"id\": \"keep\", \"Q\": \"r\", \"A\": \"b\"}}\r\n"
+            )
         );
     }
 
     #[test]
-    fn replace_needs_exactly_one_item_with_the_same_id() {
+    fn edit_replaces_items_in_any_syntax_and_keeps_the_rest() {
+        let mut config = Config::default();
+        config.notes.include = vec!["*.md".to_owned(), "*.jsonl".to_owned()];
+        let text = "Before.\n```srl id:aaa1\nQ: old\nA: old\n```\n\n````srl\n@ id:aaa2\nQ: old\nA: old\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n";
+        let lines = "{\"id\": \"bbb1\", \"Q\": \"old\", \"A\": \"old\"}\n";
+        let (_tmp, store) = store(&[("a.md", text), ("b.jsonl", lines)]);
+        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let input = "{\"id\": \"aaa2\", \"Q\": \"new\\n```\\ncode\\n```\", \"A\": \"a\", \"path\": \"x\", \"cards\": []}\n{\"id\": \"aaa1\", \"draft\": true, \"Q\": \"new\", \"A\": \"new\\n\\nmore\"}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\", \"see\": \"a.md\"}\n";
+        let ids = edit(&store, &notes, input, false).unwrap();
+        let ids = ids.iter().map(ItemId::as_str).collect::<Vec<_>>();
+        assert_eq!(ids, ["aaa2", "aaa1", "bbb1"]);
+        assert_eq!(
+            read(&store, "a.md"),
+            "Before.\n```srl id:aaa1 draft\nQ: new\nA: new\n\n  more\n```\n\n````srl\n@ id:aaa2\nQ: new\n  ```\n  code\n  ```\nA: a\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n"
+        );
+        assert_eq!(
+            read(&store, "b.jsonl"),
+            "{\"id\":\"bbb1\",\"see\":\"a.md\",\"Q\":\"new\",\"A\":\"a\"}\n"
+        );
+        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let closing = "{\"id\": \"aaa3\", \"Q\": \"q\\n````\"}";
+        assert!(edit(&store, &notes, closing, false).is_err());
+    }
+
+    #[test]
+    fn edit_checks_every_line_first() {
         let (_tmp, store) = store(&[("a.md", "```srl id:aaa1\nQ: q\nA: a\n```\n")]);
         let notes = notes(&store);
-        let item = &notes.items()[0];
         for input in [
-            "```srl id:aaa2\nQ: q\nA: a\n```\n",
-            "```srl\nQ: q\nA: a\n```\n",
-            "```srl id:aaa1\nQ: q\nA: a\n```\nProse.\n",
-            "```srl\n@ id:aaa1\nQ: q\nA: a\n@ id:aaa1\nQ: q\nA: a\n```\n",
-            "```srl id:aaa1\nQ: q\n```\n",
-            "```srl id:aaa1\nQ: q\nA: a\n",
-            "Q: q\nA: a\n",
-            "",
+            "{\"Q\": \"q\", \"A\": \"a\"}",
+            "{\"id\": \"zzz9\", \"Q\": \"q\", \"A\": \"a\"}",
+            "{\"id\": \"aaa1\", \"Q\": \"q\"}",
+            "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"aaa1\", \"Q\": \"r\", \"A\": \"a\"}",
+            "{\"id\": \"aaa1\", \"Q\": \"new\", \"A\": \"a\"}\nnot json",
         ] {
             assert!(
-                replace(&store, &notes, item, input, false).is_err(),
+                edit(&store, &notes, input, false).is_err(),
                 "accepted {input:?}"
             );
         }
+        assert_eq!(read(&store, "a.md"), "```srl id:aaa1\nQ: q\nA: a\n```\n");
+        edit(
+            &store,
+            &notes,
+            "{\"id\": \"aaa1\", \"Q\": \"new\", \"A\": \"a\"}",
+            true,
+        )
+        .unwrap();
+        assert_eq!(read(&store, "a.md"), "```srl id:aaa1\nQ: q\nA: a\n```\n");
     }
 
     #[test]

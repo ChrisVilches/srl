@@ -39,4 +39,4 @@ pub use schedule::{History, Memories, Memory, Reviewed, Seen, State};
 pub use selector::{Selector, Status};
 pub use stats::{StateCounts, Stats, stats};
 pub use store::{Lookup, Store};
-pub use write::{Added, Written, accept, add, assign_ids, replace};
+pub use write::{Added, Written, accept, add, assign_ids, edit};

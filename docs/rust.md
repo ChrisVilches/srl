@@ -22,7 +22,10 @@ crates/
     src/store.rs        one module per area of the specification:
                           store.md: finding, creating and listing a store and its notes
     src/note.rs           notes.md: the item model (entries, fields, IDs, status), reading notes into items
-    src/note/syntax.rs    notes.md, "The item syntax": everything that depends on how items are written (see "The item syntax" below)
+    src/note/syntax.rs    notes.md, "Item syntaxes": everything that depends on how items are written, dispatched by syntax (see "The item syntax" below)
+    src/note/syntax/blocks.rs  notes.md, "The srl block syntax"
+    src/note/syntax/jsonl.rs   notes.md, "The JSONL syntax"
+    src/note/object.rs    notes.md, "The item object": reading and writing items as JSON objects
     src/context.rs        notes.md, "Context"
     src/write.rs          notes.md, "How srl writes to notes" (see "Note editing" below)
     src/check.rs          cli.md, "Checking": `srl check`, and `srl lint` but for the syntax's own findings
@@ -411,21 +414,32 @@ comment.
 
 ## The item syntax
 
-How items are written in a note (srl blocks, see [notes.md](notes.md), "The
-item syntax") is known to one module only, `note/syntax.rs`. It is the
-boundary between notes as text and items as data: every other module
-works with what its functions return, and none knows what a fence or an
-`@` line is.
+How items are written in a note (see [notes.md](notes.md), "Item
+syntaxes") is known to one module only, `note/syntax.rs`, and its two
+submodules, one per syntax: `blocks.rs` for srl blocks, `jsonl.rs` for
+JSONL notes. It is the boundary between notes as text and items as data:
+every other module works with what its functions return, and none knows
+what a fence, an `@` line or a JSON line is.
+
+The syntax of a note is `Syntax::of(path)`, an enum with a variant per
+syntax. Each function below is a method of `Syntax` that calls the same
+function of the syntax's module; there is no trait, since a `match` on
+two variants says the same with less.
 
 | Function | Gives |
 |---|---|
 | `parse(text)` | The note's items (`RawItem`: entries, fields, where each field is written, the header's line and the last line, the item written on its own), its errors, and the role of each line in the context: prose, item text, or hidden. |
-| `parse_one(input)` | Exactly one item given on its own, as `srl edit ID --stdin` takes it. |
 | `with_id(text, line, id)` | The `Edit` that gives the item whose header is on `line` an ID. |
 | `without_draft(text, line)` | The `Edit` that removes `draft` from it. |
-| `replace(text, line, input)` | The `Edit` that replaces it with `input`. |
+| `replace(text, line, entries, fields)` | The `Edit` that replaces it with an item of these entries and fields, as `srl edit --stdin` takes them. |
 | `format(entries, fields)` | A new item, as `srl add` appends it. |
+| `gap()` | What `srl add` puts before each item it appends: a blank line, or a line ending. |
 | `lint(text)` | The likely mistakes of the syntax. |
+
+The item object (see [notes.md](notes.md), "The item object") is read and
+written by `note/object.rs`, for the JSONL syntax and for the standard
+input of `srl add` and `srl edit`. `Item::json` writes it for `srl show
+--json`.
 
 - **Items are named by the line of their header.** It is what messages and
   `PATH:LINE` show, and items without an ID have nothing else.
@@ -437,23 +451,29 @@ works with what its functions return, and none knows what a fence or an
   fields themselves, the rule for field names, splitting a note into lines
   (`note.rs`); turning roles into a context (`context.rs`); the lint of the
   `qa` kind, which looks at the lines of `Q` (`check.rs`).
+- **New items are checked without a syntax.** `srl add` and `srl edit`
+  check their items' entries and fields with the kinds directly
+  (`note::check_new`), so an item is judged the same whatever note it
+  goes to.
 
 So another syntax, such as the plugins of [ideas.md](ideas.md), "Writing
-notes", would be another module with the same functions. There is no trait
-for them while there is only one syntax: it is drawn from the functions
-once a second one exists and shows what they must be.
+notes", would be another module with the same functions, and another
+variant of `Syntax`.
 
 ## Note editing
 
 Notes are written by hand, so `srl` must never rewrite one: no
-re-serializing, no normalized whitespace or line endings. The commands that
+re-serializing, no normalized whitespace or line endings. The one thing it
+writes again is the line of a JSONL item it changes, which is data, not
+text written for people. The commands that
 change notes (see [notes.md](notes.md), "How srl writes to notes") go
 through one module, `write.rs`, which asks the item syntax for each change
 as an `Edit` (see "The item syntax"), with these rules:
 
 1. **It edits lines, not data.** It changes header lines (adding `id:ID`,
-   removing `draft`), replaces the lines of one item or of its block
-   (`srl edit ID --stdin`), or appends lines at the end. Every other byte of the file
+   removing `draft`), replaces the lines of an item or of its block
+   (`srl edit --stdin`), writes the line of a JSONL item again, or appends
+   lines at the end. Every other byte of the file
    stays the same, including a UTF-8 BOM, `\r\n` line endings and a missing
    final newline. New lines get the line ending of the note's first line,
    or `\n` in a note without one.

@@ -77,8 +77,8 @@ context:
 | `id`, `prompt`, `prompt_revealed`, `answer` | The card (see [cards.md](cards.md)). `prompt_revealed` and `answer` may be `null`. |
 | `state` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Choosing the next card"). |
 | `kind` | The item's kind: `qa`, or the name of a kind program in `.srl/config.toml`, as in `srl show --json` (see [cards.md](cards.md), "Kinds"). |
-| `path` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "Items as JSON"). |
-| `see` | The note its `see:` names, or `null`. |
+| `path` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "The item object"). |
+| `see` | The note its `see` names, or `null`. |
 | `context` | The context, in the mode the frontend chose, or `null` when there is none (see [notes.md](notes.md), "Context"). |
 
 **The frontend chooses the context's mode** with `--context`: `prose` (the

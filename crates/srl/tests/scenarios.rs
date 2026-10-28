@@ -359,13 +359,9 @@ fn fixing_a_typo_keeps_the_cards_schedule() {
     let now = at(1, 19);
     let card = store.study(&now, 3).remove(0);
     let due = store.due(&now, &card);
-    let shown = store.ok(&now, &["show", &card, "--context", "none"]);
-    let item = shown
-        .split_once('\n')
-        .unwrap()
-        .1
-        .replace("Austrailia", "Australia");
-    store.expect(0, &at(2, 19), &["edit", &card, "--stdin"], &item);
+    let shown = store.ok(&now, &["show", &card, "--json"]);
+    let item = shown.replace("Austrailia", "Australia");
+    store.expect(0, &at(2, 19), &["edit", "--stdin"], &item);
     assert!(
         store
             .read("geography/capitals.md")

@@ -4,6 +4,7 @@
 //! this module turns what it reads into [`Item`]s, which the rest of `srl`
 //! works with.
 
+pub(crate) mod object;
 pub(crate) mod syntax;
 
 use std::collections::{HashMap, HashSet};
@@ -19,6 +20,7 @@ use crate::context::{ContextMode, context};
 use crate::kind::{Answer, Asked, Cache, Kind, Programs, ToMake, check};
 use crate::store::nfc;
 use crate::{Config, Error, Index, Result, Store};
+use syntax::{RawItem, Syntax};
 
 /// One field of an item: its key and its text.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -183,10 +185,15 @@ impl Item {
         self.see.as_deref()
     }
 
-    /// The path of the note shown as context: `see:`, or the item's own
-    /// note (see `docs/notes.md`, "Context").
-    pub fn context_path(&self) -> &str {
-        self.see().unwrap_or(self.path())
+    /// The path of the note shown as context: `see:`, or else the item's
+    /// own note, unless it is a JSONL note, which is no item's context
+    /// (see `docs/notes.md`, "Context").
+    pub fn context_path(&self) -> Option<&str> {
+        match self.see() {
+            Some(see) => Some(see),
+            None if Syntax::of(self.path()) == Syntax::Jsonl => None,
+            None => Some(self.path()),
+        }
     }
 
     pub fn is_draft(&self) -> bool {
@@ -198,8 +205,7 @@ impl Item {
     }
 
     /// The item written on its own, lines joined with `\n`, as the syntax
-    /// gives it (see [`syntax::RawItem::text`]): what `srl show` prints and
-    /// `srl edit ID --stdin` takes back.
+    /// gives it (see [`syntax::RawItem::text`]): what `srl show` prints.
     pub fn text(&self) -> &str {
         &self.text
     }
@@ -242,25 +248,22 @@ impl Item {
             .join("\n")
     }
 
-    /// The item as JSON (see `docs/notes.md`, "Items as JSON"), with its
-    /// context.
+    /// The item object, with every entry and the keys only `srl` gives
+    /// (see `docs/notes.md`, "The item object"), with its context.
     pub fn json(&self, context: Option<&str>) -> Value {
-        let fields = self
-            .fields
-            .iter()
-            .map(|field| (field.key.clone(), Value::from(field.text.as_str())))
-            .collect::<Map<_, _>>();
-        serde_json::json!({
-            "id": self.id,
-            "path": self.path,
-            "line": self.line,
-            "kind": self.kind.as_str(),
-            "see": self.see,
-            "draft": self.draft,
-            "fields": fields,
-            "cards": self.cards,
-            "context": context,
-        })
+        let mut object = Map::new();
+        object.insert("id".to_owned(), Value::from(self.id.as_str()));
+        object.insert("kind".to_owned(), Value::from(self.kind.as_str()));
+        object.insert("see".to_owned(), Value::from(self.see.clone()));
+        object.insert("draft".to_owned(), Value::Bool(self.draft));
+        for field in &self.fields {
+            object.insert(field.key.clone(), Value::from(field.text.as_str()));
+        }
+        object.insert("path".to_owned(), Value::from(self.path.as_str()));
+        object.insert("line".to_owned(), Value::from(self.line));
+        object.insert("cards".to_owned(), serde_json::json!(self.cards));
+        object.insert("context".to_owned(), Value::from(context));
+        Value::Object(object)
     }
 }
 
@@ -439,6 +442,7 @@ pub(crate) fn read_note(store: &Store, path: &str) -> Result<String> {
 
 /// The items of the note at `path` whose text is `text`, checked by their
 /// kinds, and its problems in the order of their lines.
+#[cfg(test)]
 pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
     let (written, mut problems) = read_syntax(path, text, programs);
     let (items, checked) = check_items(written, programs, &mut Cache::None);
@@ -497,11 +501,38 @@ fn in_place_order(problems: &mut [Error]) {
     });
 }
 
+/// Checks new items, given by their entries and fields, as if they were
+/// read from a note, all at once, so that each kind program is asked once
+/// about all of them. A problem's line is the position of its item in
+/// `new`, counting from 1; a kind program that failed as a whole is a
+/// problem without a line.
+pub(crate) fn check_new(new: &[(Entries, Vec<Field>)], programs: &Programs) -> Vec<Error> {
+    let mut problems = Vec::new();
+    let mut items = Vec::new();
+    for (index, (entries, fields)) in new.iter().enumerate() {
+        let raw = RawItem {
+            entries: entries.clone(),
+            line: index + 1,
+            end: index + 1,
+            fields: fields.clone(),
+            spans: Vec::new(),
+            text: String::new(),
+        };
+        match written_item("", raw, programs) {
+            Ok(item) => items.push(item),
+            Err(problem) => problems.push(problem),
+        }
+    }
+    problems.extend(check_items(items, programs, &mut Cache::None).1);
+    in_place_order(&mut problems);
+    problems
+}
+
 /// The items of the note at `path` whose text is `text`, as written, before
 /// their kinds are asked about them (they have no cards yet), and the
 /// problems of their syntax and entries.
 fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
-    let parsed = syntax::parse(text);
+    let parsed = Syntax::of(path).parse(text);
     let mut problems = parsed
         .errors
         .into_iter()
@@ -513,46 +544,52 @@ fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<E
         .collect::<Vec<_>>();
     let mut items = Vec::new();
     for raw in parsed.items {
-        let at = |reason: String| Error::Note {
-            path: path.to_owned(),
-            line: raw.line,
-            reason,
-        };
-        let kind = match raw.entries.kind.as_deref().map_or(Ok(Kind::Qa), |name| {
-            Kind::parse(name, |name| programs.has(name))
-        }) {
-            Ok(kind) => kind,
-            Err(reason) => {
-                problems.push(at(reason));
-                continue;
-            }
-        };
-        let Some(id) = raw.entries.id else {
-            problems.push(Error::MissingId {
-                path: path.to_owned(),
-                line: raw.line,
-            });
-            continue;
-        };
-        if let Some(reason) = repeated_field(&raw.fields) {
-            problems.push(at(reason));
-            continue;
+        match written_item(path, raw, programs) {
+            Ok(item) => items.push(item),
+            Err(problem) => problems.push(problem),
         }
-        items.push(Item {
-            id,
-            path: path.to_owned(),
-            line: raw.line,
-            end: raw.end,
-            kind,
-            see: raw.entries.see,
-            draft: raw.entries.draft,
-            fields: raw.fields,
-            text: raw.text,
-            cards: Vec::new(),
-            groups: Vec::new(),
-        });
     }
     (items, problems)
+}
+
+/// The item `raw` of the note at `path`, without its cards yet, or the
+/// problem of its entries or fields.
+fn written_item(path: &str, raw: RawItem, programs: &Programs) -> Result<Item> {
+    let at = |reason: String| Error::Note {
+        path: path.to_owned(),
+        line: raw.line,
+        reason,
+    };
+    let kind = raw
+        .entries
+        .kind
+        .as_deref()
+        .map_or(Ok(Kind::Qa), |name| {
+            Kind::parse(name, |name| programs.has(name))
+        })
+        .map_err(at)?;
+    let Some(id) = raw.entries.id else {
+        return Err(Error::MissingId {
+            path: path.to_owned(),
+            line: raw.line,
+        });
+    };
+    if let Some(reason) = repeated_field(&raw.fields) {
+        return Err(at(reason));
+    }
+    Ok(Item {
+        id,
+        path: path.to_owned(),
+        line: raw.line,
+        end: raw.end,
+        kind,
+        see: raw.entries.see,
+        draft: raw.entries.draft,
+        fields: raw.fields,
+        text: raw.text,
+        cards: Vec::new(),
+        groups: Vec::new(),
+    })
 }
 
 /// Why `fields` can't be an item's fields, whatever its kind: a key
@@ -622,6 +659,27 @@ mod tests {
             .map(ToString::to_string)
             .collect::<Vec<_>>();
         assert_eq!(ids, ["k3m9q1-1", "k3m9q1-2"]);
+    }
+
+    #[test]
+    fn items_of_a_jsonl_note_have_no_context_of_their_own() {
+        let text = "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"abd\", \"see\": \"n.md\", \"draft\": true, \"Q\": \"{{c1::r}}\"}\n";
+        let (items, problems) = read_items("n.jsonl", text, &Programs::default());
+        assert!(problems.is_empty(), "{problems:?}");
+        assert_eq!(items[0].context_path(), None);
+        assert_eq!(items[1].context_path(), Some("n.md"));
+        assert_eq!(items[1].line(), 2);
+        assert_eq!(items[1].text(), text.lines().nth(1).unwrap());
+        assert_eq!(
+            items[0].json(None).to_string(),
+            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","path":"n.jsonl","line":1,"cards":["abc"],"context":null}"#
+        );
+        let (md, _) = read_items(
+            "n.md",
+            "```srl id:abc\nQ: q\nA: a\n```\n",
+            &Programs::default(),
+        );
+        assert_eq!(md[0].context_path(), Some("n.md"));
     }
 
     #[test]

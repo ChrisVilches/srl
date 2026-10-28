@@ -124,11 +124,10 @@ pub(crate) enum Command {
     },
     /// Append items (JSONL of fields from standard input) to a note.
     Add(AddArgs),
-    /// Replace an item with standard input.
+    /// Replace items with standard input (JSONL of items, each naming the item it replaces by `id`).
     Edit {
-        /// A card or item ID.
-        id: String,
-        /// Read the new item from standard input: one item with the same ID.
+        /// Read the new items from standard input: one item object per line,
+        /// as `srl show --json` prints it, whose `id` names the item to replace.
         #[arg(long, required = true)]
         stdin: bool,
         #[command(flatten)]
@@ -205,8 +204,9 @@ pub(crate) enum Command {
 pub(crate) struct AddArgs {
     /// The note, relative to the store's folder; created if it doesn't exist.
     pub(crate) note: String,
-    /// Read the items from standard input: one JSON object per line, of
-    /// fields and the header entries `kind`, `see` and `draft` (true or false).
+    /// Read the items from standard input: one item object per line, of
+    /// fields and the header entries `id` (new if left out), `kind`, `see`
+    /// and `draft` (true or false).
     #[arg(long, required = true)]
     pub(crate) stdin: bool,
     #[command(flatten)]
@@ -299,8 +299,9 @@ mod tests {
 
     #[test]
     fn edit_needs_stdin() {
-        assert!(parse(&["edit", "x7k2m9"]).is_err());
-        assert!(parse(&["edit", "x7k2m9", "--stdin", "--dry-run"]).is_ok());
+        assert!(parse(&["edit"]).is_err());
+        assert!(parse(&["edit", "--stdin", "--dry-run"]).is_ok());
+        assert!(parse(&["edit", "x7k2m9", "--stdin"]).is_err());
     }
 
     #[test]

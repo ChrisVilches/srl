@@ -80,14 +80,11 @@ pub enum Error {
     #[error("invalid selector term `{term}`: {reason}")]
     BadSelector { term: String, reason: String },
 
-    #[error("line {line} of standard input is not a valid item: {reason}; nothing was added")]
+    #[error("line {line} of standard input is not a valid item: {reason}; nothing was written")]
     InvalidLine { line: usize, reason: String },
 
     #[error("cannot add to {path}: {reason}; nothing was added")]
     InvalidNotePath { path: String, reason: String },
-
-    #[error("standard input is not one item with the ID {id}: {reason}; nothing was changed")]
-    InvalidEdit { id: String, reason: String },
 
     #[error(
         "{path} changed while srl was working on it, so it was not written; run the command \

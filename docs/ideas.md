@@ -186,17 +186,18 @@ questions", once it is planned.
   in srl blocks, which are fenced code blocks: Markdown's syntax, which
   also suits the formats built on it (MDX, Quarto), but not files where a
   fenced block means nothing, such as Org, AsciiDoc, reStructuredText or
-  the comments of source code. `srl` is not meant to tie you to Markdown,
-  even though Markdown is what makes the most sense for most notes. A
+  the comments of source code; or in JSONL notes, which hold nothing but
+  items. `srl` is not meant to tie you to Markdown, even though Markdown
+  is what makes the most sense for most notes. A
   program could take over the item syntax for the notes matched by a glob,
   as kind programs take over making cards: find the items in a note (their
   lines, header entries and fields), say which lines change for `srl id`,
   `srl accept`, `srl add` and `srl edit`, give the context, and look for
   likely mistakes for `srl lint`. Everything after reading the items
   (kinds, scheduling, the log) would stay the same. In `srl`, these are
-  already the functions of one module, the item syntax (see
-  [rust.md](rust.md), "The item syntax"), so a program would be another
-  implementation of them. Since those functions only say which lines
+  already the functions that each of the two built-in syntaxes provides
+  (see [rust.md](rust.md), "The item syntax"), so a program would be a
+  third implementation of them. Since those functions only say which lines
   change, `srl` would still check and write every change itself, keeping
   the guarantees of [notes.md](notes.md), "How srl writes to notes". It
   needs a plugin protocol of its own, much like the one of kind programs,

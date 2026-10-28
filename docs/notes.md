@@ -5,9 +5,16 @@ any Markdown file (see "Which files are notes"). An **item** is a question
 written inside a note. Everything else in a note is yours: `srl` reads it
 only to show it as context, and never changes it.
 
-Items are written in **srl blocks**: fenced code blocks whose language is
-`srl`. A block holds one item, with the item's entries on its opening
-fence, or several, each starting with an `@` line that holds its entries.
+Items are written in one of two **item syntaxes**, chosen by the note's
+file name (see "Item syntaxes"):
+
+- **srl blocks**, in every note but JSONL notes: fenced code blocks whose
+  language is `srl`, inside your Markdown. A block holds one item, with the
+  item's entries on its opening fence, or several, each starting with an
+  `@` line that holds its entries.
+- **JSONL**, in notes whose name ends with `.jsonl`: one item per line, as
+  a JSON object. These notes are data, written by scripts and agents, and
+  hold nothing but items.
 
 ````markdown
 # 〜をものともせず
@@ -30,7 +37,13 @@ A: That they admire whoever is braving the adversity.
 ````
 
 Rendered, each block is a code block that shows its items as written, set
-apart from the prose. In an editor, it reads the same.
+apart from the prose. In an editor, it reads the same. The same items in a
+JSONL note:
+
+```json
+{"id": "x7k2m9", "see": "japanese/grammar/wo-mono-tomo-sezu.md", "Q": "What does 〜をものともせず mean?", "A": "Undeterred by (adversity), braving."}
+{"id": "p4n8d2", "see": "japanese/grammar/wo-mono-tomo-sezu.md", "Q": "嵐を{{c1::ものともせず}}、漁師たちは海へ出た。"}
+```
 
 ## Which files are notes
 
@@ -42,18 +55,40 @@ apart from the prose. In an editor, it reads the same.
 `srl notes` lists them (see [cli.md](cli.md)), including the notes that
 hold no items.
 
-Every note is read the same way, whatever its name: a `.txt` note has the
-same item syntax, fenced code blocks and context as a `.md` note, and its
-fields are formatted as in [cards.md](cards.md), "Text formatting". The
-syntax is Markdown's, so it suits Markdown and the formats built on it,
-such as MDX and Quarto; which other files make sense as notes is up to
-you.
+So JSONL notes are read only when `include` matches them, for example with
+`include = ["**/*.md", "**/*.jsonl"]`, or `"items/**/*.jsonl"` to keep them
+in one folder. Every file that `include` matches must be a valid note, so a
+glob that matches JSON files meant for other programs makes them errors.
 
 A note's **path** is relative to the store's folder, with `/` between
 folders. Files are UTF-8. Both `\n` and `\r\n` line endings are read, and a
 UTF-8 byte order mark is ignored.
 
-## The item syntax
+## Item syntaxes
+
+**A note whose file name ends with `.jsonl` is in the JSONL syntax; every
+other note is in the srl block syntax.** The extension is matched exactly,
+in lowercase. Nothing else decides it, not even what the file holds.
+
+Every note but a JSONL note is read the same way, whatever its name: a
+`.txt` note has the same srl blocks, fenced code blocks and context as a
+`.md` note, and its fields are formatted as in [cards.md](cards.md), "Text
+formatting". The srl block syntax is Markdown's, so it suits Markdown and
+the formats built on it, such as MDX and Quarto; which other files make
+sense as notes is up to you.
+
+Both syntaxes write the same items: the same header entries (see "Header
+entries"), fields, IDs and status. Everything after reading the items
+(kinds, cards, scheduling, the log, selectors) is the same for both. They
+differ in what else a note holds, and so in its context (see "Context"),
+and in how `srl` writes to it (see "How srl writes to notes").
+
+Choosing the syntax by the extension is a convention, picked because it is
+one rule that needs no setting: a Markdown note full of JSON lines, or a
+`.jsonl` file of srl blocks, is rare (see [rationale.md](rationale.md),
+"Why JSONL notes, and why the extension decides").
+
+## The srl block syntax
 
 An item is a **header** followed by **field** lines, inside an srl block.
 The rules, in full:
@@ -149,17 +184,11 @@ and `A:` is allowed by rule 9, and so is the blank line inside `A`. The
 block is opened with four backticks so that the code block inside `Q`
 doesn't close it (rule 12).
 
-### Header entries
+The header entries of the srl block syntax (see "Header entries"):
 
-| Entry | Meaning | Default |
-|---|---|---|
-| `id:ID` | The item's ID (see "Identity"). | none: an item without an ID is an error until `srl id` gives it one |
-| `kind:NAME` | How the fields become cards (see [cards.md](cards.md), "Kinds"). | `qa` |
-| `see:PATH` | The note shown as context instead of the one the item is in (see "Context"). | the item's own note |
-| `draft` | The item is a draft (see "Status"). | not a draft |
-
-- An entry is `key:value`, or the flag `draft`. A value runs to the next
-  space, or is written in double quotes when it contains spaces:
+- An entry is `key:value`, or the flag `draft`: `id:x7k2m9`, `kind:qa`,
+  `see:PATH`, `draft`. A value runs to the next space, or is written in
+  double quotes when it contains spaces:
   `see:"japanese/grammar/wo mono.md"`. A value can't be empty, and there
   are no escapes inside quotes.
 - Each entry may appear at most once. Any other entry is an error, so a
@@ -169,18 +198,56 @@ doesn't close it (rule 12).
 A hand-written item needs no entries: a line ```` ```srl ````, the
 fields, and a line ```` ``` ````. `srl id` adds the ID.
 
+## The JSONL syntax
+
+A JSONL note holds one item per line, and nothing else:
+
+1. **Every line is an item object** (see "The item object"): one JSON
+   object of the item's header entries and its fields, such as
+   `{"id": "x7k2m9", "Q": "…", "A": "…"}`. The object takes the whole
+   line; JSON can't break it over several, since a line ending inside a
+   text is written `\n`.
+2. **Blank lines are allowed**, and ignored.
+3. **Any other line is an error**: text that is not JSON, JSON that is not
+   an object, or an object that is not a valid item object.
+
+An item's line is its header's line, and its last line, in `PATH:LINE`.
+Field text is anything JSON can write: line endings, code blocks, fences
+of any length, quotes and backslashes need nothing but JSON's escapes.
+
+A JSONL note is data, not prose: it is never a context of its own items
+(see "Context"), and `srl` writes each item it changes as a new line,
+without keeping its spacing or the order of its keys (see "How srl writes
+to notes"). Format the file with any JSON tool, such as `jq -c`, if you
+want; `srl` reads it the same.
+
+## Header entries
+
+| Entry | Meaning | Default |
+|---|---|---|
+| `id` | The item's ID (see "Identity"). | none: an item without an ID is an error until `srl id` gives it one |
+| `kind` | How the fields become cards (see [cards.md](cards.md), "Kinds"). | `qa` |
+| `see` | The note shown as context instead of the one the item is in (see "Context"). | the item's own note |
+| `draft` | The item is a draft (see "Status"). | not a draft |
+
+How they are written depends on the syntax: `id:x7k2m9` on a fence or an
+`@` line (see "The srl block syntax"), `"id": "x7k2m9"` in an item object
+(see "The item object"). In both, each entry may be given once, and a
+misspelled one is an error.
+
 ## Identity
 
 - **An item ID** is made of lowercase letters `a`–`z` and digits, 1 to 32
   characters. `srl id` and `srl add` make random ones of 6 characters
   (`SRL_SEED` makes them repeatable; see [cli.md](cli.md),
-  "Conventions"); you may also type one yourself.
+  "Conventions"); you may also give one yourself, in a note or to `srl
+  add`.
 - **IDs are unique in the store.** Two items with the same ID are an error,
   which happens when an item is copied: delete the ID from the copy and run
   `srl id`.
 - **The ID is the identity.** Edit the item, move it within the note or to
-  another note, into another block or out of one, rename the note: the item
-  keeps its cards and their history.
+  another note, into another block or out of one, between the two
+  syntaxes, rename the note: the item keeps its cards and their history.
 - An item gives one or more cards, and each card has its own ID, made from
   the item's: `x7k2m9`, or `p4n8d2-1` and `p4n8d2-2` (see
   [cards.md](cards.md), "Card IDs"). Because an item ID never contains `-`,
@@ -196,7 +263,7 @@ Every card has one status, usable in selectors as `status:NAME`:
 
 | Status | Studied? | Comes from |
 |---|---|---|
-| `draft` | no | The item's header has `draft`. |
+| `draft` | no | The item has `draft`. |
 | `suspended` | no | The card was suspended with `srl suspend`, and not unsuspended since (see [log.md](log.md)). |
 | `active` | yes | Neither. |
 
@@ -204,21 +271,23 @@ A card that is both a draft and suspended is `draft`.
 
 Drafts exist so that items written by agents or imports never enter your
 study queue without your approval. `srl accept SELECTOR` removes `draft`
-from the headers of the matching items. Suspending is about studying, not
+from the matching items. Suspending is about studying, not
 about the note, so it is recorded in the log and never changes the note.
 
 ## Context
 
-An item's **context** is the note named by `see:` if the header has one,
-and otherwise the note the item is in. Frontends show it after the answer
-of each of the item's cards, taking it from `srl next --json`; `srl show`
-prints it too.
+An item's **context** is the note named by `see` if the item has one, and
+otherwise the note the item is in, **unless that is a JSONL note: an item
+of a JSONL note without `see` has no context.** Frontends show it after the
+answer of each of the item's cards, taking it from `srl next --json`; `srl
+show` prints it too.
 
-- `see:` is a path relative to the store's folder, to a note of the store.
-  A `see:` that names anything else is an error.
-- `see:` is meant for items that ask about another note, such as items an
+- `see` is a path relative to the store's folder, to a note of the store,
+  in either syntax. A `see` that names anything else is an error.
+- `see` is meant for items that ask about another note, such as items an
   agent wrote in a file of their own (see
-  [guides/agents.md](guides/agents.md)).
+  [guides/agents.md](guides/agents.md)). Every item of a JSONL note that
+  asks about a note needs it.
 
 The context is given in one of three **modes**. How much of the note to
 show is a choice of whoever shows it, so the mode is not a setting of the
@@ -235,9 +304,18 @@ In every mode, the YAML front-matter is removed, runs of blank lines become
 one, and blank lines at the start and the end are removed. A block with an
 error is removed in every mode.
 
+**A JSONL note named by `see` is given as it is**, in modes `prose` and
+`full` alike: every line, with nothing removed, as the file holds it.
+
 **A context with nothing but blank space left is no context**, exactly as
 in mode `none`: frontends show nothing, and `context` is `null` in JSON. So
 a note that holds only items has no context in `prose` mode.
+
+> **TODO (design):** the two syntaxes give their notes as context by
+> different rules: srl blocks are removed from a note in `prose` mode, but
+> a JSONL note named by `see` is given whole, its items included, and is
+> never the context of its own items. Each rule is simple, but together
+> they are not one rule; a single rule for both is wanted.
 
 ## How srl writes to notes
 
@@ -245,18 +323,26 @@ Only four commands ever change a note:
 
 | Command | Changes |
 |---|---|
-| `srl id` | Adds `id:ID` to headers that have no ID. |
-| `srl accept SELECTOR` | Removes `draft` from the headers of the matching items. |
-| `srl add NOTE` | Appends new items to the end of `NOTE`, each in an srl block of its own, or creates it. |
-| `srl edit ID --stdin` | Replaces the lines of one item with new ones, for scripts and agents. |
+| `srl id` | Gives an ID to the items that have none. |
+| `srl accept SELECTOR` | Removes `draft` from the matching items. |
+| `srl add NOTE` | Appends new items to the end of `NOTE`, or creates it. |
+| `srl edit --stdin` | Replaces the lines of the items it is given with new ones, for scripts and agents. |
 
 Every other command only reads notes. The rules for writing:
 
-1. **`srl id` and `srl accept` change header lines only.** `id:ID` is added
-   right after the `srl` of an opening fence or the `@` of an `@` line,
-   with one space before it. `draft` is removed together with the spaces
-   before it. Every other byte of the file stays the same, including line
-   endings and a byte order mark.
+1. **Only the lines of the items changed are written; every other byte of
+   the file stays the same**, including line endings and a byte order
+   mark. How an item's lines change depends on the syntax:
+   - **srl blocks: `srl id` and `srl accept` change header lines only.**
+     `id:ID` is added right after the `srl` of an opening fence or the `@`
+     of an `@` line, with one space before it. `draft` is removed together
+     with the spaces before it. `srl edit` writes the item as `srl add`
+     would, in a block of its own, or, when it starts with an `@` line,
+     as an `@` line and its field lines in the same block.
+   - **JSONL: the item's line is written again**, as the item object of
+     its entries and fields, in that order: only the entries that differ
+     from their defaults, without spaces (`{"id":"x7k2m9","Q":"…"}`). Its
+     spacing, the order of its keys and its escapes are not kept.
 2. **Every note is checked before the first one is written.** If any note
    has an error, the command reports every error and changes nothing. For
    `srl id`, an item without an ID is not an error, since that is what it
@@ -273,12 +359,10 @@ Every other command only reads notes. The rules for writing:
    temporary file may be left behind; delete it (see
    [store.md](store.md), "Version control and syncing").
 5. **Every change is reported.** `srl id` prints one line per item it gave
-   an ID: the ID and `PATH:LINE`, separated by two spaces. `srl accept` and
-   `srl add` print the IDs of the items they changed or added (see
-   [cli.md](cli.md)). With `--dry-run` they write nothing, and print the
-   same (`srl add`: the items it would write). `srl edit ID --stdin`
-   changes only the item it was given, so it prints nothing; with
-   `--dry-run` it only checks its input.
+   an ID: the ID and `PATH:LINE`, separated by two spaces. `srl accept`,
+   `srl add` and `srl edit` print the IDs of the items they changed or
+   added (see [cli.md](cli.md)). With `--dry-run` they write nothing, and
+   print the same (`srl add`: the items it would write).
 
 `srl add`, `srl edit` and their formats are described in [cli.md](cli.md).
 
@@ -301,6 +385,8 @@ lines, and exits with status 2. The errors are:
 - a header not followed by a field line (rule 6);
 - a line inside an item that starts with one space or a tab (rule 8);
 - a line inside a block that belongs to no item (rule 11);
+- a line of a JSONL note that is not blank and not a valid item object
+  (see "The item object");
 - an unknown, repeated or empty header entry, or an unclosed quote;
 - an item without an ID (`srl id` fixes it), an invalid ID, or an ID that
   another item already has;
@@ -309,7 +395,7 @@ lines, and exits with status 2. The errors are:
   [cards.md](cards.md));
 - a kind program that fails as a whole, reported once, without a line
   (see [cards.md](cards.md), "How srl calls them");
-- a `see:` that doesn't name a note of the store.
+- a `see` that doesn't name a note of the store.
 
 `srl id` is the exception for items without an ID: that is the error it
 fixes. `srl check` reports the same errors and more (see [cli.md](cli.md)).
@@ -319,24 +405,55 @@ fixes. `srl check` reports the same errors and more (see [cli.md](cli.md)).
 > warnings and skipping the broken items; none is decided (see
 > [overview.md](overview.md), "Open questions").
 
-## Items as JSON
+## The item object
 
-`srl show --json` prints the item of each card or item ID it is given, one
-JSON object per line:
+The **item object** is an item as one JSON object: its header entries and
+its fields side by side. It is the one JSON form of an item everywhere:
+
+- a line of a JSONL note (see "The JSONL syntax");
+- a line of `srl add --stdin` and of `srl edit --stdin` (see
+  [cli.md](cli.md));
+- what `srl show --json` prints, with every entry and the keys only `srl`
+  gives.
+
+So what `srl show --json` prints can be changed and given back to `srl
+edit --stdin` as it is.
 
 ```json
-{"id": "p4n8d2", "path": "japanese/grammar/wo-mono-tomo-sezu.md", "line": 11,
- "kind": "qa", "see": null, "draft": false,
- "fields": {"Q": "嵐を{{c1::ものともせず}}、漁師たちは海へ出た。"},
+{"id": "p4n8d2", "kind": "qa", "see": null, "draft": false,
+ "Q": "嵐を{{c1::ものともせず}}、漁師たちは海へ出た。",
+ "path": "japanese/grammar/wo-mono-tomo-sezu.md", "line": 11,
  "cards": ["p4n8d2-1"],
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
 ```
 
-- `line` is the line of the header, counting from 1: the opening fence of
-  a block that holds one item, or the item's `@` line.
-- `see` is the path given by `see:`, or `null`. The context comes from the
-  note at `see`, or at `path` when `see` is `null`.
-- `fields` holds the fields in the order they are written.
+Its keys:
+
+| Key | Value |
+|---|---|
+| `id` | The item's ID, as text. |
+| `kind` | The kind's name, as text. `"qa"` is the same as leaving it out. |
+| `see` | The path of the note shown as context, as text. `null` is the same as leaving it out. |
+| `draft` | `true` or `false`. `false` is the same as leaving it out. |
+| a field name: uppercase letters `A`–`Z`, digits and `_`, starting with a letter | The field's text. |
+| `path`, `line`, `cards`, `context` | Given by `srl` only (see below), and ignored wherever an item object is read. |
+
+- Header entries are lowercase and field names uppercase, so they never
+  clash. Any other key is an error, so a typo such as `drfat` fails
+  instead of being ignored. So is a key given twice, which JSON allows.
+- The fields are in the order of their keys. An item object has at least
+  one field.
+- Text values can't be empty, except a field's. Values of the wrong type
+  are errors: an ID, a kind or a path written as a number, a draft
+  written as `"yes"`.
+
+`srl show --json` prints every entry, defaults included, its fields, then
+the keys only `srl` gives:
+
+- `path` is the note the item is in, and `line` the line of its header,
+  counting from 1: the opening fence of a block that holds one item, the
+  item's `@` line, or its line in a JSONL note.
 - `cards` lists the IDs of the item's cards, in order.
 - `context` is the context in the mode chosen, or `null` when there is
-  none (mode `none`, or nothing but blank space left).
+  none (mode `none`, an item of a JSONL note without `see`, or nothing but
+  blank space left).

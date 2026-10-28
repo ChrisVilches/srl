@@ -99,8 +99,46 @@ indented closing fence is valid CommonMark, and `srl` reads blocks as
 renderers do. LLMs are prone to this mistake (see
 [guides/agents.md](guides/agents.md), "Limitations of the item syntax for
 LLMs"). The syntax is also Markdown's: it suits Markdown
-and the formats built on it, and any other file read as a note has to use
-it too (see [notes.md](notes.md), "Which files are notes").
+and the formats built on it, and any other file read as a note, but a
+JSONL note, has to use it too (see [notes.md](notes.md), "Item
+syntaxes").
+
+## Why JSONL notes, and why the extension decides
+
+Most questions are not typed next to the knowledge by hand: scripts and
+agents write them, in files of their own, with `see` naming the note they
+ask about. For them, srl blocks are a syntax to get right for no gain:
+fence lengths, continuation lines, two forms of block. A JSON object per
+line is what such programs write best, and `srl add` already took it. A
+JSONL note is that format kept as is: parsing a line is a JSON parse, a
+field holds any text without counting fences, and an item is one line, so
+`PATH:LINE`, line diffs and `srl`'s line edits work as they do for srl
+blocks. JSONL rather than one JSON document because a document has no
+lines that are items: editing one item would mean rewriting the file.
+YAML was left out because free text in it is easy to misread silently: a
+` #` starts a comment that drops the rest of a line, and `no`, `1.0` or a
+leading `{` change what a value is.
+
+The item object is one format everywhere an item is JSON: a line of a
+JSONL note, a line given to `srl add` or `srl edit`, and what `srl show
+--json` prints. So what `srl` prints can be changed and given back as it
+is, and programs need to know one format only.
+
+A note's syntax is decided by its extension, `.jsonl`, and nothing else:
+not a setting, and not what the file holds. Looking inside a file can't
+tell a JSONL note with a mistake from a file that is not one, so a broken
+note would silently give no items. The extension is a convention, and an
+opinionated one: it means a Markdown note can't hold JSON lines, nor a
+`.jsonl` file srl blocks, which is rarely wanted. Which JSONL files are
+notes is still up to `include`, so JSON files meant for other programs
+stay out of the store unless a glob names them.
+
+Trade-off: `srl` writes a JSONL item it changes as a new line, without its
+spacing or key order, so a JSONL note is not for formatting by hand. And
+the two syntaxes give their notes as context by different rules (see
+[notes.md](notes.md), "Context"): srl blocks are removed from a note, but
+a JSONL note is all items, so it is given whole when `see` names it, and
+is never the context of its own items.
 
 ## Why only srl blocks make items
 
@@ -143,10 +181,10 @@ less annoying are still to be designed (see [overview.md](overview.md),
 
 Your notes are yours. `srl id` and `srl accept` change header lines only,
 adding an ID or removing `draft`; `srl add` only appends new items; and
-`srl edit ID --stdin` replaces the lines of the one item it was given, or
-its block when the item has the block to itself. No
-command rewrites a note, so a change by `srl` can't damage text you wrote,
-and is easy to see in a diff.
+`srl edit --stdin` replaces the lines of the items it was given, or the
+block of an item that has its block to itself. In a JSONL note, the line
+of the item changed is written again. No command rewrites a note, so a
+change by `srl` can't damage text you wrote, and is easy to see in a diff.
 
 ## Why IDs, not positions
 
@@ -456,9 +494,10 @@ look right in every app, and `srl` assumes none.
 Which files are notes is two lists of globs, `include` and `exclude`, and
 `exclude` always wins. Globs say more than a list of extensions (only the
 notes under one folder, say) with the same matching that `exclude` and
-`path:` already use. Every note is read with the same syntax whatever its
-name, so there is no list of file types to keep up to date, and no rule
-for each.
+`path:` already use. Every note is read with the srl block syntax whatever
+its name, except JSONL notes, so there is no list of file types to keep up
+to date, and one rule for the exception (see "Why JSONL notes, and why the
+extension decides").
 
 Trade-off: a glob can make a file a note whose item syntax makes no sense
 for it, such as HTML or source code; `srl` reads it anyway.

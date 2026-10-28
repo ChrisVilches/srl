@@ -1,7 +1,7 @@
 //! An item's context: the note shown after the answer of its cards (see
 //! `docs/notes.md`, "Context").
 
-use crate::note::syntax::{self, Role};
+use crate::note::syntax::{Role, Syntax};
 use crate::note::{lines, read_note};
 use crate::{Item, Result, Store};
 
@@ -17,20 +17,28 @@ pub enum ContextMode {
 }
 
 /// The context of `item` in `mode`: the note named by `see:`, or the
-/// item's own note. `None` in mode `none`, and when nothing but blank space
-/// is left.
+/// item's own note unless it is a JSONL note. `None` in mode `none`, and
+/// when nothing but blank space is left.
 pub fn context(store: &Store, item: &Item, mode: ContextMode) -> Result<Option<String>> {
     if mode == ContextMode::None {
         return Ok(None);
     }
-    Ok(of_text(&read_note(store, item.context_path())?, mode))
+    let Some(path) = item.context_path() else {
+        return Ok(None);
+    };
+    let text = read_note(store, path)?;
+    Ok(match Syntax::of(path) {
+        Syntax::Blocks => of_text(&text, mode),
+        // A JSONL note is given as it is, in every mode.
+        Syntax::Jsonl => (!text.trim().is_empty()).then_some(text),
+    })
 }
 
-/// The context of a note whose text is `text`, in `mode`.
+/// The context of a note of srl blocks whose text is `text`, in `mode`.
 pub(crate) fn of_text(text: &str, mode: ContextMode) -> Option<String> {
     let kept = lines(text)
         .into_iter()
-        .zip(syntax::parse(text).roles)
+        .zip(Syntax::Blocks.parse(text).roles)
         .filter(|(_, role)| match role {
             Role::Prose => true,
             Role::Item => mode == ContextMode::Full,

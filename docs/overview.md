@@ -1,8 +1,9 @@
 # srl — overview
 
 `srl` is a spaced repetition system for the command line. You write
-questions and answers inside your Markdown study notes, `srl` turns them
-into **cards**, records how well you answered, and schedules each card for
+questions and answers inside your Markdown study notes, or have scripts and
+agents write them in JSONL files of their own; `srl` turns them into
+**cards**, records how well you answered, and schedules each card for
 review with the FSRS algorithm.
 
 This document explains the main ideas. Each area has its own detailed
@@ -37,7 +38,9 @@ note-taking app.
   else serves them.
 - **Questions live in your notes.** You write a question next to the
   knowledge it asks about, in the same file, in a few keystrokes. The note
-  around it is the question's context.
+  around it is the question's context. Questions written by scripts and
+  agents may instead live in JSONL notes, as data, each naming the note it
+  asks about.
 - **Notes stay notes.** What `srl` adds to a note is hidden when the note is
   rendered, and reads naturally when it is not. A note with questions in it
   is still an ordinary Markdown file for every other program.
@@ -64,8 +67,8 @@ note-taking app.
 ## Principles
 
 1. **The store is the database, and it is made of text files.** Items are
-   lines in Markdown notes, and reviews are lines in JSONL files. A SQLite
-   index exists only as a cache that can be deleted at any time.
+   lines in notes, Markdown or JSONL, and reviews are lines in JSONL files.
+   A SQLite index exists only as a cache that can be deleted at any time.
 2. **The core contains no LLM.** Anything an agent can do, a human can also
    do with the same commands.
 3. **The CLI is the API.** Every command is non-interactive, with JSON
@@ -86,6 +89,7 @@ note-taking app.
  Your study folder (the store): the data layer
  ┌──────────────────────────────────────────────────────────────────────┐
  │   **/*.md            your notes (by default); items inside them      │
+ │   *.jsonl            notes of items only, if `include` names them    │
  │   .srl/config.toml   configuration                                   │
  │   .srl/log/*.jsonl   append-only review events                       │
  └──────────────────────────────────────────────────────────────────────┘
@@ -106,10 +110,11 @@ note-taking app.
 |---|---|
 | **Store** | A folder of notes (Markdown files by default) with a `.srl/` folder in it, which holds the configuration, the log and caches. |
 | **Note** | A file in the store that `srl` reads for items: by default, any Markdown file. A note may hold items; the rest of it is yours. |
-| **Item** | A question written in a note, in an srl block (a fenced code block whose language is `srl`): a header such as the fence ```` ```srl id:x7k2m9 ```` followed by fields such as `Q:` and `A:`. It has an ID, and gives one or more cards. |
+| **Item** | A question written in a note: header entries (`id`, `kind`, `see`, `draft`) and fields such as `Q` and `A`. In Markdown notes it is in an srl block (a fenced code block whose language is `srl`): a header such as the fence ```` ```srl id:x7k2m9 ```` followed by fields such as `Q:` and `A:`; in a JSONL note it is a line, as a JSON object. It has an ID, and gives one or more cards. |
+| **Item syntax** | How items are written in a note: srl blocks, or JSONL in notes whose name ends with `.jsonl`. |
 | **Kind** | How an item's fields become cards. `qa`, a question and an answer with optional cloze deletions, is built in and the default; any other kind is a program named in `.srl/config.toml`. A kind also decides which of an item's cards are siblings, and describes its fields (`srl kinds`). |
 | **Card** | One question, ready to show: an ID, a prompt, and, when the kind gives them, the prompt as revealed with the answer and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
-| **Context** | The note an item belongs to, or the note its `see:` names, which frontends show after the answer of its cards. |
+| **Context** | The note an item belongs to, or the note its `see` names, which frontends show after the answer of its cards. A JSONL note is never the context of its own items. |
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
 | **Frontend** | A program outside `srl` that shows cards to a person and records the ratings: it reads cards through the frontend contract and records ratings with `srl review`. `srl` has none built in. |
 | **Review event** | One line in the log: this card was rated this way, at this time. |
@@ -139,7 +144,7 @@ These five formats are fixed, because everything else depends on them:
 
 | Contract | Joins | Document |
 |---|---|---|
-| **Item syntax** | Authors (you, agents, imports) and everything that reads notes | [notes.md](notes.md) |
+| **Item syntaxes and the item object** | Authors (you, agents, imports) and everything that reads notes; `srl add`, `srl edit` and `srl show --json` | [notes.md](notes.md) |
 | **Card** | Kinds and everything that shows a card | [cards.md](cards.md) |
 | **Frontend contract** | `srl` and frontends: `srl next --json` | [frontends.md](frontends.md) |
 | **Review event** | `srl review` and the scheduler or any analysis | [log.md](log.md) |
@@ -153,7 +158,7 @@ extensions.
 
 | Fixed (in the core) | Pluggable (outside the core) |
 |---|---|
-| Store layout, item syntax, the `qa` kind | Frontends (terminal, web, ambient, …) |
+| Store layout, item syntaxes, the `qa` kind | Frontends (terminal, web, ambient, …) |
 | Card format, frontend contract | Agents and their prompts, tools and skills |
 | Review event format, FSRS scheduling, the sibling rule | Judging answers, by you or an agent |
 | Selector language | Writing notes and items: by hand, by script, by agent |
@@ -222,7 +227,7 @@ The specification:
 | Document | Contents |
 |---|---|
 | [store.md](store.md) | Store layout, how a store is found, configuration, the index cache |
-| [notes.md](notes.md) | Notes and the item syntax: srl blocks, headers, fields, IDs, status, context, how `srl` writes to notes |
+| [notes.md](notes.md) | Notes and the item syntaxes: srl blocks, JSONL notes, header entries, fields, the item object, IDs, status, context, how `srl` writes to notes |
 | [cards.md](cards.md) | The `qa` kind, cloze deletions, kind programs and groups of siblings, card IDs, the card format and its text formatting |
 | [scheduling.md](scheduling.md) | Ratings, FSRS, days, choosing the next card, siblings, new-card limits, states |
 | [log.md](log.md) | The review log and its events |
@@ -283,3 +288,7 @@ Main design decisions still to take:
   way, and running it by hand takes more knowledge than a person should
   need. A safer helper is wanted, in `srl` or built on top
   ([scheduling.md](scheduling.md), "Moving history").
+- **One context rule for both item syntaxes.** Today srl blocks are
+  removed from a Markdown note shown as context, but a JSONL note named by
+  `see` is shown whole, and is never the context of its own items
+  ([notes.md](notes.md), "Context").

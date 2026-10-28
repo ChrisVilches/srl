@@ -23,7 +23,7 @@ study/
 
 | Path | Source of truth? | Written by |
 |---|---|---|
-| notes (`**/*.md` by default) | yes | you, any editor; `srl id`, `srl accept`, `srl add` and `srl edit ID --stdin` (see [notes.md](notes.md), "How srl writes to notes") |
+| notes (`**/*.md` by default) | yes | you, any editor, scripts and agents; `srl id`, `srl accept`, `srl add` and `srl edit --stdin` (see [notes.md](notes.md), "How srl writes to notes") |
 | `.srl/config.toml` | yes | you |
 | `.srl/log/` | yes | `srl review`, `srl reset`, `srl move`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |
 | `.srl/cache/` | no | `srl`, automatically |
@@ -119,7 +119,9 @@ programs are run, and what `card_timeout` limits, is in
 
 - `include` replaces the default rather than adding to it:
   `include = ["**/*.md", "**/*.txt"]` reads Markdown and text files,
-  `include = ["notes/**/*.md"]` only the Markdown files under `notes/`.
+  `include = ["notes/**/*.md"]` only the Markdown files under `notes/`,
+  and `include = ["**/*.md", "items/**/*.jsonl"]` also the JSONL notes
+  under `items/` (see [notes.md](notes.md), "Item syntaxes").
 - `exclude` always wins: `exclude = ["templates/**", "inbox.md"]` ignores
   every file under `templates/` and the file `inbox.md`, whatever
   `include` says.

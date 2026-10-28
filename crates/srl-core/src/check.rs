@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use serde::Serialize;
 
 use crate::kind::{has_near_deletion, has_revealing_hint};
-use crate::note::syntax::{self, Lines};
+use crate::note::syntax::Syntax;
 use crate::note::{lines, read_note};
 use crate::{CardId, Config, Error, Memories, Notes, Result, Store};
 
@@ -69,22 +69,27 @@ pub fn lint(store: &Store, config: &Config) -> Result<Vec<Lint>> {
     let mut found = Vec::new();
     for path in store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())? {
         let text = read_note(store, &path)?;
-        found.extend(lint_text(&text).into_iter().map(|(line, message)| Lint {
-            path: path.clone(),
-            line,
-            message,
-        }));
+        let syntax = Syntax::of(&path);
+        found.extend(
+            lint_text(syntax, &text)
+                .into_iter()
+                .map(|(line, message)| Lint {
+                    path: path.clone(),
+                    line,
+                    message,
+                }),
+        );
     }
     Ok(found)
 }
 
 /// The suspicious lines of one note, with their numbers (from 1), in
-/// order: the syntax's own (see [`syntax::lint`]), then the `qa` kind's,
+/// order: the syntax's own (see [`Syntax::lint`]), then the `qa` kind's,
 /// in the `Q` of its items.
-fn lint_text(text: &str) -> Vec<(usize, String)> {
+fn lint_text(syntax: Syntax, text: &str) -> Vec<(usize, String)> {
     let lines = lines(text);
-    let mut found = syntax::lint(text);
-    for item in syntax::parse(text).items {
+    let mut found = syntax.lint(text);
+    for item in syntax.parse(text).items {
         if item
             .entries
             .kind
@@ -98,24 +103,32 @@ fn lint_text(text: &str) -> Vec<(usize, String)> {
             .iter()
             .zip(&item.spans)
             .find(|(field, _)| field.key == "Q");
-        if let Some((_, span)) = question {
-            found.extend(question_suspicions(&lines, *span));
-        }
+        let Some((field, span)) = question else {
+            continue;
+        };
+        found.extend(match syntax {
+            // The lines of the note that `Q` is written on.
+            Syntax::Blocks => question_suspicions(
+                lines
+                    .iter()
+                    .enumerate()
+                    .take(span.last)
+                    .skip(span.first - 1)
+                    .map(|(index, line)| (index + 1, *line)),
+            ),
+            // `Q`'s text, all on the item's line.
+            Syntax::Jsonl => question_suspicions(field.text.lines().map(|line| (item.line, line))),
+        });
     }
     found.sort_by_key(|(line, _)| *line);
     found
 }
 
-/// The suspicious lines of the `Q` of a `qa` item, written on the lines
-/// `span` of `lines`.
-fn question_suspicions(lines: &[&str], span: Lines) -> Vec<(usize, String)> {
+/// The suspicious lines of the `Q` of a `qa` item, each with the line of
+/// the note it is on.
+fn question_suspicions<'a>(lines: impl Iterator<Item = (usize, &'a str)>) -> Vec<(usize, String)> {
     let mut found = Vec::new();
-    for (index, line) in lines
-        .iter()
-        .enumerate()
-        .take(span.last)
-        .skip(span.first - 1)
-    {
+    for (number, line) in lines {
         let message = if has_near_deletion(line) {
             Some(
                 "this looks like a cloze deletion but isn't one, so it is shown as written; \
@@ -129,7 +142,7 @@ fn question_suspicions(lines: &[&str], span: Lines) -> Vec<(usize, String)> {
         } else {
             None
         };
-        found.extend(message.map(|message| (index + 1, message.to_owned())));
+        found.extend(message.map(|message| (number, message.to_owned())));
     }
     found
 }
@@ -139,7 +152,10 @@ mod tests {
     use super::*;
 
     fn found_lines(text: &str) -> Vec<usize> {
-        lint_text(text).into_iter().map(|(line, _)| line).collect()
+        lint_text(Syntax::Blocks, text)
+            .into_iter()
+            .map(|(line, _)| line)
+            .collect()
     }
 
     #[test]
@@ -152,5 +168,13 @@ mod tests {
     fn the_syntax_and_the_kind_are_both_linted_in_line_order() {
         let text = "Q: bare\n\n```srl id:abc\nQ: {{C1::upper}}\n```\n\n- ```srl\n";
         assert_eq!(found_lines(text), [1, 4, 7]);
+    }
+
+    #[test]
+    fn in_a_jsonl_note_only_questions_are_linted_at_their_items_line() {
+        let text = "{\"id\": \"abc\", \"Q\": \"{{c1::fine}}\"}\n\n{\"id\": \"abd\", \"Q\": \"{{C1::upper}}\", \"A\": \"Q: a\"}\n";
+        let found = lint_text(Syntax::Jsonl, text);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].0, 3);
     }
 }

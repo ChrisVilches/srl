@@ -249,12 +249,12 @@ standard error is free for messages.
 | `groups` | the item, as for `validate` | its cards, in groups: `{"groups": [["te", "past"], ["negative"]]}` |
 | `make` | the item, plus `"suffix"` (`null` for a card with the item's ID), `"context"` (the item's context in mode `prose`, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | the card's fields of "Format" above, without `id`: `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`, where only `prompt` must be present, and `prompt_revealed` and `answer` may be left out, which is the same as `null`; or, when this card can't be made, `{"error": "…"}` |
 
-`fields` is as in `srl show --json` (see [notes.md](notes.md), "Items as
-JSON"). No key is written twice in an item, whatever its kind (see
-[notes.md](notes.md), "Errors"), so the object loses nothing. An error's
-`message` and `field` follow the rules of messages in [cli.md](cli.md):
-a plain sentence that says what to do; `field` is a field name, made as
-in [notes.md](notes.md), "The item syntax".
+`fields` is an object of the item's fields, keyed by name, in the order
+they are written. No key is written twice in an item, whatever its kind
+(see [notes.md](notes.md), "Errors"), so the object loses nothing. An
+error's `message` and `field` follow the rules of messages in
+[cli.md](cli.md): a plain sentence that says what to do; `field` is a
+field name, made as in [notes.md](notes.md), "The item object".
 
 **`groups` never gets the context or the day**, so that card IDs depend
 on the item's fields alone (see [rationale.md](rationale.md), "Why
@@ -340,7 +340,7 @@ asked about the item.
 
 - **Reading items**, on every command that reads them: one `validate`
   call per kind program, for all of its items in the store whose answer
-  isn't kept (or, for `srl add` and `srl edit ID --stdin`, all the items
+  isn't kept (or, for `srl add` and `srl edit --stdin`, all the items
   given), then one `groups` call for the items it accepted whose answer
   isn't kept. So a command starts at most two processes per kind
   program, however many items it has, and none when every answer is

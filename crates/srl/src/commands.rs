@@ -44,7 +44,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         }
         Command::Cards { ids, json } => cards(&store()?, &ids, json.json),
         Command::Add(args) => add(&store()?, &args),
-        Command::Edit { id, dry_run, .. } => edit(&store()?, &id, dry_run.dry_run),
+        Command::Edit { dry_run, .. } => edit(&store()?, dry_run.dry_run),
         Command::Accept {
             selector: terms,
             dry_run,
@@ -401,12 +401,13 @@ fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
     Ok(found_anything(!added.ids.is_empty()))
 }
 
-/// `srl edit ID --stdin`: replaces the item with standard input.
-fn edit(store: &Store, id: &str, dry_run: bool) -> anyhow::Result<Outcome> {
+/// `srl edit --stdin`: replaces items with standard input, and prints
+/// their IDs.
+fn edit(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
     let (_, notes) = load(store)?;
-    let item = notes.item_of(id)?;
-    srl_core::replace(store, &notes, item, &stdin()?, dry_run)?;
-    Ok(Outcome::Done)
+    let ids = srl_core::edit(store, &notes, &stdin()?, dry_run)?;
+    output::ids(&ids);
+    Ok(found_anything(!ids.is_empty()))
 }
 
 /// `srl accept`: removes `draft` from the items of the matching draft

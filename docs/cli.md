@@ -73,8 +73,8 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
 | `srl add NOTE --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
-| `srl edit ID --stdin` | Replace the item in its note with standard input, which must be exactly one srl block holding exactly one item, with the same ID (see "Editing an item" below). The rest of the note is unchanged. Prints nothing; with `--dry-run`, only checks the input. |
-| `srl accept SELECTOR` | Remove `draft` from the headers of the items of matching draft cards. |
+| `srl edit --stdin` | Replace items in their notes with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). The rest of each note is unchanged. Prints the IDs of the items. |
+| `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
 | `srl suspend SELECTOR` | Suspend matching active cards. |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
 | `srl move FROM TO` | Give the history of the orphan `FROM` to the card `TO` (see [scheduling.md](scheduling.md), "Moving history"). Prints nothing; with `--dry-run`, the event it would write. |
@@ -87,40 +87,57 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 ```
 
 `due` is the study day the card is due, or `null` for a new card. `srl show
---json` prints items as described in [notes.md](notes.md), "Items as JSON".
-Without `--json`, `srl show` prints, for each item: a line `PATH:LINE`, the
-item as an srl block of its own, and, if there is a context, a line `---`
-and the context. Items are separated by blank lines. `--context MODE`
-chooses the context's mode (see [notes.md](notes.md), "Context"); it is
-`prose` without it.
+--json` prints one item object per item, with every entry and the keys
+only `srl` gives (see [notes.md](notes.md), "The item object"). Without
+`--json`, `srl show` prints, for each item: a line `PATH:LINE`, the item as
+written in its syntax, and, if there is a context, a line `---` and the
+context. Items are separated by blank lines. `--context MODE` chooses the
+context's mode (see [notes.md](notes.md), "Context"); it is `prose`
+without it.
 
-**An item as an srl block of its own** is: an opening fence made of the
-same backticks or tildes as its block's, `srl`, and the item's entries as
+**An item as written** is, in a JSONL note, its line. In srl blocks, it is
+the item as an srl block of its own: an opening fence made of the same
+backticks or tildes as its block's, `srl`, and the item's entries as
 written (after a space, when it has some); the item's field lines as
-written; and a closing fence like the opening one. `srl edit ID --stdin`
-takes this form, so that what `srl show` prints can be edited and given
-back.
+written; and a closing fence like the opening one.
 
-### Editing an item
+### Editing items
 
 ```sh
-srl show x7k2m9 --context none | tail -n +2 > item.md   # without its PATH:LINE
-$EDITOR item.md
-srl edit x7k2m9 --stdin < item.md
+srl show x7k2m9 --json > item.jsonl
+$EDITOR item.jsonl
+srl edit --stdin < item.jsonl
 ```
 
-Standard input must be one srl block holding one item, in either form (see
-[notes.md](notes.md), "The item syntax"), whose ID is the one given, with
-nothing around it but blank lines. It must be a valid item, as in a note.
-How it is written depends on where the item is:
+Standard input holds one item object per line (see [notes.md](notes.md),
+"The item object"), each with the `id` of the item it replaces, which can
+be in any note and either syntax. Blank lines are ignored. What `srl show
+--json` prints is such input: its keys `path`, `line`, `cards` and
+`context` are ignored. Each object is the whole new item, not a change to
+the old one: an entry left out takes its default, and a field left out is
+gone.
 
-- **An item that has its block to itself** is replaced, block and all, by
-  the item as a block of its own, made from standard input.
-- **An item that starts with an `@` line** keeps its place in its block:
-  its lines are replaced by an `@` line with the new entries (`@` alone
-  when there are none) and the new field lines. A field line that would
-  close the block is an error; open and close the block with a longer
-  fence.
+- **Every line is checked before anything is written**: if any line is not
+  a valid item object, names no item, names an item another line names
+  too, or makes an item that is not valid (a `see` that doesn't name a
+  note of the store, an unknown kind, fields the kind doesn't accept),
+  `srl edit` reports the first such line and changes nothing. The lines
+  are checked together, so each kind program is asked once about all of
+  them (see [cards.md](cards.md), "How srl calls them"); a kind program
+  that fails as a whole is reported as itself, not as a line.
+- **Each item is written in the syntax of its note** (see
+  [notes.md](notes.md), "How srl writes to notes"):
+  - In a JSONL note, its line is written again.
+  - In srl blocks, an item that has its block to itself is replaced, block
+    and all, by a block of its own, as `srl add` writes it. An item that
+    starts with an `@` line keeps its place in its block: its lines are
+    replaced by an `@` line with the new entries (`@` alone when there
+    are none) and the new field lines. A field line that would close the
+    block is an error; open and close the block with a longer fence.
+
+It prints the IDs of the items, one per line, in the order given, and
+exits with 1 if standard input held none. With `--dry-run` it prints the
+same and writes nothing.
 
 `srl cards` prints cards in the format of [cards.md](cards.md) with
 `--json`, one per line. Without it, each card is printed for people: a line
@@ -158,10 +175,10 @@ only append to the log.
 srl add NOTE --stdin
 ```
 
-The items come from standard input, one per line, each a JSON object of
-its header entries and its fields. Each item has its own, so items about
-different notes, of different kinds, or drafts and not, can be added at
-once.
+The items come from standard input, one item object per line (see
+[notes.md](notes.md), "The item object"): its header entries and its
+fields. Each item has its own, so items about different notes, of
+different kinds, or drafts and not, can be added at once.
 
 ```sh
 srl add generated/japanese.md --stdin <<'JSONL'
@@ -171,34 +188,35 @@ srl add generated/japanese.md --stdin <<'JSONL'
 JSONL
 ```
 
-- **The lowercase keys `kind`, `see` and `draft` are header entries** (see
-  [notes.md](notes.md), "Header entries"): `kind` and `see` take text,
-  `draft` takes `true` or `false`. Each may be left out: the item is then
-  `qa`, has its own note as context, and is not a draft. There is no `id`:
-  every item gets a new ID.
-- **Every other key is a field name, and its value the field's text**, in
-  the order given. Multi-line text is written with continuation lines.
-  Which fields are accepted is up to the kind, so `srl add` works the same
-  for every kind there is; `srl kinds` describes them.
+- **The lowercase keys `id`, `kind`, `see` and `draft` are header
+  entries** (see [notes.md](notes.md), "Header entries"). Each may be left
+  out: the item then gets a new ID, is `qa`, has its own note as context
+  (none in a JSONL note), and is not a draft. An `id` given is kept, and
+  must not be used by an item of the store or another line.
+- **Uppercase keys are field names, and their values the fields' text**,
+  in the order given. Which fields are accepted is up to the kind, so `srl
+  add` works the same for every kind there is; `srl kinds` describes them.
 - `NOTE` is a path relative to the store's folder, and must be a note:
   matched by `include`, not by `exclude`, and not in a folder that starts
   with `.` (see [notes.md](notes.md), "Which files are notes"). If it
   doesn't exist, it is created, with its folders.
-- The items are appended to the end of the note, each in an srl block of
-  its own with its entries on the opening fence, after a blank line,
-  following the rules of [notes.md](notes.md), "How srl writes to notes".
-  The fence is three backticks, or one more than the longest run of
-  backticks that a line of the item's text starts with, so that a code
-  block in a field doesn't close it.
+- The items are appended to the end of the note, in the note's syntax,
+  following the rules of [notes.md](notes.md), "How srl writes to notes":
+  - In srl blocks, each item is in a block of its own with its entries on
+    the opening fence, after a blank line. Multi-line text is written with
+    continuation lines. The fence is three backticks, or one more than the
+    longest run of backticks that a line of the item's text starts with,
+    so that a code block in a field doesn't close it.
+  - In a JSONL note, each item is a line, written as `srl` writes an item
+    object (see [notes.md](notes.md), "How srl writes to notes").
 - Every line is checked before anything is written: if any line is not a
-  valid item (not a JSON object, a key that is neither a header entry nor
-  a field name, a value of the wrong type, an unknown kind, a `see` that
-  doesn't name a note of the store, fields the kind doesn't accept),
-  `srl add` reports the first such line and adds nothing. Blank lines are
-  ignored. The lines are checked together, as items of one note, so each
-  kind program is asked once about all of its items (see
-  [cards.md](cards.md), "How srl calls them"); a kind program that fails
-  as a whole is reported as itself, not as a line.
+  valid item (not a valid item object, an ID already used, an unknown
+  kind, a `see` that doesn't name a note of the store, fields the kind
+  doesn't accept), `srl add` reports the first such line and adds nothing.
+  Blank lines are ignored. The lines are checked together, so each kind
+  program is asked once about all of its items (see [cards.md](cards.md),
+  "How srl calls them"); a kind program that fails as a whole is reported
+  as itself, not as a line.
 
 It prints the new item IDs, one per line. With `--dry-run` it prints the
 items it would write, as they would appear in the note, and writes nothing.
@@ -314,7 +332,7 @@ the notes, for example paths too long for some programs on Windows, is not
 its concern.
 
 `srl lint` looks for mistakes `srl check` can't call errors, because only
-srl blocks make items (see [notes.md](notes.md), "The item syntax"), and
+srl blocks make items (see [notes.md](notes.md), "The srl block syntax"), and
 because an item can be valid and still not be what you meant. It reports,
 as `PATH:LINE: message` on standard output, in the order of the notes and
 their lines:
@@ -337,7 +355,7 @@ their lines:
   deletion whose hint is the text it hides;
 - an srl block whose closing fence is indented (by one to three spaces): it
   is almost always the end of a code block in a field, which closed the
-  srl block too early (see [notes.md](notes.md), "The item syntax", rule
+  srl block too early (see [notes.md](notes.md), "The srl block syntax", rule
   12), whatever the item's kind;
 - a fenced code block that is never closed, when srl blocks come after it.
 
@@ -348,9 +366,13 @@ indented fence is the rest of its item, so it is not reported. Other
 lines inside an srl block are never reported: mistakes there are errors,
 which `srl check` reports.
 
-Only the item syntax and the `qa` kind are known to `srl lint`: it doesn't
-look at the fields of items of kind programs, nor for their fields outside
-items.
+A JSONL note holds nothing but items and blank lines, and a line that is
+neither is an error, so only the `Q` of its `qa` items is looked at, as
+above. Each finding is reported at the item's line.
+
+Only the item syntaxes and the `qa` kind are known to `srl lint`: it
+doesn't look at the fields of items of kind programs, nor for their fields
+outside items.
 
 These are guesses, so `srl lint` never fails because of what it finds: it
 exits with 0 if it found something, and 1 if not.
