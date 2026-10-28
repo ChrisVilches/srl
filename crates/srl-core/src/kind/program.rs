@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use super::FieldDescription;
+use super::{Cache, FieldDescription};
 use crate::card::{Card, CardId};
 use crate::note::parse::is_field_key;
 use crate::note::{ItemId, is_id_text};
@@ -117,7 +117,7 @@ impl Programs {
     /// fields. Errors are plain reasons.
     pub(crate) fn describe(&self, name: &str) -> Result<(String, Vec<FieldDescription>), String> {
         let line = self
-            .run(name, "describe", &[Value::Object(Map::new())], None)?
+            .run(name, "describe", &lines(&[Value::Object(Map::new())]), None)?
             .pop()
             .expect("a call should give one line for its one input");
         description(&line).map_err(|reason| invalid_output(name, "describe", &reason))
@@ -131,8 +131,9 @@ impl Programs {
         &self,
         name: &str,
         inputs: &[Value],
+        cache: &mut Cache<'_>,
     ) -> Result<Vec<Vec<String>>, String> {
-        let lines = self.run(name, "validate", inputs, None)?;
+        let lines = self.answers(name, "validate", inputs, cache)?;
         Ok(lines
             .iter()
             .map(|line| {
@@ -151,8 +152,9 @@ impl Programs {
         name: &str,
         items: &[&ItemId],
         inputs: &[Value],
+        cache: &mut Cache<'_>,
     ) -> Result<Vec<Result<Groups, String>>, String> {
-        let lines = self.run(name, "groups", inputs, None)?;
+        let lines = self.answers(name, "groups", inputs, cache)?;
         Ok(items
             .iter()
             .zip(&lines)
@@ -173,7 +175,12 @@ impl Programs {
         inputs: &[Value],
     ) -> Result<Vec<Result<Card, String>>, String> {
         let count = u32::try_from(inputs.len()).unwrap_or(u32::MAX);
-        let lines = self.run(name, "make", inputs, Some(self.card_timeout * count))?;
+        let lines = self.run(
+            name,
+            "make",
+            &lines(inputs),
+            Some(self.card_timeout * count),
+        )?;
         Ok(cards
             .iter()
             .zip(&lines)
@@ -187,6 +194,56 @@ impl Programs {
             .collect())
     }
 
+    /// The lines the program of kind `name` answers to the call `call` for
+    /// `inputs`, one per input: those `cache` kept, and the others from one
+    /// run of the program, if any is left, which `cache` then keeps.
+    fn answers(
+        &self,
+        name: &str,
+        call: &str,
+        inputs: &[Value],
+        cache: &mut Cache<'_>,
+    ) -> Result<Vec<String>, String> {
+        let inputs = lines(inputs);
+        let command = self.command(name);
+        let kept = match cache {
+            Cache::Use(index) => index.kind_answers(command, call, &inputs),
+            Cache::None | Cache::Refresh(_) => vec![None; inputs.len()],
+        };
+        let asked = inputs
+            .iter()
+            .zip(&kept)
+            .filter(|(_, kept)| kept.is_none())
+            .map(|(input, _)| input.clone())
+            .collect::<Vec<_>>();
+        if asked.is_empty() {
+            return Ok(kept.into_iter().flatten().collect());
+        }
+        let answered = self.run(name, call, &asked, None)?;
+        if let Cache::Use(index) | Cache::Refresh(index) = cache {
+            let pairs = asked.iter().zip(&answered).collect::<Vec<_>>();
+            index.keep_kind_answers(command, call, &pairs);
+        }
+        let mut answered = answered.into_iter();
+        Ok(kept
+            .into_iter()
+            .map(|kept| {
+                kept.unwrap_or_else(|| {
+                    answered
+                        .next()
+                        .expect("a run should answer every input that had no kept answer")
+                })
+            })
+            .collect())
+    }
+
+    /// The command of kind `name`: the program, then its arguments.
+    fn command(&self, name: &str) -> &[String] {
+        self.commands
+            .get(name)
+            .expect("a kind program should exist once its kind was read")
+    }
+
     /// Runs the call `call` of the program of kind `name` with `inputs`, one
     /// per line, on its standard input, and gives the lines it printed, one
     /// per input. It is stopped after `timeout`, if there is one.
@@ -194,14 +251,11 @@ impl Programs {
         &self,
         name: &str,
         call: &str,
-        inputs: &[Value],
+        inputs: &[String],
         timeout: Option<Duration>,
     ) -> Result<Vec<String>, String> {
-        let command = self
-            .commands
-            .get(name)
-            .expect("a kind program should exist once its kind was read");
-        let (program, args) = command
+        let (program, args) = self
+            .command(name)
             .split_first()
             .expect("a kind's command should have been checked to be non-empty");
         let program = self.program(name, program)?;
@@ -226,7 +280,7 @@ impl Programs {
             .expect("a program's stdin should be piped");
         let mut input = String::new();
         for line in inputs {
-            input.push_str(&line.to_string());
+            input.push_str(line);
             input.push('\n');
         }
         let writer = thread::spawn(move || write_input(stdin, &input));
@@ -309,6 +363,11 @@ impl Programs {
             )
         })
     }
+}
+
+/// Each input as the line given to a program.
+fn lines(inputs: &[Value]) -> Vec<String> {
+    inputs.iter().map(Value::to_string).collect()
 }
 
 /// The reason for output that doesn't follow the protocol.
@@ -482,7 +541,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{Error, Log, Lookup, Memories, Notes, Selector};
+    use crate::{Error, Index, Log, Lookup, Memories, Notes, Selector};
 
     /// The test kind program of `crates/srl-test-kind`, which `cargo test
     /// --workspace` builds next to the test binaries.
@@ -522,7 +581,12 @@ mod tests {
         for (path, text) in notes {
             fs::write(store.note_file(path), text).unwrap();
         }
-        let notes = Notes::load(&store, &Config::load(&store).unwrap()).unwrap();
+        let notes = Notes::load(
+            &store,
+            &Config::load(&store).unwrap(),
+            &mut Index::open(&store),
+        )
+        .unwrap();
         (tmp, store, notes)
     }
 
@@ -593,6 +657,112 @@ mod tests {
         // groups is asked only about the items validate accepted.
         let calls = fs::read_to_string(tmp.path().join("calls.log")).unwrap();
         assert_eq!(calls, "validate 3\ngroups 2\n");
+    }
+
+    /// The notes of `store` read again, asking kind programs about every
+    /// item if `asking`, and the calls logged to `calls.log`, which is then
+    /// emptied.
+    fn reload(store: &Store, asking: bool) -> (Notes, String) {
+        let config = Config::load(store).unwrap();
+        let mut index = Index::open(store);
+        let notes = if asking {
+            Notes::load_asking(store, &config, &mut index)
+        } else {
+            Notes::load(store, &config, &mut index)
+        }
+        .unwrap();
+        assert!(index.problems().is_empty());
+        let log = store.root().join("calls.log");
+        let calls = fs::read_to_string(&log).unwrap_or_default();
+        fs::write(&log, "").unwrap();
+        (notes, calls)
+    }
+
+    #[test]
+    fn kept_answers_are_not_asked_for_again() {
+        let item = |id: &str, more: &str| {
+            format!("<!-- srl id:{id} kind:fake -->\nLOG: calls.log\n{more}\n")
+        };
+        let (_tmp, store, _) = store(
+            &config(""),
+            &[
+                item("aaa", "GROUPS: x y"),
+                item("bbb", ""),
+                item("ccc", "INVALID: no"),
+            ]
+            .join("\n"),
+        );
+        fs::write(store.root().join("calls.log"), "").unwrap();
+        let (notes, calls) = reload(&store, false);
+        assert_eq!(calls, "");
+        assert_eq!(ids(&notes), ["aaa-x", "aaa-y", "bbb"]);
+        // A kept answer that says the item is invalid says it again.
+        assert_eq!(problems(&notes), ["a.md:9: no"]);
+        // Only the item that changed is asked about.
+        let note = fs::read_to_string(store.note_file("a.md")).unwrap();
+        fs::write(store.note_file("a.md"), note.replace("x y", "x z")).unwrap();
+        let (notes, calls) = reload(&store, false);
+        assert_eq!(calls, "validate 1\ngroups 1\n");
+        assert_eq!(ids(&notes), ["aaa-x", "aaa-z", "bbb"]);
+        // Asking asks about every item, and keeps the answers.
+        let (_, calls) = reload(&store, true);
+        assert_eq!(calls, "validate 3\ngroups 2\n");
+        let (_, calls) = reload(&store, false);
+        assert_eq!(calls, "");
+    }
+
+    #[test]
+    fn answers_are_kept_for_the_kinds_command_as_written() {
+        let (_tmp, store, _) = store(
+            &config(""),
+            "<!-- srl id:aaa kind:fake -->\nLOG: calls.log\n",
+        );
+        fs::write(store.root().join("calls.log"), "").unwrap();
+        let (_, calls) = reload(&store, false);
+        assert_eq!(calls, "");
+        // Another command is another program, even running the same file.
+        fs::write(
+            store.config_file(),
+            format!("[kinds]\nfake = ['{}', 'more']\n", test_kind().display()),
+        )
+        .unwrap();
+        let (_, calls) = reload(&store, false);
+        assert_eq!(calls, "validate 1\ngroups 1\n");
+    }
+
+    #[test]
+    fn answers_of_a_call_that_failed_are_not_kept() {
+        let (_tmp, store, notes) = store(
+            &config(""),
+            "<!-- srl id:aaa kind:fake -->\nLOG: calls.log\n\n<!-- srl id:bbb kind:fake -->\nBREAK_VALIDATE: down\n",
+        );
+        assert!(ids(&notes).is_empty());
+        let note = fs::read_to_string(store.note_file("a.md")).unwrap();
+        fs::write(store.note_file("a.md"), note.replace("BREAK_VALIDATE", "X")).unwrap();
+        fs::write(store.root().join("calls.log"), "").unwrap();
+        let (notes, calls) = reload(&store, false);
+        assert_eq!(calls, "validate 2\ngroups 2\n");
+        assert_eq!(ids(&notes), ["aaa", "bbb"]);
+    }
+
+    #[test]
+    fn without_a_usable_cache_every_item_is_asked_about() {
+        let (_tmp, store, _) = store(
+            &config(""),
+            "<!-- srl id:aaa kind:fake -->\nLOG: calls.log\n",
+        );
+        fs::remove_dir_all(store.cache_dir()).unwrap();
+        fs::write(store.cache_dir(), "not a folder").unwrap();
+        fs::write(store.root().join("calls.log"), "").unwrap();
+        let mut index = Index::open(&store);
+        let notes = Notes::load(&store, &Config::load(&store).unwrap(), &mut index).unwrap();
+        assert_eq!(ids(&notes), ["aaa"]);
+        assert!(matches!(
+            index.problems()[..],
+            [Error::CacheUnusable { .. }]
+        ));
+        let calls = fs::read_to_string(store.root().join("calls.log")).unwrap();
+        assert_eq!(calls, "validate 1\ngroups 1\n");
     }
 
     #[test]

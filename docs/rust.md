@@ -463,3 +463,10 @@ index cache"). It must never change a result, only skip work:
   `index.rs` after every kind of change to the files, and
   `the_index_cache_never_changes_what_commands_print` in `tests/cli.rs`.
   A new command or a new kind of change to the store gets a case there.
+- **Kind answers are kept as printed.** `Programs::answers` in
+  `kind/program.rs` keeps each line a kind program printed, and a kept
+  line goes through the same parsing as a fresh one, so it gives the same
+  items and the same messages. Whether a call runs at all is decided by
+  `kind::Cache`: `Notes::load` uses the kept answers, `Notes::load_asking`
+  (`srl check`) asks again, and `read_items` (checking items about to be
+  written) keeps nothing.

@@ -12,9 +12,9 @@ use serde_json::{Map, Value};
 
 use crate::card::{Card, CardId};
 use crate::context::{ContextMode, context};
-use crate::kind::{Answer, Asked, Kind, Programs, ToMake, check};
+use crate::kind::{Answer, Asked, Cache, Kind, Programs, ToMake, check};
 use crate::store::nfc;
-use crate::{Config, Error, Result, Store};
+use crate::{Config, Error, Index, Result, Store};
 
 pub use parse::Field;
 
@@ -232,8 +232,20 @@ impl Notes {
     /// [`Notes::problems`], in the order of the notes and lines they are
     /// about; only failing to read a file is an error here. The items of
     /// every note are checked together, so that each kind program is asked
-    /// once about all of its items.
-    pub fn load(store: &Store, config: &Config) -> Result<Self> {
+    /// once about all of its items, and only about the items it has no
+    /// answer for in `index` (see `docs/cards.md`, "How srl calls them").
+    /// Problems with the cache are reported by [`Index::problems`].
+    pub fn load(store: &Store, config: &Config, index: &mut Index) -> Result<Self> {
+        Self::read(store, config, &mut Cache::Use(index))
+    }
+
+    /// Like [`Notes::load`], asking kind programs about every item, and
+    /// keeping their new answers in `index` (`srl check`).
+    pub fn load_asking(store: &Store, config: &Config, index: &mut Index) -> Result<Self> {
+        Self::read(store, config, &mut Cache::Refresh(index))
+    }
+
+    fn read(store: &Store, config: &Config, cache: &mut Cache<'_>) -> Result<Self> {
         let paths = store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())?;
         let programs = Programs::new(store, config);
         let mut written = Vec::new();
@@ -244,7 +256,7 @@ impl Notes {
             written.extend(note_items);
             problems.extend(note_problems);
         }
-        let (items, checked) = check_items(written, &programs);
+        let (items, checked) = check_items(written, &programs, cache);
         problems.extend(checked);
         let (items, duplicates) = unique(items);
         problems.extend(duplicates);
@@ -383,7 +395,7 @@ pub(crate) fn read_note(store: &Store, path: &str) -> Result<String> {
 /// kinds, and its problems in the order of their lines.
 pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
     let (written, mut problems) = read_syntax(path, text, programs);
-    let (items, checked) = check_items(written, programs);
+    let (items, checked) = check_items(written, programs, &mut Cache::None);
     problems.extend(checked);
     in_place_order(&mut problems);
     (items, problems)
@@ -392,7 +404,11 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
 /// Asks the kinds of `written` about them, and gives the items they
 /// accepted, with their cards, and the problems: why an item is invalid,
 /// and the kind programs that failed as a whole.
-fn check_items(written: Vec<Item>, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
+fn check_items(
+    written: Vec<Item>,
+    programs: &Programs,
+    cache: &mut Cache<'_>,
+) -> (Vec<Item>, Vec<Error>) {
     let asked = written
         .iter()
         .map(|item| Asked {
@@ -401,7 +417,7 @@ fn check_items(written: Vec<Item>, programs: &Programs) -> (Vec<Item>, Vec<Error
             fields: &item.fields,
         })
         .collect::<Vec<_>>();
-    let (answers, mut problems) = check(&asked, programs);
+    let (answers, mut problems) = check(&asked, programs, cache);
     let mut items = Vec::new();
     for (mut item, answer) in written.into_iter().zip(answers) {
         match answer {

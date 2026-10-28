@@ -258,13 +258,10 @@ finds every marked note.
 
 Main design decisions still to take:
 
-- **Caching kind programs.** Today a kind program's `validate` and
-  `groups` calls run for every item of its kind on every command, in one
-  batch each; a cache would make that faster without changing any result
-  ([cards.md](cards.md), "How srl calls them").
 - **Other ways to talk to kind programs.** Today `srl` starts a process
-  for every call; other ways, chosen by a program's author, such as an
-  HTTP server kept running by a daemon of the store, are wanted
+  for every call whose answers aren't kept; other ways, chosen by a
+  program's author, such as an HTTP server kept running by a daemon of
+  the store, may be wanted if kept answers turn out not to be enough
   ([cards.md](cards.md), "How srl calls them";
   [ideas.md](ideas.md), "Kind programs").
 - **Media in cards (audio, images) and furigana markup.** Today card text is

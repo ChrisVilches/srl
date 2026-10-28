@@ -34,7 +34,8 @@ Meant for Linux, macOS and Windows; tried on Linux only.
   how well you know the topic, asked a different way each time.
 - **`validate` and `groups` never call the LLM.** `validate` only checks
   that `PROMPT` is the item's only field and isn't empty, and `groups`
-  gives the one card. Every command that reads items calls them, so
+  gives the one card. Commands that read items call them for new or
+  changed items, so
   `srl find`, `srl check`, selectors and scheduling cost nothing.
   `describe`, for `srl kinds` and editors, names the same field.
 - **`make` calls the LLM**, and srl calls it only for cards about to be

@@ -12,7 +12,7 @@ use serde_json::{Map, Value};
 
 use crate::card::{Card, CardId};
 use crate::note::{Field, ItemId};
-use crate::{Config, Error, Store};
+use crate::{Config, Error, Index, Store};
 
 use cloze::Piece;
 pub(crate) use cloze::has_deletion;
@@ -66,12 +66,28 @@ pub(crate) enum Answer {
     Invalid(Vec<String>),
 }
 
+/// Where the answers of kind programs' `validate` and `groups` calls are
+/// kept (see `docs/cards.md`, "How srl calls them").
+pub(crate) enum Cache<'a> {
+    /// Nowhere: every item is asked about.
+    None,
+    /// In the index: only the items without a kept answer are asked about.
+    Use(&'a mut Index),
+    /// In the index, asking about every item and keeping the new answers.
+    Refresh(&'a mut Index),
+}
+
 /// Asks each item's kind about it (see `docs/cards.md`, "Kind programs"):
 /// `qa` here, and each kind program in one `validate` call for all of its
-/// items, then one `groups` call for the items `validate` accepted. The
-/// answers are in the order of `items`. An item whose program failed as a
-/// whole gets none; the failures, one per kind program, come second.
-pub(crate) fn check(items: &[Asked<'_>], programs: &Programs) -> (Vec<Option<Answer>>, Vec<Error>) {
+/// items, then one `groups` call for the items `validate` accepted, except
+/// for the items `cache` has answers for. The answers are in the order of
+/// `items`. An item whose program failed as a whole gets none; the
+/// failures, one per kind program, come second.
+pub(crate) fn check(
+    items: &[Asked<'_>],
+    programs: &Programs,
+    cache: &mut Cache<'_>,
+) -> (Vec<Option<Answer>>, Vec<Error>) {
     let mut answers = items
         .iter()
         .map(|asked| match asked.kind {
@@ -88,7 +104,7 @@ pub(crate) fn check(items: &[Asked<'_>], programs: &Programs) -> (Vec<Option<Ans
             .iter()
             .map(|(_, asked)| Value::Object(input(asked.id, asked.fields)))
             .collect::<Vec<_>>();
-        let verdicts = match programs.validate(name, &inputs) {
+        let verdicts = match programs.validate(name, &inputs, cache) {
             Ok(verdicts) => verdicts,
             Err(reason) => {
                 failures.push(failed(name, reason));
@@ -111,7 +127,7 @@ pub(crate) fn check(items: &[Asked<'_>], programs: &Programs) -> (Vec<Option<Ans
             continue;
         }
         let ids = valid.iter().map(|&(_, id)| id).collect::<Vec<_>>();
-        match programs.groups(name, &ids, &valid_inputs) {
+        match programs.groups(name, &ids, &valid_inputs, cache) {
             Ok(groups) => {
                 for ((at, _), groups) in valid.into_iter().zip(groups) {
                     let answer = match groups {
@@ -417,7 +433,7 @@ mod tests {
             id: &id,
             fields,
         };
-        let answer = check(&[asked], &Programs::default())
+        let answer = check(&[asked], &Programs::default(), &mut Cache::None)
             .0
             .pop()
             .flatten()

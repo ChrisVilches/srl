@@ -636,8 +636,8 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::Lookup;
     use crate::note::is_id_text as is_id;
+    use crate::{Index, Lookup};
 
     fn store(files: &[(&str, &str)]) -> (TempDir, Store) {
         let tmp = TempDir::new().unwrap();
@@ -656,7 +656,7 @@ mod tests {
     }
 
     fn notes(store: &Store) -> Notes {
-        Notes::load(store, &Config::default()).unwrap()
+        Notes::load(store, &Config::default(), &mut Index::open(store)).unwrap()
     }
 
     fn read(store: &Store, path: &str) -> String {

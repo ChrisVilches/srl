@@ -128,9 +128,11 @@ programs are run, and what `card_timeout` limits, is in
 
 `.srl/cache/index.sqlite` holds what is slow to compute from the files: the
 log replayed through FSRS (each card's memory, every review, and the log
-lines that are not valid events). It is only ever an optimization: every
+lines that are not valid events), and the answers of kind programs'
+`validate` and `groups` calls. It is only ever an optimization: every
 command gives the same results with it, without it, or after it was
-deleted.
+deleted, as long as no kind program changed without `srl reindex` (see
+below).
 
 - **Every log file is still read on every use**, and compared with the
   cache by a hash of its content (BLAKE3). Modification times are never
@@ -143,6 +145,12 @@ deleted.
   all new bytes are in the last file it read or in files whose names sort
   after it. Anything else (an edited, shortened, removed or earlier file)
   replays the whole log.
+- **Kind programs:** an answer of `validate` or `groups` is kept under
+  the kind's command as written in `[kinds]`, the call, and the item's
+  input line, and used for as long as all three are the same; only the
+  items without a kept answer are asked about (see [cards.md](cards.md),
+  "How srl calls them"). A program changed in place is not noticed: run
+  `srl reindex` after changing one. Old answers are kept until then.
 - **Settings:** the whole log is replayed when `day_starts_at`,
   `desired_retention` or `weights` differ from those the cache was built
   with.
@@ -158,10 +166,11 @@ deleted.
   `.gitignore` that ignores everything in it.
 - Each update is one SQLite transaction, so several `srl` processes can
   share the cache.
-- `srl reindex` deletes it and builds it again. Deleting it by hand loses
-  nothing.
+- `srl reindex` deletes it and builds it again, forgetting every kept
+  answer of a kind program. Deleting it by hand loses nothing.
 - `srl log` lists events, so it reads the log files directly; `srl check`
-  checks the files, so it reads them directly too.
+  checks the files, so it reads them directly too, and asks kind programs
+  about every item, keeping their new answers.
 - It can be queried directly for exploration
   (`sqlite3 .srl/cache/index.sqlite`), but its schema is not a stable
   contract. Scripts should use the CLI's `--json` output instead.

@@ -111,8 +111,9 @@ struct Loaded {
 /// [`load`], then the memories through the index cache, reporting the log
 /// lines that were skipped.
 fn open(store: &Store) -> anyhow::Result<Loaded> {
-    let (config, notes) = load(store)?;
-    let (memories, now, problems) = memories(&mut Index::open(store), &config)?;
+    let mut index = Index::open(store);
+    let (config, notes) = load_with(store, &mut index)?;
+    let (memories, now, problems) = memories(&mut index, &config)?;
     problems.iter().for_each(output::problem);
     Ok(Loaded {
         config,
@@ -125,9 +126,16 @@ fn open(store: &Store) -> anyhow::Result<Loaded> {
 /// Reads the configuration and every note, and stops if the notes have
 /// any problem (see `docs/notes.md`, "Errors").
 fn load(store: &Store) -> anyhow::Result<(Config, Notes)> {
+    load_with(store, &mut Index::open(store))
+}
+
+/// [`load`], with the answers of kind programs kept in `index`. Reports
+/// any problem with the cache.
+fn load_with(store: &Store, index: &mut Index) -> anyhow::Result<(Config, Notes)> {
     let config = Config::load(store)?;
-    let notes = strict(Notes::load(store, &config)?)?;
-    Ok((config, notes))
+    let notes = Notes::load(store, &config, index);
+    report_cache(index);
+    Ok((config, strict(notes?)?))
 }
 
 /// `notes`, if they have no problems; otherwise reports every problem and
@@ -175,11 +183,15 @@ fn init(flag: Option<PathBuf>, dir: Option<PathBuf>, dry_run: bool) -> anyhow::R
 }
 
 /// `srl check`: reports every problem, and orphans as notices. Fails if
-/// there is any problem.
+/// there is any problem. It asks kind programs about every item, rather
+/// than using the answers kept in the index cache.
 fn check(store: &Store) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
-    let notes = Notes::load(store, &config)?;
-    let (memories, _, log_problems) = memories(&mut Index::open(store), &config)?;
+    let mut index = Index::open(store);
+    let notes = Notes::load_asking(store, &config, &mut index);
+    report_cache(&mut index);
+    let notes = notes?;
+    let (memories, _, log_problems) = memories(&mut index, &config)?;
     let problems = notes
         .problems()
         .iter()
@@ -208,7 +220,10 @@ fn lint(store: &Store) -> anyhow::Result<Outcome> {
 /// 1 if every item had one.
 fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
-    let notes = Notes::load(store, &config)?;
+    let mut index = Index::open(store);
+    let notes = Notes::load(store, &config, &mut index);
+    report_cache(&mut index);
+    let notes = notes?;
     notes
         .problems()
         .iter()
@@ -573,8 +588,8 @@ fn reset(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Result<Ou
 /// `srl stats`: cards per state, reviews today and recent retention, for
 /// the matching cards. Exit 1 if no card matches.
 fn stats(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
-    let (config, notes) = load(store)?;
     let mut index = Index::open(store);
+    let (config, notes) = load_with(store, &mut index)?;
     let history = index.history(&config);
     report_cache(&mut index);
     let (history, problems) = history?;

@@ -121,7 +121,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{By, Entry, Event, Log, Lookup, Review, Store};
+    use crate::{By, Entry, Event, Index, Log, Lookup, Review, Store};
 
     const DAY: Date = Date::constant(2026, 10, 26);
 
@@ -136,7 +136,7 @@ mod tests {
         for (path, text) in files {
             std::fs::write(store.note_file(path), text).unwrap();
         }
-        let notes = Notes::load(&store, &Config::default()).unwrap();
+        let notes = Notes::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();
         assert!(notes.problems().is_empty(), "{:?}", notes.problems());
         (tmp, notes)
     }

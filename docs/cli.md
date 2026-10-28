@@ -12,8 +12,8 @@ without what `srl next --json` adds around them; frontends rely on
 `srl next` only. No command shows cards
 interactively or runs other programs for you, except `srl edit ID`, which
 opens a note in your editor, and the kind programs of `[kinds]`, which
-every command that reads items runs (see [cards.md](cards.md), "Kind
-programs").
+commands that read items run for the items whose answers aren't kept
+(see [cards.md](cards.md), "Kind programs").
 
 ## Conventions
 
@@ -55,7 +55,7 @@ programs").
 | `srl check` | Check the notes, the configuration and the log; report each problem on standard error and exit with 2 if there are any (see "Checking" below). |
 | `srl lint` | Look for text that was probably meant to be an item but isn't one (see "Checking" below). |
 | `srl id` | Give an ID to every item without one (see [notes.md](notes.md), "How srl writes to notes"). Prints `ID  PATH:LINE` per item; exit 1 if every item already had one. |
-| `srl reindex` | Delete the index cache and build it again from the files (see [store.md](store.md), "The index cache"). Prints nothing. |
+| `srl reindex` | Delete the index cache and build it again from the files, forgetting the answers kept from kind programs; run it after changing a kind program (see [store.md](store.md), "The index cache"). Prints nothing. |
 | `srl notes [--json]` | List the notes of the store (see [notes.md](notes.md), "Which files are notes"): one path per line, relative to the store's folder, sorted as `srl find` sorts notes. With `--json`, one object per note: `{"path": "japanese/grammar/wo.md"}`. It doesn't read the notes, so errors in them don't stop it. Exit 1 if the store has none. |
 | `srl kinds [--json]` | Describe the kinds of the store: `qa`, then the kind programs of `[kinds]` sorted by name (see [cards.md](cards.md), "Describing a kind"). For each, a line with its name and description, then a line per field, indented by two spaces, with its name and description; names and descriptions are separated by two spaces. With `--json`, one object per kind: `{"name": "qa", "description": "…", "fields": [{"name": "Q", "description": "…"}, …]}`. It doesn't read the notes. If a kind program can't describe its kind, it fails at once with the reason, and prints nothing. |
 
@@ -290,6 +290,10 @@ from. A `move` event belongs to the card it moved history to.
 
 Each problem is reported on standard error, one per line. Orphans are
 notices: the exit code is 2 if there is any other problem, and 0 otherwise.
+
+`srl check` asks kind programs about every item, rather than using the
+answers kept in the index cache, and keeps their new answers (see
+[cards.md](cards.md), "How srl calls them").
 
 The configuration is read first, because the notes and the log can't be
 read without it (it says which notes to exclude, and the study day). So an

@@ -1105,6 +1105,29 @@ fn a_kind_program_that_fails_is_reported_once_and_stops_commands() {
 }
 
 #[test]
+fn kind_answers_are_kept_until_check_or_reindex_asks_again() {
+    let tmp = store_with_kind(&[(
+        "a.md",
+        "<!-- srl id:abc kind:fake -->\nGROUPS: a b\nLOG: calls.log\n",
+    )]);
+    let d = dir(&tmp);
+    let calls_after = |args: &[&str]| {
+        write(&tmp, "calls.log", "");
+        let output = srl(&[args, &["--dir", d]].concat());
+        assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+        read(&tmp, "calls.log")
+    };
+    assert_eq!(calls_after(&["find"]), "validate 1\ngroups 1\n");
+    assert_eq!(calls_after(&["find"]), "");
+    // srl check asks kind programs about every item.
+    assert_eq!(calls_after(&["check"]), "validate 1\ngroups 1\n");
+    assert_eq!(calls_after(&["find"]), "");
+    // srl reindex forgets the answers; the next command asks again.
+    assert_eq!(calls_after(&["reindex"]), "");
+    assert_eq!(calls_after(&["find"]), "validate 1\ngroups 1\n");
+}
+
+#[test]
 fn add_checks_every_new_item_at_once_and_names_the_line_at_fault() {
     let tmp = store_with_kind(&[]);
     let d = dir(&tmp);

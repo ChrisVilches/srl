@@ -187,7 +187,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{Config, History, Log, Lookup};
+    use crate::{Config, History, Index, Log, Lookup};
 
     fn store() -> (TempDir, Store, Notes) {
         let tmp = TempDir::new().unwrap();
@@ -202,7 +202,7 @@ mod tests {
             "<!-- srl id:aaa1 -->\nQ: q\nA: a\n\n<!-- srl id:aaa2 -->\nQ: {{c1::x}} {{c2::y}}\n\n<!-- srl id:aaa3 draft -->\nQ: d\nA: e\n",
         )
         .unwrap();
-        let notes = Notes::load(&store, &Config::default()).unwrap();
+        let notes = Notes::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();
         (tmp, store, notes)
     }
 

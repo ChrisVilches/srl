@@ -2,7 +2,9 @@
 //! index cache").
 //!
 //! It keeps what is slow to compute from the files: the log replayed
-//! through FSRS. Every log file is still read on every use and compared
+//! through FSRS, and what kind programs answered about items (see
+//! `docs/cards.md`, "How srl calls them"). Every log file is still read on
+//! every use and compared
 //! with the cache by its BLAKE3 hash, so the cache can only skip work, never
 //! change a result. When it can't be used, the files are read directly and
 //! the problem is reported.
@@ -22,7 +24,7 @@ use crate::{CardId, Config, Error, History, Log, Memory, Result, Reviewed, Store
 
 /// The version of the tables below. Change it whenever they, or what they
 /// mean, change: a cache of another version is rebuilt.
-const SCHEMA_VERSION: i64 = 3;
+const SCHEMA_VERSION: i64 = 4;
 
 /// The tables. Their layout is not a contract (see `docs/store.md`).
 const SCHEMA: &str = "
@@ -36,17 +38,19 @@ CREATE TABLE memories (card TEXT PRIMARY KEY, reviews INTEGER NOT NULL, lapses I
     suspended INTEGER NOT NULL, seen_position INTEGER, seen_day TEXT, touched INTEGER NOT NULL);
 CREATE TABLE reviews (seq INTEGER PRIMARY KEY, card TEXT NOT NULL, day TEXT NOT NULL,
     rating INTEGER NOT NULL, was_new INTEGER NOT NULL);
+CREATE TABLE kind_answers (key TEXT PRIMARY KEY, answer TEXT NOT NULL);
 ";
 
 /// Every table, to drop them all before building them again. `atoms` is
 /// from earlier versions.
-const TABLES: [&str; 6] = [
+const TABLES: [&str; 7] = [
     "meta",
     "atoms",
     "log_files",
     "log_problems",
     "memories",
     "reviews",
+    "kind_answers",
 ];
 
 /// How long to wait for another `srl` that is updating the cache.
@@ -179,6 +183,56 @@ impl Index {
             },
             |store| uncached_history(store, config),
         )
+    }
+
+    /// What the kind program run by `command` answered to the call `call`
+    /// for each input line of `lines`, when it was kept; in the order of
+    /// `lines` (see `docs/cards.md`, "How srl calls them").
+    pub(crate) fn kind_answers(
+        &mut self,
+        command: &[String],
+        call: &str,
+        lines: &[String],
+    ) -> Vec<Option<String>> {
+        self.run(
+            |transaction, _| {
+                lines
+                    .iter()
+                    .map(|line| {
+                        Ok(transaction
+                            .prepare_cached("SELECT answer FROM kind_answers WHERE key = ?1")?
+                            .query_row([answer_key(command, call, line)], |row| row.get(0))
+                            .optional()?)
+                    })
+                    .collect()
+            },
+            |_| Ok(vec![None; lines.len()]),
+        )
+        .expect("looking up kind answers should read none of the store's files")
+    }
+
+    /// Keeps what the kind program run by `command` answered to the call
+    /// `call`: each pair is an input line and the line answered for it.
+    pub(crate) fn keep_kind_answers(
+        &mut self,
+        command: &[String],
+        call: &str,
+        answers: &[(&String, &String)],
+    ) {
+        self.run(
+            |transaction, _| {
+                for (line, answer) in answers {
+                    execute(
+                        transaction,
+                        "INSERT OR REPLACE INTO kind_answers (key, answer) VALUES (?1, ?2)",
+                        (answer_key(command, call, line), answer),
+                    )?;
+                }
+                Ok(())
+            },
+            |_| Ok(()),
+        )
+        .expect("keeping kind answers should read none of the store's files");
     }
 
     fn file(&self) -> PathBuf {
@@ -346,6 +400,13 @@ fn execute(
 /// every use.
 fn hash(bytes: &[u8]) -> String {
     blake3::hash(bytes).to_hex().to_string()
+}
+
+/// The key of a kind program's answer: the program's command as written,
+/// the call and the input line, hashed.
+fn answer_key(command: &[String], call: &str, line: &str) -> String {
+    let command = serde_json::to_string(command).expect("a list of strings should serialize");
+    hash(format!("{command}\n{call}\n{line}").as_bytes())
 }
 
 /// A log file as the cache last read it.

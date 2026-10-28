@@ -252,9 +252,36 @@ their place, the simplest rule; a program that prints the wrong number of
 lines fails as a whole.
 
 Trade-off: a program reads and writes lines in a loop instead of one
-object, and every command still starts a process for each call, which a
-cache or a program that keeps running could avoid (see
-[cards.md](cards.md), "How srl calls them").
+object, and a call starts a process, however few lines it has.
+
+## Why answers of kind programs are kept under the command as written
+
+Starting a process costs far more than anything `srl` does with a
+store's files: an interpreter alone takes tens of milliseconds, and a
+command that reads items calls `validate` and `groups` for every kind
+program. Both calls are deterministic, so their answers are kept in the
+index cache and only new or changed items are asked about. A command on
+an unchanged store then starts no kind program at all.
+
+An answer is kept under the kind's command as written, the call and the
+item's input line, and nothing else. Two other ways to notice a changed
+program were rejected:
+
+- **Hashing the files the command names**, such as `kinds/ja_words.py`.
+  It misses whatever that file imports or reads, so it would be a
+  guarantee that holds only sometimes.
+- **Asking the program for its version** on every command. It costs a
+  process start per kind program, which is most of what keeping answers
+  saves, and its author must still remember to change the version.
+  Asking only now and then would make results depend on the clock.
+
+So `srl` doesn't try: after changing a kind program, you run
+`srl reindex`, which forgets every kept answer, or `srl check`, which
+asks again about every item.
+
+Trade-off: forgetting to run `srl reindex` after changing a program
+leaves its old answers in use, until an item changes or the cache is
+rebuilt. The keys of old answers are kept until then too.
 
 ## Why `groups` sees only the fields
 

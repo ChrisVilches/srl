@@ -215,8 +215,8 @@ A kind program answers four calls, and **each call does one thing**:
 | Call | Does | Rule |
 |---|---|---|
 | `describe` | Says what the kind is for and which fields it takes (see "Describing a kind" below). | **Only informs.** Called only by `srl kinds`. |
-| `validate` | Says whether each item is valid and, if not, why. | **The kind's only check**: an item is invalid only if `validate` says so, so it must reject every item the program can't use. Called for every item of the kind, on every command that reads items. |
-| `groups` | Gives the card suffixes of each valid item, in groups of siblings. | **Deterministic, and never checks**: the same fields always give the same cards. Called only for the items `validate` accepted, right after it. |
+| `validate` | Says whether each item is valid and, if not, why. | **The kind's only check, and deterministic**: an item is invalid only if `validate` says so, so it must reject every item the program can't use; the same item always gets the same answer. Called for the items of the kind whose answer isn't kept (see "How srl calls them"). |
+| `groups` | Gives the card suffixes of each valid item, in groups of siblings. | **Deterministic, and never checks**: the same fields always give the same cards. Called only for the items `validate` accepted whose answer isn't kept. |
 | `make` | Makes each card's content. | **May be slow, and may differ every time.** Called only for cards about to be shown or printed. |
 
 Every call is a **batch**, run the same way:
@@ -228,7 +228,9 @@ Every call is a **batch**, run the same way:
 2. The program reads up to the end of standard input, and prints
    **exactly one JSON object per input line, on one line, in the same
    order**. It may read everything first or answer as it goes. `srl`
-   matches each answer to its input by its place.
+   matches each answer to its input by its place. Each answer depends on
+   its own input line alone: a call may hold any of a kind's items, in
+   any number.
 3. It exits with status 0. **A status other than 0 is a failure of the
    whole call**, and what it printed on standard error is the reason. An
    invalid item is an answer, not a failure.
@@ -286,10 +288,25 @@ asked about the item.
 #### How srl calls them
 
 - **Reading items**, on every command that reads them: one `validate`
-  call per kind program, for all of its items in the store (or, for
-  `srl add` and `srl edit ID --stdin`, all the items given), then one
-  `groups` call for the items it accepted. So a command starts at most
-  two processes per kind program, however many items it has.
+  call per kind program, for all of its items in the store whose answer
+  isn't kept (or, for `srl add` and `srl edit ID --stdin`, all the items
+  given), then one `groups` call for the items it accepted whose answer
+  isn't kept. So a command starts at most two processes per kind
+  program, however many items it has, and none when every answer is
+  kept.
+- **Kept answers.** The answers of `validate` and `groups` calls are kept
+  in the index cache (see [store.md](store.md), "The index cache"),
+  each under the kind's command as written in `[kinds]`, the call, and
+  the item's input line. An item whose input line hasn't changed since
+  it was answered is not asked about again. Only the answers of a call
+  that succeeded are kept, including answers that say an item is
+  invalid or that don't follow the rules; a call that fails as a whole
+  keeps nothing, and its items are asked about again next time.
+  `srl check` asks about every item, and keeps the new answers.
+- **After changing a kind program**, without changing its command in
+  `[kinds]`, run `srl reindex`, which forgets every kept answer, or
+  `srl check`. `srl` can't see that a program changed: the answers it
+  kept come from the old program until then.
 - **Making cards**: `srl next` makes its one card with a `make` call of
   one line; `srl cards` makes the cards it prints with one `make` call per
   kind program. A `make` call with N lines is stopped after N times
@@ -327,16 +344,6 @@ When something goes wrong, the place it happens says whose fault it is:
 every time gives a new card each time: what `srl cards` prints is one
 card the kind could give, not the one `srl next` will show.
 
-> **TODO (design):** the answers of `validate` and `groups` are **not
-> cached**: every command that reads items runs both calls for every
-> item of every kind program. Batches make that two processes per kind,
-> not one per item, but a large store still pays for every item each
-> time. A cache would make `srl` faster without changing what any command
-> does. What it would be keyed on, and what would make an entry stale
-> (the item's text, the kind's command, the program changing), is still
-> to be analyzed. Notes themselves are not cached either (see
-> [store.md](store.md), "The index cache").
-
 > **TODO (design):** starting a process for every call is **the only way
 > to talk to a kind program**. Other ways could be offered, for the
 > program's author to choose one in `[kinds]`, each with the same four
@@ -344,6 +351,9 @@ card the kind could give, not the one `srl next` will show.
 > of the store keeps running for a while, so that a program starts once
 > instead of once per call. Which ways, and how a store says which one a
 > kind uses, is undecided (see [ideas.md](ideas.md), "Kind programs").
+> Since answers are kept, only a program that is slow to start (a large
+> dictionary, a local model) would gain much, mostly in `make`; this
+> waits until kept answers turn out not to be enough.
 
 ### Describing a kind
 
