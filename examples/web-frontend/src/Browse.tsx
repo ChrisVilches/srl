@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type FoundCard, type ShownCard } from './api';
-import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, StateBadges } from './CardParts';
+import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, StateBadges, Waiting } from './CardParts';
 import { useKeys, useStartWhenShown } from './hooks';
 import { SelectorInput, TopBar } from './TopBar';
 
@@ -297,26 +297,15 @@ function Preview({
 // A card being made, with how long it has taken so far: a kind program can
 // take a while.
 function Making({ kind, since }: { kind: string; since: number }) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 200);
-    return () => clearInterval(timer);
-  }, []);
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center dark:border-stone-700">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-stone-300 border-t-amber-500 dark:border-stone-700 dark:border-t-amber-400" />
-      <div className="font-medium">
-        Making the card… <span className="tabular-nums">{((now - since) / 1000).toFixed(1)} s</span>
-      </div>
-      <p className="max-w-md text-sm text-stone-500">
-        {kind === 'qa' ? (
-          'srl cards is making it.'
-        ) : (
-          <>
-            srl cards is running the kind program <code className="font-mono">{kind}</code>.
-          </>
-        )}
-      </p>
-    </div>
+    <Waiting title="Making the card…" since={since}>
+      {kind === 'qa' ? (
+        'srl cards is making it.'
+      ) : (
+        <>
+          srl cards is running the kind program <code className="font-mono">{kind}</code>.
+        </>
+      )}
+    </Waiting>
   );
 }

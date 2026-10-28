@@ -19,6 +19,9 @@ macOS and Windows (it is tried on Linux only).
   its note; `CONTEXT` in `server/server.js` chooses the mode.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
   card without recording a review.
+- When the next card takes a while to make, as when its kind program asks
+  an LLM, a spinner says so, with the seconds it has taken. Cards that
+  come in under 300 ms replace the last one without it.
 - The selector can be changed in the page; the counters at the top are the
   cards reviewed, the new ones among them, and the Again ratings.
 - Dark, or light with the button at the right of the top bar. The choice

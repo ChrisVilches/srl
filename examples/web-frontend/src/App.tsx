@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import { Add } from './Add';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
-import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, Notice, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges } from './CardParts';
+import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges, Waiting } from './CardParts';
 import { useKeys, useStartWhenShown } from './hooks';
 import { SelectorInput, TopBar, type View } from './TopBar';
 
@@ -21,7 +21,7 @@ const viewOfHash = (): View => {
 // Where the session is. It runs the frontend loop of docs/frontends.md:
 // get a card, show the prompt, show the answer and the context, rate it.
 type Phase =
-  | { kind: 'loading' }
+  | { kind: 'loading'; since: number }
   | { kind: 'prompt'; card: Card }
   | { kind: 'answer'; card: Card }
   | { kind: 'done' }
@@ -35,6 +35,10 @@ const RATINGS: { rating: Rating; name: string; style: string }[] = [
   { rating: 3, name: 'Good', style: 'bg-emerald-600 hover:bg-emerald-500' },
   { rating: 4, name: 'Easy', style: 'bg-sky-600 hover:bg-sky-500' },
 ];
+
+// How long the card shown stays while srl next makes the next one, before
+// the page says it is waiting: most cards come sooner, and swap at once.
+const WAIT_SHOWN_AFTER_MS = 300;
 
 // The phase after getting the next card: its prompt, or done if none is left.
 async function nextPhase(selector: string): Promise<Phase> {
@@ -69,7 +73,7 @@ export default function App() {
 
 function Study({ active }: { active: boolean }) {
   const [selector, setSelector] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
+  const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: Date.now() }));
   const [stats, setStats] = useState<Stats>({ reviewed: 0, new: 0, again: 0 });
   const [busy, setBusy] = useState(false);
 
@@ -85,18 +89,30 @@ function Study({ active }: { active: boolean }) {
     }
   }, []);
 
+  // Shows the next card, or, if srl takes a while to make it, that it waits.
+  const toNext = useCallback(async (sel: string) => {
+    const since = Date.now();
+    const timer = setTimeout(() => setPhase({ kind: 'loading', since }), WAIT_SHOWN_AFTER_MS);
+    try {
+      setPhase(await nextPhase(sel));
+    } finally {
+      clearTimeout(timer);
+    }
+  }, []);
+
   // Asks for the selector srl-web was started with, then for the first card.
   const start = useCallback(
     () =>
       step(async () => {
+        setPhase({ kind: 'loading', since: Date.now() });
         const sel = await api.selector();
         setSelector(sel);
-        setPhase(await nextPhase(sel));
+        await toNext(sel);
       }),
-    [step],
+    [step, toNext],
   );
 
-  const loadNext = useCallback((sel: string) => step(async () => setPhase(await nextPhase(sel))), [step]);
+  const loadNext = useCallback((sel: string) => step(() => toNext(sel)), [step, toNext]);
 
   // Starts when first shown: a page opened on the browser makes no card.
   useStartWhenShown(active, start);
@@ -117,10 +133,10 @@ function Study({ active }: { active: boolean }) {
           new: s.new + (card.state === 'new' ? 1 : 0),
           again: s.again + (rating === 1 ? 1 : 0),
         }));
-        setPhase(await nextPhase(selector));
+        await toNext(selector);
       });
     },
-    [phase, selector, step],
+    [phase, selector, step, toNext],
   );
 
   const suspend = useCallback(() => {
@@ -128,9 +144,9 @@ function Study({ active }: { active: boolean }) {
     const { card } = phase;
     step(async () => {
       await api.suspend(card.id);
-      setPhase(await nextPhase(selector));
+      await toNext(selector);
     });
-  }, [phase, selector, step]);
+  }, [phase, selector, step, toNext]);
 
   // Keys: space or Enter shows the answer, 1–4 rate, s suspends.
   useKeys(active, (event) => {
@@ -160,7 +176,11 @@ function Study({ active }: { active: boolean }) {
         <StatsLine stats={stats} />
       </TopBar>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
-        {phase.kind === 'loading' && <Notice>Loading…</Notice>}
+        {phase.kind === 'loading' && (
+          <Waiting title="Getting the next card…" since={phase.since}>
+            srl next is making it. A kind program, such as one that asks an LLM, can take a while.
+          </Waiting>
+        )}
         {phase.kind === 'error' && (
           <ErrorView message={phase.message} onRetry={() => (selector === null ? start() : loadNext(selector))} />
         )}
