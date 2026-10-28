@@ -273,11 +273,32 @@ an orphan, starts again as a new card, and loses its suspension (see
 - **Only add.** A new version may give cards to fields that gave none,
   or new cards beside the old ones; it never renames, renumbers or drops
   the suffixes it gave before.
-- **If a change is unavoidable**, say so where the program's users will
-  read it. After installing it, they run `srl reindex` (so that `srl`
-  asks the program again, see "How srl calls them" below), then
-  `srl check`, and move the history of each orphan to its new card with
-  `srl move`.
+- **If a change is unavoidable, the author provides a way to keep the
+  history**, and never ships it silently. A store must never have to
+  choose between the new version and its review history. At least one
+  of:
+  - **Keep the old rule available.** Publish the new rule as a separate
+    program (another file, package or command), or behind an argument of
+    the same program that users add to its command in `[kinds]`, and
+    keep the old one working. A store then moves when it chooses, or
+    never; a new name for the kind doesn't do this by itself, since the
+    kind's name is the user's, chosen in `[kinds]`, and card IDs don't
+    contain it.
+  - **Provide a migration**: a command of the program, outside the four
+    calls, or a script beside it, that reads a store's items of the kind
+    (for example with `srl show --json`) and prints the `srl move OLD NEW`
+    of each card whose suffix changes. Only the program knows both
+    rules: `srl check` suggests a move only when an item has exactly one
+    orphan and one new card, and `srl` never guesses (see
+    [scheduling.md](scheduling.md), "Moving history").
+
+  And document the change where the program's users will read it: which
+  suffixes change, and the steps. After installing a new version,
+  `srl reindex` (so that `srl` asks the program again, see "How srl calls
+  them" below), then the migration, then `srl check`, which reports no
+  orphan of the kind once every history has moved. A wrong `srl move`
+  can't be undone, so a migration prints the commands, or runs them with
+  `--dry-run` first, rather than running them unasked.
 
 Changing groups is not a breaking change: groups have no names, so
 moving cards between them touches no history (see below).
