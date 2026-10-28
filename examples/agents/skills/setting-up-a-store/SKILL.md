@@ -46,6 +46,14 @@ default, every `.md` file), except files in folders whose name starts with
 `.` (`.srl/`, `.git/`, `.obsidian/`) and files matched by `exclude`, which
 always wins. Files must be UTF-8.
 
+The extension decides how items are written in a note: a note whose name
+ends in `.jsonl` holds one item object per line, and every other note
+holds srl blocks in Markdown (see the `writing-items` skill). JSONL notes
+are read only when `include` names them, for example
+`include = ["**/*.md", "generated/**/*.jsonl"]` for items that scripts and
+agents write. Every file `include` names must be a valid note, so don't
+let a glob catch JSON files meant for other programs.
+
 ## Configuration
 
 `.srl/config.toml`. Every setting is optional; these are the defaults:

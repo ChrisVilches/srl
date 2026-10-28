@@ -122,7 +122,7 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Append items (JSONL of fields from standard input) to a note.
+    /// Append items (JSONL of item objects from standard input) to a note.
     Add(AddArgs),
     /// Replace items with standard input (JSONL of items, each naming the item it replaces by `id`).
     Edit {

@@ -80,6 +80,36 @@ delete the ID from the copy and run `srl id`.
 The ID is the item's identity: editing it, moving it within or between
 notes, or renaming the note never changes its schedule.
 
+## JSONL notes
+
+A note whose name ends in `.jsonl` (lowercase) holds nothing but items,
+one per line, as **item objects**:
+
+```json
+{"id": "x7k2m9", "see": "japanese/grammar/wo.md", "Q": "What does 〜をものともせず mean?", "A": "Undeterred by (adversity), braving."}
+{"see": "japanese/grammar/wo.md", "draft": true, "Q": "嵐を{{c1::ものともせず}}、漁師たちは海へ出た。"}
+```
+
+- **Every line is one JSON object, or blank.** Anything else is an error
+  that names the line. An item can't span lines: a newline in a field is
+  `\n`.
+- **Lowercase keys are header entries**: `id`, `kind`, `see` (text) and
+  `draft` (`true` or `false`). `"kind": "qa"`, `"see": null` and
+  `"draft": false` are the same as leaving them out. **Uppercase keys are
+  fields.** Any other key is an error, except `path`, `line`, `cards` and
+  `context`, which `srl show --json` adds and every reader ignores. A key
+  written twice is an error.
+- **Code needs no special fence**: field text is anything JSON can hold.
+- **A JSONL note is no item's context but by `see`**: an item without
+  `see` has no context, so give every item one. A `see` that names a
+  JSONL note shows it whole, as it is.
+- **`srl id`, `srl accept` and `srl edit` write the item's line again**,
+  compact and with its keys in srl's order. Format the file with `jq` if
+  you want; srl reads it the same.
+- It is read only if `include` in `.srl/config.toml` names it, for
+  example `include = ["**/*.md", "generated/**/*.jsonl"]`. Every file
+  `include` names must be a valid note.
+
 ## Fields of the `qa` kind
 
 | Field | Required |
@@ -160,8 +190,9 @@ leaves the old card's history behind; see the `fixing-problems` skill.
   answer, but never the answer itself.
 - **Cloze for sentences and fixed phrases**: vocabulary in context,
   grammar patterns, formulas. Hide the part worth remembering, not filler.
-- **Write the item next to what it asks about.** The note around it is
-  shown after the answer, so the explanation does not need repeating in `A`.
+- **Write the item next to what it asks about**, or give it a `see` that
+  names that note. The note is shown after the answer, so the explanation
+  does not need repeating in `A`.
 - `==text==` in a field is a highlight in the card too.
 
 ## Adding items with `srl add`
@@ -227,13 +258,15 @@ JSONL
 
 Quote the heredoc's delimiter (`<<'JSONL'`, not `<<JSONL`): unquoted, the
 shell runs backticks as commands and `srl` gets something else. `srl`
-writes each item in its note's syntax. An item that shares its srl block
-with others keeps its place there, as an `@` line and its fields, and must
-not close that block: `srl edit` refuses a field line that would, and says
-so. Every line is checked before anything is written, and the IDs are
-printed.
+writes each item in its note's syntax: a JSONL item as its line again; an
+item that has its srl block to itself as a new block, as `srl add` writes
+it (with srl's own fence and layout, not the one it had); an item that
+shares its srl block with others in its place there, as an `@` line and
+its fields. That last one must not close its block: `srl edit` refuses a
+field line that would, and says so. Every line is checked before anything
+is written, and the IDs are printed.
 
-`--dry-run` only checks the input. Editing never changes the card's
-schedule. To change it themselves instead, the person opens the note in
+`--dry-run` checks the input and prints the IDs, and writes nothing.
+Editing never changes the card's schedule. To change it themselves instead, the person opens the note in
 their editor: `srl show x7k2m9` prints its `PATH:LINE`, relative to the
 store's folder.

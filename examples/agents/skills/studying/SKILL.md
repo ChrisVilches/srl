@@ -22,7 +22,9 @@ srl-web in:grammar          # only notes in a folder named grammar
 ```
 
 For each card, space or Enter shows the answer, then the context (the
-note around the item, or the one its `see:` names); `1`–`4` records the
+note around the item, or the one its `see` names; none for an item of a
+JSONL note without `see`, and a JSONL note named by `see` shown as a code
+block); `1`–`4` records the
 rating; `s` suspends the card without rating it. In `srl-tui`, `j`/`k` or
 the arrows scroll a context too long for the screen (Ctrl-D/Ctrl-U by half
 a screen) and `q` quits. Each keeps a count of the cards reviewed, the new ones and
@@ -109,14 +111,17 @@ as yours. Only run one when the person asks for it. Each round:
    code 1 means nothing is left: say so and stop. Exit code 2 is an
    error: tell the person what it says, and stop. `--context MODE` chooses
    how much of the note comes along: `prose` (the default) without its
-   items, `full` with them, `none` nothing.
+   items, `full` with them, `none` nothing. An item of a JSONL note
+   without `see` has no context (`null`), and a JSONL note named by `see`
+   comes whole, as it is, in `prose` and `full` alike.
 2. Show the prompt, and wait for the person's answer or for them to ask for
    the answer.
 3. Show the answer: `prompt_revealed` (the prompt with a cloze's blanks
    filled in), or `prompt` again when it is `null`; then `answer`, unless
    it is `null` (there is none: show nothing for it); then the context,
-   unless it is `null`. Say which note it comes from: `see`, or `path` when `see` is
-   `null`.
+   unless it is `null`. Say which note it comes from: `see`, or `path` when
+   `see` is `null`. A JSONL note is data, not prose: show it as a code
+   block, or say what in it matters.
 4. Get the rating. Either the person gives it, or, if they asked you to
    judge, you compare their answer with the card's and decide, telling them
    the rating and why.

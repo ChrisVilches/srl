@@ -49,8 +49,8 @@ Meant for Linux, macOS and Windows; tried on Linux only.
   instructions tell the model not to write cloze deletions or `==…==`.
 - **The instructions are fixed**, in `INSTRUCTIONS` at the top of the
   program: write one question on the topic and its answer, a different angle
-  each time. The model gets `PROMPT`, then the item's note (its context in
-  mode `prose`) as background.
+  each time. The model gets `PROMPT`, then the item's context (its note,
+  or the one `see` names, in mode `prose`) as background, when it has one.
 
 ## Errors
 

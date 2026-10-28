@@ -11,19 +11,22 @@ mention the next useful step.
 
 ## What srl is
 
-`srl` turns questions written inside Markdown notes into flashcards, records
-how well the person remembered each one, and schedules each card for review
-with the FSRS algorithm, so that what they learn is reviewed just before they
-would forget it.
+`srl` turns questions written inside Markdown notes, or in JSONL files of
+their own, into flashcards, records how well the person remembered each
+one, and schedules each card for review with the FSRS algorithm, so that
+what they learn is reviewed just before they would forget it.
 
-- A **store** is a folder of Markdown notes with a `.srl/` folder in it.
-  `.srl/` holds the configuration (`.srl/config.toml`) and the review log
+- A **store** is a folder of notes with a `.srl/` folder in it. `.srl/`
+  holds the configuration (`.srl/config.toml`) and the review log
   (`.srl/log/*.jsonl`). Everything outside `.srl/` belongs to the person.
 - A **note** is any `.md` file in the store, unless `include` in
-  `.srl/config.toml` names other files.
-- An **item** is a question written in a note, in an srl block (a fenced
-  code block whose language is `srl`): fields `Q:` and `A:` after a
-  header. It has an ID.
+  `.srl/config.toml` names other files. A note whose name ends in `.jsonl`
+  is a **JSONL note**: it holds nothing but items, one JSON object per
+  line, and is read only if `include` names it.
+- An **item** is a question written in a note: in a Markdown note, in an
+  srl block (a fenced code block whose language is `srl`), fields `Q:` and
+  `A:` after a header; in a JSONL note, one line such as
+  `{"id": "x7k2m9", "Q": "…", "A": "…"}`. It has an ID.
 - A **card** is one question, ready to show: an ID, a prompt, the prompt as
   revealed with the answer (a cloze's blanks filled in), and an answer.
   The last two may be `null`: the revealed prompt is then the prompt, and
@@ -45,8 +48,11 @@ be kept in git.
 2. **Items you write are drafts, in notes of their own.** Add them with
    `srl add NOTE --stdin`, with `"draft": true` on every line, into a new
    note such as `generated/ownership.md`, never into one of the person's
-   notes. When they ask about one of the person's notes, give each one
-   `"see": "THAT_NOTE"` so it is shown as their context. Drafts are never
+   notes. If the store reads JSONL notes (`srl notes` lists one, or
+   `include` names `*.jsonl`), prefer one, such as
+   `generated/ownership.jsonl`. When they ask about one of the person's
+   notes, give each one `"see": "THAT_NOTE"` so it is shown as their
+   context; an item of a JSONL note has no other context. Drafts are never
    studied; the person reads them and runs `srl accept` for the ones worth
    keeping.
 3. **Change the person's notes or schedule only when they ask.** That means
@@ -156,6 +162,11 @@ A: Its answer.
 - Everything else in the note is ordinary Markdown, and is shown as the
   **context** after the answer.
 
+In a JSONL note, each line is one item object: the lowercase keys `id`,
+`kind`, `see` and `draft` are its header entries, and the uppercase keys
+its fields. `srl id` adds the missing IDs there too. A JSONL note is never
+the context of its own items: give them `see`.
+
 **Cloze deletions**, written as in Anki, hide parts of `Q`:
 `{{c1::text}}`, or `{{c1::text::hint}}`. Each number makes one card; the
 same number twice hides both parts in the same card. With cloze deletions,
@@ -164,9 +175,11 @@ same number twice hides both parts in the same card. With cloze deletions,
 Good questions are small: one fact each, with one clear answer. Prefer
 several small items over one large one.
 
-To add items from a command, as you do, send one JSON object per line: the
+To add items from a command, as you do, send one item object per line: the
 header entries `draft` and `see` (the note the item is about), and the
-fields (a newline inside a value becomes a continuation line):
+fields. Leave `id` out to get a new one. `srl` writes each item in the
+note's syntax (in a Markdown note, a newline inside a value becomes a
+continuation line):
 
 ```sh
 srl add generated/ownership.md --stdin <<'JSONL'
@@ -192,8 +205,8 @@ terminal (it needs uv). Both are meant for Linux, macOS and Windows, but
 are tried on Linux only. Either takes a selector and shows due cards, then
 new ones, until none is left:
 
-- Space or Enter shows the answer, then the context: the note it comes
-  from.
+- Space or Enter shows the answer, then the context: the note the item
+  comes from, or the one its `see` names.
 - Then rate: `1` Again (didn't know it), `2` Hard, `3` Good, `4` Easy.
   `s` suspends the card.
 
@@ -210,8 +223,9 @@ Things that surprise beginners:
   today.
 
 You can also run a session yourself, in the chat, acting as the frontend:
-`srl next --json` gives the next card with its context (field `context`; it comes from the note at
-`see`, or at `path` when `see` is `null`); show the prompt, wait for the
+`srl next --json` gives the next card with its context (field `context`:
+the note at `see`, or at `path` when `see` is `null`, or `null` for an
+item of a JSONL note without `see`); show the prompt, wait for the
 answer, show the revealed prompt, the answer and the context, get a rating,
 and record it with `srl review ID --rating N --by agent`. The `studying`
 skill has the details.

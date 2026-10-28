@@ -86,11 +86,12 @@ old ID; `srl check` reports it, and `srl move` gives it to another card
 
 ## Kinds
 
-An item's **kind**, set by `kind:` in its header, decides which fields it
+An item's **kind**, set by its `kind` entry (see [notes.md](notes.md),
+"Header entries"), decides which fields it
 takes and how they become cards, and which of its cards are siblings
 (see [scheduling.md](scheduling.md), "Siblings"). `qa` is built in and
 is the default. Every other kind is a program named in `.srl/config.toml`
-(see "Kind programs" below). A `kind:` that is neither is an error.
+(see "Kind programs" below). A `kind` that is neither is an error.
 The selector term `kind:` picks the cards of items of a kind (see
 [selectors.md](selectors.md)).
 
@@ -431,7 +432,7 @@ description only informs"). `srl kinds` prints the descriptions (see
   may be left out: "The answer. Optional when Q has cloze deletions."
 - The output holds a description that isn't blank, at least one field,
   each field once with a name made as in [notes.md](notes.md), "The item
-  syntax", and descriptions that aren't blank. Any other key is invalid.
+  object", and descriptions that aren't blank. Any other key is invalid.
 
 **A description only informs.** It doesn't say which fields are required
 or how they depend on each other, and `srl` never checks an item against

@@ -88,7 +88,10 @@ presentation, so it belongs to the frontend, not to the store.
 ## Rendering
 
 Card text and context are Markdown; card text may also hold `==highlight==`
-(see [cards.md](cards.md), "Text formatting").
+(see [cards.md](cards.md), "Text formatting"). The one exception is a
+context that is a JSONL note, named by `see`: it is the note's JSON lines
+as they are (see [notes.md](notes.md), "Context"), which a frontend can
+tell by `see` ending in `.jsonl`.
 
 - The context is the note as written, so it may use syntax beyond
   CommonMark that notes commonly have, such as GFM tables. A frontend may

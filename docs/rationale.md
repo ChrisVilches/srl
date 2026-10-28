@@ -99,8 +99,8 @@ indented closing fence is valid CommonMark, and `srl` reads blocks as
 renderers do. LLMs are prone to this mistake (see
 [guides/agents.md](guides/agents.md), "Limitations of the item syntax for
 LLMs"). The syntax is also Markdown's: it suits Markdown
-and the formats built on it, and any other file read as a note, but a
-JSONL note, has to use it too (see [notes.md](notes.md), "Item
+and the formats built on it, and every other file read as a note but a
+JSONL note has to use it too (see [notes.md](notes.md), "Item
 syntaxes").
 
 ## Why JSONL notes, and why the extension decides
@@ -190,9 +190,9 @@ change by `srl` can't damage text you wrote, and is easy to see in a diff.
 
 An item's position in a note changes whenever you add a question above it.
 Using it as identity would give one question's history to another without
-a word. An ID in the header moves with the item.
+a word. An ID among the item's header entries moves with the item.
 
-Trade-off: every header carries an ID, and copying an item copies its ID,
+Trade-off: every item carries an ID, and copying an item copies its ID,
 which is an error until you remove it.
 
 ## Why schedule cards, with siblings
@@ -476,7 +476,7 @@ running commands.
 ## Why agent-written questions are ordinary items
 
 An agent that writes questions writes items, in a note of their own, with
-`see:` pointing to the note they ask about. There is no separate cache or
+`see` pointing to the note they ask about. There is no separate cache or
 session for generated questions: that would be a concept that exists only
 for agents, and would hide content outside your notes. As items, you can
 read, edit, accept or delete them like any other.
@@ -506,7 +506,8 @@ for it, such as HTML or source code; `srl` reads it anyway.
 
 Every rule in `srl` can be stated in one sentence, and each one picks the
 simplest option even when a smarter one exists: whole days instead of
-learning steps, one global new-card limit, one card per item per day. The
+learning steps, one global new-card limit, one card per group of siblings
+per day. The
 result is behaviour you can predict without reading code. Because the log
 records everything, a smarter rule can always be introduced later and
 applied to the whole history.

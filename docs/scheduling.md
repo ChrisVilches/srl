@@ -92,7 +92,7 @@ keeps those that the sibling rule allows:
 1. **Due cards**, ordered by due day (oldest first), then by card ID.
 2. **Then new cards**, if today's new-card limit is not reached: cards with
    no reviews since their last reset, in the order they are written: by
-   note path, then by line, then by card ID.
+   note path, the order of items in the note, then card ID.
 
 > **It picks one of the first `max_skip` + 1 of those, uniformly at
 > random.**

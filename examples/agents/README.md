@@ -13,8 +13,8 @@ agents/
                                 common commands, the rules it follows
   skills/
     setting-up-a-store/         stores, configuration, git and syncing
-    writing-items/              the full item syntax, kinds, cloze, srl add
-                                and edit
+    writing-items/              the item syntaxes (srl blocks, JSONL notes),
+                                kinds, cloze, srl add and edit
     studying/                   study sessions, ratings, which card comes next
     selectors/                  the selector language and shell quoting
     fixing-problems/            errors, cards a kind program can't make,
@@ -82,7 +82,8 @@ skills can be given the `SKILL.md` files to read when needed.
 
 The prompt has the agent follow the rules in `docs/guides/agents.md`:
 
-- Items it writes are drafts, in notes of their own, with `see:` pointing
+- Items it writes are drafts, in notes of their own (JSONL notes, when the
+  store reads them), with `see` pointing
   at the note they are about. You read them and `srl accept` the ones you
   want.
 - It changes your notes or your schedule (`srl accept`, `srl edit`,

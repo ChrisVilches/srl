@@ -214,9 +214,20 @@ questions", once it is planned.
   where there is no line, and `line` in JSON `null`; a person opening the
   note would search for the ID.
 
-- **Blank space before added items** (low priority). `srl add` puts a
-  blank line between a note and the items it appends, and keeps every
-  byte already in the note. A note that holds only blank lines, such as
+  Changes would need the same thought: today every change a syntax makes
+  is a range of whole lines replaced, which fits syntaxes whose items have
+  lines of their own, but not one where items share a line (see
+  [rust.md](rust.md), "What still assumes lines"). Two ways out: a rule
+  that every syntax keeps each item on lines of its own and can name the
+  line it starts on, which keeps everything as it is and rules some
+  formats out; or changes as byte ranges, and lines made optional, which
+  lets any format in and takes the line out of `PATH:LINE` for some
+  notes.
+
+- **Blank space before added items** (low priority). In a note of srl
+  blocks, `srl add` puts a blank line between the note and the items it
+  appends, and keeps every byte already in the note. A note that holds
+  only blank lines, such as
   an "empty" note an editor saved as one newline, is not empty to it, so
   the items start after blank lines; a note that ends in several blank
   lines keeps them all, plus one. Either rule would fix it: a note with

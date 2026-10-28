@@ -239,7 +239,7 @@ depend on the platform, and flag every place that does.
 
 - **Paths:** build them with `Path::join`, never by gluing strings with `/`
   or `\`. Note paths are `String`s with `/` between folders, because they are
-  part of the formats (JSON output, `path:` selectors, `see:`); turn them
+  part of the formats (JSON output, `path:` selectors, `see`); turn them
   into file paths only with `Store::note_file`.
 - **Platform locations** come from a crate, never from hard-coded paths such
   as `~/.local/share`: the default store uses `dirs::data_dir()`.
@@ -493,6 +493,40 @@ not make anything depend on it beyond showing it. Whether to keep the
 line at all, and leave finding an item to its ID alone, each syntax its
 own way, is open (see [ideas.md](ideas.md), "Writing notes").
 
+### What still assumes lines
+
+Not finding items, but two other things still take for granted that a
+syntax writes its items in whole lines. Both hold for the two syntaxes
+there are; they are worth keeping in mind before adding another, not
+problems today.
+
+- **Changes are line ranges.** Every change a syntax gives is an `Edit`:
+  lines `first` to `last` replaced by other lines. `write.rs` applies it,
+  keeping line endings, a byte order mark and every other line as they
+  are, which is how "only the lines of the items changed are written"
+  holds (see [notes.md](notes.md), "How srl writes to notes"). That
+  needs each item to have lines of its own. In a syntax where items can
+  share a line, such as a JSON array written on one line, or a
+  pretty-printed one where one item's `},` and the next's `{` meet on a
+  line, a change to one item would have to replace lines that hold others
+  too: up to the whole file. Verification would still catch a change that
+  reads back wrong, since it compares the items, not the lines, but the
+  promise that nothing else is touched would be the syntax's to keep,
+  not `write.rs`'s. Such a syntax would want byte ranges instead of line
+  ranges, or would rewrite its file whole, as the JSONL syntax already
+  does with an item's line.
+- **Messages name lines.** Errors, `srl lint` and `PATH:LINE` everywhere
+  name a line, so a syntax must give one for every item and every
+  problem, even where it can only guess.
+
+All of this assumes syntaxes are free to write items any way they like.
+They need not be: a rule every syntax must follow, such as "each item
+takes whole lines of its own, and starts on a line it can name", would
+keep both assumptions true for any syntax, at the cost of the formats
+that can't follow it. Whether to set such a rule, or to let a syntax
+change bytes and give no line, is a choice for when a syntax that needs
+it comes (see [ideas.md](ideas.md), "Writing notes").
+
 ## Note editing
 
 Notes are written by hand, so `srl` must never rewrite one: no
@@ -574,5 +608,5 @@ answers stay in use until `srl check` or until the cache is deleted:
   line goes through the same parsing as a fresh one, so it gives the same
   items and the same messages. Whether a call runs at all is decided by
   `kind::Cache`: `Notes::load` uses the kept answers, `Notes::load_asking`
-  (`srl check`) asks again, and `read_items` (checking items about to be
+  (`srl check`) asks again, and `note::check_new` (checking items about to be
   written) keeps nothing.

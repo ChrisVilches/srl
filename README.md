@@ -2,7 +2,8 @@
 
 A programmable data layer for spaced repetition.
 
-`srl` keeps your questions inside your Markdown notes and your reviews in a
+`srl` keeps your questions inside your Markdown notes (or, when scripts and
+agents write them, in JSONL files of their own) and your reviews in a
 plain-text log, schedules every card with
 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/ABC-of-FSRS),
 and exposes all of it through a CLI with JSON output. It has no study screen
@@ -38,7 +39,7 @@ built by you.
 - **The CLI is the API.** Every command is non-interactive, with JSON
   output. Frontends, scripts and agents use the same commands you do; there
   is no separate interface to learn.
-- **Small fixed contracts.** The item syntax, the card, the frontend
+- **Small fixed contracts.** The item syntaxes, the card, the frontend
   contract (`srl next --json`), the review event and the selector language
   are rigid and documented, so the programs around them can vary freely.
 - **One schedule for everyone.** Frontends never compute schedules. Study
@@ -75,6 +76,16 @@ editor, your viewer or GitHub, which show the block as code; a block can
 also hold a single question, with its ID on the fence (```` ```srl
 id:x7k2m9 ````). When you study a card, the note around it is shown as
 context after the answer.
+
+Questions that scripts and agents write can go in a JSONL note instead,
+one JSON object per line, each naming the note it asks about with `see`:
+
+```json
+{"id": "q8m2k1", "see": "japanese/vocabulary/osaka.md", "Q": "What does 食い倒れ mean?", "A": "Eating yourself into ruin."}
+```
+
+`srl add` and `srl edit` take items in that same form, whatever note they
+go to.
 
 A card's identity is its ID, so you can reword a question or move its note
 without losing its schedule. Your folders are your topics:
@@ -194,7 +205,7 @@ of it: copy them and change them.
 
 | Example | What it is |
 |---|---|
-| [`web-frontend/`](examples/web-frontend/) | `srl-web`: a local web viewer that renders cards and context as Markdown, with a card browser and a form that adds items. |
+| [`web-frontend/`](examples/web-frontend/) | `srl-web`: a local web viewer that renders cards and context as Markdown (a JSONL note as a code block), with a card browser and a form that adds items. |
 | [`python-frontend/`](examples/python-frontend/) | `srl-tui`: a terminal study frontend in Python with Rich. |
 | [`agents/`](examples/agents/) | A system prompt and skills that turn an LLM agent into a guide to `srl`. |
 | [`kind-ja-words/`](examples/kind-ja-words/) | A kind program: one card per marked word of a Japanese sentence. |

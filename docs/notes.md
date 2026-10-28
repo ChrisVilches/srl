@@ -304,9 +304,9 @@ store: each frontend chooses it with `--context MODE` on `srl next`, and
 | `full` | The note with the field lines of its items, as written, and the blank lines between them, without the fences of the srl blocks and their `@` lines. |
 | `none` | Nothing. |
 
-In every mode, the YAML front-matter is removed, runs of blank lines become
-one, and blank lines at the start and the end are removed. A block with an
-error is removed in every mode.
+For a note of srl blocks, in every mode, the YAML front-matter is removed,
+runs of blank lines become one, and blank lines at the start and the end
+are removed. A block with an error is removed in every mode.
 
 **A JSONL note named by `see` is given as it is**, in modes `prose` and
 `full` alike: every line, with nothing removed, as the file holds it.

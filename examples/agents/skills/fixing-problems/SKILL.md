@@ -25,6 +25,7 @@ since the notes and the log can't be read without it. Fix it and run
 | item without an ID | a new item | Run `srl id`. |
 | duplicate ID | an item was copied | Delete `id:...` from the copy, then `srl id`. |
 | unknown or repeated header entry | a typo such as `darft` | Use only `id:`, `kind:`, `see:` and `draft`. |
+| a line of a JSONL note that is not a valid item object | text that isn't JSON, an object over several lines, an unknown or misspelled key, a key written twice, a value of the wrong type (`"draft": "yes"`, a number for text) | Make the line one JSON object with the keys `id`, `kind`, `see`, `draft` and uppercase field names (see the `writing-items` skill). |
 | unknown field, missing `Q` or `A` | `B:`, or a `qa` item without `A` and without cloze | Use `Q` and `A` only; `A` is optional only with cloze. |
 | bad cloze | `{{c1::` without `}}`, empty text, `c0`, `c01`, nested, or cloze in `A` | Fix the deletion. |
 | `PATH:LINE: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind:` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind:`. |
@@ -33,8 +34,8 @@ since the notes and the log can't be read without it. Fix it and run
 | `see:` doesn't name a note | the note was moved or renamed | Update the path, relative to the store. |
 | invalid configuration | a typo or out-of-range value in `.srl/config.toml` | Fix the named setting. |
 
-`srl show ID` prints an item exactly as written, which helps spot the
-problem.
+`srl show ID` prints an item exactly as written (in a JSONL note, its
+line), which helps spot the problem.
 
 ## A card that can't be made
 
@@ -123,7 +124,9 @@ schedule.
 - **"is not a store"**: the command didn't find a store. `cd` into it, or
   use `--dir` or `SRL_DIR`; `srl init` creates one.
 - **A note that changed while srl was working is not written**: an editor
-  saved it at the same moment. Run the command again.
+  saved it at the same moment, or an item to change was removed from it,
+  or it has an error now. Run the command again, after `srl check` if the
+  note may be broken. An item that only moved is still found, by its ID.
 - **The log's lock**: another `srl` was recording a review for more than 5
   seconds. Try again; on a network share, move the store to a local disk.
 - **Log lines skipped**: a line of `.srl/log/*.jsonl` isn't a valid event,

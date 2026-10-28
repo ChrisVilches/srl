@@ -16,8 +16,12 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 
 ## Conventions
 
-- **`--json` everywhere.** Every command that prints data can print JSON
-  instead (JSONL for lists). The default output is for people.
+- **`--json` for data.** Every command that reads data out of the store
+  (`find`, `show`, `cards`, `notes`, `kinds`, `next`, `stats`, `log`) can
+  print JSON instead (JSONL for lists). The default output is for people.
+  Commands that change the store print the IDs they changed, one per line
+  (`srl id` adds `PATH:LINE`), and `srl lint` prints its findings as
+  `PATH:LINE: message`; they have no `--json`.
 - **Never interactive.** No command asks questions or waits for a person.
   Studying is up to frontends (see [frontends.md](frontends.md)), and
   editing notes is up to your editor.

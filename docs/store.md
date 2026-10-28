@@ -107,7 +107,7 @@ least 1. Commands that need the configuration fail with a message
 naming the problem.
 
 `[kinds]` names the kinds that are programs: each key is a kind's name,
-as written in `kind:`, and its value the command to run, a non-empty list
+as written in its `kind` entry, and its value the command to run, a non-empty list
 of the program and its arguments. `qa` can't be one of them. How kind
 programs are run, and what `card_timeout` limits, is in
 [cards.md](cards.md), "Kind programs".
