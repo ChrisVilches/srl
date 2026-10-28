@@ -124,7 +124,8 @@ export function Key({ children }: { children: ReactNode }) {
   return <kbd className="ml-1 rounded bg-black/15 px-1.5 dark:bg-white/15 py-0.5 font-mono text-xs opacity-80">{children}</kbd>;
 }
 
-// Waiting for srl, with a spinner and the seconds since SINCE: making a card
+// Waiting for srl, with a spinner and the seconds since SINCE (NOW can lag a
+// new SINCE by a tick, hence the clamp): making a card
 // can take a while, as when its kind program asks an LLM.
 export function Waiting({ title, since, children }: { title: string; since: number; children?: ReactNode }) {
   const [now, setNow] = useState(Date.now());
@@ -136,7 +137,7 @@ export function Waiting({ title, since, children }: { title: string; since: numb
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center dark:border-stone-700">
       <div className="h-6 w-6 animate-spin rounded-full border-2 border-stone-300 border-t-amber-500 dark:border-stone-700 dark:border-t-amber-400" />
       <div className="font-medium">
-        {title} <span className="tabular-nums">{((now - since) / 1000).toFixed(1)} s</span>
+        {title} <span className="tabular-nums">{(Math.max(0, now - since) / 1000).toFixed(1)} s</span>
       </div>
       {children && <p className="max-w-md text-sm text-stone-500">{children}</p>}
     </div>
