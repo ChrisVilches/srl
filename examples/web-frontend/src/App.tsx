@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import { Add } from './Add';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
-import { CardFace, Counts, ErrorView, Key, Notice, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges } from './CardParts';
+import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, Notice, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges } from './CardParts';
 import { useKeys, useStartWhenShown } from './hooks';
 import { SelectorInput, TopBar, type View } from './TopBar';
 
@@ -211,7 +211,7 @@ function CardView({
             <button
               onClick={onReveal}
               disabled={busy}
-              className="flex-1 rounded-lg bg-stone-900 px-4 py-3 font-medium text-white hover:bg-stone-700 disabled:opacity-50 dark:border dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700"
+              className={`flex-1 px-4 py-3 ${MAIN_BUTTON}`}
             >
               Show answer <Key>space</Key>
             </button>

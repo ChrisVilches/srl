@@ -3,6 +3,10 @@ import type { ReactNode } from 'react';
 import type { FoundCard, ShownCard } from './api';
 import { Markdown } from './Markdown';
 
+// The look of a view's main action: a raised surface in the theme's colors,
+// like the card.
+export const MAIN_BUTTON =
+  'rounded-lg border border-stone-300 bg-white font-medium text-stone-900 shadow-sm hover:bg-stone-100 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700';
 // The looks of the buttons that aren't a view's main action.
 export const OUTLINE_BUTTON =
   'rounded-lg border border-stone-300 px-4 py-2 text-sm hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-900';
