@@ -26,6 +26,9 @@ screen needs a modern terminal such as Windows Terminal.
 - The screen never scrolls: the question and the answer always stay in
   view. A context too long for the space left under them scrolls on its
   own, inside its panel.
+- When `srl` takes a while, as when `srl next` runs a kind program that
+  asks an LLM, the screen shows a spinner, "Loading…", and the seconds
+  taken; Ctrl-C stops the wait.
 - Keys act at once, without Enter: space (or Enter) shows the answer,
   `1`–`4` rate, `j`/`k` or the arrows scroll the context, Ctrl-D/Ctrl-U
   by half of it, `s` suspends the card, `q` (or Ctrl-C) quits.

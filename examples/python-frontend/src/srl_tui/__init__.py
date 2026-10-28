@@ -18,6 +18,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 
 from markdown_it import MarkdownIt
 from rich.console import Console, Group
@@ -48,11 +49,28 @@ class SrlError(Exception):
 
 
 def srl(*args, stdin=None):
-    """Runs srl and returns its output and exit code; any code but 0 and 1 is an error."""
-    result = subprocess.run(["srl", *args], input=stdin, capture_output=True, text=True)
-    if result.returncode not in (0, 1):
-        raise SrlError(result.stderr)
-    return result.stdout, result.returncode
+    """Runs srl and returns its output and exit code; any code but 0 and 1 is an error.
+
+    srl can take a while, as when srl next runs a kind program that asks an
+    LLM: past a moment, the screen shows a spinner and the seconds taken.
+    """
+    pipe = subprocess.PIPE
+    process = subprocess.Popen(["srl", *args], stdin=pipe, stdout=pipe, stderr=pipe, text=True)
+    start = time.monotonic()
+    try:
+        out, err = process.communicate(stdin, timeout=0.3)  # most calls end here, without a spinner
+    except subprocess.TimeoutExpired:
+        console.clear()
+        with console.status("Loading…") as status:
+            while True:
+                try:
+                    out, err = process.communicate(timeout=0.1)
+                    break
+                except subprocess.TimeoutExpired:
+                    status.update(f"Loading… {time.monotonic() - start:.1f} s")
+    if process.returncode not in (0, 1):
+        raise SrlError(err)
+    return out, process.returncode
 
 
 def highlight(md):
@@ -313,6 +331,8 @@ def main():
         # it as it was when it ends.
         with console.screen():
             finished = session.run()
+    except KeyboardInterrupt:  # Ctrl-C while srl runs, when keys aren't read one by one
+        finished = False
     except SrlError as error:
         sys.stderr.write(str(error))
         sys.exit(2)
