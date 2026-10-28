@@ -145,3 +145,16 @@ questions", once it is planned.
   another together with the review history of their cards, so that their
   memory state comes along. It needs rules for ID clashes and for merging
   logs. Copying a note by hand moves only the content.
+
+## Performance
+
+- **Reading every note on every command may become slow in a very large
+  store.** Every command that reads items reads and parses every note
+  (see [store.md](store.md), "The index cache"), so its cost grows with
+  the store. Today it is negligible: a store of 40 notes takes a few
+  milliseconds for a whole command. If a store grows large enough for it
+  to be felt, it needs measuring first (reading, hashing or parsing), and
+  then an optimization that keeps every result the same. Directions
+  to start from, none analyzed: keeping parsed items per note, keyed on
+  its content; reading notes in parallel; trusting modification times or
+  watching files, which `srl` doesn't do today.
