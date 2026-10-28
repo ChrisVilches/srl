@@ -53,9 +53,9 @@ the context mode they ask for. Each pairs highlights in order, each `==`
 with the next one: Markdown plugins that treat `==` like `*` nest the marks
 in text without spaces, such as `==[...]==を==[...]==`.
 
-A context is rendered as Markdown, but `srl` gives a JSONL note named by
-`see` as it is (see [notes.md](../notes.md), "Context"), so its lines run
-together into one paragraph and the backticks in its fields are taken as
-code spans. Both example frontends show such
-a context, when `see` ends with `.jsonl`, as a code block instead, with a
-fence longer than any run of backticks in it.
+Both render a context by its `context_format` (see
+[frontends.md](../frontends.md), "Rendering"): `markdown` as Markdown, and
+every other format as a code block of plain text, so that a JSONL note's
+lines don't run together into one paragraph and the backticks in its
+fields aren't taken as code spans. The fence is longer than any run of
+backticks in the context, and a `jsonl` context is highlighted as JSON.

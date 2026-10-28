@@ -11,6 +11,7 @@ export type ShownCard = {
   path: string;
   see: string | null;
   context: string | null;
+  context_format: string | null;
 };
 
 // What `srl next --json` prints (docs/frontends.md, "What a frontend gets"):

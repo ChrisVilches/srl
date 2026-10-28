@@ -122,7 +122,16 @@ export function createSrlServer({ dir, selector, staticDir }) {
         throw new BadRequest(`${id} is not a card ID`);
       }
       const item = jsonLines(show.stdout)[0];
-      return { card: { ...card, kind: item.kind, path: item.path, see: item.see, context: item.context } };
+      return {
+        card: {
+          ...card,
+          kind: item.kind,
+          path: item.path,
+          see: item.see,
+          context: item.context,
+          context_format: item.context_format,
+        },
+      };
     },
 
     'GET /api/kinds': async () => ({ kinds: jsonLines((await srl(['kinds', '--json'])).stdout) }),

@@ -22,7 +22,8 @@ screen needs a modern terminal such as Windows Terminal.
   is one.
 - The context is shown under the answer, titled with its note (`see`, or
   else `path`). It asks for the `prose` context: the note without its
-  items. A JSONL note, which `srl` gives whole, is shown as a code block.
+  items. A context whose `context_format` isn't `markdown`, such as a
+  JSONL note, is shown as a code block.
 - The screen never scrolls: the card and its context each scroll inside
   their own panel. When both are too long for the screen, each gets half
   of it; when one is shorter than half, the other takes the rest. A panel

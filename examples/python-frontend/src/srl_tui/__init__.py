@@ -114,15 +114,17 @@ class CardMarkdown(Markdown):
 
 
 def context_markdown(card):
-    """The card's context, as Markdown to render. srl gives a JSONL note
-    named by see as it is, so it goes in a code block, with a fence longer
-    than any run of backticks in it, instead of being read as Markdown."""
+    """The card's context, as Markdown to render. A context in any format but
+    markdown (context_format) goes in a code block as plain text, json for a
+    JSONL note, with a fence longer than any run of backticks in it."""
     context = card["context"]
-    if not (card["see"] or "").endswith(".jsonl"):
+    context_format = card.get("context_format")
+    if context_format == "markdown":
         return context
+    language = "json" if context_format == "jsonl" else ""
     longest = max((len(run) for run in re.findall("`+", context)), default=0)
     fence = "`" * max(3, longest + 1)
-    return f"{fence}json\n{context.rstrip(chr(10))}\n{fence}\n"
+    return f"{fence}{language}\n{context.rstrip(chr(10))}\n{fence}\n"
 
 
 class Lines:

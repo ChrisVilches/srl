@@ -106,7 +106,7 @@ as yours. Only run one when the person asks for it. Each round:
 1. `srl next [SELECTOR] --json` prints the card, with its state, kind and
    context: `{"id": "k3m9q1-2", "prompt": "...", "prompt_revealed": "...",
    "answer": "...", "state": "due", "kind": "qa", "path": "...",
-   "see": null, "context": "..."}`. Mention the kind when it isn't `qa`:
+   "see": null, "context": "...", "context_format": "markdown"}`. Mention the kind when it isn't `qa`:
    it says which program made the card. Exit
    code 1 means nothing is left: say so and stop. Exit code 2 is an
    error: tell the person what it says, and stop. `--context MODE` chooses
@@ -120,8 +120,10 @@ as yours. Only run one when the person asks for it. Each round:
    filled in), or `prompt` again when it is `null`; then `answer`, unless
    it is `null` (there is none: show nothing for it); then the context,
    unless it is `null`. Say which note it comes from: `see`, or `path` when
-   `see` is `null`. A JSONL note is data, not prose: show it as a code
-   block, or say what in it matters.
+   `see` is `null`. `context_format` says what the context is: `markdown`
+   is the note's Markdown; `jsonl` is a JSONL note, data rather than prose,
+   so show it as a code block or say what in it matters. Treat any other
+   format as plain text.
 4. Get the rating. Either the person gives it, or, if they asked you to
    judge, you compare their answer with the card's and decide, telling them
    the rating and why.
