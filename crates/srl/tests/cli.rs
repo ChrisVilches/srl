@@ -77,7 +77,7 @@ fn help_succeeds_and_lists_commands() {
 fn usage_errors_exit_with_2() {
     let output = srl(&["review", "a7f3k2", "--rating", "9"]);
     assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, b"");
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn unknown_commands_exit_with_2_and_explain() {
     let output = srl(&["no-such-command-for-srl-tests"]);
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("no-such-command-for-srl-tests"));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, b"");
 }
 
 /// A temporary directory with a fresh store in it, and `notes` written.
@@ -212,7 +212,7 @@ fn find_takes_in_and_negated_terms_and_exits_1_when_nothing_matches() {
     assert!(lines(&output)[0].starts_with("x7k2m9"));
     let output = srl(&["find", "in:nothing", "--dir", d]);
     assert_eq!(output.status.code(), Some(1));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, b"");
 }
 
 #[test]
@@ -385,7 +385,7 @@ fn one_bad_line_adds_nothing() {
 fn drafts_move_through_accept_and_cards_through_suspend() {
     let tmp = japanese();
     let d = dir(&tmp);
-    assert!(srl(&["next", "id:saba01", "--dir", d]).stdout.is_empty());
+    assert_eq!(srl(&["next", "id:saba01", "--dir", d]).stdout, b"");
     let accepted = srl(&["accept", "in:fish", "--dir", d]);
     assert_eq!(lines(&accepted), ["saba01"]);
     assert!(read(&tmp, "kanji/fish.md").contains("\n@ id:saba01\n"));
@@ -767,7 +767,7 @@ fn orphans_are_reported_and_their_history_moves() {
     );
     let moved = srl(&["move", "x7k2m9", "x7k2m9-1", "--dir", d]);
     assert_eq!(moved.status.code(), Some(0), "{}", stderr(&moved));
-    assert!(srl(&["check", "--dir", d]).stderr.is_empty());
+    assert_eq!(srl(&["check", "--dir", d]).stderr, b"");
     let young = srl(&["find", "state:young", "--dir", d]);
     assert!(
         stdout(&young).starts_with("x7k2m9-1  "),
@@ -977,7 +977,7 @@ fn an_invalid_include_glob_is_a_configuration_error() {
         "{}",
         stderr(&output)
     );
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, b"");
 }
 
 #[test]
@@ -1217,7 +1217,7 @@ fn next_fails_if_its_kind_program_fails_to_make_the_card() {
     for _ in 0..2 {
         let output = srl(&["next", "--json", "--dir", d]);
         assert_eq!(output.status.code(), Some(2), "{}", stderr(&output));
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout, b"");
         assert!(
             stderr(&output).contains("cannot make the card abc-a (fix what failed, or set the card aside with `srl suspend abc-a`): the program of kind fake couldn't make it: card a fails on purpose"),
             "{}",
@@ -1243,7 +1243,7 @@ fn cards_fails_at_once_if_a_kind_program_fails() {
     let d = dir(&tmp);
     let output = srl(&["cards", "abc", "--dir", d]);
     assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, b"");
     assert!(stderr(&output).contains("cannot make the card abc-b"));
     let output = srl(&["cards", "abc-a", "--json", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));

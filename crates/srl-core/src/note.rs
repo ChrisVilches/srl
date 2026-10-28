@@ -669,7 +669,7 @@ mod tests {
             "```srl id:abc\nQ: a\nQ: b\nA: c\n```\n",
             &Programs::default(),
         );
-        assert!(items.is_empty());
+        assert_eq!(items, [] as [Item; 0]);
         assert_eq!(
             problems[0].to_string(),
             "n.md:1: the field Q appears twice; keep one"
@@ -680,7 +680,7 @@ mod tests {
     fn missing_ids_unknown_kinds_and_bad_fields_are_problems() {
         let text = "```srl\nQ: a\nA: b\n```\n```srl id:abc kind:conj\nVERB: x\n```\n```srl\n@ id:abd\nQ: only a question\n```\n";
         let (items, problems) = read_items("n.md", text, &Programs::default());
-        assert!(items.is_empty());
+        assert_eq!(items, [] as [Item; 0]);
         assert!(matches!(problems[0], Error::MissingId { line: 1, .. }));
         let lines = problems
             .iter()

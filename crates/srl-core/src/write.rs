@@ -666,10 +666,9 @@ mod tests {
             )
         );
         assert!(notes(&store).problems().is_empty());
-        assert!(
-            assign_ids(&store, &notes(&store), 7, false)
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            assign_ids(&store, &notes(&store), 7, false).unwrap(),
+            [] as [Written; 0]
         );
     }
 
@@ -932,7 +931,10 @@ mod tests {
             ));
             assert_eq!(read(&store, "a.md"), "```srl id:aaa1\nQ: q\nA: a\n```\n");
         }
-        assert!(edit(&store, &notes, "\n\n", false).unwrap().is_empty());
+        assert_eq!(
+            edit(&store, &notes, "\n\n", false).unwrap(),
+            [] as [ItemId; 0]
+        );
     }
 
     #[test]

@@ -1211,7 +1211,10 @@ mod tests {
             [2, 4]
         );
         assert_eq!(parsed.items.len(), 1);
-        assert!(parse("~~~srl see:`a`\nQ: q\n~~~\n").errors.is_empty());
+        assert_eq!(
+            parse("~~~srl see:`a`\nQ: q\n~~~\n").errors,
+            [] as [(usize, String); 0]
+        );
     }
 
     #[test]
@@ -1309,7 +1312,7 @@ mod tests {
             "---\ntitle: x\n---\n````markdown\n```srl\nQ: q\n```\n````\n~~~~\n```srl\n~~~\n~~~~\n";
         let reading = read(text);
         assert!(reading.errors.is_empty(), "{:?}", reading.errors);
-        assert!(reading.found.is_empty());
+        assert_eq!(reading.found, [] as [Found; 0]);
         assert_eq!(reading.lines[1], Line::FrontMatter);
         assert_eq!(reading.lines[4], Line::Code);
         assert_eq!(reading.lines[9], Line::Code);
@@ -1484,8 +1487,14 @@ mod tests {
 
     #[test]
     fn errors_are_left_to_parse() {
-        assert!(found_lines("```srl darft\nQ: q\nA: a\n```\n").is_empty());
-        assert!(found_lines("```srl\nQ: q\nA: a\nmore\n```\n").is_empty());
+        assert_eq!(
+            found_lines("```srl darft\nQ: q\nA: a\n```\n"),
+            [] as [usize; 0]
+        );
+        assert_eq!(
+            found_lines("```srl\nQ: q\nA: a\nmore\n```\n"),
+            [] as [usize; 0]
+        );
     }
 
     #[test]
@@ -1515,16 +1524,19 @@ mod tests {
             "```srl\n@ id:ddd1\nQ: {{c1::y}}\n  ```\n  code\n  ```\n@ id:eee1\nQ: z\nA: a\n```\n";
         assert_eq!(found_lines(shared), [4]);
         let longer = "````srl id:fff1\nQ: q\n  ```\n  code\n  ```\nA: a\n````\n";
-        assert!(found_lines(longer).is_empty());
+        assert_eq!(found_lines(longer), [] as [usize; 0]);
         let tildes = "~~~srl id:fff2\nQ: q\n  ```\n  code\n  ```\nA: a\n~~~\n";
-        assert!(found_lines(tildes).is_empty());
+        assert_eq!(found_lines(tildes), [] as [usize; 0]);
     }
 
     #[test]
     fn blocks_in_an_unclosed_fence_are_found() {
         assert_eq!(found_lines("Prose.\n~~~\n```srl\nQ: q\n```\n"), [2]);
-        assert!(found_lines("```\ncode\n").is_empty());
-        assert!(found_lines("~~~\n```srl\nQ: q\n```\n~~~\n").is_empty());
+        assert_eq!(found_lines("```\ncode\n"), [] as [usize; 0]);
+        assert_eq!(
+            found_lines("~~~\n```srl\nQ: q\n```\n~~~\n"),
+            [] as [usize; 0]
+        );
     }
 
     #[test]

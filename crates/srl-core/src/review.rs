@@ -272,7 +272,7 @@ mod tests {
                 "accepted {card}"
             );
         }
-        assert!(logged(&store).is_empty());
+        assert_eq!(logged(&store), [] as [Event; 0]);
     }
 
     #[test]
@@ -292,7 +292,7 @@ mod tests {
         let suspended = suspend(&store, &all, &memories(&store), true, &now(), false).unwrap();
         assert_eq!(suspended.len(), 3);
         let again = suspend(&store, &all, &memories(&store), true, &now(), false).unwrap();
-        assert!(again.is_empty());
+        assert_eq!(again, [] as [CardId; 0]);
         let back = suspend(&store, &all[..1], &memories(&store), false, &now(), false).unwrap();
         assert_eq!(back, [CardId::parse("aaa1").unwrap()]);
         assert!(!memories(&store).is_suspended(&CardId::parse("aaa1").unwrap()));

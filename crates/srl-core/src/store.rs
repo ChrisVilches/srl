@@ -402,7 +402,10 @@ mod tests {
             ["a.md", "b.txt", "sub/c.md"]
         );
         // exclude wins over include.
-        assert!(store.note_paths(&include, &include).unwrap().is_empty());
+        assert_eq!(
+            store.note_paths(&include, &include).unwrap(),
+            [] as [String; 0]
+        );
     }
 
     #[test]

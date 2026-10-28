@@ -763,7 +763,7 @@ mod tests {
             &config(""),
             "```srl id:aaa kind:fake\nLOG: calls.log\n```\n\n```srl id:bbb kind:fake\nBREAK_VALIDATE: down\n```\n",
         );
-        assert!(ids(&notes).is_empty());
+        assert_eq!(ids(&notes), [] as [String; 0]);
         let note = fs::read_to_string(store.note_file("a.md")).unwrap();
         fs::write(store.note_file("a.md"), note.replace("BREAK_VALIDATE", "X")).unwrap();
         fs::write(store.root().join("calls.log"), "").unwrap();
@@ -798,7 +798,7 @@ mod tests {
             &config(""),
             "```srl id:abc kind:fake\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}, {\"field\": null, \"message\": \"also wrong\"}]}\n```\n\n```srl id:abd kind:fake\nERRORS: not json\n```\n",
         );
-        assert!(ids(&notes).is_empty());
+        assert_eq!(ids(&notes), [] as [String; 0]);
         let reasons = problems(&notes);
         assert_eq!(
             reasons[..2],
