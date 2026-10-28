@@ -84,8 +84,16 @@ one JSON object per line, each naming the note it asks about with `see`:
 {"id": "q8m2k1", "see": "japanese/vocabulary/osaka.md", "Q": "What does 食い倒れ mean?", "A": "Eating yourself into ruin."}
 ```
 
-`srl add` and `srl edit` take items in that same form, whatever note they
-go to.
+A JSONL note holds nothing but items, and has no context of its own, so
+each item names its note with `see`. `srl add` and `srl edit` take items
+in that same form, whatever note they go to, and `srl id` gives IDs to the
+lines that have none. JSONL notes are read once your configuration names
+them, in `.srl/config.toml`:
+
+```toml
+[notes]
+include = ["**/*.md", "**/*.jsonl"]
+```
 
 A card's identity is its ID, so you can reword a question or move its note
 without losing its schedule. Your folders are your topics:
@@ -108,8 +116,8 @@ done
 ```
 
 The repository has two fuller ones to start from: `srl-web`, a local web
-viewer with a card browser and a form for adding items, and `srl-tui`, a
-terminal frontend in Python.
+viewer with a card browser and a form for adding items to any note,
+Markdown or JSONL, and `srl-tui`, a terminal frontend in Python.
 
 > **Note:** `srl` doesn't include a frontend in its core. These two are
 > ready-to-use examples that ship with the repository, in
@@ -136,6 +144,12 @@ srl add generated/japanese.md --stdin <<'JSONL'
 JSONL
 srl accept path:generated/japanese.md   # after you've read them
 ```
+
+The same lines can go to a JSONL note instead, `srl add
+generated/japanese.jsonl --stdin`, where each item is stored as one line,
+just as it was sent. There is then no Markdown for the agent to get
+wrong, such as the fences around a field that holds code, and the note
+stays easy to read and change with `jq`.
 
 It can also be your frontend, tutoring you in a chat: it takes the next
 card, judges your answer in your own words, and records the rating with
@@ -192,6 +206,15 @@ srl id                    # give new items their IDs
 srl next                  # the next card to study (frontends use srl next --json)
 srl review ID --rating 3  # rate it: 1 Again, 2 Hard, 3 Good, 4 Easy
 srl stats                 # what's new, due, young, mature
+```
+
+To add items without writing Markdown, send them as JSON lines to a JSONL
+note (once `include` names `*.jsonl`, see above), or to a Markdown note,
+where `srl` writes the srl blocks for you:
+
+```sh
+echo '{"see": "rust/ownership.md", "Q": "Can a moved value be used again?", "A": "No."}' \
+  | srl add inbox.jsonl --stdin
 ```
 
 Cloze deletions use Anki's syntax (`{{c1::text}}` and `{{c1::text::hint}}`).
