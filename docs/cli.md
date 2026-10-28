@@ -116,9 +116,10 @@ srl edit --stdin < item.jsonl
 Standard input holds one item object per line (see [notes.md](notes.md),
 "The item object"), each with the `id` of the item it replaces, which can
 be in any note and either syntax. Blank lines are ignored. What `srl show
---json` prints is such input: its keys `path`, `line`, `cards`,
-`context` and `context_format` are ignored. Each object is the whole new item, not a change to
-the old one: an entry left out takes its default, and a field left out is
+--json` prints is such input: its keys `path`, `line`, `cards`, `context`
+and `context_format` are ignored. Each object is the whole new item, not a
+change to the old one: an entry left out takes its default, and a field
+left out is
 gone.
 
 - **Every line is checked before anything is written**: if any line is not

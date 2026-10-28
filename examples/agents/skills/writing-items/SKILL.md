@@ -96,9 +96,9 @@ one per line, as **item objects**:
 - **Lowercase keys are header entries**: `id`, `kind`, `see` (text) and
   `draft` (`true` or `false`). `"kind": "qa"`, `"see": null` and
   `"draft": false` are the same as leaving them out. **Uppercase keys are
-  fields.** Any other key is an error, except `path`, `line`, `cards` and
-  `context`, which `srl show --json` adds and every reader ignores. A key
-  written twice is an error.
+  fields.** Any other key is an error, except `path`, `line`, `cards`,
+  `context` and `context_format`, which `srl show --json` adds and every
+  reader ignores. A key written twice is an error.
 - **Code needs no special fence**: field text is anything JSON can hold.
 - **A JSONL note is no item's context but by `see`**: an item without
   `see` has no context, so give every item one. A `see` that names a
@@ -244,10 +244,10 @@ The person accepts drafts with `srl accept SELECTOR`, for example
 Only when the person asks you to change their items. Standard input holds
 item objects, one per line, as for `srl add`, each with the `"id"` of the
 item it replaces, in any note; the rest of each note is untouched. `srl
-show --json ID` prints the item in that form, with `path`, `line`, `cards`
-and `context`, which `srl edit` ignores: change what you need and give the
-line back. Each object is the whole new item: a field or entry left out is
-gone, not kept.
+show --json ID` prints the item in that form, with `path`, `line`, `cards`,
+`context` and `context_format`, which `srl edit` ignores: change what you
+need and give the line back. Each object is the whole new item: a field or
+entry left out is gone, not kept.
 
 ```sh
 srl show --json x7k2m9   # the item object, to change

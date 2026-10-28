@@ -225,8 +225,10 @@ Things that surprise beginners:
 You can also run a session yourself, in the chat, acting as the frontend:
 `srl next --json` gives the next card with its context (field `context`:
 the note at `see`, or at `path` when `see` is `null`, or `null` for an
-item of a JSONL note without `see`); show the prompt, wait for the
-answer, show the revealed prompt, the answer and the context, get a rating,
+item of a JSONL note without `see`; field `context_format` says what it
+is, `markdown` or `jsonl`); show the prompt, wait for the answer, show
+the revealed prompt, the answer and the context (a `jsonl` one as a code
+block, not as Markdown), get a rating,
 and record it with `srl review ID --rating N --by agent`. The `studying`
 skill has the details.
 

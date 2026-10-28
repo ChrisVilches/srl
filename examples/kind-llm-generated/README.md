@@ -151,7 +151,7 @@ echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}}' \
   | python3 llm_generated.py groups
 # {"groups": [[null]]}
 
-echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}, "suffix": null, "context": null, "day": "2026-10-27"}' \
+echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}, "suffix": null, "context": null, "context_format": null, "day": "2026-10-27"}' \
   | python3 llm_generated.py make
 
 echo '{}' | python3 llm_generated.py describe

@@ -108,7 +108,7 @@ echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地�
   | python3 ja_words.py groups
 # {"groups": [["e983bd"], ["e59cb0e696b9"], ["e4bd8de7bdae"]]}
 
-echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地方}に{位置}する{都}"}, "suffix": "e983bd", "context": null, "day": "2026-10-27"}' \
+echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地方}に{位置}する{都}"}, "suffix": "e983bd", "context": null, "context_format": null, "day": "2026-10-27"}' \
   | python3 ja_words.py make
 
 echo '{}' | python3 ja_words.py describe
