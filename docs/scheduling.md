@@ -175,14 +175,16 @@ the log under the old ID. `srl` never guesses where they belong:
 
 - `srl check` reports each such **orphan**: an ID that has reviews in the
   log, not moved away, but no card in the store. Deleted items leave orphans too, so they are
-  notices, not errors. When an orphan's item still exists and has a new
-  card with no reviews, `srl check` prints the command that would move the
-  history:
+  notices, not errors. When an orphan is the only one of an item that
+  still exists, and that item has exactly one card with no events,
+  `srl check` prints the command that would move the history there:
 
   ```
-  x7k2m9 has reviews but no card; x7k2m9-1 is new. To keep the history:
-    srl move x7k2m9 x7k2m9-1
+  x7k2m9 has reviews but no card; x7k2m9-1 is new. To keep the history: srl move x7k2m9 x7k2m9-1
   ```
+
+  Otherwise it says only that the history stays in the log, so it never
+  suggests two moves to one card.
 
 - `srl move FROM TO` appends a `move` event. `FROM` must be an orphan, and
   `TO` a card of the store with no events at all, so history is never

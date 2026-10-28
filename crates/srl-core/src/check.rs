@@ -10,9 +10,10 @@ use crate::note::read_note;
 use crate::{CardId, Config, Error, Memories, Notes, Result, Store};
 
 /// Every orphan: an ID with reviews in the log, not moved away, but no
-/// card in the store. When its item still exists with exactly one card that
-/// has no events, the notice says how to move the history there (see
-/// `docs/scheduling.md`, "Moving history").
+/// card in the store. When it is the only orphan of an item that still
+/// exists, and that item has exactly one card with no events, the notice
+/// says how to move the history there (see `docs/scheduling.md`, "Moving
+/// history").
 pub fn orphans(notes: &Notes, memories: &Memories) -> Vec<Error> {
     let cards = notes.cards().map(|(_, card)| card).collect::<HashSet<_>>();
     let mut orphans = memories
@@ -22,8 +23,13 @@ pub fn orphans(notes: &Notes, memories: &Memories) -> Vec<Error> {
         .collect::<Vec<CardId>>();
     orphans.sort();
     orphans
-        .into_iter()
+        .iter()
         .map(|id| {
+            let alone = orphans
+                .iter()
+                .filter(|other| other.item() == id.item())
+                .count()
+                == 1;
             let fresh = notes
                 .item(id.item())
                 .map(|item| {
@@ -34,7 +40,9 @@ pub fn orphans(notes: &Notes, memories: &Memories) -> Vec<Error> {
                 })
                 .unwrap_or_default();
             let suggestion = match fresh.as_slice() {
-                [card] => format!("{card} is new. To keep the history: srl move {id} {card}"),
+                [card] if alone => {
+                    format!("{card} is new. To keep the history: srl move {id} {card}")
+                }
                 _ => "its history stays in the log; give it to a card with `srl move` if you \
                       want to keep it"
                     .to_owned(),

@@ -619,6 +619,29 @@ fn orphans_are_reported_and_their_history_moves() {
 }
 
 #[test]
+fn a_move_is_suggested_only_for_an_item_with_one_orphan() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let reviewed = srl(&[
+        "review", "k3m9q1-1", "k3m9q1-2", "--rating", "3", "--dir", d,
+    ]);
+    assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
+    // Both clozes become c3: two orphans, and one new card k3m9q1-3.
+    let text = read(&tmp, "japanese/grammar/wo.md")
+        .replace("{{c1::", "{{c3::")
+        .replace("{{c2::", "{{c3::");
+    write(&tmp, "japanese/grammar/wo.md", &text);
+    let check = srl(&["check", "--dir", d]);
+    assert_eq!(check.status.code(), Some(0), "{}", stderr(&check));
+    assert_eq!(stderr(&check).lines().count(), 2, "{}", stderr(&check));
+    assert!(
+        !stderr(&check).contains("srl move k3m9q1"),
+        "{}",
+        stderr(&check)
+    );
+}
+
+#[test]
 fn lint_finds_questions_without_headers() {
     let tmp = japanese();
     let d = dir(&tmp);
