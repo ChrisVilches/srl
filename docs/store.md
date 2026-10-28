@@ -171,9 +171,10 @@ below).
   share the cache.
 - `srl reindex` deletes it and builds it again, forgetting every kept
   answer of a kind program. Deleting it by hand loses nothing.
-- `srl log` lists events, so it reads the log files directly; `srl check`
-  checks the files, so it reads them directly too, and asks kind programs
-  about every item, keeping their new answers.
+- `srl log` lists events, so it reads the log files directly. `srl check`
+  reads the log through the cache, like other commands, since a log file
+  that changed is always noticed; but it asks kind programs about every
+  item, keeping their new answers, since a program that changed is not.
 - It can be queried directly for exploration
   (`sqlite3 .srl/cache/index.sqlite`), but its schema is not a stable
   contract. Scripts should use the CLI's `--json` output instead.

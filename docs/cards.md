@@ -379,7 +379,10 @@ When something goes wrong, the place it happens says whose fault it is:
   card; it doesn't go on to another card. `srl cards` fails at once,
   with the reason and no output for any ID (see [cli.md](cli.md)). Until
   what failed is fixed (an LLM API that is down, a missing key),
-  `srl next` keeps failing on that card; `srl suspend` sets it aside
+  `srl next` fails whenever it picks that card: every time with the
+  default `max_skip = 0`, and some of the time with skips, while the card
+  is among the first it picks from (see [scheduling.md](scheduling.md),
+  "Choosing the next card"); `srl suspend` sets it aside
   (see [rationale.md](rationale.md), "Why a card that can't be made
   stops studying").
 - **A failing `describe` call fails `srl kinds`**, at once, with the

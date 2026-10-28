@@ -111,7 +111,8 @@ it is a separate command you choose: fix what failed, or `srl suspend` the
 card.
 
 Trade-off: one card that can't be made, for example while an LLM API is
-down, blocks studying until it is fixed or suspended. Tools to make that
+down, blocks studying until it is fixed or suspended, or, with
+`max_skip`, interrupts it each time it is picked. Tools to make that
 less annoying are still to be designed (see [overview.md](overview.md),
 "Open questions").
 

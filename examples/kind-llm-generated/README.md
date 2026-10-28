@@ -59,8 +59,9 @@ an error from the API (with the JSON it answered), an incomplete
 response, a refusal, or output that isn't the expected JSON. Nothing is
 retried and no card is made up. The program exits with a status other
 than 0 only when it can't run at all, such as on input that isn't JSON. `srl cards` and `srl next` then fail with that
-reason, and `srl next` keeps failing on this card until the cause is
-fixed or the card is suspended (see [docs/cards.md](../../docs/cards.md),
+reason, and `srl next` fails whenever it picks this card (every time,
+unless `max_skip` lets it pick another) until the cause is fixed or the
+card is suspended (see [docs/cards.md](../../docs/cards.md),
 "Kind programs"). A call is stopped
 after `kind_programs.card_timeout` seconds (60 by default). A call usually
 takes a few seconds.
