@@ -68,7 +68,7 @@ note-taking app.
    index exists only as a cache that can be deleted at any time.
 2. **The core contains no LLM.** Anything an agent can do, a human can also
    do with the same commands.
-3. **The CLI is the API.** Every command has a non-interactive form with JSON
+3. **The CLI is the API.** Every command is non-interactive, with JSON
    output. There is no separate interface for scripts or agents.
 4. **Flat rules.** One simple, predictable rule per decision. No weights, no
    adaptive policies, no hidden state.

@@ -35,7 +35,7 @@ forgetting, because the data is locked inside the app.
 Everything else is a separate program, so it can be replaced, rewritten or
 built by you.
 
-- **The CLI is the API.** Every command has a non-interactive form with JSON
+- **The CLI is the API.** Every command is non-interactive, with JSON
   output. Frontends, scripts and agents use the same commands you do; there
   is no separate interface to learn.
 - **Small fixed contracts.** The item syntax, the card, the frontend
