@@ -5,8 +5,11 @@
    (src/theme.ts), not from the system's setting. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* The scrollbar's room is kept in every view, scrolled or not, so the top
+   bar stays the same width between tabs. */
 :root {
   color-scheme: light;
+  scrollbar-gutter: stable;
 }
 :root.dark {
   color-scheme: dark;

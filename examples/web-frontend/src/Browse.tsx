@@ -115,7 +115,7 @@ export function Browse({ active }: { active: boolean }) {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      <TopBar view="browse" wide>
+      <TopBar view="browse">
         <SelectorInput
           selector={selector}
           placeholder="selector, as for srl find (empty: every card)"

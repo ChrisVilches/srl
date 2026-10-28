@@ -8,8 +8,9 @@ import { currentTheme, setTheme } from './theme';
 export type View = 'study' | 'browse' | 'add';
 
 // The bar at the top of each view: the switch between views, then the
-// view's own controls.
-export function TopBar({ view, wide, children }: { view: View; wide?: boolean; children: ReactNode }) {
+// view's own controls. It spans the whole window in every view, however
+// wide the view's content is, so it doesn't change width between tabs.
+export function TopBar({ view, children }: { view: View; children: ReactNode }) {
   const tab = (target: View, href: string, name: string) => (
     <a
       href={href}
@@ -24,9 +25,7 @@ export function TopBar({ view, wide, children }: { view: View; wide?: boolean; c
   );
   return (
     <header className="border-b border-stone-200 bg-white/70 backdrop-blur dark:border-stone-800 dark:bg-stone-900/70">
-      <div
-        className={`mx-auto flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6 ${wide ? 'max-w-7xl' : 'max-w-3xl'}`}
-      >
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         <span className="font-mono text-lg font-bold tracking-tight">srl</span>
         <nav className="flex gap-1 text-sm">
           {tab('study', '#', 'Study')}
