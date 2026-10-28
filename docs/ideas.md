@@ -17,12 +17,58 @@ questions", once it is planned.
 
 ## Kind programs
 
-- **Ways to talk to kind programs, chosen by their author.** Today `srl`
-  starts a process for every call, and each call is a batch over
-  standard input and output (see [cards.md](cards.md), "How srl calls
-  them"). Other ways could be offered beside it, each with the same four
-  calls and the same answers, so that a program's author picks the one
-  that suits it, and `[kinds]` says which one a kind uses. Candidates:
+- **Ways to run kind programs, chosen by their author.** Today there is
+  one: `srl` starts a process for every call, and each call is a batch
+  over standard input and output (see [cards.md](cards.md), "How srl
+  calls them"). Other **modes** could be offered beside it, each with the
+  same four calls and the same answers, so that a program's author picks
+  the one that suits the program.
+
+  Not every mode is about speed. Some would make programs faster (a
+  server kept running), others easier to write (one item per process),
+  at a cost in speed the author accepts knowingly. Batches stay the
+  default, and the mode every example uses.
+
+  - **The user configures the mode, `srl` never asks the program.** A
+    kind's entry in `[kinds]` says how to run it, for example as a table
+    beside today's list: `[kinds.ja-words]` with `command = [...]` and
+    `mode = "batch"`, `"item"` or `"http"`. Asking the program how it
+    wants to be run would start it on every command, which is what kept
+    answers avoid; it is the same reason `srl` doesn't ask a program for
+    its version and you run `srl reindex` after changing one instead (see
+    [rationale.md](rationale.md), "Why answers of kind programs are kept
+    under the kind and its command"). So the author documents which
+    modes the program supports and gives an example of its `[kinds]`
+    entry, and the user copies it. A program run in a mode it doesn't
+    support fails like any program that fails, and is reported as a
+    problem of the program; there is no quiet fallback to another mode:
+    a kind is run one way.
+  - **A mode is part of what answers are kept under**, with the kind's
+    name and command, so that changing it asks again about every item.
+
+  Candidates:
+  - **One item per process**, for programs that are easier to write. The
+    program gets one item on standard input and prints one answer, with
+    no loop and no reading up to the end of the input. A batch program is
+    already one loop around the same functions, but this removes even
+    that, which suits a first program, a prototype or a small store.
+
+    The cost is a process start for every item, which kept answers hide
+    most of the time but not always. Measured with a minimal Python
+    program (about 20 ms to start): with every answer kept, both modes
+    take the same few milliseconds; with none kept, 1,000 items take about
+    48 seconds instead of about 60 ms, and 5,000 items several minutes.
+    No answer is kept after `srl reindex`, a new version of `srl`, a
+    fresh clone of the store or a new computer (the cache is left out of
+    version control), and `srl check` asks about every item every time. `srl
+    cards` and `srl add`, which ask about many items at once, are 10 to
+    75 times slower too. So a program's author would choose it for its
+    simplicity, and say in its documentation what it costs. Since the
+    four calls and their answers are the same, a program can move to
+    batches later without changing any card.
+
+    This mode is postponed too: batches are enough while there are few
+    programs and authors.
   - **Kind programs served over HTTP, kept running by a daemon of the
     store.** As Claude Code's hooks can be either a command or an HTTP
     endpoint, a kind could be either a process per call, as today, or an
@@ -32,15 +78,16 @@ questions", once it is planned.
     an `srl` command lasts a moment, so a **daemon** of the store keeps
     them instead.
 
-    - **Choosing HTTP.** A kind's entry in `[kinds]` says that it is
-      served over HTTP, for example as a table beside today's list,
-      `[kinds.ja-words]` with `command = [...]` and `http = true`. It is
-      easy to check: the daemon starts the program and asks it for
-      `describe`; a program that doesn't answer in time, or exits, doesn't
-      support it, and that is an error about the kind, like any program
-      that fails (see [cards.md](cards.md), "How srl calls them"). `srl
-      kinds` could show how each kind is called. There is no quiet
-      fallback to a process per call: a kind is called one way.
+    This mode is postponed: kept answers removed most of what it would
+    save, so it waits for a program that is slow to start, such as one
+    that loads a large dictionary or a local model before every `make`.
+
+    - **Choosing HTTP.** A kind's entry in `[kinds]` says `mode = "http"`
+      (see above). A program that doesn't serve it shows at once: the
+      daemon starts the program and asks it for `describe`; a program
+      that doesn't answer in time, or exits, is an error about the kind,
+      like any program that fails (see [cards.md](cards.md), "How srl
+      calls them"). `srl kinds` could show how each kind is run.
     - **The same four calls.** Each call is a request,
       `POST /describe`, `/validate`, `/groups` or `/make`, whose body is
       the same JSONL as on standard input today, and whose answer is the
@@ -49,9 +96,10 @@ questions", once it is planned.
       So a program can serve both ways with the same functions, and every
       rule of the calls (batches, one line per input, `groups` only for
       what `validate` accepted, the context only for `make`) is unchanged.
-    - **The daemon.** It is `srl` itself, as a hidden command such as
-      `srl daemon`, so `srl` still runs no program but its own and your
-      kind programs. A command that needs an HTTP kind and finds no
+    - **The daemon.** It is a program that comes with `srl` (which one is
+      still to be decided, see below), so `srl` still runs no program but
+      its own and your kind programs. A command that needs an HTTP kind
+      and finds no
       daemon for its store starts one, detached, and waits until it
       answers. The daemon listens on `127.0.0.1`, on the store's port
       (set in the configuration, for example `[daemon] port`, since each
@@ -78,9 +126,16 @@ questions", once it is planned.
       program can't be detached), the command fails with the reason, as
       when a kind program can't be started, and you fix it, for example
       by giving the store another port. There is no retry on another port
-      and no fallback to a process per call.
+      and no fallback to another mode.
 
     To be decided, besides the names above:
+
+    - **Which program is the daemon.** `srl` itself, as a hidden
+      command, needs no second program to install, but a command in
+      `srl`'s own list invites people to run it by hand, and `srl`
+      starting itself again as a daemon is unusual. A separate program
+      shipped beside `srl` avoids both, at the cost of finding it and
+      keeping the two the same version.
 
     - **Who may call it.** Any program on the computer can reach a port
       on `127.0.0.1`, and so can a web page, through DNS rebinding (as

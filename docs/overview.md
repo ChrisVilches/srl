@@ -258,11 +258,12 @@ finds every marked note.
 
 Main design decisions still to take:
 
-- **Other ways to talk to kind programs.** Today `srl` starts a process
-  for every call whose answers aren't kept; other ways, chosen by a
-  program's author, such as an HTTP server kept running by a daemon of
-  the store, may be wanted if kept answers turn out not to be enough
-  ([cards.md](cards.md), "How srl calls them";
+- **Other ways to run kind programs.** Today every call is a batch, one
+  process per call whose answers aren't kept. Other modes, chosen by a
+  program's author and set by the user in `[kinds]`, are postponed: one
+  item per process, to make programs easier to write, and an HTTP server
+  kept running by a daemon of the store, for programs that are slow to
+  start ([cards.md](cards.md), "How srl calls them";
   [ideas.md](ideas.md), "Kind programs").
 - **Media in cards (audio, images) and furigana markup.** Today card text is
   Markdown with `==highlight==` only ([cards.md](cards.md), "Text

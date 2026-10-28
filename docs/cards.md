@@ -396,16 +396,14 @@ When something goes wrong, the place it happens says whose fault it is:
 every time gives a new card each time: what `srl cards` prints is one
 card the kind could give, not the one `srl next` will show.
 
-> **TODO (design):** starting a process for every call is **the only way
-> to talk to a kind program**. Other ways could be offered, for the
-> program's author to choose one in `[kinds]`, each with the same four
-> calls and the same answers; for example an HTTP server that a daemon
-> of the store keeps running for a while, so that a program starts once
-> instead of once per call. Which ways, and how a store says which one a
-> kind uses, is undecided (see [ideas.md](ideas.md), "Kind programs").
-> Since answers are kept, only a program that is slow to start (a large
-> dictionary, a local model) would gain much, mostly in `make`; this
-> waits until kept answers turn out not to be enough.
+> **TODO (design):** a batch per call is **the only way to run a kind
+> program**. Other modes could be offered, each with the same four calls
+> and the same answers, chosen by the program's author and set by the
+> user in `[kinds]`: one item per process, easier to write but slow
+> whenever no answer is kept; or an HTTP server that a daemon of the
+> store keeps running, faster for a program that is slow to start (a
+> large dictionary, a local model), mostly in `make`. Both are postponed
+> (see [ideas.md](ideas.md), "Kind programs").
 
 ### Describing a kind
 
