@@ -17,7 +17,7 @@ since the notes and the log can't be read without it. Fix it and run
 
 | Error | Usual cause | Fix |
 |---|---|---|
-| srl block never closed | a ```` ```srl ```` without its closing ```` ``` ````, or a field's code block that closed it early | Close the block; a field holding a code block needs a longer fence around the srl block (```` ````srl ````). |
+| srl block never closed | a ```` ```srl ```` without its closing ```` ``` ````, or a field's code block that closed it early | Close the block; when a field holds a code block, open the srl block with `~~~srl` and close it with `~~~` (see "An item cut short, or gone" below). |
 | first line of an srl block, or block that mixes forms | a blank line or text right after the fence, entries on the fence of a block of `@` items, or an `@` line in a block of one item | Start the block with a field line (one item) or an `@` line (several); put entries on the `@` lines when there are some. |
 | line not part of an item in an srl block | a continuation line without its two spaces, or prose inside the block | Indent the continuation with two spaces, or move the prose out of the block. |
 | header not followed by a field line | a blank line or a paragraph right after an `@` line | Put `Q:` on the line right after it. |
@@ -61,6 +61,25 @@ and no error is reported. `srl lint` finds such likely mistakes: `Q:` or
 misspelled block fences (```` ```SRL ````, ```` ```srl{…} ````), and cloze
 deletions outside items. It prints `PATH:LINE: message` and never
 fails; exit 0 means it found something.
+
+## An item cut short, or gone
+
+When a field holds a fenced code block and its srl block was opened with
+```` ``` ````, the code's closing fence closes the srl block. The rest of
+the item becomes text of the note, and the srl block's own closing fence,
+left over, opens a code block that hides the next srl blocks until another
+fence. This is not always reported:
+
+- a `qa` item that lost its `A:` is an error (`srl check`), and the `A:`
+  line outside a block is found by `srl lint`;
+- an item whose `Q` has cloze deletions, or an item of a kind program, is
+  silently shorter, and the hidden items silently gone.
+
+Signs: `srl show ID` prints fewer or shorter fields than the note seems to
+hold; `srl find in:NOTE` lists fewer items than the note has; in a
+renderer, code and items look out of place. The fix: open that srl block
+with `~~~srl` and close it with `~~~`, or with more backticks than any
+fence inside it. Then run `srl check` and `srl find` again.
 
 ## History left behind: orphans and `srl move`
 

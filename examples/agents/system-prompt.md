@@ -141,9 +141,13 @@ A: Its answer.
   spaces**. One space or a tab inside an item is an error. Blank lines may
   appear inside a field, before more continuation lines.
 - A field may start empty and continue below: `A:` alone, then indented
-  lines. This is how code blocks and several paragraphs go in. A field
-  holding a fenced code block needs a longer fence around its srl block:
-  open it with ```` ````srl ```` and close it with ```` ```` ````.
+  lines. This is how code blocks and several paragraphs go in. **When a
+  field holds a fenced code block, open the srl block with `~~~srl` and
+  close it with `~~~`**: with ```` ``` ````, the code's closing fence
+  would close the srl block early, sometimes without any error, cutting
+  the item and hiding the items after it. Prefer `srl add`, which picks
+  the fence itself, and run `srl check` and `srl lint` after writing
+  items by hand.
 - An item ends at the next `@` line or the closing fence. Any other line
   in a block outside the items is an error.
 - Header entries: `id:ID` (added by `srl id` or `srl add`), `draft`,

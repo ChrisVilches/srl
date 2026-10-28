@@ -74,6 +74,51 @@ folders, usually inside a small wrapper script per role:
 agi --sys base.md --sys tutor.md --sys me.md --resources srl-agent/tutor "…"
 ```
 
+## Limitations of the item syntax for LLMs
+
+Items are written in srl blocks, fenced code blocks whose language is `srl`
+(see [notes.md](../notes.md), "The item syntax"). For a model, that is
+mostly easy: fenced blocks are familiar, a block says where its items end,
+a mistake inside a block is an error that names its line, and `srl show`
+prints an item as one block that `srl edit ID --stdin` takes back. Three
+things are harder, and the first can lose text without any error.
+
+1. **Fences inside fields.** A field that holds a fenced code block needs
+   its srl block to be opened with a longer fence, or with tildes, and
+   models often get fence lengths wrong. With too short a fence, the
+   code's closing fence closes the srl block early, and what follows is
+   read as text of the note:
+   - in a `qa` item without cloze deletions, the `A:` is cut off: `srl
+     check` reports the item without an answer, and `srl lint` the `A:`
+     line outside a block;
+   - otherwise the item is cut short **without any error**: in a `Q` with
+     cloze deletions, or in the fields of a kind program, which `srl lint`
+     doesn't look at. Worse, the block's own closing fence, left over,
+     opens an ordinary code block, which hides the srl blocks after it
+     until the next fence closes it: their items silently disappear.
+2. **Two forms of block.** A block holds one item, with its entries on the
+   fence, or several, each starting with an `@` line, never both. A model
+   that mixes them, for example by adding an `@` item to a block of one, gets an
+   error, which says what to do; the rule is one more to get right.
+3. **Fences inside other text.** An item shown inside a Markdown reply sits
+   inside another fenced block, which needs a longer fence again. In a
+   shell, backticks start command substitution, so an item given to
+   `srl edit ID --stdin` through a heredoc needs a quoted delimiter
+   (`<<'ITEM'`) to reach `srl` as written.
+
+What keeps them small:
+
+- **Write new items with `srl add`.** Its input is JSON, with no item
+  syntax at all, and it picks a fence long enough for the fields.
+- **Open blocks written by hand with `~~~srl`** when a field holds code:
+  a tilde fence is never closed by backticks, so there is nothing to count.
+- **Check after writing**, with `srl check` and `srl lint`, and compare
+  what `srl show ID` prints with what was meant: a cut item shows there
+  with fewer fields, or shorter ones. `srl find` tells whether every item
+  written is there.
+- **Give the agent tools instead of a shell** (see "Tools"): the tool
+  passes standard input as it is, so there is no quoting to get wrong.
+
 ## A ready-made guide: `examples/agents/`
 
 The repository's `examples/agents/` (see [overview.md](../overview.md),

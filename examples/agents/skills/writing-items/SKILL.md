@@ -85,13 +85,15 @@ No other field is allowed, and each appears once.
 
 ## Multi-line fields and code
 
-A field written as `KEY:` alone starts on the next line. A field holding
-a fenced code block needs a block with a longer fence (or tildes), because
-the code block's closing ```` ``` ```` would close a block opened with
-```` ``` ````:
+A field written as `KEY:` alone starts on the next line.
 
-`````markdown
-````srl
+**When a field holds a fenced code block, open the srl block with `~~~srl`
+and close it with `~~~`.** The code's closing ```` ``` ```` would close a
+block opened with ```` ``` ````. A tilde fence is never closed by
+backticks, so there is nothing to count:
+
+````markdown
+~~~srl
 Q: Does this compile?
   ```rust
   let a = String::new();
@@ -103,8 +105,16 @@ A:
   No. `a` was moved into `b`, so it can't be used.
 
   Types that implement `Copy` are copied instead.
+~~~
 ````
-`````
+
+Getting this wrong is not always an error. The block closes at the code's
+fence, the rest of the item becomes text of the note, and the leftover
+closing fence opens a code block that can hide the items after it. A `qa`
+item that loses its `A:` is reported, but one with cloze deletions, or an
+item of a kind program, is silently cut short. After writing such an item
+by hand, run `srl check` and `srl lint`, and look at it with `srl show ID`.
+`srl add` never makes this mistake: it picks the fence itself.
 
 ## Cloze deletions
 
@@ -202,6 +212,12 @@ A: Undeterred by (adversity). Used admiringly about others, not oneself.
 ```
 ITEM
 ````
+
+Quote the heredoc's delimiter (`<<'ITEM'`, not `<<ITEM`): unquoted, the
+shell runs the backticks as commands and `srl` gets something else. When a
+field holds a code block, give the item as `~~~srl` … `~~~`, as above. An
+item that keeps its place in a block shared with others must not close
+that block: `srl edit` refuses a field line that would, and says so.
 
 `--dry-run` only checks the input. Editing never changes the card's
 schedule. To change it themselves instead, the person opens the note in
