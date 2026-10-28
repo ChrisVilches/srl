@@ -287,7 +287,10 @@ Write tests for every module that has logic, which is nearly all of
   bottom. They can test private functions directly.
 - **Integration tests** in `crates/srl/tests/` run the real binary
   (`env!("CARGO_BIN_EXE_srl")`) and check what a user or script sees: exit
-  codes, standard output and standard error.
+  codes, standard output and standard error. `tests/cli.rs` checks
+  commands one rule at a time; `tests/scenarios.rs` follows what a person
+  usually does over several days (writing notes, studying as a frontend
+  does, coming back the next day), one ordinary case per test.
 - **Kind programs are tested with `srl-test-kind`**, a small Rust program
   whose behaviour is set by the fields of the items it gets (their errors,
   cards and groups, failures of a card or of a whole call, slowness,
