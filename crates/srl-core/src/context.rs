@@ -1,8 +1,8 @@
 //! An item's context: the note shown after the answer of its cards (see
 //! `docs/notes.md`, "Context").
 
-use crate::note::parse::{self, Line};
-use crate::note::read_note;
+use crate::note::syntax::{self, Role};
+use crate::note::{lines, read_note};
 use crate::{Item, Result, Store};
 
 /// How the context is shown. Each frontend chooses it, with `--context`.
@@ -10,8 +10,7 @@ use crate::{Item, Result, Store};
 pub enum ContextMode {
     /// The note without its items.
     Prose,
-    /// The note with the fields of its items, without their srl blocks'
-    /// fences and `@` lines.
+    /// The note with the text of its items, without the syntax around them.
     Full,
     /// Nothing.
     None,
@@ -29,15 +28,13 @@ pub fn context(store: &Store, item: &Item, mode: ContextMode) -> Result<Option<S
 
 /// The context of a note whose text is `text`, in `mode`.
 pub(crate) fn of_text(text: &str, mode: ContextMode) -> Option<String> {
-    let parsed = parse::parse(text);
-    let kept = parse::lines(text)
+    let kept = lines(text)
         .into_iter()
-        .zip(parsed.lines)
-        .filter(|(line, kind)| match kind {
-            Line::Text | Line::Code => true,
-            Line::Item => mode == ContextMode::Full,
-            Line::Block => mode == ContextMode::Full && line.trim().is_empty(),
-            Line::FrontMatter | Line::Header => false,
+        .zip(syntax::parse(text).roles)
+        .filter(|(_, role)| match role {
+            Role::Prose => true,
+            Role::Item => mode == ContextMode::Full,
+            Role::Hidden => false,
         })
         .map(|(line, _)| line);
     let mut lines = Vec::new();

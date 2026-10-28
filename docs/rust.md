@@ -21,11 +21,11 @@ crates/
     src/error.rs        the core's Error type
     src/store.rs        one module per area of the specification:
                           store.md: finding, creating and listing a store and its notes
-    src/note.rs           notes.md: reading notes into items, IDs, status
-    src/note/parse.rs     notes.md, "The item syntax": the line-by-line parser
+    src/note.rs           notes.md: the item model (entries, fields, IDs, status), reading notes into items
+    src/note/syntax.rs    notes.md, "The item syntax": everything that depends on how items are written (see "The item syntax" below)
     src/context.rs        notes.md, "Context"
-    src/write.rs          notes.md, "How srl writes to notes" (see below)
-    src/check.rs          cli.md, "Checking": `srl check` and `srl lint`
+    src/write.rs          notes.md, "How srl writes to notes" (see "Note editing" below)
+    src/check.rs          cli.md, "Checking": `srl check`, and `srl lint` but for the syntax's own findings
     src/stats.rs          cli.md, "Analysis": `srl stats`
     src/config.rs         store.md, "Configuration"; the study day
     src/card.rs           cards.md: the card format and card IDs
@@ -398,12 +398,47 @@ Clap turns doc comments into `--help` text, where the backticks that
 things like `SRL_DIR`, use the `help = "…"` attribute instead of a doc
 comment.
 
+## The item syntax
+
+How items are written in a note (srl blocks, see [notes.md](notes.md), "The
+item syntax") is known to one module only, `note/syntax.rs`. It is the
+boundary between notes as text and items as data: every other module
+works with what its functions return, and none knows what a fence or an
+`@` line is.
+
+| Function | Gives |
+|---|---|
+| `parse(text)` | The note's items (`RawItem`: entries, fields, where each field is written, the header's line and the last line, the item written on its own), its errors, and the role of each line in the context: prose, item text, or hidden. |
+| `parse_one(input)` | Exactly one item given on its own, as `srl edit ID --stdin` takes it. |
+| `with_id(text, line, id)` | The `Edit` that gives the item whose header is on `line` an ID. |
+| `without_draft(text, line)` | The `Edit` that removes `draft` from it. |
+| `replace(text, line, input)` | The `Edit` that replaces it with `input`. |
+| `format(entries, fields)` | A new item, as `srl add` appends it. |
+| `lint(text)` | The likely mistakes of the syntax. |
+
+- **Items are named by the line of their header.** It is what messages and
+  `PATH:LINE` show, and items without an ID have nothing else.
+- **An `Edit` is lines replaced by other lines**, numbered from 1 as
+  `note::lines` splits them. The syntax decides which lines and what they
+  become; `write.rs` applies the edit, keeping line endings and a byte
+  order mark, and makes the change safe (see "Note editing").
+- **What doesn't depend on the syntax stays outside it**: the entries and
+  fields themselves, the rule for field names, splitting a note into lines
+  (`note.rs`); turning roles into a context (`context.rs`); the lint of the
+  `qa` kind, which looks at the lines of `Q` (`check.rs`).
+
+So another syntax, such as the plugins of [ideas.md](ideas.md), "Writing
+notes", would be another module with the same functions. There is no trait
+for them while there is only one syntax: it is drawn from the functions
+once a second one exists and shows what they must be.
+
 ## Note editing
 
 Notes are written by hand, so `srl` must never rewrite one: no
 re-serializing, no normalized whitespace or line endings. The commands that
 change notes (see [notes.md](notes.md), "How srl writes to notes") go
-through one module, `write.rs`, with these rules:
+through one module, `write.rs`, which asks the item syntax for each change
+as an `Edit` (see "The item syntax"), with these rules:
 
 1. **It edits lines, not data.** It changes header lines (adding `id:ID`,
    removing `draft`), replaces the lines of one item or of its block

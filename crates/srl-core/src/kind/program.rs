@@ -18,7 +18,7 @@ use serde_json::{Map, Value};
 
 use super::{Cache, FieldDescription};
 use crate::card::{Card, CardId};
-use crate::note::parse::is_field_key;
+use crate::note::is_field_key;
 use crate::note::{ItemId, is_id_text};
 use crate::{Config, Store};
 

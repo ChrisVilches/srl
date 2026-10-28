@@ -1,6 +1,10 @@
 //! Notes and the items in them (see `docs/notes.md`).
+//!
+//! How items are written in a note is the business of [`syntax`] alone:
+//! this module turns what it reads into [`Item`]s, which the rest of `srl`
+//! works with.
 
-pub(crate) mod parse;
+pub(crate) mod syntax;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -16,7 +20,47 @@ use crate::kind::{Answer, Asked, Cache, Kind, Programs, ToMake, check};
 use crate::store::nfc;
 use crate::{Config, Error, Index, Result, Store};
 
-pub use parse::Field;
+/// One field of an item: its key and its text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Field {
+    pub key: String,
+    pub text: String,
+}
+
+/// What an item says about itself besides its fields: its header entries
+/// (see `docs/notes.md`, "Header entries"), whatever the syntax writes them
+/// as.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Entries {
+    pub(crate) id: Option<ItemId>,
+    /// The kind's name, if one was given. Which kinds exist is checked
+    /// later.
+    pub(crate) kind: Option<String>,
+    pub(crate) see: Option<String>,
+    pub(crate) draft: bool,
+}
+
+/// Whether `key` can name a field: uppercase letters `A`–`Z`, digits and
+/// `_`, starting with a letter.
+pub(crate) fn is_field_key(key: &str) -> bool {
+    let mut characters = key.chars();
+    characters.next().is_some_and(|c| c.is_ascii_uppercase())
+        && characters.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+}
+
+/// The lines of `text`, without their line endings (`\n` or `\r\n`) and
+/// without a UTF-8 byte order mark. A final line ending doesn't start an
+/// empty line. Lines are numbered from 1 in this order everywhere.
+pub(crate) fn lines(text: &str) -> Vec<&str> {
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    let text = text.strip_suffix('\n').unwrap_or(text);
+    if text.is_empty() {
+        return Vec::new();
+    }
+    text.split('\n')
+        .map(|line| line.strip_suffix('\r').unwrap_or(line))
+        .collect()
+}
 
 /// The most characters an item ID may have.
 const ID_MAX: usize = 32;
@@ -153,9 +197,9 @@ impl Item {
         &self.fields
     }
 
-    /// The item as an srl block of its own, joined with `\n`: an opening
-    /// fence like its block's, with its entries, its field lines as written,
-    /// and the closing fence (see `docs/notes.md`, "The item syntax").
+    /// The item written on its own, lines joined with `\n`, as the syntax
+    /// gives it (see [`syntax::RawItem::text`]): what `srl show` prints and
+    /// `srl edit ID --stdin` takes back.
     pub fn text(&self) -> &str {
         &self.text
     }
@@ -455,10 +499,9 @@ fn in_place_order(problems: &mut [Error]) {
 
 /// The items of the note at `path` whose text is `text`, as written, before
 /// their kinds are asked about them (they have no cards yet), and the
-/// problems of their syntax and headers.
+/// problems of their syntax and entries.
 fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
-    let parsed = parse::parse(text);
-    let lines = parse::lines(text);
+    let parsed = syntax::parse(text);
     let mut problems = parsed
         .errors
         .into_iter()
@@ -475,7 +518,7 @@ fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<E
             line: raw.line,
             reason,
         };
-        let kind = match raw.header.kind.as_deref().map_or(Ok(Kind::Qa), |name| {
+        let kind = match raw.entries.kind.as_deref().map_or(Ok(Kind::Qa), |name| {
             Kind::parse(name, |name| programs.has(name))
         }) {
             Ok(kind) => kind,
@@ -484,8 +527,7 @@ fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<E
                 continue;
             }
         };
-        let text = raw.text(&lines);
-        let Some(id) = raw.header.id else {
+        let Some(id) = raw.entries.id else {
             problems.push(Error::MissingId {
                 path: path.to_owned(),
                 line: raw.line,
@@ -502,10 +544,10 @@ fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<E
             line: raw.line,
             end: raw.end,
             kind,
-            see: raw.header.see,
-            draft: raw.header.draft,
+            see: raw.entries.see,
+            draft: raw.entries.draft,
             fields: raw.fields,
-            text,
+            text: raw.text,
             cards: Vec::new(),
             groups: Vec::new(),
         });

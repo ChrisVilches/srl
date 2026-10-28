@@ -190,13 +190,17 @@ questions", once it is planned.
   even though Markdown is what makes the most sense for most notes. A
   program could take over the item syntax for the notes matched by a glob,
   as kind programs take over making cards: find the items in a note (their
-  lines, header entries and fields), write the changes of `srl id`,
+  lines, header entries and fields), say which lines change for `srl id`,
   `srl accept`, `srl add` and `srl edit`, give the context, and look for
   likely mistakes for `srl lint`. Everything after reading the items
-  (kinds, scheduling, the log) would stay the same. It needs a plugin
-  protocol of its own, much like the one of kind programs, and a way to
-  keep the guarantees of [notes.md](notes.md), "How srl writes to notes",
-  when the writing is done by someone else, so it is postponed.
+  (kinds, scheduling, the log) would stay the same. In `srl`, these are
+  already the functions of one module, the item syntax (see
+  [rust.md](rust.md), "The item syntax"), so a program would be another
+  implementation of them. Since those functions only say which lines
+  change, `srl` would still check and write every change itself, keeping
+  the guarantees of [notes.md](notes.md), "How srl writes to notes". It
+  needs a plugin protocol of its own, much like the one of kind programs,
+  so it is postponed.
 
 - **Blank space before added items** (low priority). `srl add` puts a
   blank line between a note and the items it appends, and keeps every

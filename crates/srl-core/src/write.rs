@@ -2,11 +2,12 @@
 //! and `srl edit ID --stdin` (see `docs/notes.md`, "How srl writes to
 //! notes", and `docs/rust.md`, "Note editing").
 //!
-//! Every change edits lines, never data: header lines get an `id:` or lose
-//! `draft`, one item's lines are replaced, or lines are appended. The new
-//! text is parsed again and compared with the old before it is written,
-//! the file must not have changed since it was read, and it is replaced
-//! atomically.
+//! Every change edits lines, never data. Which lines, and what they become,
+//! is the business of the item syntax ([`syntax::with_id`],
+//! [`syntax::without_draft`], [`syntax::replace`], [`syntax::format`]);
+//! this module makes the change safe: the new text is parsed again and
+//! compared with the old before it is written, the file must not have
+//! changed since it was read, and it is replaced atomically.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
@@ -15,8 +16,8 @@ use std::path::Path;
 
 use serde_json::{Map, Value};
 
-use crate::note::parse::{self, Field, Header, Line, RawItem};
-use crate::note::{read_items, read_note};
+use crate::note::syntax::{self, Edit, RawItem};
+use crate::note::{Entries, Field, is_field_key, read_items, read_note};
 use crate::store::nfc;
 use crate::{Config, Error, Item, ItemId, Notes, Result, Store, random};
 
@@ -28,13 +29,12 @@ pub struct Written {
     pub line: usize,
 }
 
-/// One line of `srl add --stdin`: its header entries and its fields.
+/// One line of `srl add --stdin`: its header entries, without an ID, and
+/// its fields.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct NewItem {
-    kind: Option<String>,
-    see: Option<String>,
-    draft: bool,
-    fields: Vec<(String, String)>,
+    entries: Entries,
+    fields: Vec<Field>,
 }
 
 /// What `srl add` did, or would do.
@@ -78,27 +78,22 @@ pub fn assign_ids(store: &Store, notes: &Notes, seed: u64, dry_run: bool) -> Res
             })
             .collect::<Vec<_>>();
         let new = ids.iter().try_fold(old.clone(), |text, (line, id)| {
-            edit_line(&text, *line, |header| {
-                let start = parse::header(header)
-                    .and_then(std::result::Result::ok)
-                    .expect("a line with a missing ID should be a header")
-                    .mark_end;
-                let (before, after) = header.split_at(start);
-                format!("{before} id:{id}{after}")
-            })
+            syntax::with_id(&text, *line, id)
+                .map(|edit| apply(&text, &edit))
+                .ok_or_else(|| no_header(&path, *line))
         })?;
         let expected = keys(&old)
             .into_iter()
-            .map(|(line, header, fields)| {
+            .map(|(line, entries, fields)| {
                 let id = ids
                     .iter()
                     .find(|(at, _)| *at == line)
                     .map(|(_, id)| id.clone());
-                let header = Header {
-                    id: id.or(header.id),
-                    ..header
+                let entries = Entries {
+                    id: id.or(entries.id),
+                    ..entries
                 };
-                (header, fields)
+                (entries, fields)
             })
             .collect::<Vec<_>>();
         commit(store, &path, Some(&old), &new, &expected, dry_run)?;
@@ -130,22 +125,16 @@ pub fn accept(
     for (path, drafts) in by_note {
         let old = read_note(store, path)?;
         let new = drafts.iter().try_fold(old.clone(), |text, item| {
-            edit_line(&text, item.line(), |header| {
-                let span = parse::header(header)
-                    .and_then(std::result::Result::ok)
-                    .and_then(|line| line.draft)
-                    .expect("a draft's header should have `draft`");
-                let before = header.get(..span.start).unwrap_or_default();
-                let after = header.get(span.end..).unwrap_or_default();
-                format!("{}{after}", before.trim_end_matches(' '))
-            })
+            syntax::without_draft(&text, item.line())
+                .map(|edit| apply(&text, &edit))
+                .ok_or_else(|| no_header(path, item.line()))
         })?;
         let lines = drafts.iter().map(|item| item.line()).collect::<Vec<_>>();
         let expected = keys(&old)
             .into_iter()
-            .map(|(line, header, fields)| {
-                let draft = header.draft && !lines.contains(&line);
-                (Header { draft, ..header }, fields)
+            .map(|(line, entries, fields)| {
+                let draft = entries.draft && !lines.contains(&line);
+                (Entries { draft, ..entries }, fields)
             })
             .collect::<Vec<_>>();
         commit(store, path, Some(&old), &new, &expected, dry_run)?;
@@ -189,7 +178,11 @@ pub fn add(
         .iter()
         .zip(&ids)
         .map(|((line, item), id)| {
-            format_item(id, item).map_err(|reason| Error::InvalidLine {
+            let entries = Entries {
+                id: Some(id.clone()),
+                ..item.entries.clone()
+            };
+            syntax::format(&entries, &item.fields).map_err(|reason| Error::InvalidLine {
                 line: *line,
                 reason,
             })
@@ -214,21 +207,20 @@ pub fn add(
     };
     let expected = keys(old.as_deref().unwrap_or_default())
         .into_iter()
-        .map(|(_, header, fields)| (header, fields))
+        .map(|(_, entries, fields)| (entries, fields))
         .chain(items.iter().flat_map(|item| {
             keys(item)
                 .into_iter()
-                .map(|(_, header, fields)| (header, fields))
+                .map(|(_, entries, fields)| (entries, fields))
         }))
         .collect::<Vec<_>>();
     commit(store, path, old.as_deref(), &new, &expected, dry_run)?;
     Ok(Added { ids, text: added })
 }
 
-/// `srl edit ID --stdin`: replaces the lines of `item` with `input`, which
-/// must be exactly one item with the same ID, in an srl block. An item that
-/// has its block to itself is replaced with that block; an item that starts
-/// with an `@` line is replaced with an `@` line and the new fields.
+/// `srl edit ID --stdin`: replaces `item` with `input`, which must be
+/// exactly one item with the same ID, as the syntax reads one given on its
+/// own (see [`syntax::parse_one`] and [`syntax::replace`]).
 pub fn replace(
     store: &Store,
     notes: &Notes,
@@ -241,71 +233,45 @@ pub fn replace(
         id: item.id().to_string(),
         reason,
     };
-    let parsed = parse::parse(input);
-    if let Some((line, reason)) = parsed.errors.first() {
-        return Err(invalid(format!("line {line}: {reason}")));
-    }
-    let [new_item] = parsed.items.as_slice() else {
-        return Err(invalid(format!("it holds {} items", parsed.items.len())));
-    };
-    if new_item.header.id.as_ref() != Some(item.id()) {
+    let new_item = syntax::parse_one(input).map_err(invalid)?;
+    if new_item.entries.id.as_ref() != Some(item.id()) {
         return Err(invalid("its header has another ID, or none".to_owned()));
-    }
-    let lines = parse::lines(input);
-    let stray = lines.iter().zip(&parsed.lines).any(|(line, kind)| {
-        (*kind == Line::Text && !line.trim().is_empty()) || *kind == Line::Code
-    });
-    if stray {
-        return Err(invalid("it has text outside the item".to_owned()));
     }
     if let Some(problem) = read_items(item.path(), input, notes.programs()).1.first() {
         return Err(invalid(reason_of(problem)));
     }
     let old = read_note(store, item.path())?;
-    let ending = line_ending(&old);
-    let Some(target) = parse::parse(&old)
+    let still_there = syntax::parse(&old)
         .items
-        .into_iter()
-        .find(|raw| raw.line == item.line() && raw.header.id.as_ref() == Some(item.id()))
-    else {
+        .iter()
+        .any(|raw| raw.line == item.line() && raw.entries.id.as_ref() == Some(item.id()));
+    if !still_there {
         return Err(Error::ChangedMeanwhile {
             path: item.path().to_owned(),
         });
-    };
-    let new = if target.is_alone() {
-        let replacement = new_item.text(&lines).replace('\n', ending);
-        replace_lines(&old, target.block.open, target.block.close, &replacement)
-    } else {
-        let fields = lines.get(new_item.line..new_item.end).unwrap_or_default();
-        if fields.iter().any(|line| target.block.closed_by(line)) {
-            return Err(invalid(format!(
-                "a line of it would close the block the item is in; open and close that block \
-                 with a longer fence than {}",
-                target.block.fence
-            )));
-        }
-        let header = if new_item.entries.is_empty() {
-            "@".to_owned()
-        } else {
-            format!("@ {}", new_item.entries)
-        };
-        let replacement = std::iter::once(header.as_str())
-            .chain(fields.iter().copied())
-            .collect::<Vec<_>>()
-            .join(ending);
-        replace_lines(&old, target.line, target.end, &replacement)
-    };
+    }
+    let edit = syntax::replace(&old, item.line(), input).map_err(invalid)?;
+    let new = apply(&old, &edit);
     let expected = keys(&old)
         .into_iter()
-        .map(|(line, header, fields)| {
+        .map(|(line, entries, fields)| {
             if line == item.line() {
-                (new_item.header.clone(), new_item.fields.clone())
+                (new_item.entries.clone(), new_item.fields.clone())
             } else {
-                (header, fields)
+                (entries, fields)
             }
         })
         .collect::<Vec<_>>();
     commit(store, item.path(), Some(&old), &new, &expected, dry_run)
+}
+
+/// The error for a change to a header that is not on line `line` of the
+/// note at `path`, which can only be a bug in `srl`.
+fn no_header(path: &str, line: usize) -> Error {
+    Error::CannotWrite {
+        path: path.to_owned(),
+        reason: format!("line {line} holds no header (a bug in srl; please report it)"),
+    }
 }
 
 /// New item IDs from `seed`, each used by no item of `notes` and given
@@ -328,7 +294,7 @@ fn commit(
     path: &str,
     old: Option<&str>,
     new: &str,
-    expected: &[(Header, Vec<Field>)],
+    expected: &[(Entries, Vec<Field>)],
     dry_run: bool,
 ) -> Result<()> {
     verify(path, new, expected)?;
@@ -414,30 +380,30 @@ fn reason_of(problem: &Error) -> String {
     }
 }
 
-/// What verification compares: each item's line, header and fields.
-fn keys(text: &str) -> Vec<(usize, Header, Vec<Field>)> {
-    parse::parse(text)
+/// What verification compares: each item's line, entries and fields.
+fn keys(text: &str) -> Vec<(usize, Entries, Vec<Field>)> {
+    syntax::parse(text)
         .items
         .into_iter()
         .map(
             |RawItem {
-                 header,
+                 entries,
                  line,
                  fields,
                  ..
-             }| (line, header, fields),
+             }| (line, entries, fields),
         )
         .collect()
 }
 
 /// Checks that `new` parses without errors into exactly the `expected`
 /// items. A mismatch is a bug in `srl`, so nothing is written.
-fn verify(path: &str, new: &str, expected: &[(Header, Vec<Field>)]) -> Result<()> {
-    let parsed = parse::parse(new);
+fn verify(path: &str, new: &str, expected: &[(Entries, Vec<Field>)]) -> Result<()> {
+    let parsed = syntax::parse(new);
     let found = parsed
         .items
         .into_iter()
-        .map(|item| (item.header, item.fields))
+        .map(|item| (item.entries, item.fields))
         .collect::<Vec<_>>();
     if parsed.errors.is_empty() && found == expected {
         Ok(())
@@ -459,28 +425,12 @@ fn line_ending(text: &str) -> &'static str {
     }
 }
 
-/// `text` with line `number` (counting from 1) replaced by what `edit`
-/// makes of it. The line's ending and a byte order mark stay as they are.
-fn edit_line(text: &str, number: usize, edit: impl Fn(&str) -> String) -> Result<String> {
-    let raw = text.split_inclusive('\n').collect::<Vec<_>>();
-    let line = raw.get(number - 1).ok_or_else(|| Error::CannotWrite {
-        path: String::new(),
-        reason: format!("line {number} is gone"),
-    })?;
-    let (bom, rest) = match line.strip_prefix('\u{feff}') {
-        Some(rest) if number == 1 => ("\u{feff}", rest),
-        Some(_) | None => ("", *line),
-    };
-    let content = rest.trim_end_matches(['\n', '\r']);
-    let ending = rest.get(content.len()..).unwrap_or_default();
-    let before = raw.get(..number - 1).unwrap_or_default().concat();
-    let after = raw.get(number..).unwrap_or_default().concat();
-    Ok(format!("{before}{bom}{}{ending}{after}", edit(content)))
-}
-
-/// `text` with lines `first` to `last` (counting from 1) replaced by
-/// `replacement`, which gets the ending of line `last`.
-fn replace_lines(text: &str, first: usize, last: usize, replacement: &str) -> String {
+/// `text` with `edit` made: its lines joined with the note's line ending,
+/// the last one getting the ending of the last line replaced, and a byte
+/// order mark kept.
+fn apply(text: &str, edit: &Edit) -> String {
+    let (first, last) = (edit.first, edit.last);
+    let replacement = edit.lines.join(line_ending(text));
     let raw = text.split_inclusive('\n').collect::<Vec<_>>();
     let before = raw.get(..first - 1).unwrap_or_default().concat();
     let last_line = raw.get(last - 1).copied().unwrap_or_default();
@@ -580,14 +530,14 @@ fn item_of(notes: &Notes, line: &str) -> std::result::Result<NewItem, String> {
                     "the value of `draft` must be true or false, not {value}"
                 ));
             };
-            item.draft = draft;
+            item.entries.draft = draft;
             continue;
         }
         let Value::String(text) = value else {
             return Err(format!("the value of `{key}` must be text, not {value}"));
         };
         if key == "kind" {
-            item.kind = Some(text);
+            item.entries.kind = Some(text);
         } else if key == "see" {
             let see_nfc = nfc(&text);
             if !notes.paths().iter().any(|known| nfc(known) == see_nfc) {
@@ -596,9 +546,9 @@ fn item_of(notes: &Notes, line: &str) -> std::result::Result<NewItem, String> {
                      store's folder"
                 ));
             }
-            item.see = Some(text);
-        } else if parse::is_field_key(&key) {
-            item.fields.push((key, text));
+            item.entries.see = Some(text);
+        } else if is_field_key(&key) {
+            item.fields.push(Field { key, text });
         } else {
             return Err(format!(
                 "`{key}` is neither a header entry (`kind`, `see`, `draft`; every item gets a \
@@ -611,67 +561,6 @@ fn item_of(notes: &Notes, line: &str) -> std::result::Result<NewItem, String> {
         return Err("it has no fields".to_owned());
     }
     Ok(item)
-}
-
-/// An item as `srl add` writes it: an srl block of its own, its entries on
-/// the opening fence, then each field, with continuation lines for
-/// multi-line text. The fence is three backticks, or one more than the
-/// longest run of backticks a line of the text starts with. Errors are
-/// plain reasons.
-fn format_item(id: &ItemId, item: &NewItem) -> std::result::Result<String, String> {
-    let mut entries = vec![format!("id:{id}")];
-    if let Some(kind) = &item.kind {
-        if kind.is_empty() || kind.contains([' ', '"']) {
-            return Err(format!("`{kind}` can't be a kind"));
-        }
-        entries.push(format!("kind:{kind}"));
-    }
-    if let Some(see) = &item.see {
-        if see.contains('"') {
-            return Err("a `see:` path can't contain `\"`".to_owned());
-        }
-        entries.push(if see.contains(' ') {
-            format!("see:\"{see}\"")
-        } else {
-            format!("see:{see}")
-        });
-    }
-    if item.draft {
-        entries.push("draft".to_owned());
-    }
-    let longest = item
-        .fields
-        .iter()
-        .flat_map(|(_, text)| text.lines())
-        .map(|line| line.trim_start().chars().take_while(|c| *c == '`').count())
-        .max()
-        .unwrap_or_default();
-    let fence = "`".repeat((longest + 1).max(3));
-    let mut lines = vec![format!("{fence}srl {}", entries.join(" "))];
-    for (key, text) in &item.fields {
-        let text = text.replace("\r\n", "\n");
-        let mut parts = text.split('\n').collect::<Vec<_>>();
-        while parts.len() > 1 && parts.last().is_some_and(|line| line.trim().is_empty()) {
-            parts.pop();
-        }
-        let (first, rest) = parts
-            .split_first()
-            .map_or(("", &[][..]), |(first, rest)| (*first, rest));
-        lines.push(if first.is_empty() {
-            format!("{key}:")
-        } else {
-            format!("{key}: {first}")
-        });
-        lines.extend(rest.iter().map(|line| {
-            if line.trim().is_empty() {
-                String::new()
-            } else {
-                format!("  {line}")
-            }
-        }));
-    }
-    lines.push(fence);
-    Ok(lines.join("\n"))
 }
 
 #[cfg(test)]
