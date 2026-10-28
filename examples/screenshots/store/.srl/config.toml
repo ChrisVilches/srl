@@ -1,0 +1,20 @@
+# srl configuration. Every key is optional; these are the defaults.
+
+[notes]
+# include = ["**/*.md"]      # globs of notes, relative to the store's folder
+# exclude = []               # globs of notes to ignore; they win over include
+
+[schedule]
+# desired_retention = 0.9    # FSRS target probability of recall
+# day_starts_at = 4          # hour (local time) when a new study day begins
+new_per_day = 50
+# max_skip = 0               # srl next skips up to this many cards, at random
+# leech_lapses = 8           # a card with this many lapses is a leech
+# mature_days = 21           # a card with at least this stability (days) is mature
+# weights = [...]            # custom FSRS weights (21, or 19 or 17); default weights if absent
+
+[kinds]
+ja-words = ["python3", "kinds/ja_words.py"]
+
+[kind_programs]
+# card_timeout = 60          # seconds a kind program may take to make a card

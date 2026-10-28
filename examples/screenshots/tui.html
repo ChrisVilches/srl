@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- A terminal for shoot.mjs to draw captured srl-tui screens in: xterm.js
+     with its canvas renderer, the fonts and the color theme of the shots. -->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
+<style>
+  body { margin: 0; background: #1e1e2e; }
+  .xterm-viewport { overflow: hidden !important; }
+  #frame { display: inline-block; padding: 36px 40px; background: #1e1e2e; }
+  /* CJK glyphs are 1em wide, two Fira Code cells are 1.2em: scale them to fit. */
+  @font-face {
+    font-family: "CJK Fit";
+    src: local("Noto Sans Mono CJK JP");
+    size-adjust: 120%;
+    unicode-range: U+3000-30FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF;
+  }
+</style>
+<script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
+<script src="node_modules/@xterm/addon-canvas/lib/addon-canvas.js"></script>
+</head>
+<body>
+<div id="frame"><div id="term"></div></div>
+<script>
+  window.render = (text, cols, rows) => document.fonts.load('30px "CJK Fit"', '大').then(() => new Promise((resolve) => {
+    const term = new Terminal({
+      cols, rows,
+      fontFamily: '"Fira Code", "CJK Fit", monospace',
+      fontSize: 30,
+      lineHeight: 1.12,
+      customGlyphs: true,
+      drawBoldTextInBrightColors: false,
+      cursorStyle: 'bar',
+      cursorInactiveStyle: 'none',
+      theme: {
+        background: '#1e1e2e', foreground: '#cdd6f4',
+        black: '#181825', red: '#f38ba8', green: '#a6e3a1', yellow: '#f9e2af',
+        blue: '#89b4fa', magenta: '#f5c2e7', cyan: '#94e2d5', white: '#bac2de',
+        brightBlack: '#585b70', brightRed: '#f38ba8', brightGreen: '#a6e3a1',
+        brightYellow: '#f9e2af', brightBlue: '#89b4fa', brightMagenta: '#f5c2e7',
+        brightCyan: '#94e2d5', brightWhite: '#a6adc8',
+      },
+    });
+    term.open(document.getElementById('term'));
+    term.loadAddon(new CanvasAddon.CanvasAddon());
+    term.write(text.replace(/\n/g, '\r\n') + '\x1b[?25l', () => setTimeout(resolve, 300));
+  }));
+</script>
+</body>
+</html>

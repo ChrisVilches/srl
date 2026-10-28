@@ -1,0 +1,11 @@
+{
+  "name": "srl-screenshots",
+  "private": true,
+  "type": "module",
+  "description": "Screenshots of srl-tui and srl-web, taken with Firefox",
+  "dependencies": {
+    "@xterm/addon-canvas": "0.7.0",
+    "@xterm/xterm": "5.5.0",
+    "puppeteer-core": "23.6.0"
+  }
+}
