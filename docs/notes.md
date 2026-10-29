@@ -13,8 +13,8 @@ file name (see "Item syntaxes"):
   item's entries on its opening fence, or several, each starting with an
   `@` line that holds its entries.
 - **JSONL**, in notes whose name ends with `.jsonl`: one item per line, as
-  a JSON object. These notes are data, written by scripts and agents, and
-  hold nothing but items.
+  a JSON object. These notes are data, written by programs such as
+  importers and generators, and hold nothing but items.
 
 ````markdown
 # 〜をものともせず
@@ -276,8 +276,8 @@ Every card has one status, usable in selectors as `status:NAME`:
 
 A card that is both a draft and suspended is `draft`.
 
-Drafts exist so that items written by agents or imports never enter your
-study queue without your approval. `srl accept SELECTOR` removes `draft`
+Drafts exist so that items written by a program, such as a generator or
+an import, never enter your study queue without your approval. `srl accept SELECTOR` removes `draft`
 from the matching items. Suspending is about studying, not
 about the note, so it is recorded in the log and never changes the note.
 
@@ -291,10 +291,9 @@ show` prints it too.
 
 - `see` is a path relative to the store's folder, to a note of the store,
   in either syntax. A `see` that names anything else is an error.
-- `see` is meant for items that ask about another note, such as items an
-  agent wrote in a file of their own (see
-  [guides/agents.md](guides/agents.md)). Every item of a JSONL note that
-  asks about a note needs it.
+- `see` is meant for items that ask about another note, such as items a
+  script imported or generated into a file of their own. Every item of a
+  JSONL note that asks about a note needs it.
 
 The context is given in one of three **modes**. How much of the note to
 show is a choice of whoever shows it, so the mode is not a setting of the
@@ -343,7 +342,7 @@ Only four commands ever change a note:
 | `srl id` | Gives an ID to the items that have none. |
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
 | `srl add NOTE` | Appends new items to the end of `NOTE`, or creates it. |
-| `srl edit --stdin` | Replaces the lines of the items it is given with new ones, for scripts and agents. |
+| `srl edit --stdin` | Replaces the lines of the items it is given with new ones, for scripts and other programs. |
 
 Every other command only reads notes. The rules for writing:
 

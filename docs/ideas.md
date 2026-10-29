@@ -11,7 +11,7 @@ questions", once it is planned.
 
 - **Prerequisites.** Items could name the items they require, for example
   in a header entry. A new header entry changes the item syntax. Finding
-  prerequisites in notes, by hand or by an agent, is then work on top.
+  prerequisites in notes, by hand or by a program, is then work on top.
 - **Partial credit for prerequisites.** A correct answer about a card also
   counts, partially, for the cards it requires. Needs a scheduling rule.
 
@@ -73,14 +73,14 @@ questions", once it is planned.
     store.** As Claude Code's hooks can be either a command or an HTTP
     endpoint, a kind could be either a process per call, as today, or an
     HTTP server that keeps running between calls. It saves the start of
-    a process (and of an interpreter, a dictionary or a model) on every
+    a process (and of an interpreter, a dictionary or a database) on every
     call. Claude Code keeps its servers alive because it runs for hours;
     an `srl` command lasts a moment, so a **daemon** of the store keeps
     them instead.
 
     This mode is postponed: kept answers removed most of what it would
     save, so it waits for a program that is slow to start, such as one
-    that loads a large dictionary or a local model before every `make`.
+    that loads a large dictionary or database before every `make`.
 
     - **Choosing HTTP.** A kind's entry in `[kinds]` says `mode = "http"`
       (see above). A program that doesn't serve it shows at once: the
@@ -140,7 +140,7 @@ questions", once it is planned.
     - **Who may call it.** Any program on the computer can reach a port
       on `127.0.0.1`, and so can a web page, through DNS rebinding (as
       `srl-web` guards against). The daemon runs your programs, some of
-      which cost money (an LLM), so each request would carry a token
+      which cost money (a paid web service), so each request would carry a token
       from a file in `.srl/daemon/` that only you can read, and the
       daemon would refuse requests for another host.
     - **Changes while it runs.** When `[kinds]` changes, or a program is

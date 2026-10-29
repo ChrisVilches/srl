@@ -1,7 +1,7 @@
 # The command line
 
 The CLI is the only interface to a store. People, scripts, frontends and
-agents all use the same commands. There is no separate API.
+every other program use the same commands. There is no separate API.
 
 Every command reads or changes the store's data: its notes and their
 items, the log and the configuration. One of them, `srl next --json`, is
@@ -238,7 +238,7 @@ items it would write, as they would appear in the note, and writes nothing.
 The rating is always given by whoever records the review (see
 [scheduling.md](scheduling.md), "Ratings"); `srl` never judges an answer.
 `response` is optional text: what was answered, if whoever records the
-review wants to keep it, such as an answer typed to an agent (see
+review wants to keep it, such as an answer typed into a frontend (see
 [log.md](log.md)). `by` says who recorded the review, not how the rating
 was decided.
 
@@ -260,7 +260,7 @@ may pick another card, but the broken one stays among the first and keeps
 coming back.
 
 > **TODO (design):** being this strict can get in the way of studying,
-> as when an LLM API is down. Ways to make it less annoying without ever
+> as when a web service a kind program needs is down. Ways to make it less annoying without ever
 > working with broken data are wanted, and still undecided (see
 > [overview.md](overview.md), "Open questions").
 

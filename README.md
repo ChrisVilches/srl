@@ -2,18 +2,18 @@
 
 A programmable data layer for spaced repetition.
 
-`srl` keeps your questions inside your Markdown notes (or, when scripts and
-agents write them, in JSONL files of their own) and your reviews in a
+`srl` keeps your questions inside your Markdown notes (or, when programs
+write them, in JSONL files of their own) and your reviews in a
 plain-text log, schedules every card with
 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/ABC-of-FSRS),
 and exposes all of it through a CLI with JSON output. It has no study screen
 of its own. Instead, it is the one place where your study data lives and
 stays correct, and everything else is built on top: web and terminal
-frontends, shell scripts, card generators, and LLM agents that write
-questions, tutor you and analyze your progress.
+frontends, shell scripts, importers, kind programs that make new types of
+cards, and any other tool you write.
 
 ```
-          you, your editor, scripts, LLM agents
+          you, your editor, scripts, importers
                 │ write notes        ▲ read JSON
                 ▼                    │
  ┌─────────────────────────────────────────────────────┐
@@ -22,35 +22,36 @@ questions, tutor you and analyze your progress.
  └─────────────────────────────────────────────────────┘
                 │ srl next --json    ▲ srl review
                 ▼                    │
-     any frontend: web, terminal, a shell loop, an agent
+     any frontend: web, terminal, a shell loop, …
 ```
 
 ## Why a data layer
 
 Spaced repetition apps bundle three things: your cards, the scheduler, and
 the screen you study on. You can't easily generate cards with a script,
-study in a different interface, or let an agent see what you keep
-forgetting, because the data is locked inside the app.
+study in a different interface, or analyze what you keep forgetting with
+your own tools, because the data is locked inside the app.
 
 `srl` keeps only the part that has to be right: the data and the schedule.
 Everything else is a separate program, so it can be replaced, rewritten or
 built by you.
 
 - **The CLI is the API.** Every command is non-interactive, with JSON
-  output. Frontends, scripts and agents use the same commands you do; there
+  output. Frontends and scripts use the same commands you do; there
   is no separate interface to learn.
 - **Small fixed contracts.** The item syntaxes, the card, the frontend
   contract (`srl next --json`), the review event and the selector language
   are rigid and documented, so the programs around them can vary freely.
 - **One schedule for everyone.** Frontends never compute schedules. Study
-  in the browser in the morning and from an agent at night, and it's the
+  in the browser in the morning and in a terminal at night, and it's the
   same queue.
 - **Plain text all the way down.** Items are lines in your notes; reviews
   are lines in append-only JSONL files. `cat`, `grep`, git and any program
   that reads files can work with them. The SQLite index is only a cache.
-- **Built for agents, without depending on one.** `srl` contains and calls
-  no LLM. An agent can do anything a person can, through the same commands,
-  and nothing breaks when there is no agent.
+- **New types of cards are programs.** Beside questions and answers with
+  cloze deletions, a kind of card can be a program you write in any
+  language: conjugation drills, words of a sentence, problems drawn at
+  random. `srl` schedules their cards like any other.
 
 ## Your data: questions inside your notes
 
@@ -77,7 +78,7 @@ also hold a single question, with its ID on the fence (```` ```srl
 id:x7k2m9 ````). When you study a card, the note around it is shown as
 context after the answer.
 
-Questions that scripts and agents write can go in a JSONL note instead,
+Questions that scripts write can go in a JSONL note instead,
 one JSON object per line, each naming the note it asks about with `see`:
 
 ```json
@@ -131,10 +132,38 @@ Markdown or JSONL, and `srl-tui`, a terminal frontend in Python.
 
 ![srl-tui showing the answer of a card about Ohm's law, with its note as context and the rating keys](examples/screenshots/images/tui-6-electrical.png)
 
+### Kinds: cards made by your own programs
+
+An item's kind decides how its fields become cards. `qa`, questions and
+answers with cloze deletions, is built in. Any other kind is a program you
+name in `.srl/config.toml`, written in any language:
+
+```toml
+[kinds]
+ja-words = ["python3", "kinds/ja_words.py"]
+```
+
+A kind checks its items, says which cards each gives and which of them
+give each other away, and makes each card's content when it is shown, so
+it can do anything a program can: conjugate a verb, look a word up in a
+dictionary, draw a new arithmetic problem each time. The repository has
+two examples: `ja-words` makes one card per marked word of a Japanese
+sentence, and `llm-generated` asks an LLM to write a new question about a
+topic every time the card is shown, while `srl` keeps scheduling it as one
+card.
+
+### Scripts and analysis
+
+Selectors such as `in:rust -state:new` or `state:leech` work the same in
+every command, and every command prints JSON with `--json`. Reports,
+imports, bulk edits and dashboards are a few lines of shell or any other
+language away.
+
 ### LLM agents
 
-An agent works with a store the way a person does: it runs commands and
-writes notes. It can turn a note or an article into questions, sent as
+`srl` knows nothing about agents: an agent is one more program built on
+the CLI, and works with a store the way a person does, running commands
+and writing notes. It can turn a note or an article into questions, sent as
 JSONL and kept as drafts until you accept them:
 
 ```sh
@@ -157,30 +186,6 @@ card, judges your answer in your own words, and records the rating with
 `srl find state:leech` to find what you keep forgetting and propose
 rewrites. Giving an agent only a few tools, each running one `srl` command,
 keeps it from doing anything `srl` wouldn't accept.
-
-### Kinds: cards made by your own programs
-
-An item's kind decides how its fields become cards. `qa`, questions and
-answers with cloze deletions, is built in. Any other kind is a program you
-name in `.srl/config.toml`, written in any language:
-
-```toml
-[kinds]
-ja-words = ["python3", "kinds/ja_words.py"]
-llm-generated = ["python3", "kinds/llm_generated.py"]
-```
-
-The repository has both as examples: `ja-words` makes one card per marked
-word of a Japanese sentence, and `llm-generated` has an LLM write a new
-question about a topic every time the card is shown, while `srl` keeps
-scheduling it as one card.
-
-### Scripts and analysis
-
-Selectors such as `in:rust -state:new` or `state:leech` work the same in
-every command, and every command prints JSON with `--json`. Reports,
-imports, bulk edits and dashboards are a few lines of shell or any other
-language away.
 
 ## Predictable by design
 

@@ -44,8 +44,8 @@ also collect an answer before step 3 and pass it as `response`, which is
 only kept in the log.
 
 A frontend may name the card's `kind` at any step, so that the person
-knows where the card came from, such as a kind whose program asks an LLM
-to write the question.
+knows where the card came from, such as a kind whose program draws a new
+question each time, like an arithmetic drill.
 
 A frontend may offer more, with the other commands everyone has: suspending the
 card (`srl suspend id:ID`), opening its note (the file at `path`, relative

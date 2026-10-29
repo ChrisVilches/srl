@@ -2,7 +2,7 @@
 
 A **selector** picks a set of cards. Every command that works on several
 cards takes one, and it means the same thing everywhere: for a person
-typing, a script, or an agent.
+typing or a program.
 
 ```sh
 srl next in:grammar,kanji

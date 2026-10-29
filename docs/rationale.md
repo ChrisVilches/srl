@@ -3,17 +3,20 @@
 Why the main decisions were made. Each section states the decision, then the
 reasons and the trade-off accepted.
 
-## Why a database at all, instead of just prompting an LLM
+## Why a database at all
 
-Asking an LLM "quiz me on N1 grammar" works, and gives you a tutor. It cannot
+Rereading your notes, or being quizzed on them by a friend, a tutor or a
+quiz generator, works, and can teach a lot. Without a record, it cannot
 give you spacing and repetition:
 
-- It does not remember what you reviewed last week, so it cannot know what is
+- Nothing remembers what you reviewed last week, so nothing knows what is
   due.
-- Every session invents new questions on new topics, so the same knowledge is
+- Every session asks new questions on new topics, so the same knowledge is
   never tracked over time.
-- It drifts towards well-known material and skips the long tail.
-- It can be wrong again each time; a checked question stays correct.
+- It drifts towards what is easy to ask or already known, and skips the
+  long tail.
+- A question made up on the spot can be wrong each time; a checked question
+  stays correct.
 - You cannot measure whether you are improving.
 
 So the minimum database is **questions with stable IDs and a log of
@@ -25,13 +28,14 @@ reviews.** Everything else must justify itself.
 configuration) plus one fixed mapping from that data to frontends:
 `srl next --json` (see [overview.md](overview.md), "The idea").
 Everything around it, such as showing cards, launching programs, choosing
-how things look, or calling an LLM, is left to programs built on top.
+how things look, or generating questions, is left to programs built on
+top.
 
 What only `srl` can do well is keep the data correct: parse notes
 strictly, never damage them, replay the log the same way every time, and
 apply one schedule for every frontend. What people want to vary is
-everything else. Keeping the two apart means a frontend, a script or an
-agent can be replaced without touching `srl`, and `srl` can change inside
+everything else. Keeping the two apart means a frontend, a script or any
+other program can be replaced without touching `srl`, and `srl` can change inside
 without breaking them, as long as the contracts hold.
 
 Only `srl next --json` is a mapping to frontends, because only it gives
@@ -62,7 +66,7 @@ text written for people, and must be careful when it writes to it.
 ## Why text files, not SQLite, as the source of truth
 
 Files can be edited in any editor, diffed by git line by line, searched with
-`grep`, and read by agents directly. A database is better at queries and
+`grep`, and read by any program directly. A database is better at queries and
 integrity, but those are covered by a derived index and `srl check`. The
 reverse is not true: editing, diffing and plain-text access cannot be added to
 a database without export and import machinery.
@@ -96,18 +100,18 @@ cut item can still be valid, so `srl check` doesn't always report it. `srl
 lint` does: the fence that closed the block is indented, as the end of a
 code block in a field is. It stays a guess, not an error, because an
 indented closing fence is valid CommonMark, and `srl` reads blocks as
-renderers do. LLMs are prone to this mistake (see
-[guides/agents.md](guides/agents.md), "Limitations of the item syntax for
-LLMs"). The syntax is also Markdown's: it suits Markdown
+renderers do. Programs that write items are prone to this mistake, which
+is one reason for JSONL notes (see "Why JSONL notes, and why the extension
+decides"). The syntax is also Markdown's: it suits Markdown
 and the formats built on it, and every other file read as a note but a
 JSONL note has to use it too (see [notes.md](notes.md), "Item
 syntaxes").
 
 ## Why JSONL notes, and why the extension decides
 
-Most questions are not typed next to the knowledge by hand: scripts and
-agents write them, in files of their own, with `see` naming the note they
-ask about. For them, srl blocks are a syntax to get right for no gain:
+Not every question is typed next to the knowledge by hand: importers and
+generators write them in bulk, in files of their own, with `see` naming the
+note they ask about. For them, srl blocks are a syntax to get right for no gain:
 fence lengths, continuation lines, two forms of block. A JSON object per
 line is what such programs write best, and `srl add` already took it. A
 JSONL note is that format kept as is: parsing a line is a JSON parse, a
@@ -171,8 +175,8 @@ when `max_skip` lets it skip a few, until something changes. Getting past
 it is a separate command you choose: fix what failed, or `srl suspend` the
 card.
 
-Trade-off: one card that can't be made, for example while an LLM API is
-down, blocks studying until it is fixed or suspended, or, with
+Trade-off: one card that can't be made, for example while a web service
+its kind program needs is down, blocks studying until it is fixed or suspended, or, with
 `max_skip`, interrupts it each time it is picked. Tools to make that
 less annoying are still to be designed (see [overview.md](overview.md),
 "Open questions").
@@ -245,9 +249,9 @@ kanji. Seeing the answer and rating yourself is faster and more honest, as
 in Anki. So `srl` never judges answers: there are no answer checks, no
 suggested ratings, and every rating is given.
 
-Judging a free-form answer is still possible, by an agent outside `srl`:
-you answer it, it decides the rating, and records it with `--by agent`. The
-core stays the same either way.
+Judging an answer is still possible, by a program outside `srl`: for
+example, one that runs code you wrote against tests decides the rating
+and records it with `--by agent`. The core stays the same either way.
 
 Trade-off: nothing stops you from rating yourself too kindly.
 
@@ -282,8 +286,9 @@ Card IDs and card content come from different calls because they have
 opposite needs. IDs are needed by nearly every command (selectors,
 `srl find`, `srl check`, scheduling) and must be stable, since a card's
 history is kept under its ID. Content is needed only when a card is
-shown, and may take long to make, as when a program asks an LLM to write
-the question, or differ every time. Kept apart, a command that only needs
+shown, and may take long to make, as when a program looks words up in a
+large dictionary, or differ every time, as when it draws a new arithmetic
+problem. Kept apart, a command that only needs
 IDs never waits for content, and a program that generates its cards does
 the slow work only for the cards about to be shown.
 
@@ -378,8 +383,8 @@ could change or drop card IDs, and history would be lost without the item
 changing at all.
 
 `make` may differ every time anyway, so it gets the context and the day:
-a program can use the note as background, as `examples/kind-llm-generated`
-does when it asks an LLM for a question. The context is always in mode
+a program can use the note as background, for example to pick a sentence
+of it to ask about. The context is always in mode
 `prose`, whatever mode a frontend asks for, so a card doesn't depend on
 the frontend that shows it.
 
@@ -387,7 +392,7 @@ the frontend that shows it.
 
 To write an item you need to know its kind's fields, and only the kind
 knows them. So every kind program answers `describe`, and
-`srl kinds` prints what it says: a person, an editor or an agent learns
+`srl kinds` prints what it says: a person, an editor or a script learns
 the fields from `srl`, not from the program's source or from a template
 kept somewhere else. It is required, not optional, so that every kind can
 be written the same way, and a program that can't describe its kind
@@ -455,7 +460,7 @@ The study loop is `srl next --json`, showing what it prints, and
 frontend would add nothing a separate one can't do, and would be the one
 part of `srl` that has opinions about appearance: colors, keys, layout.
 Those are exactly what people want to change, and a frontend of a few dozen
-lines is quick to write, or to have an agent write, from an example.
+lines is quick to write from an example.
 
 So `srl` has no interactive study command. It stays a CLI that other
 programs drive, the same on every platform, and frontends live outside it:
@@ -479,20 +484,22 @@ frontend may want less than a browser. That is presentation, so it is a
 flag of `srl next` that each frontend sets, not a setting of the store
 that every frontend would have to share.
 
-## Why no LLM in the core
+## Why the core calls no service
 
 The store should be like a notes folder: complete on its own, and open to any
-agent. Keeping LLMs outside means `srl` works offline, costs nothing to run,
-behaves the same every time, and is not tied to a model, a provider or an
-agent. An agent contributes the way a person does: by writing notes and
-running commands.
+program. `srl` itself calls no server and needs no account, so it works
+offline, costs nothing to run, behaves the same every time, and is not tied
+to a provider. A program that needs a service, such as a kind program that
+looks words up online, brings it itself, and contributes the way a person
+does: by writing notes and running commands.
 
-## Why agent-written questions are ordinary items
+## Why generated questions are ordinary items
 
-An agent that writes questions writes items, in a note of their own, with
-`see` pointing to the note they ask about. There is no separate cache or
-session for generated questions: that would be a concept that exists only
-for agents, and would hide content outside your notes. As items, you can
+A program that writes questions, such as an importer or a generator,
+writes items, in a note of their own, with `see` pointing to the note they
+ask about. There is no separate cache or session for generated questions:
+that would be a concept that exists only for such programs, and would hide
+content outside your notes. As items, you can
 read, edit, accept or delete them like any other.
 
 Trade-off: generated notes accumulate in the store, like any notes.

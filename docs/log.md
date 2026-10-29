@@ -65,8 +65,8 @@ item was deleted keeps its events (see [scheduling.md](scheduling.md),
 |---|---|
 | `card` | The card's ID. |
 | `rating` | 1–4, as given (see [scheduling.md](scheduling.md), "Ratings"). |
-| `response` | What was answered, as text, if the review was recorded with one, for example an answer typed to an agent. `null` if none was given, which is usual: rating yourself needs no typed answer. `srl` never reads it. |
-| `by` | `human` or `agent`: who recorded the review. It says nothing about how the rating was decided, or whether there is a `response`: an agent may record a rating you gave it, or one it judged from your answer. |
+| `response` | What was answered, as text, if the review was recorded with one, for example an answer typed into a frontend. `null` if none was given, which is usual: rating yourself needs no typed answer. `srl` never reads it. |
+| `by` | `human` or `agent`: who recorded the review, a person or a program acting for them. It says nothing about how the rating was decided, or whether there is a `response`: a program may record a rating you gave it, or one it judged from your answer, for example by running code you wrote against tests. |
 | `hash` | The first 12 hex characters of the SHA-256 of the item's text at review time: the item as written, as `srl show` prints it without `--json` (see [cli.md](cli.md), "Items and cards"). |
 
 `hash` is never used by `srl`. It exists so that you can later ask questions

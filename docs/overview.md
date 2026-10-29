@@ -1,8 +1,8 @@
 # srl — overview
 
 `srl` is a spaced repetition system for the command line. You write
-questions and answers inside your Markdown study notes, or have scripts and
-agents write them in JSONL files of their own; `srl` turns them into
+questions and answers inside your Markdown study notes, or have programs
+write them in JSONL files of their own; `srl` turns them into
 **cards**, records how well you answered, and schedules each card for
 review with the FSRS algorithm.
 
@@ -27,10 +27,10 @@ document, listed at the end.
 
 Studying happens in a **frontend**: a separate program of your choice that
 reads the frontend contract and records ratings, such as the web viewer or
-the terminal frontend in this repository's `examples/`. Frontends, scripts
-and LLM agents are all built on top of the CLI, outside `srl`. No part of
-`srl` depends on a frontend, an LLM, an agent, or any particular
-note-taking app.
+the terminal frontend in this repository's `examples/`. Frontends,
+scripts and every other tool are built on top of the CLI, outside `srl`.
+No part of `srl` depends on a frontend, on any program built on it, or on
+any particular note-taking app.
 
 ## Goals
 
@@ -38,9 +38,9 @@ note-taking app.
   else serves them.
 - **Questions live in your notes.** You write a question next to the
   knowledge it asks about, in the same file, in a few keystrokes. The note
-  around it is the question's context. Questions written by scripts and
-  agents may instead live in JSONL notes, as data, each naming the note it
-  asks about.
+  around it is the question's context. Questions written by programs,
+  such as importers and generators, may instead live in JSONL notes, as
+  data, each naming the note it asks about.
 - **Notes stay notes.** What `srl` adds to a note is hidden when the note is
   rendered, and reads naturally when it is not. A note with questions in it
   is still an ordinary Markdown file for every other program.
@@ -48,8 +48,8 @@ note-taking app.
   edited in any editor and versioned with git.
 - **All of the data through the CLI.** A person can read and change
   everything in a store with the CLI. Studying goes through a frontend,
-  which is a separate program; frontends, scripts and LLM agents build on
-  the same commands.
+  which is a separate program; frontends, scripts and other tools build
+  on the same commands.
 - **Predictable behaviour.** Every rule is simple enough to state in one
   sentence. Where a smarter rule would be possible, `srl` picks the simple one
   and accepts the trade-off.
@@ -58,7 +58,8 @@ note-taking app.
 
 - `srl` is not tied to Obsidian or any other app. Notes are plain Markdown,
   as common to most Markdown flavours.
-- `srl` does not contain, call or assume an LLM.
+- `srl` itself calls no service: no server, no account, no network. It works
+  offline, and contains nothing that judges answers.
 - `srl` is not a sync service or a multi-user system.
 - `srl` is not a frontend or an editor, and does not launch other programs
   for you. The exception is the kind programs you name in
@@ -69,10 +70,10 @@ note-taking app.
 1. **The store is the database, and it is made of text files.** Items are
    lines in notes, Markdown or JSONL, and reviews are lines in JSONL files.
    A SQLite index exists only as a cache that can be deleted at any time.
-2. **The core contains no LLM.** Anything an agent can do, a human can also
-   do with the same commands.
+2. **People and programs are equal.** Anything a script or any other
+   program can do with `srl`, a person can also do with the same commands.
 3. **The CLI is the API.** Every command is non-interactive, with JSON
-   output. There is no separate interface for scripts or agents.
+   output. There is no separate interface for scripts or other programs.
 4. **Flat rules.** One simple, predictable rule per decision. No weights, no
    adaptive policies, no hidden state.
 5. **Small fixed contracts.** A handful of formats are rigid so that the
@@ -101,7 +102,7 @@ note-taking app.
                                           │       ▲
                                           ▼       │ rating
                                   Frontends (outside srl): terminal,
-                                  web, scripts, agents
+                                  web, scripts, …
 ```
 
 ## Glossary
@@ -115,7 +116,7 @@ note-taking app.
 | **Kind** | How an item's fields become cards. `qa`, a question and an answer with optional cloze deletions, is built in and the default; any other kind is a program named in `.srl/config.toml`. A kind also decides which of an item's cards are siblings, and describes its fields (`srl kinds`). |
 | **Card** | One question, ready to show: an ID, a prompt, and, when the kind gives them, the prompt as revealed with the answer and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
 | **Context** | The note an item belongs to, or the note its `see` names, which frontends show after the answer of its cards. A JSONL note is never the context of its own items. |
-| **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by a person or an agent, never computed by `srl`. |
+| **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by whoever records the review, a person or a program acting for them, never computed by `srl`. |
 | **Frontend** | A program outside `srl` that shows cards to a person and records the ratings: it reads cards through the frontend contract and records ratings with `srl review`. `srl` has none built in. |
 | **Review event** | One line in the log: this card was rated this way, at this time. |
 | **Selector** | A short filter expression that picks cards, such as `in:grammar state:due`. |
@@ -144,11 +145,11 @@ These five formats are fixed, because everything else depends on them:
 
 | Contract | Joins | Document |
 |---|---|---|
-| **Item syntaxes and the item object** | Authors (you, agents, imports) and everything that reads notes; `srl add`, `srl edit` and `srl show --json` | [notes.md](notes.md) |
+| **Item syntaxes and the item object** | Authors (you, scripts, imports) and everything that reads notes; `srl add`, `srl edit` and `srl show --json` | [notes.md](notes.md) |
 | **Card** | Kinds and everything that shows a card | [cards.md](cards.md) |
 | **Frontend contract** | `srl` and frontends: `srl next --json` | [frontends.md](frontends.md) |
 | **Review event** | `srl review` and the scheduler or any analysis | [log.md](log.md) |
-| **Selector** | People, scripts and agents, and every command that picks cards | [selectors.md](selectors.md) |
+| **Selector** | People, scripts and other programs, and every command that picks cards | [selectors.md](selectors.md) |
 
 When something new needs more than a contract offers, the contract is extended
 for everyone, deliberately. Individual programs never invent private
@@ -159,18 +160,20 @@ extensions.
 | Fixed (in the core) | Pluggable (outside the core) |
 |---|---|
 | Store layout, item syntaxes, the `qa` kind | Frontends (terminal, web, ambient, …) |
-| Card format, frontend contract | Agents and their prompts, tools and skills |
-| Review event format, FSRS scheduling, the sibling rule | Judging answers, by you or an agent |
-| Selector language | Writing notes and items: by hand, by script, by agent |
+| Card format, frontend contract | Importers, generators and other tools that write items |
+| Review event format, FSRS scheduling, the sibling rule | Judging answers: by you, or by a program you choose |
+| Selector language | Writing notes and items: by hand or by program |
 | CLI commands and their JSON output | Scripts and tools that run the CLI |
 | How kind programs are called | Kind programs: every kind but `qa` |
 
-## Where LLMs fit
+## Where other programs fit
 
-Nowhere inside. An agent operates the CLI and writes notes, the same way a
-person does: it writes new items (as drafts), tutors you (judging your
-free-form answers, if you ask it to), and analyzes your log. See
-[guides/agents.md](guides/agents.md).
+Outside. An importer, a generator, a frontend or an LLM agent operates the
+CLI and writes notes, the same way a person does: it writes new items (as
+drafts, until you accept them), shows cards and records ratings, or
+analyzes your log. Programs that need more, such as a network service,
+bring it themselves. See [guides/frontends.md](guides/frontends.md) and
+[guides/agents.md](guides/agents.md) for two kinds of such programs.
 
 ## Specification, guides and examples
 
@@ -189,6 +192,10 @@ it what `srl` is and does, or something done with it?**
   the specification changes.
 - **Examples**, in the repository's `examples/`: programs and files built
   on `srl`, to run, copy and change. `examples/README.md` lists them:
+  - `examples/kind-ja-words/`: a kind program, one card per marked word
+    of a Japanese sentence (see [cards.md](cards.md), "Kind programs").
+  - `examples/kind-llm-generated/`: a kind program whose card an LLM
+    writes anew each time it is shown.
   - `examples/agents/`: a system prompt and skills that turn an LLM agent
     into a guide to `srl` (see [guides/agents.md](guides/agents.md)).
   - `examples/python-frontend/`: `srl-tui`, a study frontend for the

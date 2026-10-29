@@ -15,9 +15,9 @@ below).
 | 4 | Easy | You knew it without effort. |
 
 **The rating is always given, never computed.** `srl` doesn't judge answers:
-you see the answer and rate yourself, or an agent you asked to judge your
-answer gives the rating. Either way, `srl review` records the rating as
-given.
+you see the answer and rate yourself, or a program you asked to judge your
+answer gives the rating, such as one that runs code you wrote against
+tests. Either way, `srl review` records the rating as given.
 
 ## FSRS, computed from the log
 

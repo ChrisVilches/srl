@@ -23,7 +23,7 @@ study/
 
 | Path | Source of truth? | Written by |
 |---|---|---|
-| notes (`**/*.md` by default) | yes | you, any editor, scripts and agents; `srl id`, `srl accept`, `srl add` and `srl edit --stdin` (see [notes.md](notes.md), "How srl writes to notes") |
+| notes (`**/*.md` by default) | yes | you, any editor, scripts and other programs; `srl id`, `srl accept`, `srl add` and `srl edit --stdin` (see [notes.md](notes.md), "How srl writes to notes") |
 | `.srl/config.toml` | yes | you |
 | `.srl/log/` | yes | `srl review`, `srl reset`, `srl move`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |
 | `.srl/cache/` | no | `srl`, automatically |

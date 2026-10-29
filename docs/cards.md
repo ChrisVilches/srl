@@ -398,7 +398,7 @@ When something goes wrong, the place it happens says whose fault it is:
   invalid output for it. `srl next` fails with the reason and prints no
   card; it doesn't go on to another card. `srl cards` fails at once,
   with the reason and no output for any ID (see [cli.md](cli.md)). Until
-  what failed is fixed (an LLM API that is down, a missing key),
+  what failed is fixed (a web service that is down, a missing dictionary),
   `srl next` fails whenever it picks that card: every time with the
   default `max_skip = 0`, and some of the time with skips, while the card
   is among the first it picks from (see [scheduling.md](scheduling.md),
@@ -419,12 +419,12 @@ card the kind could give, not the one `srl next` will show.
 > user in `[kinds]`: one item per process, easier to write but slow
 > whenever no answer is kept; or an HTTP server that a daemon of the
 > store keeps running, faster for a program that is slow to start (a
-> large dictionary, a local model), mostly in `make`. Both are postponed
+> large dictionary or database), mostly in `make`. Both are postponed
 > (see [ideas.md](ideas.md), "Kind programs").
 
 ### Describing a kind
 
-Every kind describes itself, so that a person, an editor or an agent
+Every kind describes itself, so that a person, an editor or a script
 can write an item of a kind without reading its program (see
 [rationale.md](rationale.md), "Why a kind describes itself, and the
 description only informs"). `srl kinds` prints the descriptions (see
