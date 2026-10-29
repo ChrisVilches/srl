@@ -465,7 +465,7 @@ fn groups(item: &ItemId, output: &str) -> Result<Vec<Vec<CardId>>, String> {
     for suffix in suffixes.into_iter().flatten() {
         if !is_id_text(suffix) {
             return Err(format!(
-                "`{suffix}` is not a card suffix; a suffix is 1 to 32 characters a-z and 0-9"
+                "`{suffix}` is not a card suffix; a suffix is 1 to 32 characters, words of a-z and 0-9 joined by single `-`"
             ));
         }
         if !seen.insert(suffix) {
@@ -641,9 +641,9 @@ mod tests {
             "```srl id:abc kind:fake\nGROUPS: te past|negative\n```\n\n```srl id:abd kind:fake\nX: y\n```\n",
         );
         assert_eq!(problems(&notes), Vec::<String>::new());
-        assert_eq!(ids(&notes), ["abc-negative", "abc-past", "abc-te", "abd"]);
+        assert_eq!(ids(&notes), ["abc.negative", "abc.past", "abc.te", "abd"]);
         let item = notes.item(&ItemId::parse("abc").unwrap()).unwrap();
-        let group = |suffix: &str| item.group(&CardId::parse(&format!("abc-{suffix}")).unwrap());
+        let group = |suffix: &str| item.group(&CardId::parse(&format!("abc.{suffix}")).unwrap());
         assert_eq!(group("te"), group("past"));
         assert_ne!(group("te"), group("negative"));
         assert_eq!(item.kind().as_str(), "fake");
@@ -708,7 +708,7 @@ mod tests {
         fs::write(store.root().join("calls.log"), "").unwrap();
         let (notes, calls) = reload(&store, false);
         assert_eq!(calls, "");
-        assert_eq!(ids(&notes), ["aaa-x", "aaa-y", "bbb"]);
+        assert_eq!(ids(&notes), ["aaa.x", "aaa.y", "bbb"]);
         // A kept answer that says the item is invalid says it again.
         assert_eq!(problems(&notes), ["a.md:11: no"]);
         // Only the item that changed is asked about.
@@ -716,7 +716,7 @@ mod tests {
         fs::write(store.note_file("a.md"), note.replace("x y", "x z")).unwrap();
         let (notes, calls) = reload(&store, false);
         assert_eq!(calls, "validate 1\ngroups 1\n");
-        assert_eq!(ids(&notes), ["aaa-x", "aaa-z", "bbb"]);
+        assert_eq!(ids(&notes), ["aaa.x", "aaa.z", "bbb"]);
         // Asking asks about every item, and keeps the answers.
         let (_, calls) = reload(&store, true);
         assert_eq!(calls, "validate 3\ngroups 2\n");
@@ -855,6 +855,10 @@ mod tests {
             r#"{"groups": [[null], [null]]}"#,
             r#"{"groups": [["A"]]}"#,
             r#"{"groups": [["a"], ["a"]]}"#,
+            // A suffix never contains the separator, and dashes only join words.
+            r#"{"groups": [["a.b"]]}"#,
+            r#"{"groups": [["-a"]]}"#,
+            r#"{"groups": [["a--b"]]}"#,
             r#"{"groups": [["a"]], "more": 1}"#,
             r#"{"groups": [{"cards": ["a"]}]}"#,
             "",
@@ -864,6 +868,10 @@ mod tests {
         assert_eq!(
             groups(&item, r#"{"groups": [[null]]}"#).unwrap(),
             [[CardId::new(item.clone(), None)]]
+        );
+        assert_eq!(
+            groups(&item, r#"{"groups": [["past-negative"]]}"#).unwrap(),
+            [[CardId::parse("abc.past-negative").unwrap()]]
         );
     }
 
@@ -1000,9 +1008,9 @@ mod tests {
         );
         let folder = tmp.path().file_name().unwrap().to_string_lossy();
         assert_eq!(
-            make(&store, &notes, &["abc-te"]).unwrap(),
+            make(&store, &notes, &["abc.te"]).unwrap(),
             [serde_json::json!({
-                "id": "abc-te",
+                "id": "abc.te",
                 "prompt": "te?",
                 "prompt_revealed": "te!",
                 "answer": format!(
@@ -1018,12 +1026,12 @@ mod tests {
             &config(""),
             "```srl id:abc kind:fake\nGROUPS: a b\nLOG: calls.log\n```\n\n```srl id:qqq\nQ: q\nA: a\n```\n",
         );
-        let made = make(&store, &notes, &["abc-b", "qqq", "abc-a"]).unwrap();
+        let made = make(&store, &notes, &["abc.b", "qqq", "abc.a"]).unwrap();
         let ids = made
             .iter()
             .map(|card| card["id"].clone())
             .collect::<Vec<_>>();
-        assert_eq!(ids, ["abc-b", "qqq", "abc-a"]);
+        assert_eq!(ids, ["abc.b", "qqq", "abc.a"]);
         let calls = fs::read_to_string(tmp.path().join("calls.log")).unwrap();
         assert_eq!(calls, "validate 1\ngroups 1\nmake 2\n");
     }
@@ -1070,13 +1078,13 @@ mod tests {
         );
         // Three cards may take three seconds: two seconds is in time.
         assert_eq!(
-            make(&store, &notes, &["abc-a", "abc-b", "abc-c"])
+            make(&store, &notes, &["abc.a", "abc.b", "abc.c"])
                 .unwrap()
                 .len(),
             3
         );
         assert!(
-            make(&store, &notes, &["abc-a"])
+            make(&store, &notes, &["abc.a"])
                 .unwrap_err()
                 .contains("took longer than 1 seconds to make a card")
         );
@@ -1132,6 +1140,6 @@ mod tests {
             day,
             0,
         );
-        assert!(matches!(next, Err(Error::CardFailed { card, .. }) if card == "abc-a"));
+        assert!(matches!(next, Err(Error::CardFailed { card, .. }) if card == "abc.a"));
     }
 }

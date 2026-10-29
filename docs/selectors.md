@@ -23,7 +23,7 @@ selector it didn't write puts it after `--`.
 |---|---|
 | `in:NAME` | Cards whose note has a folder named `NAME` anywhere in its path, or is itself named `NAME` (without its extension, the part after the last `.`). Names are compared ignoring case, in Unicode NFC: `in:grammar` matches `japanese/Grammar/wo.md`, `grammar.md` and `grammar.txt`, but not `grammar-notes.md`. |
 | `path:GLOB` | Cards whose note's path, relative to the store's folder, matches the glob. `*` matches within one folder, `**` across folders: `path:japanese/*` is the notes directly in `japanese/`, `path:japanese/**` everything below it. Paths and globs are compared in Unicode NFC (see [store.md](store.md), "File names"). |
-| `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1-1` and `k3m9q1-2`. |
+| `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1.1` and `k3m9q1.2`. |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind` entry, or a kind named in `[kinds]` of `.srl/config.toml` (see [cards.md](cards.md), "Kinds"). A selector without `kind:` matches items of every kind. |
 | `status:S` | Cards with status `active`, `draft` or `suspended` (see [notes.md](notes.md), "Status") |
 | `state:S` | Cards in a scheduling state: `new`, `due`, `young`, `mature`, `leech` (see [scheduling.md](scheduling.md)). States come from replaying the log, so a selector with `state:` needs the configuration and the local time zone. |

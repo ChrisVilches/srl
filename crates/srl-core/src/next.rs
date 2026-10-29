@@ -209,8 +209,8 @@ mod tests {
     #[test]
     fn max_skip_picks_among_the_first_cards() {
         let (_tmp, notes) = store();
-        // In order: aaa2 (due), then aaa1-1 (new, its group's pick); aaa1-2
-        // and aaa1-10 are its siblings, never candidates.
+        // In order: aaa2 (due), then aaa1.1 (new, its group's pick); aaa1.2
+        // and aaa1.10 are its siblings, never candidates.
         let entries = vec![reviewed("aaa2", date(2026, 10, 1), 3)];
         assert_eq!(
             picks_over_seeds(&notes, &entries, &skipping(0), ""),
@@ -218,12 +218,12 @@ mod tests {
         );
         assert_eq!(
             picks_over_seeds(&notes, &entries, &skipping(1), ""),
-            ["aaa1-1", "aaa2"]
+            ["aaa1.1", "aaa2"]
         );
         // Fewer candidates than the window: the range shrinks to them.
         assert_eq!(
             picks_over_seeds(&notes, &entries, &skipping(5), ""),
-            ["aaa1-1", "aaa2"]
+            ["aaa1.1", "aaa2"]
         );
     }
 
@@ -251,7 +251,7 @@ mod tests {
         let (_tmp, notes) = store();
         assert_eq!(
             next_card(&notes, &[], &Config::default(), "").as_deref(),
-            Some("aaa1-1")
+            Some("aaa1.1")
         );
         assert_eq!(next_card(&notes, &[], &Config::default(), "id:aaa3"), None);
     }
@@ -269,12 +269,12 @@ mod tests {
     #[test]
     fn a_sibling_reviewed_today_holds_back_the_others() {
         let (_tmp, notes) = store();
-        let entries = vec![reviewed("aaa1-1", DAY, 3)];
+        let entries = vec![reviewed("aaa1.1", DAY, 3)];
         assert_eq!(
             next_card(&notes, &entries, &Config::default(), "").as_deref(),
             Some("aaa2")
         );
-        let entries = vec![reviewed("aaa1-1", DAY, 3)];
+        let entries = vec![reviewed("aaa1.1", DAY, 3)];
         assert_eq!(
             next_card(&notes, &entries, &Config::default(), "id:aaa1"),
             None
@@ -284,18 +284,18 @@ mod tests {
     #[test]
     fn new_siblings_come_one_a_day_in_id_order() {
         let (_tmp, notes) = store();
-        let entries = vec![reviewed("aaa1-1", date(2026, 10, 25), 3)];
+        let entries = vec![reviewed("aaa1.1", date(2026, 10, 25), 3)];
         assert_eq!(
             next_card(&notes, &entries, &Config::default(), "id:aaa1").as_deref(),
-            Some("aaa1-2")
+            Some("aaa1.2")
         );
         let entries = vec![
-            reviewed("aaa1-1", date(2026, 10, 24), 3),
-            reviewed("aaa1-2", date(2026, 10, 25), 3),
+            reviewed("aaa1.1", date(2026, 10, 24), 3),
+            reviewed("aaa1.2", date(2026, 10, 25), 3),
         ];
         assert_eq!(
             next_card(&notes, &entries, &Config::default(), "id:aaa1").as_deref(),
-            Some("aaa1-10")
+            Some("aaa1.10")
         );
     }
 
@@ -304,13 +304,13 @@ mod tests {
         let (_tmp, notes) = store();
         // All three are due; -2 was reviewed longest ago, then -10, then -1.
         let entries = vec![
-            reviewed("aaa1-2", date(2026, 9, 1), 1),
-            reviewed("aaa1-10", date(2026, 9, 2), 1),
-            reviewed("aaa1-1", date(2026, 9, 3), 1),
+            reviewed("aaa1.2", date(2026, 9, 1), 1),
+            reviewed("aaa1.10", date(2026, 9, 2), 1),
+            reviewed("aaa1.1", date(2026, 9, 3), 1),
         ];
         assert_eq!(
             next_card(&notes, &entries, &Config::default(), "id:aaa1").as_deref(),
-            Some("aaa1-2")
+            Some("aaa1.2")
         );
     }
 
@@ -318,12 +318,12 @@ mod tests {
     fn a_new_sibling_goes_before_a_due_one() {
         let (_tmp, notes) = store();
         let entries = vec![
-            reviewed("aaa1-1", date(2026, 9, 1), 1),
-            reviewed("aaa1-2", date(2026, 9, 2), 1),
+            reviewed("aaa1.1", date(2026, 9, 1), 1),
+            reviewed("aaa1.2", date(2026, 9, 2), 1),
         ];
         assert_eq!(
             next_card(&notes, &entries, &Config::default(), "id:aaa1").as_deref(),
-            Some("aaa1-10")
+            Some("aaa1.10")
         );
     }
 

@@ -42,7 +42,7 @@ Tried on Arch Linux only.
 - **No siblings.** Each card is a group of its own, so on the same day
   you can see every word of a sentence.
 - **The card suffix is the word's UTF-8 bytes in hex**: 都 gives
-  `v81k3z-e983bd`, 位置 gives `v81k3z-e4bd8de7bdae`. It comes from the
+  `v81k3z.e983bd`, 位置 gives `v81k3z.e4bd8de7bdae`. It comes from the
   word alone, so adding, removing or moving words doesn't give one card's
   history to another, and it can be read back with
   `echo e983bd | xxd -r -p`. Changing a word makes a new card. This rule

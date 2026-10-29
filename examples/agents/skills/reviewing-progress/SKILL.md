@@ -63,8 +63,8 @@ cloze), as a new draft item or, if the person asks, with
 One line per event of the matching cards, in the order they were recorded:
 
 ```
-2026-10-26T09:12:31+09:00  k3m9q1-2  review  3  human
-2026-10-26T10:00:00+09:00  k3m9q1-2  reset
+2026-10-26T09:12:31+09:00  k3m9q1.2  review  3  human
+2026-10-26T10:00:00+09:00  k3m9q1.2  reset
 ```
 
 Events are `review` (with the rating and who recorded it, `human` or
@@ -87,7 +87,7 @@ duckdb -c "select by, avg(rating) from '.srl/log/*.jsonl'
 A review event:
 
 ```json
-{"type": "review", "t": "2026-10-26T09:12:31+09:00", "card": "k3m9q1-2",
+{"type": "review", "t": "2026-10-26T09:12:31+09:00", "card": "k3m9q1.2",
  "rating": 3, "response": null, "by": "human", "hash": "3fa91c0d22be"}
 ```
 

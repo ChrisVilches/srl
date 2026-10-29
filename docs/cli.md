@@ -86,7 +86,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 `srl find --json` prints one object per card:
 
 ```json
-{"id": "k3m9q1-2", "item": "k3m9q1", "path": "japanese/grammar/wo-mono-tomo-sezu.md",
+{"id": "k3m9q1.2", "item": "k3m9q1", "path": "japanese/grammar/wo-mono-tomo-sezu.md",
  "line": 10, "status": "active", "state": "due", "due": "2026-10-24"}
 ```
 
@@ -153,7 +153,7 @@ printed even when it is the prompt again, because `prompt_revealed` is
 lines:
 
 ```
-k3m9q1-1
+k3m9q1.1
 ==[...]==を==[...]==、彼女は起業した。
 ---
 ==周囲の反対==を==ものともせず==、彼女は起業した。
@@ -231,7 +231,7 @@ items it would write, as they would appear in the note, and writes nothing.
 | Command | Does |
 |---|---|
 | `srl next [SELECTOR] [--context MODE] [--json]` | Give a frontend the next card to show (see [scheduling.md](scheduling.md)): with `--json`, the card and what a frontend requires around it (see below); without, the card for people, in the format of `srl cards`. Exit 1 if there is none; exit 2 if the card it picks can't be made. |
-| `srl review --stdin` | Record a review: `{"card": "k3m9q1-2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
+| `srl review --stdin` | Record a review: `{"card": "k3m9q1.2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
 | `srl review ID… --rating N [--by agent]` | Record the same rating for each card. Prints nothing. |
 | `srl reset SELECTOR` | Make matching cards new again. Only cards that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
 

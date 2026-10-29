@@ -70,10 +70,15 @@ const ID_MAX: usize = 32;
 /// The number of characters of the IDs `srl` makes.
 const NEW_ID_LEN: usize = 6;
 
-/// The characters an ID is made of.
+/// The characters `srl` makes IDs of: an ID's characters other than
+/// [`ID_DASH`].
 const ID_CHARS: &[u8; 36] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 
-/// An item's stable identity: 1 to 32 characters `[a-z0-9]`.
+/// The character that joins words in an ID, as in `jp-grammar-desu`.
+const ID_DASH: u8 = b'-';
+
+/// An item's stable identity: 1 to 32 characters, words of `[a-z0-9]`
+/// joined by single `-` (see [`is_id_text`]).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct ItemId(String);
@@ -125,10 +130,15 @@ impl ItemId {
     }
 }
 
-/// Whether `text` is 1 to 32 characters `[a-z0-9]`: an item ID, or a card
-/// ID's suffix.
+/// Whether `text` is an item ID, or a card ID's suffix: 1 to 32
+/// characters, words of `[a-z0-9]` joined by single `-`, so `-` is never
+/// first, last or doubled. It never contains
+/// [`SUFFIX_SEPARATOR`](crate::card::SUFFIX_SEPARATOR).
 pub(crate) fn is_id_text(text: &str) -> bool {
-    !text.is_empty() && text.len() <= ID_MAX && text.bytes().all(|byte| ID_CHARS.contains(&byte))
+    text.len() <= ID_MAX
+        && text
+            .split(char::from(ID_DASH))
+            .all(|word| !word.is_empty() && word.bytes().all(|byte| ID_CHARS.contains(&byte)))
 }
 
 impl fmt::Display for ItemId {
@@ -622,11 +632,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn item_ids_are_1_to_32_lowercase_letters_or_digits() {
-        for good in ["a", "a7f3k2", "verb1", &"a".repeat(32)] {
+    fn item_ids_are_1_to_32_lowercase_letters_or_digits_and_dashes() {
+        for good in [
+            "a",
+            "a7f3k2",
+            "verb1",
+            "a7f-k2",
+            "jp-grammar-desu",
+            "1-2-3",
+            &"a".repeat(32),
+            &format!("{}-b", "a".repeat(30)),
+        ] {
             assert!(ItemId::parse(good).is_ok(), "refused {good}");
         }
-        for bad in ["", "A7F3K2", "a7f-k2", "a b", &"a".repeat(33)] {
+        for bad in [
+            "",
+            "A7F3K2",
+            "a b",
+            &"a".repeat(33),
+            &format!("{}-b", "a".repeat(31)),
+            // The dot separates a card's suffix, so no ID contains it.
+            "a.b",
+            ".",
+            // A dash only joins two words.
+            "-",
+            "-a",
+            "a-",
+            "a--b",
+            "a_b",
+            "a:b",
+        ] {
             assert!(ItemId::parse(bad).is_err(), "accepted {bad}");
         }
         assert_eq!(ItemId::from_number(0).as_str(), "aaaaaa");
@@ -649,7 +684,7 @@ mod tests {
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>();
-        assert_eq!(ids, ["k3m9q1-1", "k3m9q1-2"]);
+        assert_eq!(ids, ["k3m9q1.1", "k3m9q1.2"]);
     }
 
     #[test]

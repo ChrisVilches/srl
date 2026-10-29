@@ -68,7 +68,7 @@ Header entries, in any order, each at most once:
 
 | Entry | Meaning |
 |---|---|
-| `id:ID` | The item's ID. `srl id` adds it; lowercase letters and digits. |
+| `id:ID` | The item's ID. `srl id` adds it; lowercase letters and digits, words joined by single `-` (`jp-grammar-desu`), never `.`. |
 | `draft` | Not studied until `srl accept`. |
 | `see:PATH` | The note shown as context, instead of the item's own note. Must be a note of the store. Quote paths with spaces: `see:"my notes/a b.md"`. |
 | `kind:NAME` | The kind. `qa` is the default; any other is a kind program named in `[kinds]` of `.srl/config.toml`, whose fields are its own. `srl kinds` describes every kind and its fields. |
@@ -160,7 +160,7 @@ Written in `Q`, as in Anki:
 - `{{c1::text}}` hides `text` in card 1; `{{c1::text::hint}}` shows `hint`
   in its place.
 - Each number gives one card, with the number as suffix: item `k3m9q1` with
-  `c1` and `c2` gives cards `k3m9q1-1` and `k3m9q1-2`.
+  `c1` and `c2` gives cards `k3m9q1.1` and `k3m9q1.2`.
 - Deletions with the same number are hidden together in one card.
 - The prompt shows the hidden parts as `==[...]==` (or `==[hint]==`), the
   revealed prompt shows them as `==text==`, and the answer is `A`, or
@@ -177,7 +177,7 @@ A: Despite everyone's opposition, she started a company.
 ````
 
 Cloze numbers are card identities. Renumbering them, or adding the first
-cloze to an item that had none (its card `x7k2m9` becomes `x7k2m9-1`),
+cloze to an item that had none (its card `x7k2m9` becomes `x7k2m9.1`),
 leaves the old card's history behind; see the `fixing-problems` skill.
 
 ## Writing good questions

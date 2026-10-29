@@ -54,7 +54,7 @@ item was deleted keeps its events (see [scheduling.md](scheduling.md),
 ```json
 {"type": "review",
  "t": "2026-10-26T09:12:31+09:00",
- "card": "k3m9q1-2",
+ "card": "k3m9q1.2",
  "rating": 3,
  "response": null,
  "by": "human",
@@ -75,7 +75,7 @@ like "did my retention change after I rewrote this item?".
 ### `reset`
 
 ```json
-{"type": "reset", "t": "2026-10-26T10:00:00+09:00", "card": "k3m9q1-2"}
+{"type": "reset", "t": "2026-10-26T10:00:00+09:00", "card": "k3m9q1.2"}
 ```
 
 The card is new again after this event (see [scheduling.md](scheduling.md),
@@ -84,7 +84,7 @@ The card is new again after this event (see [scheduling.md](scheduling.md),
 ### `move`
 
 ```json
-{"type": "move", "t": "2026-10-26T10:05:00+09:00", "from": "x7k2m9", "to": "x7k2m9-1"}
+{"type": "move", "t": "2026-10-26T10:05:00+09:00", "from": "x7k2m9", "to": "x7k2m9.1"}
 ```
 
 Everything the card `from` has goes to the card `to`, and `from` is left

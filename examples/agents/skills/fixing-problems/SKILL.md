@@ -88,7 +88,7 @@ and `srl find` again.
 
 A card's schedule belongs to its card ID. Some edits change the ID:
 
-- adding the first cloze to an item: `x7k2m9` becomes `x7k2m9-1`;
+- adding the first cloze to an item: `x7k2m9` becomes `x7k2m9.1`;
 - renumbering cloze deletions (`c2` becomes `c3`);
 - changing an item's ID by hand.
 
@@ -97,7 +97,7 @@ The old card's reviews stay in the log under the old ID, an **orphan**.
 one:
 
 ```
-srl: x7k2m9 has reviews but no card; x7k2m9-1 is new. To keep the history: srl move x7k2m9 x7k2m9-1
+srl: x7k2m9 has reviews but no card; x7k2m9.1 is new. To keep the history: srl move x7k2m9 x7k2m9.1
 ```
 
 Run `srl move FROM TO` if the person wants the new card to keep the old

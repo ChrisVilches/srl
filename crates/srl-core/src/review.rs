@@ -27,7 +27,7 @@ fn human() -> By {
 }
 
 impl ReviewRequest {
-    /// Reads `{"card": "k3m9q1-2", "rating": N, "response": "…", "by": "human"}`.
+    /// Reads `{"card": "k3m9q1.2", "rating": N, "response": "…", "by": "human"}`.
     /// `response` and `by` may be left out; `by` is then `human`.
     pub fn parse(text: &str) -> Result<Self> {
         let request = serde_json::from_str::<Self>(text).map_err(|error| Error::InvalidReview {
@@ -239,7 +239,7 @@ mod tests {
     fn a_review_is_recorded_for_its_card() {
         let (_tmp, store, notes) = store();
         let request = ReviewRequest::parse(
-            r#"{"card": "aaa2-2", "rating": 2, "response": "y", "by": "agent"}"#,
+            r#"{"card": "aaa2.2", "rating": 2, "response": "y", "by": "agent"}"#,
         )
         .unwrap();
         let events = review(&store, &notes, &[request], &now(), false).unwrap();
@@ -248,7 +248,7 @@ mod tests {
             panic!("expected a review");
         };
         assert_eq!(first.t, "2026-10-26T09:12:31+09:00");
-        assert_eq!(first.card.to_string(), "aaa2-2");
+        assert_eq!(first.card.to_string(), "aaa2.2");
         assert_eq!((first.rating, first.by), (2, By::Agent));
         assert_eq!(first.response.as_deref(), Some("y"));
         assert_eq!(first.hash.len(), 12);
@@ -266,7 +266,7 @@ mod tests {
             assert!(ReviewRequest::parse(text).is_err(), "accepted {text}");
         }
         let (_tmp, store, notes) = store();
-        for card in ["aaa2", "zzz9", "aaa1-1"] {
+        for card in ["aaa2", "zzz9", "aaa1.1"] {
             assert!(
                 review(&store, &notes, &[request(card, 3)], &now(), false).is_err(),
                 "accepted {card}"
@@ -306,7 +306,7 @@ mod tests {
             &store,
             &[Event::Review(Review {
                 t: "2026-10-01T09:00:00+09:00".to_owned(),
-                card: id("aaa1-1"),
+                card: id("aaa1.1"),
                 rating: 3,
                 response: None,
                 by: By::Human,
@@ -314,15 +314,15 @@ mod tests {
             })],
         )
         .unwrap();
-        review(&store, &notes, &[request("aaa2-1", 3)], &now(), false).unwrap();
+        review(&store, &notes, &[request("aaa2.1", 3)], &now(), false).unwrap();
         let memories = memories(&store);
         let attempt = |from: &str, to: &str| {
             move_history(&store, &notes, &memories, &id(from), &id(to), &now(), true)
         };
-        assert!(attempt("aaa1", "aaa2-2").is_err(), "a card of the store");
-        assert!(attempt("zzz1", "aaa2-2").is_err(), "no reviews");
-        assert!(attempt("aaa1-1", "zzz1").is_err(), "not a card");
-        assert!(attempt("aaa1-1", "aaa2-1").is_err(), "has events");
-        assert!(attempt("aaa1-1", "aaa1").is_ok());
+        assert!(attempt("aaa1", "aaa2.2").is_err(), "a card of the store");
+        assert!(attempt("zzz1", "aaa2.2").is_err(), "no reviews");
+        assert!(attempt("aaa1.1", "zzz1").is_err(), "not a card");
+        assert!(attempt("aaa1.1", "aaa2.1").is_err(), "has events");
+        assert!(attempt("aaa1.1", "aaa1").is_ok());
     }
 }

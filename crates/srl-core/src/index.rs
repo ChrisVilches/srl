@@ -880,7 +880,7 @@ mod tests {
         write(
             &store,
             "log/2026-10.jsonl",
-            &review("2026-10-01T10:00:00+09:00", "aaa2-1", 4),
+            &review("2026-10-01T10:00:00+09:00", "aaa2.1", 4),
         );
         assert_same(&mut index, &store);
         // Bad lines, blank lines, resets, suspensions, moves, a line without
@@ -889,7 +889,7 @@ mod tests {
         append(
             &store,
             "log/2026-10.jsonl",
-            &event("reset", "2026-10-02T10:00:00+09:00", "aaa2-1"),
+            &event("reset", "2026-10-02T10:00:00+09:00", "aaa2.1"),
         );
         append(
             &store,
@@ -899,7 +899,7 @@ mod tests {
         append(
             &store,
             "log/2026-10.jsonl",
-            "{\"type\":\"move\",\"t\":\"2026-10-02T12:00:00+09:00\",\"from\":\"aaa1\",\"to\":\"aaa1-1\"}\n",
+            "{\"type\":\"move\",\"t\":\"2026-10-02T12:00:00+09:00\",\"from\":\"aaa1\",\"to\":\"aaa1.1\"}\n",
         );
         append(
             &store,

@@ -8,8 +8,13 @@ use serde::{Deserialize, Serialize};
 use crate::note::{ItemId, is_id_text};
 use crate::{Error, Result};
 
-/// A card's ID: its item's ID, alone or followed by `-` and a suffix (see
-/// `docs/cards.md`, "Card IDs").
+/// The character between a card ID's item ID and its suffix, as in
+/// `k3m9q1.2`. IDs never contain it (see [`is_id_text`]), so the part
+/// before it is always the item (see `docs/cards.md`, "Card IDs").
+pub const SUFFIX_SEPARATOR: char = '.';
+
+/// A card's ID: its item's ID, alone or followed by [`SUFFIX_SEPARATOR`]
+/// and a suffix (see `docs/cards.md`, "Card IDs").
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct CardId {
@@ -22,12 +27,12 @@ impl CardId {
         Self { item, suffix }
     }
 
-    /// Parses `x7k2m9` or `k3m9q1-2`.
+    /// Parses `x7k2m9`, `k3m9q1.2` or `jp-grammar-desu.te`.
     pub fn parse(text: &str) -> Result<Self> {
         let invalid = || Error::InvalidCardId {
             text: text.to_owned(),
         };
-        let (item, suffix) = match text.split_once('-') {
+        let (item, suffix) = match text.split_once(SUFFIX_SEPARATOR) {
             Some((item, suffix)) if is_id_text(suffix) => (item, Some(suffix.to_owned())),
             Some(_) => return Err(invalid()),
             None => (text, None),
@@ -46,8 +51,8 @@ impl CardId {
 }
 
 /// Card IDs are ordered by item, then by suffix, where suffixes that are
-/// whole numbers come first and compare as numbers, so that `-2` comes
-/// before `-10`.
+/// whole numbers come first and compare as numbers, so that `.2` comes
+/// before `.10`.
 impl Ord for CardId {
     fn cmp(&self, other: &Self) -> Ordering {
         self.item
@@ -88,7 +93,7 @@ impl From<CardId> for String {
 impl fmt::Display for CardId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.suffix {
-            Some(suffix) => write!(f, "{}-{suffix}", self.item),
+            Some(suffix) => write!(f, "{}{SUFFIX_SEPARATOR}{suffix}", self.item),
             None => write!(f, "{}", self.item),
         }
     }
@@ -131,28 +136,59 @@ impl Card {
 mod tests {
     use super::*;
 
+    fn parts(text: &str) -> (String, Option<String>) {
+        let id = CardId::parse(text).unwrap();
+        (id.item().to_string(), id.suffix().map(str::to_owned))
+    }
+
     #[test]
     fn card_ids_are_an_item_id_and_an_optional_suffix() {
-        let plain = CardId::parse("x7k2m9").unwrap();
-        assert_eq!((plain.item().as_str(), plain.suffix()), ("x7k2m9", None));
-        let cloze = CardId::parse("k3m9q1-2").unwrap();
-        assert_eq!(
-            (cloze.item().as_str(), cloze.suffix()),
-            ("k3m9q1", Some("2"))
-        );
-        assert_eq!(cloze.to_string(), "k3m9q1-2");
-        for bad in ["", "-1", "k3m9q1-", "k3m9q1-2-3", "K3M9Q1", "a b"] {
+        assert_eq!(parts("x7k2m9"), ("x7k2m9".into(), None));
+        assert_eq!(parts("k3m9q1.2"), ("k3m9q1".into(), Some("2".into())));
+        assert_eq!(CardId::parse("k3m9q1.2").unwrap().to_string(), "k3m9q1.2");
+        for bad in [
+            "",
+            ".1",
+            "k3m9q1.",
+            "k3m9q1.2.3",
+            "k3m9q1..2",
+            "K3M9Q1",
+            "a b",
+            "a:b",
+        ] {
             assert!(CardId::parse(bad).is_err(), "accepted {bad}");
         }
     }
 
     #[test]
+    fn the_separator_is_a_dot_and_dashes_belong_to_the_ids() {
+        assert_eq!(SUFFIX_SEPARATOR, '.');
+        // A dash never separates: it is part of the item ID or the suffix.
+        assert_eq!(parts("jp-grammar-desu"), ("jp-grammar-desu".into(), None));
+        assert_eq!(
+            parts("jp-grammar-desu.te"),
+            ("jp-grammar-desu".into(), Some("te".into()))
+        );
+        assert_eq!(parts("k3m9q1-2"), ("k3m9q1-2".into(), None));
+        assert_eq!(
+            parts("verbs.past-negative"),
+            ("verbs".into(), Some("past-negative".into()))
+        );
+        // Dashes follow the same rules on both sides of the dot.
+        for bad in ["-a.b", "a-.b", "a--b.c", "a.-b", "a.b-", "a.b--c"] {
+            assert!(CardId::parse(bad).is_err(), "accepted {bad}");
+        }
+        let id = CardId::parse("jp-grammar-desu.te").unwrap();
+        assert_eq!(CardId::parse(&id.to_string()).unwrap(), id);
+    }
+
+    #[test]
     fn numeric_suffixes_order_as_numbers() {
-        let mut ids = ["a-10", "a-te", "a-2", "a", "b-1"]
+        let mut ids = ["a.10", "a.te", "a.2", "a", "b.1", "a-b"]
             .map(|id| CardId::parse(id).unwrap())
             .to_vec();
         ids.sort();
         let ids = ids.iter().map(ToString::to_string).collect::<Vec<_>>();
-        assert_eq!(ids, ["a", "a-2", "a-10", "a-te", "b-1"]);
+        assert_eq!(ids, ["a", "a.2", "a.10", "a.te", "a-b", "b.1"]);
     }
 }

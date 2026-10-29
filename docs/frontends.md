@@ -64,7 +64,7 @@ every time, edits and reviews made elsewhere count at once.
 context:
 
 ```json
-{"id": "k3m9q1-2", "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
+{"id": "k3m9q1.2", "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
  "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
  "answer": "Despite everyone's opposition, she started a company.",
  "state": "due", "kind": "qa",

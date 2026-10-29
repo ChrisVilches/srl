@@ -39,7 +39,7 @@ pub enum Error {
 
     #[error(
         "`{text}` is not a card ID; a card ID is an item ID, optionally followed by `-` and \
-         a suffix of a-z and 0-9 (x7k2m9, k3m9q1-2)"
+         a suffix of a-z and 0-9 (x7k2m9, k3m9q1.2)"
     )]
     InvalidCardId { text: String },
 

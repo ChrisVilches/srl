@@ -236,8 +236,11 @@ misspelled one is an error.
 
 ## Identity
 
-- **An item ID** is made of lowercase letters `a`–`z` and digits, 1 to 32
-  characters. `srl id` and `srl add` make random ones of 6 characters
+- **An item ID** is made of words of lowercase letters `a`–`z` and
+  digits, joined by single `-`, 1 to 32 characters: `x7k2m9`, or
+  `jp-grammar-desu` when you name it yourself. `-` is never first, last
+  or doubled, and `.` is never part of an ID: it separates a card's
+  suffix. `srl id` and `srl add` make random ones of 6 characters
   (`SRL_SEED` makes them repeatable; see [cli.md](cli.md),
   "Conventions"); you may also give one yourself, in a note or to `srl
   add`.
@@ -248,8 +251,8 @@ misspelled one is an error.
   another note, into another block or out of one, between the two
   syntaxes, rename the note: the item keeps its cards and their history.
 - An item gives one or more cards, and each card has its own ID, made from
-  the item's: `x7k2m9`, or `p4n8d2-1` and `p4n8d2-2` (see
-  [cards.md](cards.md), "Card IDs"). Because an item ID never contains `-`,
+  the item's: `x7k2m9`, or `p4n8d2.1` and `p4n8d2.2` (see
+  [cards.md](cards.md), "Card IDs"). Because an item ID never contains `.`,
   a card ID always names its item.
 - **An item's line is for people only.** `PATH:LINE` in listings and
   messages, and `line` in JSON, say where the item starts, as near as its
@@ -440,7 +443,7 @@ edit --stdin` as it is.
 {"id": "p4n8d2", "kind": "qa", "see": null, "draft": false,
  "Q": "嵐を{{c1::ものともせず}}、漁師たちは海へ出た。",
  "path": "japanese/grammar/wo-mono-tomo-sezu.md", "line": 11,
- "cards": ["p4n8d2-1"],
+ "cards": ["p4n8d2.1"],
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
  "context_format": "markdown"}
 ```

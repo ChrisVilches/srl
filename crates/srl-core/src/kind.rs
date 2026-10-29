@@ -459,7 +459,7 @@ mod tests {
             .iter()
             .map(|group| group.iter().map(ToString::to_string).collect::<Vec<_>>())
             .collect::<Vec<_>>();
-        assert_eq!(groups, [["k3m9q1-1", "k3m9q1-2"]]);
+        assert_eq!(groups, [["k3m9q1.1", "k3m9q1.2"]]);
     }
 
     #[test]
@@ -486,13 +486,13 @@ mod tests {
             made,
             [
                 serde_json::json!({
-                    "id": "k3m9q1-1",
+                    "id": "k3m9q1.1",
                     "prompt": "==[...]==を==[...]==、彼女は起業した。",
                     "prompt_revealed": "==周囲の反対==を==ものともせず==、彼女は起業した。",
                     "answer": "Despite everyone's opposition, she started a company.",
                 }),
                 serde_json::json!({
-                    "id": "k3m9q1-2",
+                    "id": "k3m9q1.2",
                     "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
                     "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
                     "answer": "Despite everyone's opposition, she started a company.",
@@ -508,11 +508,11 @@ mod tests {
             .iter()
             .map(|card| card["id"].clone())
             .collect::<Vec<_>>();
-        assert_eq!(ids, ["k3m9q1-2", "k3m9q1-10"]);
+        assert_eq!(ids, ["k3m9q1.2", "k3m9q1.10"]);
         assert_eq!(
             made[0],
             serde_json::json!({
-                "id": "k3m9q1-2", "prompt": "a ==[...]==", "prompt_revealed": "a ==b==", "answer": null,
+                "id": "k3m9q1.2", "prompt": "a ==[...]==", "prompt_revealed": "a ==b==", "answer": null,
             })
         );
     }

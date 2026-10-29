@@ -14,7 +14,7 @@ A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
 |---|---|
 | `in:NAME` | Cards whose note has a folder named `NAME` anywhere in its path, or is itself named `NAME` plus an extension (`NAME.md`, `NAME.txt`, …). Ignores case. `in:grammar` matches `japanese/Grammar/wo.md` and `grammar.md`, not `grammar-notes.md`. |
 | `path:GLOB` | The note's path, relative to the store. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is notes directly in `japanese/`, `path:japanese/**` everything below it, `path:rust/ownership.md` one note. |
-| `id:ID` | A card (`id:k3m9q1-2`), or every card of an item (`id:k3m9q1`). |
+| `id:ID` | A card (`id:k3m9q1.2`), or every card of an item (`id:k3m9q1`). |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind:` in their header, or a kind named in `[kinds]` of `.srl/config.toml`. An unknown kind is an error. Without `kind:`, items of every kind match. |
 | `status:S` | `active`, `draft` or `suspended`. |
 | `state:S` | `new` (never reviewed since reset), `due` (due today or earlier), `young` and `mature` (not due; stability under or over 21 days), `leech` (forgotten 8 times or more; overlaps the others). |

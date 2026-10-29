@@ -195,6 +195,20 @@ a word. An ID among the item's header entries moves with the item.
 Trade-off: every item carries an ID, and copying an item copies its ID,
 which is an error until you remove it.
 
+## Why `.` separates a card's suffix
+
+A card ID must name its item from its text alone: the log keeps card IDs
+of items that no longer exist, and `srl check` and `srl move` work on
+exactly those. So the separator is a character no ID contains. `-` is
+left to IDs, because people who name an item themselves write
+`jp-grammar-desu`. `.` is safe everywhere a card ID goes: file names on
+every platform, URLs, shells and selectors. `:` reads well too, but
+Windows file names can't contain it, a relative link `a:b` is read as a
+URL scheme, and it looks like `PATH:LINE` and `key:value`.
+
+Trade-off: `k3m9q1.2` looks a little like a version number, and `.` can't
+be used in an ID.
+
 ## Why schedule cards, with siblings
 
 Two cloze deletions in one sentence are two things you can know or not

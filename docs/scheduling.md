@@ -142,7 +142,7 @@ group is never held back.
 Consequences:
 
 - New siblings are introduced one per day, in the order of their IDs:
-  `-1`, then `-2`, then `-3`.
+  `.1`, then `.2`, then `.3`.
 - A new card can go before a due sibling, which then waits a day; the new
   card counts towards `new_per_day`.
 - The rule only decides what `srl next` offers. `srl review` can record any
@@ -174,7 +174,7 @@ Editing an item never resets its cards.
 
 A card ID can stop existing while its history is still wanted: you changed
 an item's kind, renumbered a cloze, added the first cloze to an item
-(`x7k2m9` becomes `x7k2m9-1`), or changed an ID by hand. Its events stay in
+(`x7k2m9` becomes `x7k2m9.1`), or changed an ID by hand. Its events stay in
 the log under the old ID. `srl` never guesses where they belong:
 
 - `srl check` reports each such **orphan**: an ID that has reviews in the
@@ -184,7 +184,7 @@ the log under the old ID. `srl` never guesses where they belong:
   `srl check` prints the command that would move the history there:
 
   ```
-  x7k2m9 has reviews but no card; x7k2m9-1 is new. To keep the history: srl move x7k2m9 x7k2m9-1
+  x7k2m9 has reviews but no card; x7k2m9.1 is new. To keep the history: srl move x7k2m9 x7k2m9.1
   ```
 
   Otherwise it says only that the history stays in the log, so it never

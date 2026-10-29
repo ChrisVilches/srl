@@ -323,7 +323,7 @@ mod tests {
     fn review(t: &str, rating: u8) -> Event {
         Event::Review(Review {
             t: t.to_owned(),
-            card: card("k3m9q1-2"),
+            card: card("k3m9q1.2"),
             rating,
             response: Some("ものともせず".to_owned()),
             by: By::Agent,
@@ -337,20 +337,20 @@ mod tests {
         assert_eq!(
             line,
             serde_json::json!({"type": "review", "t": "2026-10-26T09:12:31+09:00",
-                "card": "k3m9q1-2", "rating": 3, "response": "ものともせず", "by": "agent",
+                "card": "k3m9q1.2", "rating": 3, "response": "ものともせず", "by": "agent",
                 "hash": "3fa91c0d22be"})
         );
         let moved = Event::Move(Move {
             t: "2026-10-26T10:05:00+09:00".to_owned(),
             from: card("x7k2m9"),
-            to: card("x7k2m9-1"),
+            to: card("x7k2m9.1"),
         });
         assert_eq!(
             serde_json::to_value(&moved).unwrap(),
             serde_json::json!({"type": "move", "t": "2026-10-26T10:05:00+09:00",
-                "from": "x7k2m9", "to": "x7k2m9-1"})
+                "from": "x7k2m9", "to": "x7k2m9.1"})
         );
-        assert_eq!(moved.card(), &card("x7k2m9-1"));
+        assert_eq!(moved.card(), &card("x7k2m9.1"));
         let suspended = Event::Suspend(CardEvent {
             t: "2026-10-26T10:10:00+09:00".to_owned(),
             card: card("x7k2m9"),
@@ -369,7 +369,7 @@ mod tests {
             "Prose.\n```srl id:abc\nQ: q\nA: a\n```\n\nMore.\n",
             &crate::kind::Programs::default(),
         );
-        // `printf -- '```srl id:abc\nQ: q\nA: a\n```' | sha256sum | cut -c1-12`
+        // `printf -- '```srl id:abc\nQ: q\nA: a\n```' | sha256sum | cut -c1.12`
         assert_eq!(hash(&items[0]), "54b0d17db858");
         // In a JSONL note, the item as written is its line.
         let (items, _) = crate::note::read_items(
@@ -377,7 +377,7 @@ mod tests {
             "\n{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\r\n",
             &crate::kind::Programs::default(),
         );
-        // `printf '%s' '{"id": "abc", "Q": "q", "A": "a"}' | sha256sum | cut -c1-12`
+        // `printf '%s' '{"id": "abc", "Q": "q", "A": "a"}' | sha256sum | cut -c1.12`
         assert_eq!(hash(&items[0]), "4fe96b449782");
     }
 
@@ -386,7 +386,7 @@ mod tests {
         let (_tmp, store) = store();
         let reset = Event::Reset(CardEvent {
             t: "2026-11-01T03:00:00+09:00".to_owned(),
-            card: card("k3m9q1-2"),
+            card: card("k3m9q1.2"),
         });
         let events = [review("2026-10-26T09:12:31+09:00", 3), reset];
         append(&store, &events).unwrap();
@@ -417,7 +417,7 @@ mod tests {
             good.replace("\"by\":\"agent\"", "\"by\":\"robot\""),
             good.replace("\"hash\"", "\"extra\":1,\"hash\""),
             good.replace("\"ものともせず\"", "[\"ものともせず\"]"),
-            good.replace("k3m9q1-2", "K3M9Q1"),
+            good.replace("k3m9q1.2", "K3M9Q1"),
             good.replace("\"review\"", "\"rename\""),
         ];
         fs::write(&file, format!("{good}{}\n", bad.join("\n"))).unwrap();

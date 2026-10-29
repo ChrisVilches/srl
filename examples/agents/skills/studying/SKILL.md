@@ -104,7 +104,7 @@ In a session in the chat you act as the frontend: you show what
 as yours. Only run one when the person asks for it. Each round:
 
 1. `srl next [SELECTOR] --json` prints the card, with its state, kind and
-   context: `{"id": "k3m9q1-2", "prompt": "...", "prompt_revealed": "...",
+   context: `{"id": "k3m9q1.2", "prompt": "...", "prompt_revealed": "...",
    "answer": "...", "state": "due", "kind": "qa", "path": "...",
    "see": null, "context": "...", "context_format": "markdown"}`. Mention the kind when it isn't `qa`:
    it says which program made the card. Exit
@@ -130,20 +130,20 @@ as yours. Only run one when the person asks for it. Each round:
 5. Record it:
 
    ```sh
-   srl review k3m9q1-2 --rating 3 --by agent
+   srl review k3m9q1.2 --rating 3 --by agent
    ```
 
    To keep what they answered, use JSON instead:
 
    ```sh
    srl review --stdin <<'JSON'
-   {"card": "k3m9q1-2", "rating": 3, "response": "彼女", "by": "agent"}
+   {"card": "k3m9q1.2", "rating": 3, "response": "彼女", "by": "agent"}
    JSON
    ```
 
 Then go back to step 1. `==text==` in a card marks the important part:
 render it as bold, or leave it as written. A review needs a card ID such as
-`k3m9q1-2`, not an item ID such as `k3m9q1`.
+`k3m9q1.2`, not an item ID such as `k3m9q1`.
 
 Useful extras while tutoring: when the person gets something wrong, ask a
 follow-up question to find the misunderstanding, and offer to write a draft

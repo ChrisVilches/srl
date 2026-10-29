@@ -211,9 +211,9 @@ function jsonLines(text) {
     .map((line) => JSON.parse(line));
 }
 
-// Card IDs are lowercase letters, digits and `-` (docs/cards.md).
+// Card IDs are lowercase letters, digits, `-` and `.` (docs/cards.md).
 function requireId(id) {
-  if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
+  if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9.-]*$/.test(id)) {
     throw new BadRequest(`not a card ID: ${JSON.stringify(id)}`);
   }
   return id;

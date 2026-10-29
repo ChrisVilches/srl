@@ -195,12 +195,65 @@ fn find_lists_cards_in_written_order() {
         lines(&output),
         [
             "x7k2m9  japanese/grammar/wo.md:5  What does 〜をものともせず mean?",
-            "k3m9q1-1  japanese/grammar/wo.md:10  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
-            "k3m9q1-2  japanese/grammar/wo.md:10  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
+            "k3m9q1.1  japanese/grammar/wo.md:10  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
+            "k3m9q1.2  japanese/grammar/wo.md:10  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
             "tuna01  kanji/fish.md:2  鮪",
             "saba01  kanji/fish.md:6  鯖",
         ]
     );
+}
+
+#[test]
+fn ids_written_by_hand_may_have_dashes_and_a_dot_names_the_card() {
+    let tmp = store(&[(
+        "grammar.md",
+        "```srl id:jp-grammar-desu\nQ: {{c1::です}} is {{c2::polite}}\n```\n",
+    )]);
+    let d = dir(&tmp);
+    assert_eq!(srl(&["check", "--dir", d]).status.code(), Some(0));
+    let cards = |selector: &str| {
+        let output = srl(&["find", selector, "--dir", d]);
+        lines(&output)
+            .iter()
+            .map(|line| line.split_whitespace().next().unwrap().to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        cards("id:jp-grammar-desu"),
+        ["jp-grammar-desu.1", "jp-grammar-desu.2"]
+    );
+    assert_eq!(cards("id:jp-grammar-desu.2"), ["jp-grammar-desu.2"]);
+    // `jp-grammar` is another item, not the start of this one.
+    assert_eq!(cards("id:jp-grammar"), Vec::<String>::new());
+    let output = srl(&["cards", "jp-grammar-desu.1", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+
+    // A dot is never part of an item ID, and a dash only joins words.
+    for bad in ["jp.grammar", "-jp", "jp-", "jp--grammar"] {
+        write(
+            &tmp,
+            "grammar.md",
+            &format!("```srl id:{bad}\nQ: a\nA: b\n```\n"),
+        );
+        let check = srl(&["check", "--dir", d]);
+        assert_eq!(check.status.code(), Some(2), "accepted {bad}");
+        assert!(
+            stderr(&check).contains("grammar.md:1:"),
+            "{}",
+            stderr(&check)
+        );
+    }
+    for bad in [
+        "id:jp.grammar.desu",
+        "id:jp--grammar",
+        "id:jp-grammar-desu.",
+    ] {
+        assert_eq!(
+            srl(&["find", bad, "--dir", d]).status.code(),
+            Some(2),
+            "accepted {bad}"
+        );
+    }
 }
 
 #[test]
@@ -218,11 +271,11 @@ fn find_takes_in_and_negated_terms_and_exits_1_when_nothing_matches() {
 #[test]
 fn find_json_prints_one_card_per_line() {
     let tmp = japanese();
-    let output = srl(&["find", "id:k3m9q1-2,saba01", "--json", "--dir", dir(&tmp)]);
+    let output = srl(&["find", "id:k3m9q1.2,saba01", "--json", "--dir", dir(&tmp)]);
     assert_eq!(
         json_lines(&output),
         [
-            serde_json::json!({"id": "k3m9q1-2", "item": "k3m9q1", "path": "japanese/grammar/wo.md",
+            serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "path": "japanese/grammar/wo.md",
                 "line": 10, "status": "active", "state": "new", "due": null}),
             serde_json::json!({"id": "saba01", "item": "saba01", "path": "kanji/fish.md",
                 "line": 6, "status": "draft", "state": "new", "due": null}),
@@ -292,7 +345,7 @@ fn errors_in_notes_stop_commands_until_fixed() {
 fn show_prints_the_item_and_its_context() {
     let tmp = japanese();
     let d = dir(&tmp);
-    let output = srl(&["show", "k3m9q1-2", "--dir", d]);
+    let output = srl(&["show", "k3m9q1.2", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(
         stdout(&output),
@@ -311,12 +364,12 @@ fn show_prints_the_item_and_its_context() {
 #[test]
 fn show_reports_unknown_ids_and_fails() {
     let tmp = japanese();
-    let output = srl(&["show", "x7k2m9", "zzz999", "x7k2m9-1", "--dir", dir(&tmp)]);
+    let output = srl(&["show", "x7k2m9", "zzz999", "x7k2m9.1", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
     assert!(stdout(&output).contains("x7k2m9"));
     let stderr = stderr(&output);
     assert!(stderr.contains("zzz999"), "{stderr}");
-    assert!(stderr.contains("x7k2m9-1"), "{stderr}");
+    assert!(stderr.contains("x7k2m9.1"), "{stderr}");
 }
 
 #[test]
@@ -325,15 +378,15 @@ fn cards_prints_the_cards_of_items_and_cards() {
     let output = srl(&["cards", "k3m9q1", "--dir", dir(&tmp)]);
     assert_eq!(
         stdout(&output),
-        "k3m9q1-1\n==[...]==を==[...]==、彼女は起業した。\n---\n==周囲の反対==を==ものともせず==、彼女は起業した。\n---\nDespite everyone's opposition, she started a company.\n\nk3m9q1-2\n周囲の反対をものともせず、==[who]==は起業した。\n---\n周囲の反対をものともせず、==彼女==は起業した。\n---\nDespite everyone's opposition, she started a company.\n"
+        "k3m9q1.1\n==[...]==を==[...]==、彼女は起業した。\n---\n==周囲の反対==を==ものともせず==、彼女は起業した。\n---\nDespite everyone's opposition, she started a company.\n\nk3m9q1.2\n周囲の反対をものともせず、==[who]==は起業した。\n---\n周囲の反対をものともせず、==彼女==は起業した。\n---\nDespite everyone's opposition, she started a company.\n"
     );
-    let one = srl(&["cards", "k3m9q1-2", "--json", "--dir", dir(&tmp)]);
+    let one = srl(&["cards", "k3m9q1.2", "--json", "--dir", dir(&tmp)]);
     let cards = json_lines(&one);
     assert_eq!(cards.len(), 1);
     assert_eq!(
         cards[0],
         serde_json::json!({
-            "id": "k3m9q1-2",
+            "id": "k3m9q1.2",
             "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
             "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
             "answer": "Despite everyone's opposition, she started a company.",
@@ -393,12 +446,12 @@ fn drafts_move_through_accept_and_cards_through_suspend() {
         srl(&["accept", "in:fish", "--dir", d]).status.code(),
         Some(1)
     );
-    let suspended = srl(&["suspend", "id:k3m9q1-2,tuna01", "--dir", d]);
-    assert_eq!(lines(&suspended), ["k3m9q1-2", "tuna01"]);
+    let suspended = srl(&["suspend", "id:k3m9q1.2,tuna01", "--dir", d]);
+    assert_eq!(lines(&suspended), ["k3m9q1.2", "tuna01"]);
     let found = srl(&["find", "status:suspended", "--dir", d]);
     assert_eq!(lines(&found).len(), 2);
     let back = srl(&["unsuspend", "--dir", d]);
-    assert_eq!(lines(&back), ["k3m9q1-2", "tuna01"]);
+    assert_eq!(lines(&back), ["k3m9q1.2", "tuna01"]);
     // Suspending never changes a note.
     assert!(!read(&tmp, "kanji/fish.md").contains("suspend"));
 }
@@ -453,7 +506,7 @@ fn jsonl_notes_hold_one_item_per_line_and_no_context() {
     let found = srl(&["find", "in:generated", "--dir", d]);
     let found = lines(&found);
     assert_eq!(found.len(), 2);
-    assert!(found[1].starts_with("wo0001-1  generated/items.jsonl:2  "));
+    assert!(found[1].starts_with("wo0001.1  generated/items.jsonl:2  "));
     let id = found[0].split_whitespace().next().unwrap().to_owned();
     // Without `see`, an item of a JSONL note has no context.
     let own = srl(&["show", &id, "--json", "--context", "full", "--dir", d]);
@@ -626,9 +679,9 @@ fn the_study_loop_records_reviews_and_holds_back_siblings() {
     assert_eq!(first["prompt"], "What does 〜をものともせず mean?");
     record(d, &first, 3);
     let second = next_card(d, &[]);
-    assert_eq!(second["id"], "k3m9q1-1");
+    assert_eq!(second["id"], "k3m9q1.1");
     record(d, &second, 1);
-    // k3m9q1-2 waits for tomorrow: its sibling was reviewed today.
+    // k3m9q1.2 waits for tomorrow: its sibling was reviewed today.
     let third = next_card(d, &[]);
     assert_eq!(third["id"], "tuna01");
     record(d, &third, 4);
@@ -636,11 +689,11 @@ fn the_study_loop_records_reviews_and_holds_back_siblings() {
     assert_eq!(none.status.code(), Some(1));
     let log = json_lines(&srl(&["log", "--json", "--dir", d]));
     assert_eq!(log.len(), 3);
-    assert_eq!(log[1]["card"], "k3m9q1-1");
+    assert_eq!(log[1]["card"], "k3m9q1.1");
     assert_eq!(log[1]["hash"].as_str().unwrap().len(), 12);
     let human = srl(&["log", "id:k3m9q1", "--dir", d]);
     assert!(
-        stdout(&human).contains("  k3m9q1-1  review  1  human"),
+        stdout(&human).contains("  k3m9q1.1  review  1  human"),
         "{}",
         stdout(&human)
     );
@@ -699,7 +752,7 @@ fn reviews_by_id_need_cards_and_dry_runs_write_nothing() {
     );
     let dry = srl(&[
         "review",
-        "k3m9q1-1",
+        "k3m9q1.1",
         "tuna01",
         "--rating",
         "2",
@@ -776,7 +829,7 @@ fn orphans_are_reported_and_their_history_moves() {
     let tmp = japanese();
     let d = dir(&tmp);
     record(d, &next_card(d, &[]), 3);
-    // The question gets its first cloze deletion: x7k2m9 becomes x7k2m9-1.
+    // The question gets its first cloze deletion: x7k2m9 becomes x7k2m9.1.
     let text = read(&tmp, "japanese/grammar/wo.md").replace(
         "Q: What does 〜をものともせず mean?",
         "Q: What does 〜を{{c1::ものともせず}} mean?",
@@ -785,21 +838,21 @@ fn orphans_are_reported_and_their_history_moves() {
     let check = srl(&["check", "--dir", d]);
     assert_eq!(check.status.code(), Some(0), "{}", stderr(&check));
     assert!(
-        stderr(&check).contains("x7k2m9 has reviews but no card; x7k2m9-1 is new. To keep the history: srl move x7k2m9 x7k2m9-1"),
+        stderr(&check).contains("x7k2m9 has reviews but no card; x7k2m9.1 is new. To keep the history: srl move x7k2m9 x7k2m9.1"),
         "{}",
         stderr(&check)
     );
-    let moved = srl(&["move", "x7k2m9", "x7k2m9-1", "--dir", d]);
+    let moved = srl(&["move", "x7k2m9", "x7k2m9.1", "--dir", d]);
     assert_eq!(moved.status.code(), Some(0), "{}", stderr(&moved));
     assert_eq!(srl(&["check", "--dir", d]).stderr, b"");
     let young = srl(&["find", "state:young", "--dir", d]);
     assert!(
-        stdout(&young).starts_with("x7k2m9-1  "),
+        stdout(&young).starts_with("x7k2m9.1  "),
         "{}",
         stdout(&young)
     );
     assert_eq!(
-        srl(&["move", "x7k2m9", "x7k2m9-1", "--dir", d])
+        srl(&["move", "x7k2m9", "x7k2m9.1", "--dir", d])
             .status
             .code(),
         Some(2)
@@ -811,10 +864,10 @@ fn a_move_is_suggested_only_for_an_item_with_one_orphan() {
     let tmp = japanese();
     let d = dir(&tmp);
     let reviewed = srl(&[
-        "review", "k3m9q1-1", "k3m9q1-2", "--rating", "3", "--dir", d,
+        "review", "k3m9q1.1", "k3m9q1.2", "--rating", "3", "--dir", d,
     ]);
     assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
-    // Both clozes become c3: two orphans, and one new card k3m9q1-3.
+    // Both clozes become c3: two orphans, and one new card k3m9q1.3.
     let text = read(&tmp, "japanese/grammar/wo.md")
         .replace("{{c1::", "{{c3::")
         .replace("{{c2::", "{{c3::");
@@ -1084,7 +1137,7 @@ fn the_index_cache_never_changes_what_commands_print() {
     assert_eq!(snapshot(d), built);
 
     // Changes to the log show up as they would without a cache.
-    srl(&["review", "k3m9q1-1", "--rating", "1", "--dir", d]);
+    srl(&["review", "k3m9q1.1", "--rating", "1", "--dir", d]);
     srl(&["review", "x7k2m9", "--rating", "4", "--dir", d]);
     srl(&["suspend", "id:tuna01", "--dir", d]);
     let cached = snapshot(d);
@@ -1196,14 +1249,14 @@ fn cards_of_a_kind_program_in_their_own_groups_are_not_siblings() {
     let first = next_card(d, &[]);
     assert_eq!(
         (&first["id"], &first["prompt"], &first["prompt_revealed"]),
-        (&"abc-a".into(), &"a?".into(), &"a!".into())
+        (&"abc.a".into(), &"a?".into(), &"a!".into())
     );
     assert_eq!(first["kind"], "fake");
     record(d, &first, 3);
     let second = next_card(d, &[]);
-    assert_eq!(second["id"], "abc-b");
+    assert_eq!(second["id"], "abc.b");
     record(d, &second, 3);
-    // abc-c waits for tomorrow: its sibling abc-b was reviewed today.
+    // abc.c waits for tomorrow: its sibling abc.b was reviewed today.
     assert_eq!(srl(&["next", "--dir", d]).status.code(), Some(1));
 }
 
@@ -1221,8 +1274,8 @@ fn kind_selects_items_by_their_kind() {
             .map(|line| line.split("  ").next().unwrap_or_default().to_owned())
             .collect()
     };
-    assert_eq!(ids(&[]), ["abc-a", "abc-b", "def"]);
-    assert_eq!(ids(&["kind:fake"]), ["abc-a", "abc-b"]);
+    assert_eq!(ids(&[]), ["abc.a", "abc.b", "def"]);
+    assert_eq!(ids(&["kind:fake"]), ["abc.a", "abc.b"]);
     assert_eq!(ids(&["kind:qa"]), ["def"]);
     assert_eq!(ids(&["-kind:fake"]), ["def"]);
     let output = srl(&["find", "kind:nope", "--dir", d]);
@@ -1237,25 +1290,25 @@ fn next_fails_if_its_kind_program_fails_to_make_the_card() {
         "```srl id:abc kind:fake\nGROUPS: a|b\nFAIL_MAKE: a\n```\n",
     )]);
     let d = dir(&tmp);
-    // The same failure every time, and abc-b is never tried in its place.
+    // The same failure every time, and abc.b is never tried in its place.
     for _ in 0..2 {
         let output = srl(&["next", "--json", "--dir", d]);
         assert_eq!(output.status.code(), Some(2), "{}", stderr(&output));
         assert_eq!(output.stdout, b"");
         assert!(
-            stderr(&output).contains("cannot make the card abc-a (fix what failed, or set the card aside with `srl suspend abc-a`): the program of kind fake couldn't make it: card a fails on purpose"),
+            stderr(&output).contains("cannot make the card abc.a (fix what failed, or set the card aside with `srl suspend abc.a`): the program of kind fake couldn't make it: card a fails on purpose"),
             "{}",
             stderr(&output)
         );
     }
     // Suspending it is how to get past it.
     assert_eq!(
-        srl(&["suspend", "id:abc-a", "--dir", d]).status.code(),
+        srl(&["suspend", "id:abc.a", "--dir", d]).status.code(),
         Some(0)
     );
     let output = srl(&["next", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-    assert_eq!(lines(&output)[0], "abc-b");
+    assert_eq!(lines(&output)[0], "abc.b");
 }
 
 #[test]
@@ -1268,8 +1321,8 @@ fn cards_fails_at_once_if_a_kind_program_fails() {
     let output = srl(&["cards", "abc", "--dir", d]);
     assert_eq!(output.status.code(), Some(2));
     assert_eq!(output.stdout, b"");
-    assert!(stderr(&output).contains("cannot make the card abc-b"));
-    let output = srl(&["cards", "abc-a", "--json", "--dir", d]);
+    assert!(stderr(&output).contains("cannot make the card abc.b"));
+    let output = srl(&["cards", "abc.a", "--json", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(json_lines(&output)[0]["prompt"], "a?");
 }

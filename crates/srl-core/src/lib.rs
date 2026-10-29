@@ -24,7 +24,7 @@ mod stats;
 mod store;
 mod write;
 
-pub use card::{Card, CardId};
+pub use card::{Card, CardId, SUFFIX_SEPARATOR};
 pub use check::{Lint, lint, orphans};
 pub use config::Config;
 pub use context::{Context, ContextFormat, ContextMode, context};

@@ -458,7 +458,7 @@ mod tests {
     #[test]
     fn a_move_gives_the_history_to_another_card() {
         let day = date(2026, 1, 1);
-        let to = CardId::parse("a7f3k2-1").unwrap();
+        let to = CardId::parse("a7f3k2.1").unwrap();
         let moved = Entry {
             event: Event::Move(Move {
                 t: at(day),

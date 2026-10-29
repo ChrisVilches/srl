@@ -318,7 +318,7 @@ fn cloze_cards_of_one_item_are_introduced_one_a_day() {
         .to_owned();
     for (day, cloze) in [(1, 1), (2, 2), (3, 3)] {
         let now = at(day, 19);
-        assert_eq!(store.study(&now, 3), [format!("{item}-{cloze}")]);
+        assert_eq!(store.study(&now, 3), [format!("{item}.{cloze}")]);
     }
 }
 

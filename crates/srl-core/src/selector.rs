@@ -394,13 +394,13 @@ mod tests {
 
     #[test]
     fn empty_selector_matches_every_card() {
-        assert_eq!(pick(""), ["aaa1", "aaa2-1", "aaa2-2", "aaa3", "aaa4"]);
+        assert_eq!(pick(""), ["aaa1", "aaa2.1", "aaa2.2", "aaa3", "aaa4"]);
     }
 
     #[test]
     fn in_matches_a_folder_or_the_file_name_ignoring_case() {
         assert_eq!(pick("in:grammar"), ["aaa1"]);
-        assert_eq!(pick("in:japanese"), ["aaa1", "aaa2-1", "aaa2-2"]);
+        assert_eq!(pick("in:japanese"), ["aaa1", "aaa2.1", "aaa2.2"]);
         assert_eq!(pick("in:food"), ["aaa3"]);
         assert_eq!(pick("in:foo"), Vec::<String>::new());
         assert_eq!(pick("in:wo.md"), Vec::<String>::new());
@@ -418,27 +418,27 @@ mod tests {
     #[test]
     fn comma_is_or_space_is_and_minus_is_not() {
         assert_eq!(pick("in:grammar,food"), ["aaa1", "aaa3"]);
-        assert_eq!(pick("in:japanese in:n5"), ["aaa2-1", "aaa2-2"]);
+        assert_eq!(pick("in:japanese in:n5"), ["aaa2.1", "aaa2.2"]);
         assert_eq!(pick("in:japanese -in:n5"), ["aaa1"]);
     }
 
     #[test]
     fn path_star_stays_in_one_folder() {
-        assert_eq!(pick("path:japanese/*"), ["aaa2-1", "aaa2-2"]);
-        assert_eq!(pick("path:japanese/**"), ["aaa1", "aaa2-1", "aaa2-2"]);
+        assert_eq!(pick("path:japanese/*"), ["aaa2.1", "aaa2.2"]);
+        assert_eq!(pick("path:japanese/**"), ["aaa1", "aaa2.1", "aaa2.2"]);
     }
 
     #[test]
     fn an_item_id_stands_for_all_its_cards() {
-        assert_eq!(pick("id:aaa2"), ["aaa2-1", "aaa2-2"]);
-        assert_eq!(pick("id:aaa2-2,aaa3"), ["aaa2-2", "aaa3"]);
+        assert_eq!(pick("id:aaa2"), ["aaa2.1", "aaa2.2"]);
+        assert_eq!(pick("id:aaa2.2,aaa3"), ["aaa2.2", "aaa3"]);
     }
 
     #[test]
     fn status_comes_from_the_header_and_the_log() {
         assert_eq!(pick("status:draft"), ["aaa3"]);
         assert_eq!(pick("status:suspended"), ["aaa4"]);
-        assert_eq!(pick("status:active"), ["aaa1", "aaa2-1", "aaa2-2"]);
+        assert_eq!(pick("status:active"), ["aaa1", "aaa2.1", "aaa2.2"]);
     }
 
     #[test]
@@ -453,14 +453,14 @@ mod tests {
         assert_eq!(pick("moves"), ["aaa4"]);
         assert_eq!(pick("\"moves on\""), ["aaa4"]);
         assert_eq!(pick("srl"), Vec::<String>::new());
-        assert_eq!(pick("-tuna"), ["aaa1", "aaa2-1", "aaa2-2", "aaa4"]);
+        assert_eq!(pick("-tuna"), ["aaa1", "aaa2.1", "aaa2.2", "aaa4"]);
     }
 
     #[test]
     fn kind_qa_matches_items_without_a_kind() {
         assert_eq!(
             pick("kind:qa"),
-            ["aaa1", "aaa2-1", "aaa2-2", "aaa3", "aaa4"]
+            ["aaa1", "aaa2.1", "aaa2.2", "aaa3", "aaa4"]
         );
         assert_eq!(pick("-kind:qa"), Vec::<String>::new());
     }

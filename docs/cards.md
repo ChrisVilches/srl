@@ -13,7 +13,7 @@ memory state (see [scheduling.md](scheduling.md)).
 ## Format
 
 ```json
-{"id": "k3m9q1-2",
+{"id": "k3m9q1.2",
  "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
  "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
  "answer": "Despite everyone's opposition, she started a company."}
@@ -63,19 +63,26 @@ feel you could answer it.
 
 ## Card IDs
 
-A **card ID** is the ID of its item, alone or followed by `-` and a
-**suffix** made of lowercase letters `a`–`z` and digits:
+A **card ID** is the ID of its item, alone or followed by `.` and a
+**suffix**, made like an item ID (see [notes.md](notes.md), "Identity"):
+words of lowercase letters `a`–`z` and digits, joined by single `-`, 1 to
+32 characters:
 
 - An item that gives one card gives it the item's ID: `x7k2m9`.
-- An item that gives several cards gives each a suffix: `k3m9q1-1`,
-  `k3m9q1-2`. Which suffixes is up to the kind.
+- An item that gives several cards gives each a suffix: `k3m9q1.1`,
+  `k3m9q1.2`. Which suffixes is up to the kind.
 
-Item IDs never contain `-`, so the part before the first `-` is always the
-item, and no two items can produce the same card ID.
+- An item ID or a suffix may contain `-`: `jp-grammar-desu.te`, or
+  `v81k3z.past-negative`.
+
+No ID or suffix ever contains `.`, so the part before the `.` is always
+the item, and no two items can produce the same card ID. `srl` keeps the
+separator in one constant, `SUFFIX_SEPARATOR` in
+`crates/srl-core/src/card.rs`.
 
 **Card IDs are ordered** by item ID, then by suffix: a card without a
 suffix first, then suffixes that are whole numbers, compared as numbers,
-then any other suffix as text. So `k3m9q1-2` comes before `k3m9q1-10`.
+then any other suffix as text. So `k3m9q1.2` comes before `k3m9q1.10`.
 
 A kind takes its suffixes from what you wrote, never from positions, so
 that adding, removing or reordering parts of an item doesn't give one
@@ -138,7 +145,7 @@ The rules:
 
 1. **One card per number.** Deletions with the same number are hidden
    together, in the same card. The card's suffix is the number: deletions
-   `c1` and `c2` in item `k3m9q1` give cards `k3m9q1-1` and `k3m9q1-2`.
+   `c1` and `c2` in item `k3m9q1` give cards `k3m9q1.1` and `k3m9q1.2`.
 2. **The prompt** is `Q` with every deletion of the card's number replaced
    by `==[...]==`, or by `==[hint]==` if it has a hint, and every other
    deletion replaced by its text.
@@ -161,11 +168,11 @@ A: Despite everyone's opposition, she started a company.
 gives two cards:
 
 ```json
-{"id": "k3m9q1-1",
+{"id": "k3m9q1.1",
  "prompt": "==[...]==を==[...]==、彼女は起業した。",
  "prompt_revealed": "==周囲の反対==を==ものともせず==、彼女は起業した。",
  "answer": "Despite everyone's opposition, she started a company."}
-{"id": "k3m9q1-2",
+{"id": "k3m9q1.2",
  "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
  "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
  "answer": "Despite everyone's opposition, she started a company."}
@@ -330,8 +337,8 @@ FORMS: te past negative
 ```
 ````
 
-`validate` accepts the item, and `groups` gives cards `v81k3z-te`,
-`v81k3z-past` and `v81k3z-negative`, the first two in one group: 動いて
+`validate` accepts the item, and `groups` gives cards `v81k3z.te`,
+`v81k3z.past` and `v81k3z.negative`, the first two in one group: 動いて
 and 動いた share their stem, so seeing one gives the other away. `make`
 with suffix `te` gives the て-form question for 動く. With `FORMS: te
 tense`, `validate` gives an error about `FORMS`, and `groups` is never
