@@ -11,6 +11,10 @@ use crate::{Error, Result};
 /// The character between a card ID's item ID and its suffix, as in
 /// `k3m9q1.2`. IDs never contain it (see [`is_id_text`]), so the part
 /// before it is always the item (see `docs/cards.md`, "Card IDs").
+///
+/// Changing it changes every card ID, so existing logs, whose events name
+/// cards by ID, lose their history to orphaned IDs, and nothing converts
+/// them.
 pub const SUFFIX_SEPARATOR: char = '.';
 
 /// A card's ID: its item's ID, alone or followed by [`SUFFIX_SEPARATOR`]
