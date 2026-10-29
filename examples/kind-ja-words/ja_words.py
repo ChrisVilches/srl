@@ -5,9 +5,10 @@ A proof of concept of a kind program with several cards and no siblings
 (see docs/cards.md, "Kind programs"). Name it in `[kinds]` of the
 store's .srl/config.toml, or call it by hand (see README.md).
 
-Requires MeCab and its IPA dictionary as programs on PATH; no Python
-packages. Tried on Arch Linux only, where they are installed with
-`yay -S mecab mecab-ipadic`.
+Requires MeCab on PATH, with its IPA dictionary built as UTF-8 (`mecab -D`
+says `charset: utf-8`); no Python packages. Tried on Arch Linux, with
+`yay -S mecab mecab-ipadic`, and Ubuntu, with `sudo apt install mecab
+mecab-ipadic-utf8`. README.md says how to rebuild an EUC-JP dictionary.
 
 Every call reads one JSON object per line up to the end of standard
 input, and prints one line per input line, in order:

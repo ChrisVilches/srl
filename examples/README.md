@@ -17,7 +17,7 @@ Read an example before you use it, then copy it and change it to suit you.
 | Path | What it is |
 |---|---|
 | [`agents/`](agents/) | A system prompt and skills that turn an LLM agent into a guide to `srl`: it answers questions, writes example items and walks you through study sessions. |
-| [`kind-ja-words/`](kind-ja-words/) | `ja_words.py`, a kind program in Python: one card per `{word}` of a Japanese sentence, answered with MeCab's analysis. A proof of concept of kind programs (`docs/cards.md`, "Kind programs"); tried on Arch Linux only. |
+| [`kind-ja-words/`](kind-ja-words/) | `ja_words.py`, a kind program in Python: one card per `{word}` of a Japanese sentence, answered with MeCab's analysis. A proof of concept of kind programs (`docs/cards.md`, "Kind programs"); tried on Arch Linux and Ubuntu; needs a UTF-8 MeCab dictionary. |
 | [`kind-llm-generated/`](kind-llm-generated/) | `llm_generated.py`, a kind program in Python: one card whose question and answer an LLM (OpenAI's Responses API) writes anew each time it is shown. Meant for Linux, macOS and Windows but tried on Linux only. |
 | [`python-frontend/`](python-frontend/) | `srl-tui`, a study frontend for the terminal in Python with Rich: the card, the answer and the context rendered as Markdown on one screen, with keys without Enter. A uv project of its own, meant for Linux, macOS and Windows but tried on Linux only. |
 | [`screenshots/`](screenshots/) | Screenshots of `srl-tui` and `srl-web` studying a demo store, with the store, the scripts that take them again, and `SKILL.md`, instructions for an agent asked to take new ones. Tried on Linux only. |

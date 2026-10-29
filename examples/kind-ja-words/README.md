@@ -25,9 +25,29 @@ siblings (see [docs/cards.md](../../docs/cards.md), "Kind programs").
 
 - Python 3, with nothing but its standard library.
 - MeCab and its IPA dictionary, run as the program `mecab` found on PATH.
-  On Arch Linux: `yay -S mecab mecab-ipadic`.
+  On Arch Linux: `yay -S mecab mecab-ipadic`. On Debian and Ubuntu:
+  `sudo apt install mecab mecab-ipadic-utf8`.
+- **The dictionary must be UTF-8.** `ja_words.py` talks to MeCab in
+  UTF-8, and MeCab reads and writes in its dictionary's encoding, so with
+  an EUC-JP dictionary every `make` fails with a `UnicodeDecodeError`.
+  `mecab -D` prints `charset: utf-8` for the right one. The packages above
+  are UTF-8; Debian's plain `mecab-ipadic` package and the IPA dictionary
+  built from source with its defaults are EUC-JP. Rebuild one of those
+  as UTF-8, into the folder of `dicdir` in your `mecabrc` (`mecab-config
+  --dicdir` gives the default), with MeCab's own indexer:
 
-Tried on Arch Linux only.
+  ```sh
+  "$(mecab-config --libexecdir)/mecab-dict-index" \
+    -d SOURCE -o OUT -f euc-jp -t utf-8
+  cp SOURCE/dicrc SOURCE/*.def OUT/
+  ```
+
+  where `SOURCE` holds the dictionary's `.csv` and `.def` files (such as
+  `/usr/share/mecab/dic/ipadic` from Debian's `mecab-ipadic`, or the
+  unpacked `mecab-ipadic` source), or run the source's `./configure
+  --with-charset=utf8` before `make install`.
+
+Tried on Arch Linux and Ubuntu.
 
 ## Cards
 
@@ -150,7 +170,8 @@ They are in `test_ja_words.py`, in these classes:
   input, and checks one answer per line, in order, and, with `make`, the
   real analysis of a sentence and an error for a card that can't be made.
   That last test is skipped, and reported as skipped, when `mecab` isn't
-  on PATH.
+  on PATH, and fails with a `UnicodeDecodeError` when its dictionary isn't
+  UTF-8 (see "Requirements").
 
 To try a change by hand, run the calls of "Running it" above with your own
 sentence. Running the tests leaves a `__pycache__` folder here, which git
