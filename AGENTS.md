@@ -49,7 +49,9 @@ To take screenshots of the example frontends, read
 Whenever the specifications change, update the documents in `docs/` in the
 same piece of work so they describe the new specifications. Update the
 guides in `docs/guides/` too when the change affects them, as with
-examples.
+examples. When a change fixes a finding of [docs/audit.md](docs/audit.md),
+remove the finding in the same piece of work; when you notice a new
+problem with the specification that you don't fix, add it there.
 
 The documents are the source of truth for the specifications at all times.
 They are not a record of the initial planning to be left behind as the

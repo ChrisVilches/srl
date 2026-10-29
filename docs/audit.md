@@ -1,12 +1,29 @@
-# Specification audit
+# Audit
 
-Audit of `srl`'s specification (`docs/`), its guides and examples, and the
-structure of the Rust workspace, as of 2026-10-29 (commit `27b8140`). It
-looks at vision, scope, consistency and brittleness, not at coding style.
-It was revised the same day; see "Revisions" at the end.
+Known problems with `srl`'s specification, structure and scope that are
+not fixed yet: rules that contradict each other or the goals, designs that
+are brittle, and places where the vision and the documents drift apart.
+Each finding is rated, and says how it could be fixed.
 
-This file is not part of the specification. It records findings to act on;
-delete it, or move what survives into `docs/`, once they are dealt with.
+This audit is ongoing. It is kept up to date like every other document
+(see [overview.md](overview.md), "Open questions"):
+
+- **A finding is removed once it is fixed**, in the same piece of work as
+  the fix. Its ID is never reused, so references to it in commits stay
+  unambiguous.
+- **A finding that turns out to be wrong is removed**, or reworded to what
+  survives of it.
+- **New findings are added** whenever a review of the documents, the code
+  or the way `srl` is used finds one, with the next free ID of its
+  severity.
+- **A finding that becomes a decision to take** moves to a
+  **TODO (design):** note where the specification touches it, and is
+  removed here.
+
+Findings look at what `srl` is and does: its contracts, rules and
+structure, and whether they serve the goals in
+[overview.md](overview.md). They don't cover coding style, which
+[rust.md](rust.md) does.
 
 ## Rating scales
 
@@ -32,7 +49,7 @@ truth for memory, the cache that never decides anything, IDs over
 positions, careful note writes, and the split between specification, guides
 and examples.
 
-The weak points cluster in three places:
+The open findings cluster in three places:
 
 1. **Multi-device use.** The docs promise that a store "works well with git
    or any file syncing tool". The log format and kind programs make that
@@ -64,7 +81,6 @@ The weak points cluster in three places:
 | L5 | The frontend contract is larger in practice than "one mapping" | Vision | Low | Trivial |
 | L6 | `srl-core` is a second, public interface | Structure | Low | Easy |
 | L7 | `srl-core` mixes pure rules with process, SQLite and file I/O | Structure | Low | Moderate |
-| L8 | Documentation drift: overview misses two examples (fixed) | Docs | Low | Trivial |
 | L9 | What a card with varying content means is unspecified | Specification | Low | Easy |
 
 ---
@@ -75,7 +91,7 @@ The weak points cluster in three places:
 
 **Severity High · Difficulty Moderate**
 
-`docs/store.md`, "Version control and syncing", says the log "is
+[store.md](store.md), "Version control and syncing", says the log "is
 append-only, so it almost never conflicts on merge". Three things make that
 untrue:
 
@@ -87,12 +103,12 @@ untrue:
   others resolve conflicts by keeping a second file, such as
   `2026-10 (conflicted copy).jsonl` or `2026-10.sync-conflict-….jsonl`. The
   log reader takes every `*.jsonl` in `.srl/log/`
-  (`crates/srl-core/src/log.rs`, around line 206), so the events in both
+  (`files` in `crates/srl-core/src/log.rs`), so the events in both
   copies are replayed twice. Duplicated Agains double the lapses and can
   make a card a leech; duplicated reviews shorten intervals.
 - **Replay order depends on how the conflict was resolved.** Events are
   replayed "in log order … Their times are not sorted"
-  (`docs/scheduling.md`, "Replay"). After a merge, one device's reviews may
+  ([scheduling.md](scheduling.md), "Replay"). After a merge, one device's reviews may
   come after the other's later ones. A review out of order counts as 0
   days elapsed, so the result depends on line order, not on what happened.
 
@@ -116,7 +132,7 @@ and it fails silently.
 **Severity High · Difficulty Moderate**
 
 `srl review` loads every note before it writes (`crates/srl/src/commands.rs`,
-`fn review`, which calls `Notes::load`). By `docs/notes.md`, "Errors", any
+`fn review`, which calls `Notes::load`). By [notes.md](notes.md), "Errors", any
 error in any note then stops it. So:
 
 1. A frontend shows a card and the person rates it.
@@ -125,13 +141,13 @@ error in any note then stops it. So:
 3. `srl review` fails with exit 2. The rating is not recorded.
 
 This is likely, not exotic: the frontend contract encourages "opening its
-note … in an editor" (`docs/frontends.md`, "The loop"), and the whole point
+note … in an editor" ([frontends.md](frontends.md), "The loop"), and the whole point
 is that questions are written in notes while studying them. The same holds
 for `srl suspend`, and for a kind program that fails as a whole (for
 example a missing Python package) while you review a `qa` card.
 
 The rationale for strictness ("a question you think you are studying and
-aren't", `docs/rationale.md`, "Why one error stops everything") is about
+aren't", [rationale.md](rationale.md), "Why one error stops everything") is about
 studying and listing. It does not apply to recording a rating for a card
 that was valid a moment ago. The log only needs a valid card ID; the
 `hash` is the only thing that needs the item.
@@ -142,23 +158,23 @@ name, or accept any well-formed card ID that the store knew at its last
 successful read (the index cache could keep that set). Keep the error
 loud: print it as a warning, but record the rating. This needs a decision,
 and fits the open question "Making strictness less annoying" in
-`docs/overview.md`.
+[overview.md](overview.md).
 
 ### H3. Kind programs make a store machine-specific, and a cloned store runs code
 
 **Severity High · Difficulty Moderate**
 
-`.srl/config.toml` is committed and shared (`docs/store.md`, "Version
+`.srl/config.toml` is committed and shared ([store.md](store.md), "Version
 control and syncing"), and `[kinds]` holds commands. But:
 
-- **The command differs by platform.** `docs/cards.md` itself says Linux
+- **The command differs by platform.** [cards.md](cards.md) itself says Linux
   takes `["python3", "kinds/ja_words.py"]` and Windows
   `["py", "kinds/ja_words.py"]`. One shared file can't hold both, so a
   store with kind programs can't be synced between Linux and Windows,
   against the rule that `srl` "behaves the same on Linux, macOS and
   Windows".
 - **A missing dependency stops everything.** A kind program that fails as a
-  whole stops every command that reads items (`docs/cards.md`, "How srl
+  whole stops every command that reads items ([cards.md](cards.md), "How srl
   calls them"). Clone a store with `kind:ja-words` on a laptop without
   MeCab and you can't study even your `qa` cards, or record a review (H2).
 - **Any read command runs the store's programs.** `srl find`, `srl next`,
@@ -183,15 +199,15 @@ Card IDs are history. For kind programs they rest on two things nothing
 enforces:
 
 - The author must never change suffixes for the same fields (the "Rule for
-  kind authors" in `docs/cards.md`). That is a promise from third-party
+  kind authors" in [cards.md](cards.md)). That is a promise from third-party
   code.
 - `srl` keeps `groups` answers in the cache and does not notice a program
-  changed in place (`docs/store.md`, "The index cache"). After an update,
+  changed in place ([store.md](store.md), "The index cache"). After an update,
   old suffixes stay in use until `srl check` or a cache rebuild (a new
   machine, a new `srl` version), then change at once.
 
 When they change, the old cards become orphans, which `srl check` reports
-as notices with exit code 0 (`docs/cli.md`, "Checking"). Nothing fails, and
+as notices with exit code 0 ([cli.md](cli.md), "Checking"). Nothing fails, and
 the history quietly restarts. This is exactly the silent loss the "fail
 loudly" principle is there to prevent.
 
@@ -209,7 +225,7 @@ orphans created by such a change an error rather than a notice.
 
 **Severity Medium · Difficulty Hard**
 
-The first goals in `docs/overview.md` are "Questions live in your notes …
+The first goals in [overview.md](overview.md) are "Questions live in your notes …
 in a few keystrokes" and "Notes stay notes". JSONL notes serve another
 model: questions written by importers and generators, kept as data in
 files of their own, linked to the knowledge by `see`.
@@ -222,10 +238,9 @@ places, and the open "one context rule for both syntaxes" question, which
 is a symptom: the two syntaxes give their notes as context by different
 rules because they hold questions in different places.
 
-The rationale used to say "Most questions are not typed next to the
-knowledge by hand: scripts and agents write them", which made the second
-model primary. It now says "Not every question is typed … by hand", which
-keeps the Goals' order.
+The rationale keeps the Goals' order ("Not every question is typed next
+to the knowledge by hand"), but nothing else in the specification says
+which model is primary.
 
 **Possible fix:** keep notes primary, as the Goals say, and treat JSONL
 notes as the format for items that programs write: say so in "Item
@@ -236,7 +251,7 @@ vision decision, hence Hard, though the doc edit is small once made.
 
 **Severity Medium · Difficulty Easy**
 
-`docs/notes.md`, "Context": a JSONL note named by `see` "is given as it
+[notes.md](notes.md), "Context": a JSONL note named by `see` "is given as it
 is … every line", in `prose` mode too. So a card whose `see` names a JSONL
 note shows, after its answer, every question and answer in that note.
 Those may be cards you study the same day, which defeats the sibling rule's
@@ -257,7 +272,7 @@ random. That was as useful before LLMs as it is now; a kind that asks an
 LLM for its questions is one plugin among many, and the core knows nothing
 about it.
 
-The documents undersell this. `docs/overview.md` says `srl` is "two
+The documents undersell this. [overview.md](overview.md) says `srl` is "two
 things, and nothing else", a data layer and one mapping to frontends, and
 lists kind programs as the one exception to "does not launch other
 programs for you". So the mechanism that carries much of the
@@ -271,7 +286,7 @@ specification reads as an exception, not as a part of the design:
 
 Because it is the extension point, its contract is the one that most needs
 to be small and stable before others build on it. Meanwhile
-`docs/ideas.md` spends about 100 lines on an HTTP daemon per store (ports,
+[ideas.md](ideas.md) spends about 100 lines on an HTTP daemon per store (ports,
 lock files, tokens, DNS rebinding, process groups, `setsid`), well ahead
 of any program that needs it.
 
@@ -288,14 +303,14 @@ calls before more programs depend on four.
 
 Principle 6 says no error is swallowed and `srl` never substitutes a guess.
 Notes follow it strictly. The log does not: an invalid line "is skipped and
-reported on standard error … Every command carries on" (`docs/log.md`). For
+reported on standard error … Every command carries on" ([log.md](log.md)). For
 a source of truth, a dropped review is a changed schedule. Combined with
 H1, a corrupt line from a bad merge becomes a warning that frontends,
 which only read standard output, never show.
 
 There are good reasons (one bad line shouldn't stop studying, and a line
 being written can be read half-way), but they aren't in
-`docs/rationale.md`, so the two rules look inconsistent.
+[rationale.md](rationale.md), so the two rules look inconsistent.
 
 **Possible fixes:** add a rationale section for the difference; make
 `srl check` exit 2 for invalid log lines (it already reports them); and
@@ -307,17 +322,18 @@ skip silently only a last line without its final newline, which is the
 **Severity Medium · Difficulty Moderate**
 
 "Predictable behaviour. Every rule is simple enough to state in one
-sentence" (`docs/overview.md`). The srl block syntax has 14 numbered rules;
+sentence" ([overview.md](overview.md)). The srl block syntax has 14 numbered rules;
 kind programs have four calls, a batch protocol, cache keys and error
 attribution; the cache's incremental replay is a paragraph of conditions;
 `srl lint` has a page of heuristics. About 4,200 lines of documents
 describe about 14,000 lines of Rust, much of it cross-references and
-designs for hypothetical syntaxes (`docs/rust.md`, "What still assumes
-lines"; `docs/ideas.md`, "Items without a line").
+designs for hypothetical syntaxes ([rust.md](rust.md), "What still assumes
+lines"; [ideas.md](ideas.md), "Items without a line").
 
 This matters because the docs are declared the source of truth and must be
-updated with every change (`AGENTS.md`). Their size and redundancy make
-drift likely (see L8), and the goal sets an expectation the product can't
+updated with every change ([AGENTS.md](../AGENTS.md)). Their size and redundancy make
+drift likely (the overview's list of examples has already fallen
+behind `examples/README.md` once), and the goal sets an expectation the product can't
 meet.
 
 **Possible fixes:** reword the goal to "each decision has one rule, stated
@@ -335,7 +351,7 @@ restating it (context rules, for example, are restated in `notes.md`,
 **Severity Low · Difficulty Easy**
 
 `hash` is the SHA-256 of "the item as written, as `srl show` prints it
-without `--json`" (`docs/log.md`). So it changes when nothing about the
+without `--json`" ([log.md](log.md)). So it changes when nothing about the
 question did: moving an item between syntaxes, changing its fence length,
 or `srl edit` rewriting a JSONL line with other key order or spacing. Its
 one purpose, "did my retention change after I rewrote this item?", gets
@@ -351,7 +367,7 @@ stay valid as what they were.
 **Severity Low · Difficulty Easy (but a breaking change)**
 
 - `srl lint` exits 0 when it found something and 1 when not
-  (`docs/cli.md`, "Checking"): the opposite of most linters, so it can't
+  ([cli.md](cli.md), "Checking"): the opposite of most linters, so it can't
   gate a commit hook or CI as written.
 - `srl check` exits 0 when it found only orphans, which can be lost
   history (see H4).
@@ -368,7 +384,7 @@ more scripts depend on it.
 
 Without `--dir`, `SRL_DIR` or a `.srl` above the current directory, every
 command uses the default store in the platform's data directory
-(`docs/store.md`, "Finding the store"). Once that store exists, running
+([store.md](store.md), "Finding the store"). Once that store exists, running
 `srl add notes/x.md --stdin` in the wrong folder writes into it without a
 word. A store is otherwise "your study folder", so a hidden one in
 `~/.local/share` is an odd default. **Fix:** print the store used on
@@ -378,7 +394,7 @@ standard error when it is the default, or drop the default.
 
 **Severity Low · Difficulty Trivial**
 
-`docs/cards.md`, "Card IDs", names the code constant `SUFFIX_SEPARATOR` and
+[cards.md](cards.md), "Card IDs", names the code constant `SUFFIX_SEPARATOR` and
 discusses what changing it would do, "accepted while in development". The
 separator is part of the log contract, and `srl` is already published
 (version 0.1.1, `cargo install srl` in the README). **Fix:** declare it
@@ -389,7 +405,7 @@ fixed, and drop the paragraph about changing it.
 **Severity Low · Difficulty Trivial**
 
 The docs say frontends "understand this and nothing else"
-(`docs/frontends.md`). The same page then lets them suspend cards and open
+([frontends.md](frontends.md)). The same page then lets them suspend cards and open
 `path` in an editor, and `srl-web` also browses cards and adds items, using
 `find`, `cards`, `show` and `add`. That is fine, but the contract a real
 frontend depends on is several commands' JSON, not one. **Fix:** say that
@@ -426,30 +442,18 @@ Two boundaries are weaker:
   a store, and keep kind-program growth (M3) from spreading.
 - The "one module per document" rule is already bent: `check.rs` holds
   lint and orphans, `review.rs` spans `log.md` and `scheduling.md`. That is
-  fine, but the rule in `docs/rust.md` should say it maps areas, not
+  fine, but the rule in [rust.md](rust.md) should say it maps areas, not
   documents.
 
 None of this is urgent; the largest files (`blocks.rs`, `program.rs`,
 `index.rs`, `write.rs`, each over 1,000 lines with tests) are where a split
 would pay first.
 
-### L8. Documentation drift: overview misses two examples
-
-**Severity Low · Difficulty Trivial**
-
-`docs/overview.md`, "Specification, guides and examples", lists four
-examples. `examples/README.md` lists six: `kind-ja-words` and
-`kind-llm-generated` are missing from the overview, though `cards.md` and
-`rationale.md` refer to both. A small sign of M5: the same list is kept in
-two places.
-
-**Fixed** in the revision: the overview now lists both.
-
 ### L9. What a card with varying content means is unspecified
 
 **Severity Low · Difficulty Easy**
 
-`make` "may differ every time" (`docs/cards.md`, "Calls"), so one card ID
+`make` "may differ every time" ([cards.md](cards.md), "Calls"), so one card ID
 can show different content at each review. That is a real use case, with
 or without AI: an arithmetic drill that draws new numbers, a conjugation
 card that picks a random verb from a list, a map quiz that shows a random
@@ -466,7 +470,7 @@ region. Two things about such cards are left unsaid:
    was asked. Neither `srl next --json` nor `srl review` offers a generic
    way to keep it.
 
-**Possible fixes:** a paragraph in `docs/rationale.md` saying that varying
+**Possible fixes:** a paragraph in [rationale.md](rationale.md) saying that varying
 cards are supported and their memory state is the skill's; and, if
 analysis of such cards matters, an optional field in review events, such
 as a hash of the card as shown, passed back by the frontend.
@@ -502,25 +506,3 @@ Worth keeping as they are:
 6. **H3**: per-machine config overlay and trust for kind programs.
 7. Decide **M1**, then trim **M5** to match.
 8. **L3**, **L5**, **L6**, **L7** when nearby.
-
-## Revisions
-
-The first version of this audit had a finding "LLM-generated cards
-contradict `srl`'s own case for a database". It judged the core by one
-example plugin: `srl` knows nothing about LLMs or agents, and the
-`kind-llm-generated` example is one program someone could write with the
-kind mechanism, as useful an idea before AI as after. What survives of it,
-with no reference to AI, is L9. M3 (formerly M4) was reframed the same
-way: kind programs are the extension mechanism, not scope creep.
-
-The same revision made the specification and the README less AI-focused.
-Examples that used LLMs or agents where any program would do now use
-neutral ones (a web service that is down, an arithmetic drill, a program
-that runs your code against tests, importers and generators); the
-rationale's first section argues for a database against unrecorded
-quizzing in general, not against an LLM; "Why no LLM in the core" became
-"Why the core calls no service"; and the README presents kinds as a main
-feature and agents as one more program built on the CLI. Guides and
-examples about agents are unchanged, since that is what they are for, and
-so is the `by: agent` value of review events, which is part of the log's
-contract.

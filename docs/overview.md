@@ -243,6 +243,7 @@ The specification:
 | [frontends.md](frontends.md) | The frontend contract: what `srl next --json` gives, the loop every frontend runs, rendering |
 | [rationale.md](rationale.md) | Why the main decisions were made |
 | [ideas.md](ideas.md) | Changes to `srl` not specified yet |
+| [audit.md](audit.md) | Known problems with the specification, structure and scope, not fixed yet |
 | [rust.md](rust.md) | How the Rust implementation is organized and written |
 
 Guides, not part of the specification:
@@ -255,7 +256,7 @@ Guides, not part of the specification:
 
 ## Open questions
 
-What the specification has not settled yet comes in three kinds, each kept
+What the specification has not settled yet comes in four kinds, each kept
 in one place:
 
 - **Design decisions still to take** are notes marked **TODO (design):**
@@ -266,6 +267,10 @@ in one place:
 - **Ideas** that may be built later, without being promised, are in
   [ideas.md](ideas.md) when they would change `srl`, and in
   [guides/ideas.md](guides/ideas.md) when they would be built on top.
+- **Known problems** with what is already specified (contradictions,
+  brittle designs, drift between the vision and the documents) are in
+  [audit.md](audit.md), each rated and with ways to fix it. A finding is
+  removed in the same piece of work that fixes it.
 
 `grep -rn 'TODO (design)\|TODO (platform)\|TODO(platform)' docs crates`
 finds every marked note.
