@@ -534,8 +534,9 @@ fn apply(text: &str, edit: &Edit) -> String {
 }
 
 /// Writes `new` to the note at `path`, if the file still holds `old` (or,
-/// with `None`, still doesn't exist): to a temporary file in the same
-/// folder, renamed over the note.
+/// with `None`, still doesn't exist): to a temporary file in `.srl/tmp/`,
+/// renamed over the note. The rename fails if the note's folder is on
+/// another file system than `.srl/`.
 ///
 // TODO(platform): Not run on Windows yet. Windows refuses to rename over a
 // file that another program holds open without sharing it; the error is
@@ -554,11 +555,10 @@ fn replace_file(store: &Store, path: &str, old: Option<&str>, new: &str) -> Resu
         path: path.to_owned(),
         reason,
     };
-    let mut temporary = tempfile::Builder::new()
-        .prefix(".srl-")
-        .suffix(".tmp")
-        .tempfile_in(folder)
-        .map_err(|error| cannot(error.to_string()))?;
+    let tmp = store.tmp_dir();
+    fs::create_dir_all(&tmp).map_err(Error::io(&tmp))?;
+    let mut temporary =
+        tempfile::NamedTempFile::new_in(&tmp).map_err(|error| cannot(error.to_string()))?;
     temporary
         .write_all(new.as_bytes())
         .map_err(|error| cannot(error.to_string()))?;
@@ -745,6 +745,15 @@ mod tests {
         )
         .unwrap();
         assert_eq!(read(&store, "new/b.md"), created.text);
+        // The temporary files were in `.srl/tmp/`, and are gone.
+        let names = |dir: &Path| {
+            fs::read_dir(dir)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(names(&store.root().join("new")), ["b.md"]);
+        assert_eq!(names(&store.tmp_dir()), [] as [&str; 0]);
     }
 
     #[test]

@@ -22,6 +22,14 @@ const LOG: &str = "log";
 /// The folder of derived data, in `.srl/`.
 const CACHE: &str = "cache";
 
+/// The folder of the temporary files of note writes, in `.srl/`.
+const TMP: &str = "tmp";
+
+/// The `.gitignore` that `srl init` writes in `.srl/`: everything there that
+/// is not a source of truth (see `docs/store.md`, "Version control and
+/// syncing").
+const GITIGNORE: &str = "cache/\nlog/.lock\ntmp/\n";
+
 /// The default store, relative to the platform's data directory.
 const DEFAULT_STORE: &str = "srl";
 
@@ -127,12 +135,14 @@ impl Store {
             });
         }
         let config = store.config_file();
+        let gitignore = store.srl_dir().join(".gitignore");
         let log = store.log_dir();
         if !dry_run {
             fs::create_dir_all(&log).map_err(Error::io(&log))?;
             fs::write(&config, DEFAULT_CONFIG).map_err(Error::io(&config))?;
+            fs::write(&gitignore, GITIGNORE).map_err(Error::io(&gitignore))?;
         }
-        Ok(vec![config, log])
+        Ok(vec![config, gitignore, log])
     }
 
     /// The store's folder.
@@ -158,6 +168,11 @@ impl Store {
     /// The folder of derived data, safe to delete.
     pub fn cache_dir(&self) -> PathBuf {
         self.srl_dir().join(CACHE)
+    }
+
+    /// The folder of the temporary files of note writes, `.srl/tmp/`.
+    pub fn tmp_dir(&self) -> PathBuf {
+        self.srl_dir().join(TMP)
     }
 
     /// Every note: each file under the store's folder, at any depth,
@@ -336,8 +351,12 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("new");
         let created = Store::init(&root, false).unwrap();
-        assert_eq!(created.len(), 2);
+        assert_eq!(created.len(), 3);
         assert!(root.join(".srl").join("config.toml").is_file());
+        assert_eq!(
+            fs::read_to_string(root.join(".srl").join(".gitignore")).unwrap(),
+            "cache/\nlog/.lock\ntmp/\n"
+        );
         assert!(root.join(".srl").join("log").is_dir());
         fs::create_dir(root.join("sub")).unwrap();
         let lookup = Lookup {
@@ -359,7 +378,7 @@ mod tests {
     #[test]
     fn init_dry_run_writes_nothing() {
         let tmp = TempDir::new().unwrap();
-        assert_eq!(Store::init(tmp.path(), true).unwrap().len(), 2);
+        assert_eq!(Store::init(tmp.path(), true).unwrap().len(), 3);
         assert!(fs::read_dir(tmp.path()).unwrap().next().is_none());
     }
 

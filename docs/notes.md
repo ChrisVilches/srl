@@ -372,11 +372,14 @@ Every other command only reads notes. The rules for writing:
    between, the command stops and says so; notes it wrote before stay
    written, and running it again finishes the work.
 4. **Writes are atomic.** The new content is written to a temporary file
-   next to the note, named `.srl-*.tmp`, then renamed over it, so a note is
-   never left half written. If the rename fails, the note is left as it was
-   and the error is reported. If `srl` is killed before the rename, the
-   temporary file may be left behind; delete it (see
-   [store.md](store.md), "Version control and syncing").
+   in `.srl/tmp/`, then renamed over the note, so a note is never left half
+   written. If the rename fails, the note is left as it was and the error
+   is reported; it always fails for a note on another file system than
+   `.srl/` (for example in a folder that is a mount point), so keep notes
+   on the same file system as their store's `.srl/`. If `srl` is killed
+   before the rename, the temporary file is left behind in `.srl/tmp/`,
+   which git ignores (see [store.md](store.md), "Version control and
+   syncing"); it can be deleted at any time no `srl` command is running.
 5. **Every change is reported.** `srl id` prints one line per item it gave
    an ID: the ID and `PATH:LINE`, separated by two spaces. `srl accept`,
    `srl add` and `srl edit` print the IDs of the items they changed or

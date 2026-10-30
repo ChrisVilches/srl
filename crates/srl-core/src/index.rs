@@ -307,8 +307,7 @@ fn remove(file: &Path) -> std::result::Result<(), String> {
         })
 }
 
-/// Opens the cache, creating `.srl/cache/` (with a `.gitignore` that ignores
-/// everything in it) and the file if needed.
+/// Opens the cache, creating `.srl/cache/` and the file if needed.
 ///
 // TODO(platform): SQLite's file locking is unreliable on network file
 // systems (NFS, SMB) on every platform, so two `srl` processes updating the
@@ -319,15 +318,6 @@ fn connect(store: &Store) -> std::result::Result<Connection, Failure> {
     let dir = store.cache_dir();
     let unusable = |error: io::Error| Failure::Unusable(format!("{}: {error}", dir.display()));
     fs::create_dir_all(&dir).map_err(unusable)?;
-    match fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(dir.join(".gitignore"))
-    {
-        Ok(mut file) => io::Write::write_all(&mut file, b"*\n").map_err(unusable)?,
-        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-        Err(error) => return Err(unusable(error)),
-    }
     let connection = Connection::open(dir.join(FILE))?;
     connection.busy_timeout(BUSY_TIMEOUT)?;
     Ok(connection)
@@ -1043,13 +1033,9 @@ mod tests {
     }
 
     #[test]
-    fn the_cache_folder_ignores_itself_in_git() {
+    fn the_cache_is_created_by_the_first_use() {
         let (_tmp, store) = store();
         Index::open(&store).memories(&Config::default()).unwrap();
-        assert_eq!(
-            fs::read_to_string(store.cache_dir().join(".gitignore")).unwrap(),
-            "*\n"
-        );
         assert!(store.cache_dir().join(FILE).is_file());
     }
 

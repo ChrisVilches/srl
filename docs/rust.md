@@ -561,9 +561,9 @@ as an `Edit` (see "The item syntax"), with these rules:
    is left untouched.
 4. **It checks the file didn't change underneath it**, by comparing the
    bytes it read with the bytes on disk right before writing.
-5. **It writes atomically**: to a temporary file `.srl-*.tmp` in the
-   note's folder (`tempfile`), then a rename over the note. The name is part
-   of the specification, because users ignore it in git (see
+5. **It writes atomically**: to a temporary file in `.srl/tmp/`
+   (`tempfile`), then a rename over the note. Keeping it in `.srl/` keeps
+   the rest of the store clean, and lets `.srl/.gitignore` ignore it (see
    [store.md](store.md), "Version control and syncing").
 6. **It has thorough tests**, including CRLF line endings, a UTF-8 BOM, no
    trailing newline, fences with extra spaces, fences of tildes and of more

@@ -88,7 +88,7 @@ fails and says so; `srl init` creates one in the current folder.
 
 ```sh
 mkdir study && cd study
-srl init                       # makes .srl/config.toml and .srl/log/
+srl init                       # makes .srl/config.toml, .srl/.gitignore and .srl/log/
 ```
 
 Write a note, for example `rust/ownership.md`:

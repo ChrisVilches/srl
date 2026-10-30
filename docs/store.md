@@ -12,11 +12,13 @@ You can have several stores, for example one per language or one for work.
 study/
   .srl/                    marks the folder as a store; everything srl owns
     config.toml            configuration
+    .gitignore             ignores what follows that is not a source of truth
     log/                   review events, one JSONL file per month
       2026-10.jsonl
       .lock                held while an event is appended (see log.md)
     cache/                 derived data, safe to delete
       index.sqlite
+    tmp/                   temporary files of note writes (see notes.md)
   japanese/grammar/wo-mono-tomo-sezu.md     your notes, in any folders
   rust/ownership.md
 ```
@@ -26,7 +28,9 @@ study/
 | notes (`**/*.md` by default) | yes | you, any editor, scripts and other programs; `srl id`, `srl accept`, `srl add` and `srl edit --stdin` (see [notes.md](notes.md), "How srl writes to notes") |
 | `.srl/config.toml` | yes | you |
 | `.srl/log/` | yes | `srl review`, `srl reset`, `srl move`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |
+| `.srl/.gitignore` | no | `srl init`; yours to change |
 | `.srl/cache/` | no | `srl`, automatically |
+| `.srl/tmp/` | no | `srl`, while it writes a note |
 
 Which files are notes is described in [notes.md](notes.md), "Which files
 are notes". Folders that start with `.` are never read for notes, so
@@ -53,7 +57,8 @@ Every command except `srl init` requires the store it finds to exist (to
 contain `.srl/config.toml`), and fails otherwise.
 
 `srl init [DIR]` creates a store: `.srl/config.toml` (every key commented
-out) and an empty `.srl/log/`. Like `git init`, it creates the store in
+out), `.srl/.gitignore` (see "Version control and syncing") and an empty
+`.srl/log/`. Like `git init`, it creates the store in
 `DIR`, else in `--dir`, else in `SRL_DIR`, else in the current directory.
 The folder may already hold notes and other files, but not `.srl/`.
 `srl init` prints each path it creates, and changes nothing else.
@@ -168,8 +173,7 @@ again.
   example a read-only store, or another `srl` holding it for more than 5
   seconds), this is reported on standard error and the command reads the
   files directly, and asks kind programs about every item.
-- `.srl/cache/` is created by the first command that needs it, with a
-  `.gitignore` that ignores everything in it.
+- `.srl/cache/` is created by the first command that needs it.
 - Each update is one SQLite transaction, so several `srl` processes can
   share the cache.
 - `srl log` lists events, so it reads the log files directly. `srl check`
@@ -192,19 +196,21 @@ The store works well with git or any file syncing tool:
 
 - Item edits show as ordinary line diffs in your notes.
 - The log is append-only, so it almost never conflicts on merge.
-- `.srl/cache/` ignores itself (it holds its own `.gitignore`). Add the
-  two other files `srl` may leave in the store to the store's
-  `.gitignore`: the log's lock (see [log.md](log.md)), and the temporary
-  file of a note write that was killed before it finished (see
-  [notes.md](notes.md), "How srl writes to notes"):
+- Everything `srl` writes that is not a source of truth is in `.srl/`, and
+  `srl init` writes `.srl/.gitignore` to ignore it: the cache, the log's
+  lock (see [log.md](log.md)), and the temporary files of note writes (see
+  [notes.md](notes.md), "How srl writes to notes"). `srl` never writes
+  anything else outside `.srl/` but your notes, so the store needs no
+  `.gitignore` of its own for `srl`:
 
   ```gitignore
-  .srl/log/.lock
-  .srl-*.tmp
+  cache/
+  log/.lock
+  tmp/
   ```
 
-- Commit everything else: your notes, `.srl/config.toml` and
-  `.srl/log/*.jsonl`. The log is your whole review history; without it, a
+- Commit everything else: your notes, `.srl/config.toml`,
+  `.srl/.gitignore` and `.srl/log/*.jsonl`. The log is your whole review history; without it, a
   clone starts every card as new.
 - Some sync tools skip folders whose names start with `.`. Check that yours
   syncs `.srl/`, or your review history stays on one device.

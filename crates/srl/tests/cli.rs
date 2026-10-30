@@ -1127,7 +1127,6 @@ fn the_index_cache_never_changes_what_commands_print() {
     // Built by the first command, then used.
     let built = snapshot(d);
     assert!(cache.join("index.sqlite").is_file());
-    assert_eq!(fs::read_to_string(cache.join(".gitignore")).unwrap(), "*\n");
     assert!(built[4].1.contains("skipped line"), "{}", built[4].1);
     assert_eq!(snapshot(d), built);
 

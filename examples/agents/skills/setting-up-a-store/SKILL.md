@@ -12,8 +12,8 @@ srl init            # in the current folder
 srl init ~/study    # in another folder
 ```
 
-`srl init` creates `.srl/config.toml` (every setting commented out) and an
-empty `.srl/log/`, and prints both paths. The folder may already hold notes:
+`srl init` creates `.srl/config.toml` (every setting commented out),
+`.srl/.gitignore` and an empty `.srl/log/`, and prints their paths. The folder may already hold notes:
 a folder of existing Markdown notes becomes a store as it is, and nothing in
 it changes until items are added.
 
@@ -88,16 +88,12 @@ mature_days = 21             # a card with at least this stability (days) is mat
 
 ## Git and syncing
 
-The store is text, so git and file sync tools work well. Commit the notes,
-`.srl/config.toml` and `.srl/log/*.jsonl` (the log is the whole review
-history). Add this to the store's `.gitignore`:
-
-```gitignore
-.srl/log/.lock
-.srl-*.tmp
-```
-
-`.srl/cache/` ignores itself. It is only a cache: deleting it loses
+The store is text, so git and file sync tools work well. Commit everything
+git doesn't ignore: the notes, `.srl/config.toml`, `.srl/.gitignore` and
+`.srl/log/*.jsonl` (the log is the whole review history). The store needs
+no `.gitignore` of its own for `srl`: `.srl/.gitignore` already ignores
+what `srl` writes that is not a source of truth (the cache, the log's lock
+and temporary files). `.srl/cache/` is only a cache: deleting it loses
 nothing.
 
 Some sync tools skip folders whose names start with `.`. Check that
