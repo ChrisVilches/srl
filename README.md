@@ -157,7 +157,10 @@ card.
 Selectors such as `in:rust -state:new` or `state:leech` work the same in
 every command, and every command prints JSON with `--json`. Reports,
 imports, bulk edits and dashboards are a few lines of shell or any other
-language away.
+language away. Shells built around structured data can work with it
+directly: [examples/nushell/](examples/nushell/) is a Nushell wrapper
+whose commands give tables and records to filter with `where` and
+`sort-by`.
 
 ### LLM agents
 
