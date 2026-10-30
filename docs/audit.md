@@ -397,7 +397,7 @@ standard error when it is the default, or drop the default.
 [cards.md](cards.md), "Card IDs", names the code constant `SUFFIX_SEPARATOR` and
 discusses what changing it would do, "accepted while in development". The
 separator is part of the log contract, and `srl` is already published
-(version 0.1.1, `cargo install srl` in the README). **Fix:** declare it
+(`cargo install srl` in the README). **Fix:** declare it
 fixed, and drop the paragraph about changing it.
 
 ### L5. The frontend contract is larger in practice than "one mapping"

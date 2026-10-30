@@ -3,14 +3,14 @@ resolver = "3"
 members = ["crates/srl", "crates/srl-core", "crates/srl-test-kind"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ChrisVilches/srl"
 
 [workspace.dependencies]
-srl-core = { path = "crates/srl-core", version = "0.1.1" }
+srl-core = { path = "crates/srl-core", version = "0.2.0" }
 anyhow = "1.0.104"
 blake3 = "1.8.7"
 clap = { version = "4.6.7", features = ["derive"] }
