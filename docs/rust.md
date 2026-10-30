@@ -90,7 +90,7 @@ commit:
 cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo install --path crates/srl --locked
+cargo +1.99.1 install --path crates/srl --locked
 ```
 
 - **Format** so that diffs only show real changes.
@@ -99,7 +99,10 @@ cargo install --path crates/srl --locked
 - **Install** so that the `srl` on your `PATH` is always the latest build.
   When you develop `srl`, you are also using it, and you should be using the
   code you just wrote. `--locked` builds with the exact versions in
-  `Cargo.lock`, which is committed.
+  `Cargo.lock`, which is committed. `+1.99.1` names the toolchain pinned in
+  `rust-toolchain.toml`: without it, `cargo install` warns that the toolchain
+  file overrode the default toolchain, because rustup finds that file from
+  the current folder rather than from the package being installed.
 
 A change is finished when all four pass. If one fails, fix it before going
 on. Don't skip it, and don't silence a lint to get past it.
@@ -229,8 +232,9 @@ types, so that the compiler checks them:
   something as deprecated, replace it in the same change.
 - **Use the current edition** (2024) and the toolchain pinned in
   `rust-toolchain.toml`, which rustup picks up by itself. Moving to a newer
-  stable release means changing its `channel` and the workspace's
-  `rust-version` in `Cargo.toml` together.
+  stable release means changing its `channel`, the workspace's
+  `rust-version` in `Cargo.toml` and the `+` toolchain of the install
+  command in "After every change" together.
 
 ### Platform independence
 

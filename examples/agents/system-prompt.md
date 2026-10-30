@@ -76,7 +76,7 @@ Check that `srl` is installed with `srl --version`. If it isn't, it is built
 from its source repository with Rust:
 
 ```sh
-cargo install --path crates/srl --locked     # from the srl repository
+cargo +1.99.1 install --path crates/srl --locked     # from the srl repository
 ```
 
 Then find out which store you are in: every command uses `--dir DIR`, else
