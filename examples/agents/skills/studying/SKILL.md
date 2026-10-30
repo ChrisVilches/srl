@@ -25,10 +25,11 @@ For each card, space or Enter shows the answer, then the context (the
 note around the item, or the one its `see` names; none for an item of a
 JSONL note without `see`, and a JSONL note named by `see` shown as a code
 block); `1`–`4` records the
-rating; `s` suspends the card without rating it. In `srl-tui`, `j`/`k` or
-the arrows scroll a context too long for the screen (Ctrl-D/Ctrl-U by half
-a screen) and `q` quits. Each keeps a count of the cards reviewed, the new ones and
-the Again ratings. Nothing is lost by quitting: every rating is recorded
+rating; `s` suspends the card without rating it. In `srl-tui`, the card
+and the context scroll in panels of their own: `j`/`k` or the arrows
+scroll the one in focus (Ctrl-D/Ctrl-U by half of it, `g`/`G` to its top
+and bottom), Tab moves the focus, and `q` quits. Each keeps a count of the
+cards reviewed, the new ones and the Again ratings. Nothing is lost by quitting: every rating is recorded
 as it is given.
 
 `srl-web` also has a Browse tab, which lists the cards of a selector and

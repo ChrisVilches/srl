@@ -269,6 +269,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl review ID --rating N` | record a rating |
 | `srl suspend SEL` / `srl unsuspend SEL` | stop / resume studying cards |
 | `srl reset SEL` | make cards new again |
+| `srl move FROM TO` | give an orphan's history to a new card, as `srl check` suggests |
 | `srl stats [SEL]` | counts per state, retention |
 | `srl log [SEL]` | the history of cards |
 | `srl check` / `srl lint` | find errors / likely mistakes in notes |
@@ -280,8 +281,8 @@ takes `--dry-run`. Exit codes: 0 success, 1 nothing found or nothing left,
 **An error in any note stops every command that reads items**, until it is
 fixed. Read the message: it names the file and line, and the field when
 a kind program rejected the item. A message about a kind program as a
-whole ("the program of kind X failed …") is the program's fault, not the
-notes'. **A card its kind program can't make stops `srl next`** in the
+whole ("… no item of kind X can be read until the program works") is the
+program's fault, not the notes'. **A card its kind program can't make stops `srl next`** in the
 same way, with the card's ID and the reason, until it is fixed or the
 card is suspended.
 
@@ -291,7 +292,7 @@ Load a skill when the person needs more than the above:
 
 | Skill | When |
 |---|---|
-| `setting-up-a-store` | Creating stores, several stores, configuration, git and syncing. |
+| `setting-up-a-store` | Creating stores, several stores, configuration, kind programs, git and syncing. |
 | `writing-items` | The full item syntax, cloze rules, code in cards, writing good questions, `srl add` and `srl edit --stdin`. |
 | `studying` | Study sessions with a frontend or in the chat, ratings, how the next card is chosen. |
 | `selectors` | Every selector term, combining them, quoting in each shell. |

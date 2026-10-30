@@ -29,7 +29,7 @@ since the notes and the log can't be read without it. Fix it and run
 | unknown field, missing `Q` or `A` | `B:`, or a `qa` item without `A` and without cloze | Use `Q` and `A` only; `A` is optional only with cloze. |
 | bad cloze | `{{c1::` without `}}`, empty text, `c0`, `c01`, nested, or cloze in `A` | Fix the deletion. |
 | `PATH:LINE: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind:` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind:`. |
-| `the program of kind X failed …; no item of kind X can be read until the program works` | the program itself is broken: not installed, a missing dependency, a bug; not your notes | Fix or reinstall the program, or its command in `[kinds]`; run `srl check` again. |
+| a reason such as `cannot find the program …` or `the program of kind X failed …`, ending `; no item of kind X can be read until the program works` | the program itself is broken: not installed, a missing dependency, a bug; not your notes | Fix or reinstall the program, or its command in `[kinds]`; run `srl check` again. |
 | `the program of kind X printed invalid output …` | a bug in the program | Report it to its author; the item is fine as written. |
 | `see:` doesn't name a note | the note was moved or renamed | Update the path, relative to the store. |
 | invalid configuration | a typo or out-of-range value in `.srl/config.toml` | Fix the named setting. |
@@ -127,6 +127,12 @@ schedule.
   saved it at the same moment, or an item to change was removed from it,
   or it has an error now. Run the command again, after `srl check` if the
   note may be broken. An item that only moved is still found, by its ID.
+- **A note can't be renamed into place**: `srl` writes a note to
+  `.srl/tmp/` and renames it over the note, which fails when the note is
+  on another file system than `.srl/`, such as a mounted folder. The note
+  is left as it was. Keep notes on the same file system as the store.
+  Files left in `.srl/tmp/` by a killed `srl` can be deleted when no `srl`
+  is running.
 - **The log's lock**: another `srl` was recording a review for more than 5
   seconds. Try again; on a network share, move the store to a local disk.
 - **Log lines skipped**: a line of `.srl/log/*.jsonl` isn't a valid event,

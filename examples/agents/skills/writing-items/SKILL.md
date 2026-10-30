@@ -68,7 +68,7 @@ Header entries, in any order, each at most once:
 
 | Entry | Meaning |
 |---|---|
-| `id:ID` | The item's ID. `srl id` adds it; lowercase letters and digits, words joined by single `-` (`jp-grammar-desu`), never `.`. |
+| `id:ID` | The item's ID. `srl id` adds it; lowercase letters and digits, words joined by single `-` (`jp-grammar-desu`), 1 to 32 characters, never `.`. |
 | `draft` | Not studied until `srl accept`. |
 | `see:PATH` | The note shown as context, instead of the item's own note. Must be a note of the store. Quote paths with spaces: `see:"my notes/a b.md"`. |
 | `kind:NAME` | The kind. `qa` is the default; any other is a kind program named in `[kinds]` of `.srl/config.toml`, whose fields are its own. `srl kinds` describes every kind and its fields. |

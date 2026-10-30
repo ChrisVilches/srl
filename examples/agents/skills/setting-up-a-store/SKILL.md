@@ -1,6 +1,6 @@
 ---
 name: setting-up-a-store
-description: Create an srl store, choose between several stores, change the configuration (.srl/config.toml), and keep a store in git or a sync tool. Load when the person sets srl up, has more than one study folder, wants to change how many new cards a day or when a study day starts, or asks about backups.
+description: Create an srl store, choose between several stores, change the configuration (.srl/config.toml), add kind programs, and keep a store in git or a sync tool. Load when the person sets srl up, has more than one study folder, wants to change how many new cards a day or when a study day starts, asks about backups, or wants a kind of item other than qa.
 ---
 
 # Setting up a store
@@ -71,6 +71,12 @@ max_skip = 0                 # srl next skips up to this many cards, at random
 leech_lapses = 8             # a card forgotten this many times is a leech
 mature_days = 21             # a card with at least this stability (days) is mature
 # weights = [...]            # custom FSRS weights; leave out to use the defaults
+
+[kinds]
+# ja-words = ["python3", "kinds/ja_words.py"]   # kind:ja-words runs this command
+
+[kind_programs]
+card_timeout = 60            # seconds a kind program may take to make a card
 ```
 
 - An unknown setting, a typo or a value out of range is an error, so a
@@ -86,6 +92,26 @@ mature_days = 21             # a card with at least this stability (days) is mat
 - Changing `desired_retention` or `weights` applies to the whole history
   at once: schedules are always recomputed from the log.
 
+## Kind programs
+
+`qa` is built in. Any other kind is a program named in `[kinds]`: the key
+is the kind's name, as items write it (`kind:ja-words`), and the value the
+command, a list of the program and its arguments. A program path with a
+folder is relative to the store's folder, and the program runs there. The
+`srl` repository's `examples/` has two: `kind-ja-words` (one card per
+marked word of a Japanese sentence) and `kind-llm-generated` (an LLM
+writes a new question each time the card is shown); their READMEs say how
+to add them.
+
+- `srl` runs whatever `[kinds]` names, with the person's rights. Before
+  using a store copied from someone else, read its `[kinds]` with them.
+- `srl kinds` describes every kind and its fields; it is the quickest
+  check that a program runs.
+- After a program is changed in place, run `srl check`: `srl` keeps the
+  programs' answers about items and can't see that one changed.
+- `card_timeout` limits how long making one card may take, such as a
+  program that calls a web API.
+
 ## Git and syncing
 
 The store is text, so git and file sync tools work well. Commit everything
@@ -99,4 +125,6 @@ nothing.
 Some sync tools skip folders whose names start with `.`. Check that
 `.srl/` is synced, or the review history stays on one device. Keep the
 store on a local disk rather than a network share: locking on network file
-systems is unreliable.
+systems is unreliable. Keep the notes on the same file system as `.srl/`
+too: `srl` writes a note by renaming a temporary file from `.srl/tmp/` over
+it, which fails for a note in a folder mounted from elsewhere.

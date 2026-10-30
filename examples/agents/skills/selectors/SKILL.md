@@ -59,6 +59,15 @@ so a text term with spaces needs two:
 Without the inner quotes, `srl find "some words"` is two terms, `some` and
 `words`, both required.
 
+Every argument that is not one of the command's options is a term, even
+one starting with `-` (`srl find -in:n5`). When you pass a selector you
+didn't write, such as one the person typed, put it after `--`, so nothing
+in it is read as an option: `srl find -- "$SEL"`.
+
+A value can't be empty (`in:`, `in:a,,b`), and the values of `id:`,
+`kind:`, `status:` and `state:` must be valid, so a typo such as
+`kind:ja-word` or `state:leeches` fails instead of matching nothing.
+
 Quote globs too: zsh fails on an unquoted `*` that matches no file, and
 other shells may replace it with file names. Write
 `srl find 'path:japanese/**'`.
