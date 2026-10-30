@@ -58,6 +58,23 @@ const CONTENT_TYPES = {
   '.woff2': 'font/woff2',
 };
 
+// The longest POST body read, in characters: an item is far shorter.
+const MAX_BODY = 1024 * 1024;
+
+// Sent with every answer. The page runs only its own scripts and styles,
+// can't be framed by another page (which could trick clicks into it), and
+// sends no Referer when a link in a note is followed. Style attributes are
+// allowed for the alignment of table columns. Images may come from
+// anywhere, since a note's Markdown can show any.
+const SECURITY_HEADERS = {
+  'content-security-policy':
+    "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; " +
+    "img-src * data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'no-referrer',
+};
+
 class BadRequest extends Error {}
 
 // Creates the server. DIR is the store passed to srl as --dir (or
@@ -166,8 +183,12 @@ export function createSrlServer({ dir, selector, staticDir }) {
     res.on('close', () => {
       if (!res.writableFinished) abort.abort();
     });
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+      res.setHeader(name, value);
+    }
     try {
       checkHost(req);
+      checkFetchSite(req);
       if (url.pathname.startsWith('/api/')) {
         const route = routes[`${req.method} ${url.pathname}`];
         if (!route) {
@@ -229,6 +250,20 @@ function checkHost(req) {
   }
 }
 
+// Only the page itself may use the API: browsers say in Sec-Fetch-Site where
+// a request comes from, and a request from another site is refused even
+// when the browser would send it with credentials, such as the basic auth of
+// a reverse proxy in front of this server. A GET /api/card from another
+// page, an <img> say, would otherwise run a kind program. Requests without
+// the header (curl, older browsers) are let through: the other checks still
+// apply to them.
+function checkFetchSite(req) {
+  const site = req.headers['sec-fetch-site'];
+  if (site !== undefined && site !== 'same-origin' && site !== 'none') {
+    throw new BadRequest(`refusing a ${site} request`);
+  }
+}
+
 // Reads a JSON object from the request. Requiring the JSON content type
 // keeps other web pages from posting here: a cross-site request can't set it
 // without a CORS preflight, which this server never allows.
@@ -239,6 +274,9 @@ async function readJson(req) {
   let text = '';
   for await (const chunk of req.setEncoding('utf8')) {
     text += chunk;
+    if (text.length > MAX_BODY) {
+      throw new BadRequest(`POST bodies must be at most ${MAX_BODY} characters`);
+    }
   }
   let body;
   try {

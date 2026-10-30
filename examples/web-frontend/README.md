@@ -125,9 +125,25 @@ is still paid for).
 When `srl` fails, the route answers with `{"error": MESSAGE}`, `MESSAGE`
 being what `srl` printed, and the page shows it.
 
-The server listens on `127.0.0.1` only. It refuses requests whose `Host` is
-not localhost, and POST bodies that are not `application/json`, so that
-other web pages open in the browser can't use it.
+The server listens on `127.0.0.1` only. So that other web pages open in
+the browser can't use it, it refuses requests whose `Host` is not
+localhost, requests that the browser says (with `Sec-Fetch-Site`) come
+from another site, and POST bodies that are not `application/json`. Every
+answer carries a `Content-Security-Policy` that lets the page run only its
+own scripts (which is why the theme is set by `public/theme.js` rather than
+an inline script) and keeps other pages from framing it.
+
+### Behind a reverse proxy
+
+To reach it from elsewhere, put it behind a reverse proxy that adds HTTPS
+and authentication, such as basic auth, and run `srl-web --no-open` on
+the server. Anyone who gets through can do what the page does: read every
+note, add items, and run kind programs, some of which may ask an LLM, at
+your cost. The proxy must send `Host: localhost` (or `127.0.0.1`), or
+srl-web refuses every request: nginx's `proxy_pass http://127.0.0.1:4317;`
+does so by default, Caddy's `reverse_proxy` needs `header_up Host
+localhost`. A card made by a slow kind program can take longer than a
+proxy's default timeout (60 s in nginx: `proxy_read_timeout`).
 
 Highlights are paired in order, each `==` with the next one, as `srl-tui`
 does (`src/highlight.ts`). Plugins that treat `==` like `*`, with
