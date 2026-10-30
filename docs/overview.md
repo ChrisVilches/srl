@@ -205,8 +205,8 @@ it what `srl` is and does, or something done with it?**
     server and a React page, a card browser that shows any card
     without studying it, and a form that adds items (see
     [guides/frontends.md](guides/frontends.md)).
-  - `examples/nushell/`: `srl.nu`, a Nushell module that gives `--json`
-    output as Nushell tables and records.
+  - `examples/nushell/`: `srl.nu`, a Nushell module that gives `srl`'s data
+    as Nushell tables and records, without `--json`.
   - `examples/screenshots/`: screenshots of `srl-tui` and `srl-web`, with
     a demo store and the scripts that take them; its `SKILL.md` tells an
     agent how to take new ones.

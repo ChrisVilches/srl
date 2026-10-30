@@ -1,11 +1,10 @@
 # A Nushell wrapper
 
 `srl.nu` is a Nushell module with one command, `srl`, that runs `srl` and
-gives its `--json` output as Nushell data, so you don't have to write
-`| from json --objects` after every command:
+gives its data as Nushell data, without `--json` or `| from json --objects`:
 
 ```nu
-srl find in:grammar --json | where state == due | get id
+srl find in:grammar | where state == due | get id
 ```
 
 It is a convenience for people who use `srl` from Nushell. Nothing in it is
@@ -22,27 +21,33 @@ real `srl` as `^srl`, so `srl` must be on your PATH.
 
 ## What it does
 
-- **With `--json`, the output is parsed.** Commands that print a list
-  (`find`, `show`, `cards`, `notes`, `kinds`, `log`) give a table. `next`
-  and `stats` give a record.
+- **The commands that read data give Nushell data.** These are the commands
+  with `--json` (see [docs/cli.md](../../docs/cli.md), "Conventions"). The
+  wrapper adds `--json` to them and parses what `srl` prints. Commands that
+  print a list (`find`, `show`, `cards`, `notes`, `kinds`, `log`) give a
+  table. `next` and `stats` give a record. Writing `--json` yourself
+  changes nothing.
+- **`--raw` gives `srl`'s text instead**, for one command:
+  `srl find in:grammar --raw`. The wrapper removes it before calling `srl`.
 - **"Nothing found" is an empty result, not an error.** `srl` exits with 1
-  when nothing matches (see [docs/cli.md](../../docs/cli.md), "Conventions").
-  Nushell would show that as a failed command. With `--json`, the wrapper
-  gives an empty list instead, or `null` for `next` and `stats`.
+  when nothing matches. Nushell would show that as a failed command. The
+  wrapper gives an empty list instead, or `null` for `next` and `stats`.
 - **Errors are still errors.** Exit code 2 becomes a Nushell error after
   `srl`'s message has been printed, so `try` and `catch` work.
 - **Lists and records piped in are written as JSONL**, one object per line.
   That is the input of `srl add --stdin` and `srl edit --stdin`, so you can
   pipe tables straight in. `srl review --stdin` takes a single review, so
   pipe it a record.
-- **Without `--json`, nothing changes.** Arguments and output pass through
-  as they are, and so do exit codes, so `srl find` still fails in Nushell
-  when nothing matches.
+- **Everything else runs as it is.** Other commands (`check`, `add`,
+  `review`, `help` and the rest), `--raw`, and `--help` or `-h` on any
+  command pass their arguments, output and exit codes through unchanged. So
+  `srl find in:grammar --raw` still fails in Nushell when nothing matches.
 
 The wrapper finds the subcommand by skipping options and the value of
-`--dir`, so `srl --dir ~/cards next --json` gives a record too. A `--json`
-after `--` is a selector term, as it is for `srl` (see
-[docs/selectors.md](../../docs/selectors.md)), and the output is left alone.
+`--dir`, so `srl --dir ~/cards next` gives a record too. A `--raw` or
+`--json` after `--` is a selector term, as it is for `srl` (see
+[docs/selectors.md](../../docs/selectors.md)), and the wrapper leaves it
+there.
 
 ## Examples
 
@@ -52,18 +57,18 @@ All of these use the wrapper, not the bare `srl`.
 
 ```nu
 # Due cards about grammar, as a table
-srl find in:grammar state:due --json
+srl find in:grammar state:due
 
 # How many cards each note has, largest first
-srl find --json | group-by path --to-table
+srl find | group-by path --to-table
   | each {|g| {path: $g.path, cards: ($g.items | length)} }
   | sort-by cards --reverse
 
 # How many cards are in each state
-srl stats --json | get states
+srl stats | get states
 
 # Cards that have been due for more than a week
-srl find state:due --json
+srl find state:due
   | where ($it.due | into datetime) < ((date now) - 1wk)
 ```
 
@@ -72,7 +77,7 @@ srl find state:due --json
 `srl next` gives a record, so its fields can be read directly:
 
 ```nu
-let card = srl next in:kanji --json
+let card = srl next in:kanji
 if $card == null { print "Nothing left for today" } else {
     print $card.prompt
     input "Press Enter for the answer "
@@ -86,7 +91,7 @@ if $card == null { print "Nothing left for today" } else {
 
 ```nu
 # Reviews per day over the last two weeks
-srl log --json
+srl log
   | where type == review
   | update t { into datetime }
   | where t > ((date now) - 2wk)
@@ -95,7 +100,7 @@ srl log --json
   | each {|g| {day: $g.day, reviews: ($g.items | length)} }
 
 # Cards you have answered Again on most often
-srl log --json
+srl log
   | where type == review and rating == 1
   | group-by card --to-table
   | each {|g| {card: $g.card, agains: ($g.items | length)} }
@@ -105,12 +110,12 @@ srl log --json
 
 ### Editing and adding items
 
-`srl show --json` gives items as `srl edit --stdin` takes them, so an edit
+`srl show` gives items as `srl edit --stdin` takes them, so an edit
 is a table transformation:
 
 ```nu
 # Add a full stop to every answer of an item that lacks one
-srl show k3m9q1 --json
+srl show k3m9q1
   | update A {|i| if ($i.A | str ends-with '.') { $i.A } else { $i.A + '.' } }
   | srl edit --stdin
 ```
@@ -127,14 +132,20 @@ open words.csv
   | srl add generated/words.md --stdin
 ```
 
-### Errors
+### Text and errors
 
 ```nu
-try { srl show nosuch --json } catch { print "no such item" }
+# srl's text, as it prints it without the wrapper
+srl find in:grammar --raw
+
+try { srl show nosuch } catch { print "no such item" }
 ```
 
 ## Adapting it
 
-The module is about 40 lines. If a later version of `srl` adds a command
-whose `--json` prints a single object, add its name to `SINGLE` at the top
-of `srl.nu`.
+The module is about 55 lines. It names the commands it gives data for in
+two lists at its top: `DATA`, the commands with `--json`, and `SINGLE`,
+those whose `--json` prints one object. They are copied from
+[docs/cli.md](../../docs/cli.md), so when `srl` gets a new command with
+`--json`, add its name to `DATA`, and to `SINGLE` if it prints one object.
+Until then the wrapper runs that command as it is.
