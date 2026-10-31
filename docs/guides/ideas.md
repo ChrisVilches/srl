@@ -80,6 +80,20 @@ Each part of `srl` already allows this:
 
 - **Confidence calibration.** Rate your confidence before answering, and track
   how well confidence predicts correctness.
+- **Today's counters in `srl-web`, kept across reloads** (low priority).
+  The counters at the top of the study page (cards reviewed, the new ones
+  among them, the Again ratings) are kept in the page only. They start at
+  0 whenever the page loads, so reloading the page or restarting the
+  server sets them back to 0. **Nothing is lost:** every rating was
+  recorded in the log by `srl review` when it was given, and scheduling
+  uses it as usual. The counters only show what was done since the page
+  loaded. This is not a fix, only a small improvement to the page, so
+  that its counters agree with what was studied today, however often the
+  page reloads. They could start from today's numbers instead of 0:
+  `srl stats` already gives `reviews today`, but not the new cards or the
+  Again ratings among them. Either `srl stats` gives those too (a change
+  to `srl`, for [ideas.md](../ideas.md)), or the server counts them in
+  `srl log --json`, working out each review's study day itself.
 
 ## Importing
 
