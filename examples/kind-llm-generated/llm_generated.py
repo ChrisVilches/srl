@@ -6,6 +6,11 @@ A proof of concept of a kind program whose content differs every time
 (see docs/cards.md, "Kind programs"). Name it in `[kinds]` of the
 store's .srl/config.toml, or call it by hand (see README.md).
 
+The card is only as good as the item's PROMPT: each call sees the same
+instructions and PROMPT and none of the questions before, so a broad
+PROMPT keeps giving the topic's best-known example. README.md, "Writing
+a good PROMPT", says how to write one.
+
 Calls OpenAI's Responses API over HTTP with Python's standard library;
 no Python packages. Needs the API key in OPENAI_API_KEY. Logs every
 call to llm_generated.log in the temporary folder. Meant for Linux,

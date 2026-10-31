@@ -52,6 +52,38 @@ Meant for Linux, macOS and Windows; tried on Linux only.
   each time. The model gets `PROMPT`, then the item's context (its note,
   or the one `see` names, in mode `prose`) as background, when it has one.
 
+## Writing a good PROMPT
+
+You write `PROMPT`; the card is only as good as what it asks for. Every
+call gets the same instructions and the same `PROMPT`, and doesn't see
+the questions it wrote before. So the variety comes from the model's
+sampling alone, and on a broad topic it keeps landing on the topic's
+best-known example. A `PROMPT` such as "a JLPT N1 grammar point"
+gives a question about the same famous point most of the time, worded
+differently each time.
+
+- **One item per thing you want to know.** A narrow topic, such as one
+  grammar point, word or theorem, rather than a whole field:
+
+  ````markdown
+  ```srl id:k3v9p1 kind:llm-generated
+  PROMPT: The N1 grammar point をよそに. Ask in Japanese about its nuance or usage; answer briefly in English.
+  ```
+  ````
+
+  It is also what makes the scheduling work: srl schedules the item, so
+  your ratings say how well you know that one topic. On a broad topic
+  they rate a different thing each time.
+- **Say which angles you want**, if the default ones don't fit: "contrast
+  it with にもかかわらず", "a new example sentence each time", "a
+  calculation with different numbers".
+- **Put what many items share in their note.** The note is sent as
+  background, so a note can say the language the question and answer are
+  in, the level and the style, and each `PROMPT` in it only names its
+  topic.
+- **Keep a broad topic only for random review**, knowing it leans
+  towards the topic's best-known points.
+
 ## Errors
 
 Every failure to make a card is that card's answer, `{"error": …}`, with
