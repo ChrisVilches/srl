@@ -86,11 +86,37 @@ npm link          # puts srl-web on PATH
 srl-web in:grammar
 ```
 
-`srl-web [--port N] [--dir DIR] [--no-open] [SELECTOR]` serves on
-`http://localhost:4317/` and opens the browser. `--dir` is given to every
-`srl` command it runs; without it, `srl` finds the store as always (see
-[docs/store.md](../../docs/store.md), "Finding the store"), starting from
-the directory `srl-web` was started in.
+`srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open] [SELECTOR]`
+serves on `http://localhost:4317/` and opens the browser. `--dir` is given
+to every `srl` command it runs; without it, `srl` finds the store as
+always (see [docs/store.md](../../docs/store.md), "Finding the store"),
+starting from the directory `srl-web` was started in.
+
+### Running a program after changes
+
+`--on-change PROGRAM` runs `PROGRAM` after the page changes the store: a
+review, a suspension, an item added (not a check). It is meant for
+keeping a store in sync, such as a script that commits it with git and
+pushes it; without the option nothing runs.
+
+- `PROGRAM` is run with no arguments, in the directory `srl-web` was
+  started in, with `SRL_DIR` set to `--dir` when it is given. A name with
+  no directory in it is looked for on `PATH`. On Windows it must be a
+  program, such as an `.exe`, not a `.bat` or `.cmd` script.
+- It succeeds when it exits with 0. Otherwise the page shows what it
+  printed to stderr, as it is, in a dialog. The change itself is already
+  in the store either way. What it prints to stdout goes to `srl-web`'s,
+  and its errors to `srl-web`'s stderr too.
+- Runs never overlap, and changes made close together get one run: a run
+  starts a second after a change, and changes made while the program runs
+  get one more run once it has ended, however many there were.
+- After each change the page asks the server every second how the program
+  is doing, until every change has had its run, and shows the last run's
+  error if it failed. An error followed by a run that succeeded is not
+  shown, and a new error replaces the one shown, so there is never more
+  than one dialog.
+- A run that takes more than 2 minutes, such as a `git push` waiting for a
+  password, is killed and counted as failed.
 
 ## How it works
 
@@ -98,15 +124,17 @@ the directory `srl-web` was started in.
 bin/srl-web.js      the command: options, starting the server, opening the browser
 server/server.js    the server: the API below, and the built frontend from dist/
 server/srl.js       running srl and reading its exit codes
+server/on-change.js running the --on-change program
 src/                the frontend: React, Tailwind CSS, markdown-it
 ```
 
-Each API route but `/api/config` runs `srl` commands. There is no
+Each API route but `/api/config` and `/api/on-change` runs `srl` commands. There is no
 scheduling here; that belongs to `srl`.
 
 | Route | Runs | Answers |
 |---|---|---|
-| `GET /api/config` | nothing | `{"selector": …}`, the selector given to `srl-web` |
+| `GET /api/config` | nothing | `{"selector": …, "on_change": …}`, the selector given to `srl-web`, and whether it has `--on-change` |
+| `GET /api/on-change` | nothing | `{"busy": …, "last": …}`: whether a change is still waiting for its run, and the last run, `{"seq": N, "error": …}` with `error` `null` on success, or `null` before any |
 | `GET /api/next?sel=…` | `srl next SEL --json --context prose` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
 | `POST /api/review` | `srl review --stdin`, with the request body | `{}` |
 | `POST /api/suspend` | `srl suspend id:CARD`, for `{"card": CARD}` | `{}` |
@@ -124,6 +152,11 @@ is still paid for).
 
 When `srl` fails, the route answers with `{"error": MESSAGE}`, `MESSAGE`
 being what `srl` printed, and the page shows it.
+
+Every dialog of the page is `src/Modal.tsx`, the browser's own `<dialog>`.
+Radix UI's dialog, say, would need the `Content-Security-Policy` below to
+allow inline styles, since it adds `<style>` elements to the page. While a
+dialog is open, the views take no keys.
 
 The server listens on `127.0.0.1` only. So that other web pages open in
 the browser can't use it, it refuses requests whose `Host` is not

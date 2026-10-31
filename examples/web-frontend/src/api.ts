@@ -46,6 +46,30 @@ export type KindDescription = {
 // entries kind, see and draft, and its fields.
 export type NewItem = Record<string, string | boolean>;
 
+// How the --on-change program's last run went: error is what it printed to
+// stderr, or null when it succeeded. busy is true until every change so far
+// has had its run.
+export type OnChangeStatus = { busy: boolean; last: { seq: number; error: string | null } | null };
+
+// Called after each change the page makes to the store.
+const changeListeners = new Set<() => void>();
+
+// Calls LISTENER after each change the page makes to the store: a review, a
+// suspension, an item added. Returns a function that stops it.
+export function onStoreChange(listener: () => void) {
+  changeListeners.add(listener);
+  return () => {
+    changeListeners.delete(listener);
+  };
+}
+
+// Calls the route, then the change listeners.
+async function change<T>(path: string, body: object): Promise<T> {
+  const value = await call<T>(path, body);
+  changeListeners.forEach((listener) => listener());
+  return value;
+}
+
 async function call<T>(path: string, body?: object, signal?: AbortSignal): Promise<T> {
   const response = await fetch(
     path,
@@ -68,10 +92,13 @@ async function call<T>(path: string, body?: object, signal?: AbortSignal): Promi
 export const api = {
   // The selector srl-web was started with.
   selector: async () => (await call<{ selector: string }>('/api/config')).selector,
+  // Whether srl-web was started with --on-change.
+  hasOnChange: async () => (await call<{ on_change: boolean }>('/api/config')).on_change,
+  onChangeStatus: () => call<OnChangeStatus>('/api/on-change'),
   next: async (selector: string) =>
     (await call<{ card: Card | null }>(`/api/next?${new URLSearchParams({ sel: selector })}`)).card,
-  review: (card: string, rating: Rating) => call<object>('/api/review', { card, rating }),
-  suspend: (card: string) => call<object>('/api/suspend', { card }),
+  review: (card: string, rating: Rating) => change<object>('/api/review', { card, rating }),
+  suspend: (card: string) => change<object>('/api/suspend', { card }),
   find: async (selector: string) =>
     (await call<{ cards: FoundCard[] }>(`/api/find?${new URLSearchParams({ sel: selector })}`)).cards,
   // Makes the card, running its kind program. Aborting SIGNAL stops srl.
@@ -83,5 +110,5 @@ export const api = {
   check: async (note: string, item: NewItem) =>
     (await call<{ text: string }>('/api/add', { note, item, dry_run: true })).text,
   // Writes the item to the end of NOTE, and gives its new ID.
-  add: async (note: string, item: NewItem) => (await call<{ ids: string[] }>('/api/add', { note, item })).ids,
+  add: async (note: string, item: NewItem) => (await change<{ ids: string[] }>('/api/add', { note, item })).ids,
 };

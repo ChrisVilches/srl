@@ -11,13 +11,15 @@ export function useStartWhenShown(active: boolean, start: () => void) {
 }
 
 // Gives ON_KEY the keys pressed while ACTIVE, but those with Ctrl, Meta or
-// Alt and those typed in a text box.
+// Alt, those typed in a text box and those pressed while a dialog is open
+// (src/Modal.tsx), which belong to it.
 export function useKeys(active: boolean, onKey: (event: KeyboardEvent) => void) {
   useEffect(() => {
     if (!active) return;
     const listener = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.target instanceof HTMLInputElement) return;
+      if (document.querySelector('dialog[open]')) return;
       onKey(event);
     };
     window.addEventListener('keydown', listener);

@@ -1,9 +1,9 @@
 // The local server: a JSON API over the srl CLI, and the built frontend.
 //
-// Every API route but /api/config runs srl commands. There is no SRS logic
+// Every API route but /api/config and /api/on-change runs srl commands. There is no SRS logic
 // here: scheduling belongs to srl (see docs/frontends.md).
 //
-//   GET  /api/config       nothing                     → { selector }
+//   GET  /api/config       nothing                     → { selector, on_change }
 //   GET  /api/next?sel=…   srl next SEL --json --context CONTEXT
 //                                                      → { card } or { card: null }
 //   POST /api/review       srl review --stdin          ← { card, rating, response? }
@@ -29,6 +29,13 @@
 //                                                      → { ids } or, with
 //                                                        dry_run, { text }
 //
+// With --on-change, the program runs after each change srl-web makes to the
+// store (review, suspend, add without dry_run; see on-change.js):
+//
+//   GET  /api/on-change    nothing                     → { busy, last }: last
+//                                                        is { seq, error } or
+//                                                        null before any run
+//
 // Errors are { error: MESSAGE } with status 400 (bad request) or 500 (srl
 // failed), MESSAGE being srl's own message when it comes from srl.
 
@@ -37,6 +44,7 @@ import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
 
+import { createOnChange } from './on-change.js';
 import { SrlError, runSrl } from './srl.js';
 
 // How much of the note to show after the answer: 'prose' (the note without its
@@ -79,13 +87,19 @@ class BadRequest extends Error {}
 
 // Creates the server. DIR is the store passed to srl as --dir (or
 // undefined, to let srl find it), SELECTOR the selector the page starts
-// with, and STATIC_DIR the built frontend, or undefined to serve the API
-// only (as in development, where Vite serves the frontend).
-export function createSrlServer({ dir, selector, staticDir }) {
+// with, STATIC_DIR the built frontend, or undefined to serve the API only
+// (as in development, where Vite serves the frontend), and ON_CHANGE the
+// program to run after each change, or undefined.
+export function createSrlServer({ dir, selector, staticDir, onChange }) {
   const srl = (args, input, signal) => runSrl(args, { dir, input, signal });
+  const hook = onChange ? createOnChange(onChange, dir) : null;
+  // Called once srl has made a change.
+  const changed = () => hook?.changed();
 
   const routes = {
-    'GET /api/config': async () => ({ selector }),
+    'GET /api/config': async () => ({ selector, on_change: hook !== null }),
+
+    'GET /api/on-change': async () => hook?.status() ?? { busy: false, last: null },
 
     'GET /api/next': async (url) => {
       const { found, stdout } = await srl(['next', '--json', '--context', CONTEXT, ...selectorArgs(url)]);
@@ -95,11 +109,13 @@ export function createSrlServer({ dir, selector, staticDir }) {
     // The body is passed to srl as it is: srl checks it.
     'POST /api/review': async (_url, body) => {
       await srl(['review', '--stdin'], JSON.stringify(body));
+      changed();
       return {};
     },
 
     'POST /api/suspend': async (_url, body) => {
       await srl(['suspend', `id:${requireId(body.card)}`]);
+      changed();
       return {};
     },
 
@@ -172,6 +188,9 @@ export function createSrlServer({ dir, selector, staticDir }) {
       // read as an option.
       const args = ['add', '--stdin', ...(dryRun ? ['--dry-run'] : []), '--', body.note];
       const { stdout } = await srl(args, JSON.stringify(body.item) + '\n');
+      if (!dryRun) {
+        changed();
+      }
       return dryRun ? { text: stdout } : { ids: stdout.split('\n').filter((line) => line.trim() !== '') };
     },
   };

@@ -12,14 +12,16 @@ import { parseArgs } from 'node:util';
 
 import { createSrlServer } from '../server/server.js';
 
-const USAGE = `usage: srl-web [--port N] [--dir DIR] [--no-open] [SELECTOR]
+const USAGE = `usage: srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open] [SELECTOR]
 
 Starts a web viewer for srl on http://localhost:PORT and opens it.
 
-  --port N    the port to listen on (default 4317; 0 picks a free one)
-  --dir DIR   the store, passed to srl as --dir (default: srl finds it)
-  --no-open   don't open the browser
-  SELECTOR    the cards to study, as in srl next (can be changed in the page)`;
+  --port N              the port to listen on (default 4317; 0 picks a free one)
+  --dir DIR             the store, passed to srl as --dir (default: srl finds it)
+  --on-change PROGRAM   run PROGRAM, with no arguments, after the page changes
+                        the store; the page shows its stderr when it fails
+  --no-open             don't open the browser
+  SELECTOR              the cards to study, as in srl next (can be changed in the page)`;
 
 const staticDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -30,6 +32,7 @@ try {
     options: {
       port: { type: 'string', default: '4317' },
       dir: { type: 'string' },
+      'on-change': { type: 'string' },
       'no-open': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
@@ -54,6 +57,7 @@ const server = createSrlServer({
   dir: values.dir && path.resolve(values.dir),
   selector: positionals.join(' '),
   staticDir,
+  onChange: values['on-change'],
 });
 server.on('error', (error) => {
   fail(error.code === 'EADDRINUSE' ? `port ${port} is in use; try --port` : error.message);

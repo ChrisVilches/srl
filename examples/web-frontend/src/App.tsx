@@ -5,6 +5,7 @@ import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
 import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges, Waiting } from './CardParts';
 import { useKeys, useStartWhenShown } from './hooks';
+import { OnChangeError } from './OnChange';
 import { SelectorInput, TopBar, type View } from './TopBar';
 
 const VIEWS: Record<View, ComponentType<{ active: boolean }>> = {
@@ -67,6 +68,7 @@ export default function App() {
           </div>
         );
       })}
+      <OnChangeError />
     </div>
   );
 }
