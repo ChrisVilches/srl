@@ -176,7 +176,10 @@ for something else, and update this section when they change.
   that, in a browser per scheme. Firefox over WebDriver BiDi has no key
   named `"Space"`: press `" "`.
 - Firefox's scrollbars stay light in the dark scheme, so `shoot.mjs` hides
-  them.
+  them, with a constructed stylesheet: `srl-web`'s Content-Security-Policy
+  (`style-src 'self'`) blocks the `<style>` tag `page.addStyleTag` adds,
+  which then never loads, and the call times out (`script.callFunction
+  timed out`).
 - Playwright's own browsers are a large download that may stall; that is
   why the system's Firefox is used.
 - In `srl-web`, inline code in notes shows its backticks, from the

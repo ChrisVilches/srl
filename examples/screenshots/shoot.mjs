@@ -62,8 +62,14 @@ async function web(out) {
     await page.evaluate((s) => localStorage.setItem('srl-web-theme', s), scheme);
     const size = (width) => page.setViewport({ width, height: 900, deviceScaleFactor: 2 });
     const shot = async (name) => {
-      // Firefox's scrollbars stay light in the dark scheme.
-      await page.addStyleTag({ content: '* { scrollbar-width: none !important; }' });
+      // Firefox's scrollbars stay light in the dark scheme. The style is a
+      // constructed sheet: srl-web's Content-Security-Policy blocks a
+      // <style> tag, such as page.addStyleTag adds, which then never loads.
+      await page.evaluate(() => {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync('* { scrollbar-width: none !important; }');
+        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+      });
       await sleep(700);
       const png = path.join(out, `web-${name}-${scheme}.png`);
       await page.screenshot({ path: png, fullPage: true });
