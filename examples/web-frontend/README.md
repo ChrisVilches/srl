@@ -18,7 +18,10 @@ macOS and Windows (it is tried on Linux only).
 - After the answer it shows the context in `prose` mode, under the name of
   its note; `CONTEXT` in `server/server.js` chooses the mode. A context
   from a note that isn't Markdown (by the extension of `context_address`),
-  such as a JSONL note, is shown as a code block.
+  such as a JSONL note, is shown as a code block, a JSONL one in colors.
+  A table wider than the page scrolls sideways in its own box, leaving
+  the text around it in place. A long ID or kind is cut short in the
+  card's header, whole in its tooltip.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
   card without recording a review, after asking why in a dialog: what to
   fix before studying it again. The reason may be left empty; Enter
@@ -27,7 +30,10 @@ macOS and Windows (it is tried on Linux only).
   an LLM, a spinner says so, with the seconds it has taken. Cards that
   come in under 300 ms replace the last one without it.
 - The selector can be changed in the page; the counters at the top are the
-  cards reviewed, the new ones among them, and the Again ratings.
+  cards reviewed, the new ones among them, and the Again ratings. The
+  selector submitted is kept in the address (`?study=`, and `?browse=` for
+  the card browser's), so reloading the page keeps it; without one, a
+  view starts with the selector srl-web was started with.
 - Dark, or light with the button at the right of the top bar. The choice
   is kept in the browser's localStorage, not taken from the system's
   setting, and is applied before the page is drawn, so it doesn't flash
@@ -44,7 +50,7 @@ as how `ja_word` marks words, without studying:
 - Choosing a card makes it with `srl cards`, running its kind program, and
   shows it as studying does: the prompt, or, turned, the revealed prompt,
   the answer and the context. The JSON side shows the card as `srl cards
-  --json` prints it. A card suspended with a reason shows the reason above
+  --json` prints it, in colors. A card suspended with a reason shows the reason above
   it, so `status:suspended` lists the cards to fix, and what to fix.
 - A kind program can take a while: the page counts the seconds while it
   runs. A card is made once it has stayed chosen
