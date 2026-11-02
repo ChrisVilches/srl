@@ -666,7 +666,7 @@ coverage that runs on every `cargo test`:
 Each step is a commit that builds, passes the four checks of
 [../rust.md](../rust.md), "After every change", and leaves the
 specification, guides and examples describing what it does. The first
-phase changes only names; the second only the code's structure; the
+phase changes names and one small context rule; the second only the code's structure; the
 specification changes for real from the third on.
 
 ### Phase 1: names, and one small rule
