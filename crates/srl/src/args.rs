@@ -149,6 +149,10 @@ pub(crate) enum Command {
     Suspend {
         #[command(flatten)]
         selector: Selector,
+        /// Why, kept with the suspension; it replaces the reason of cards
+        /// already suspended.
+        #[arg(long)]
+        reason: Option<String>,
         #[command(flatten)]
         dry_run: DryRun,
     },

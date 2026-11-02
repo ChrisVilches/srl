@@ -80,7 +80,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl add ADDRESS --stdin` | Append new items to the collection at `ADDRESS`, such as a note's path (see "Adding items" below). Prints the new item IDs. |
 | `srl edit --stdin` | Replace items, in any source, with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). The rest of each note is unchanged. Prints the IDs of the items. |
 | `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
-| `srl suspend SELECTOR` | Suspend matching active cards. |
+| `srl suspend SELECTOR [--reason TEXT]` | Suspend matching active cards, saying why if `--reason` is given (see below). |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
 | `srl move FROM TO` | Give the history of the orphan `FROM` to the card `TO` (see [scheduling.md](scheduling.md), "Moving history"). Prints nothing; with `--dry-run`, the event it would write. |
 
@@ -89,10 +89,14 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 ```json
 {"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo-mono-tomo-sezu.md",
  "source": "notes", "file": "japanese/grammar/wo-mono-tomo-sezu.md",
- "line": 10, "status": "active", "state": "due", "due": "2026-10-24"}
+ "line": 10, "status": "active", "state": "due", "due": "2026-10-24",
+ "suspend_reason": null}
 ```
 
-`due` is the study day the card is due, or `null` for a new card. `srl show
+`due` is the study day the card is due, or `null` for a new card.
+`suspend_reason` is why the card is suspended, the `reason` of its last
+`suspend` event (see [log.md](log.md)), or `null` if the card is not
+suspended or was suspended without one. `srl show
 --json` prints one item object per item, with every entry and the keys
 only `srl` gives (see [notes.md](notes.md), "The item object"). Without
 `--json`, `srl show` prints, for each item: a line `ADDRESS:LINE`, the item as
@@ -177,7 +181,10 @@ the reason, exit 2, and prints no card at all.
 
 `srl accept`, `srl suspend` and `srl unsuspend` apply the selector exactly
 as written, and change only matching cards that have the status they start
-from: `srl suspend in:x` doesn't touch drafts. `srl accept` prints the item
+from: `srl suspend in:x` doesn't touch drafts. One exception: `srl
+suspend --reason TEXT` suspends matching cards that are already suspended
+again too, so that the new reason replaces theirs; every card it changes
+gets the same reason. An empty `TEXT` is no reason. `srl accept` prints the item
 IDs it changed, the others the card IDs, one per line in the order they are
 written, and each exits with 1 if it changed nothing. `srl accept` changes
 notes (see [notes.md](notes.md), "How srl writes to notes"); the others
@@ -323,8 +330,9 @@ where `retention` is a number from 0 to 1, or `null`.
 
 `srl log` prints one line per event, its fields separated by two spaces:
 the time, the card, and then `review`, the rating and who recorded it;
-`reset`; `suspend`; `unsuspend`; or `move` and the card the history came
-from. A `move` event belongs to the card it moved history to.
+`reset`; `suspend` and the first line of its reason, if it has one;
+`unsuspend`; or `move` and the card the history came from. A `move` event
+belongs to the card it moved history to.
 
 ## Checking
 

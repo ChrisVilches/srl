@@ -37,7 +37,7 @@ pub enum Event {
     Review(Review),
     Reset(CardEvent),
     Move(Move),
-    Suspend(CardEvent),
+    Suspend(Suspend),
     Unsuspend(CardEvent),
 }
 
@@ -57,13 +57,24 @@ pub struct Review {
     pub hash: String,
 }
 
-/// An event about one card with nothing else to say: `reset`, `suspend`,
-/// `unsuspend`.
+/// An event about one card with nothing else to say: `reset`, `unsuspend`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CardEvent {
     pub t: String,
     pub card: CardId,
+}
+
+/// A card was suspended (see `docs/log.md`, "`suspend` and `unsuspend`").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Suspend {
+    pub t: String,
+    pub card: CardId,
+    /// Why, if it was given. Lines written before there were reasons have
+    /// no `reason`, and are read as without one.
+    #[serde(default)]
+    pub reason: Option<String>,
 }
 
 /// One card's history goes to another (see `docs/log.md`, "`move`").
@@ -89,7 +100,8 @@ impl Event {
     pub fn card(&self) -> &CardId {
         match self {
             Self::Review(review) => &review.card,
-            Self::Reset(event) | Self::Suspend(event) | Self::Unsuspend(event) => &event.card,
+            Self::Reset(event) | Self::Unsuspend(event) => &event.card,
+            Self::Suspend(event) => &event.card,
             Self::Move(moved) => &moved.to,
         }
     }
@@ -97,7 +109,8 @@ impl Event {
     pub fn t(&self) -> &str {
         match self {
             Self::Review(review) => &review.t,
-            Self::Reset(event) | Self::Suspend(event) | Self::Unsuspend(event) => &event.t,
+            Self::Reset(event) | Self::Unsuspend(event) => &event.t,
+            Self::Suspend(event) => &event.t,
             Self::Move(moved) => &moved.t,
         }
     }
@@ -363,15 +376,22 @@ mod tests {
                 "from": "x7k2m9", "to": "x7k2m9.1"})
         );
         assert_eq!(moved.card(), &card("x7k2m9.1"));
-        let suspended = Event::Suspend(CardEvent {
+        let suspended = Event::Suspend(Suspend {
             t: "2026-10-26T10:10:00+09:00".to_owned(),
             card: card("x7k2m9"),
+            reason: Some("too hard for now".to_owned()),
         });
         assert_eq!(
             serde_json::to_value(&suspended).unwrap(),
             serde_json::json!({"type": "suspend", "t": "2026-10-26T10:10:00+09:00",
-                "card": "x7k2m9"})
+                "card": "x7k2m9", "reason": "too hard for now"})
         );
+        // Lines written before there were reasons have none.
+        let old: Event = serde_json::from_str(
+            r#"{"type": "suspend", "t": "2026-10-26T10:10:00+09:00", "card": "x7k2m9"}"#,
+        )
+        .unwrap();
+        assert!(matches!(old, Event::Suspend(Suspend { reason: None, .. })));
     }
 
     #[test]

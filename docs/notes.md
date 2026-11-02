@@ -292,6 +292,9 @@ Drafts exist so that items written by a program, such as a generator or
 an import, never enter your study queue without your approval. `srl accept SELECTOR` removes `draft`
 from the matching items. Suspending is about studying, not
 about the note, so it is recorded in the log and never changes the note.
+A suspension may say why (`srl suspend --reason`), such as what to fix
+in the item before studying it again; `srl find --json` gives it as
+`suspend_reason`.
 
 ## Context
 

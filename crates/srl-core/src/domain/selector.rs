@@ -366,9 +366,10 @@ mod tests {
         let day = date(2026, 1, 1);
         let entries = vec![
             Entry {
-                event: Event::Suspend(crate::CardEvent {
+                event: Event::Suspend(crate::Suspend {
                     t: "2026-01-01T12:00:00+00:00".to_owned(),
                     card: CardId::parse("aaa4").unwrap(),
+                    reason: None,
                 }),
                 day,
             },

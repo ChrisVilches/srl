@@ -38,6 +38,8 @@ pub struct Memory {
     pub due: Option<Date>,
     /// Whether the card is suspended.
     pub suspended: bool,
+    /// Why, if its last `suspend` said, while it is suspended.
+    pub suspend_reason: Option<String>,
     /// Its last review, whether before or after a reset, for the sibling
     /// rule (see `docs/scheduling.md`, "Siblings").
     pub seen: Option<Seen>,
@@ -151,6 +153,7 @@ impl Replayer {
                 let old = memory(memories, &event.card);
                 let next = Memory {
                     suspended: old.suspended,
+                    suspend_reason: old.suspend_reason,
                     seen: old.seen,
                     touched: true,
                     ..Memory::default()
@@ -158,10 +161,22 @@ impl Replayer {
                 memories.insert(event.card.clone(), next);
                 Ok((vec![event.card.clone()], None))
             }
-            Event::Suspend(event) | Event::Unsuspend(event) => {
+            Event::Suspend(event) => {
                 let old = memory(memories, &event.card);
                 let next = Memory {
-                    suspended: matches!(entry.event, Event::Suspend(_)),
+                    suspended: true,
+                    suspend_reason: event.reason.clone(),
+                    touched: true,
+                    ..old
+                };
+                memories.insert(event.card.clone(), next);
+                Ok((vec![event.card.clone()], None))
+            }
+            Event::Unsuspend(event) => {
+                let old = memory(memories, &event.card);
+                let next = Memory {
+                    suspended: false,
+                    suspend_reason: None,
                     touched: true,
                     ..old
                 };
@@ -248,6 +263,13 @@ impl Memories {
     /// Whether card `id` is suspended.
     pub fn is_suspended(&self, id: &CardId) -> bool {
         self.get(id).suspended
+    }
+
+    /// Why card `id` is suspended, if its last `suspend` said.
+    pub fn suspend_reason(&self, id: &CardId) -> Option<String> {
+        self.by_card
+            .get(id)
+            .and_then(|memory| memory.suspend_reason.clone())
     }
 
     /// Whether card `id` was reviewed on today's study day.
@@ -338,7 +360,7 @@ mod tests {
     use jiff::civil::date;
 
     use super::*;
-    use crate::{By, CardEvent, Entry, Move, Review};
+    use crate::{By, CardEvent, Entry, Move, Review, Suspend};
 
     fn id() -> CardId {
         CardId::parse("a7f3k2").unwrap()
@@ -367,6 +389,17 @@ mod tests {
             event: make(CardEvent {
                 t: at(day),
                 card: id(),
+            }),
+            day,
+        }
+    }
+
+    fn suspend(day: Date, reason: Option<&str>) -> Entry {
+        Entry {
+            event: Event::Suspend(Suspend {
+                t: at(day),
+                card: id(),
+                reason: reason.map(str::to_owned),
             }),
             day,
         }
@@ -430,7 +463,7 @@ mod tests {
         let memories = replay(
             vec![
                 review(day, 3),
-                card_event(day, Event::Suspend),
+                suspend(day, Some("too hard")),
                 card_event(day, Event::Reset),
             ],
             day,
@@ -438,6 +471,7 @@ mod tests {
         assert_eq!(memories.state(&id()), State::New);
         assert_eq!(memories.get(&id()).seen.map(|seen| seen.position), Some(0));
         assert!(memories.is_suspended(&id()));
+        assert_eq!(memories.suspend_reason(&id()).as_deref(), Some("too hard"));
         assert_eq!(memories.new_today(), 0);
     }
 
@@ -445,14 +479,36 @@ mod tests {
     fn the_last_suspend_or_unsuspend_decides() {
         let day = date(2026, 1, 1);
         let memories = replay(
-            vec![
-                card_event(day, Event::Suspend),
-                card_event(day, Event::Unsuspend),
-            ],
+            vec![suspend(day, None), card_event(day, Event::Unsuspend)],
             day,
         );
         assert!(!memories.is_suspended(&id()));
         assert!(memories.get(&id()).touched);
+    }
+
+    #[test]
+    fn the_reason_is_the_last_suspends_while_suspended() {
+        let day = date(2026, 1, 1);
+        let reason = |entries| replay(entries, day).suspend_reason(&id());
+        assert_eq!(
+            reason(vec![
+                suspend(day, Some("ugly")),
+                suspend(day, Some("split it"))
+            ])
+            .as_deref(),
+            Some("split it")
+        );
+        assert_eq!(
+            reason(vec![suspend(day, Some("ugly")), suspend(day, None)]),
+            None
+        );
+        assert_eq!(
+            reason(vec![
+                suspend(day, Some("ugly")),
+                card_event(day, Event::Unsuspend)
+            ]),
+            None
+        );
     }
 
     #[test]

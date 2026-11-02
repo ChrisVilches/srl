@@ -277,10 +277,10 @@ fn find_json_prints_one_card_per_line() {
         [
             serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo.md",
                 "source": "notes", "file": "japanese/grammar/wo.md",
-                "line": 10, "status": "active", "state": "new", "due": null}),
+                "line": 10, "status": "active", "state": "new", "due": null, "suspend_reason": null}),
             serde_json::json!({"id": "saba01", "item": "saba01", "address": "kanji/fish.md",
                 "source": "notes", "file": "kanji/fish.md",
-                "line": 6, "status": "draft", "state": "new", "due": null}),
+                "line": 6, "status": "draft", "state": "new", "due": null, "suspend_reason": null}),
         ]
     );
 }
@@ -456,6 +456,38 @@ fn drafts_move_through_accept_and_cards_through_suspend() {
     assert_eq!(lines(&back), ["k3m9q1.2", "tuna01"]);
     // Suspending never changes a note.
     assert!(!read(&tmp, "kanji/fish.md").contains("suspend"));
+}
+
+#[test]
+fn a_suspension_keeps_its_reason_until_another_replaces_it() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let reason = |tmp: &TempDir| {
+        json_lines(&srl(&["find", "id:tuna01", "--json", "--dir", dir(tmp)]))[0]["suspend_reason"]
+            .clone()
+    };
+    assert_eq!(reason(&tmp), serde_json::Value::Null);
+    srl(&[
+        "suspend",
+        "id:tuna01",
+        "--reason",
+        "too hard\nfor now",
+        "--dir",
+        d,
+    ]);
+    assert_eq!(reason(&tmp), "too hard\nfor now");
+    // Without a reason, a suspended card is left alone; with one, it is
+    // suspended again.
+    let again = srl(&["suspend", "id:tuna01", "--dir", d]);
+    assert_eq!(again.status.code(), Some(1));
+    let again = srl(&["suspend", "id:tuna01", "--reason", "split it", "--dir", d]);
+    assert_eq!(lines(&again), ["tuna01"]);
+    assert_eq!(reason(&tmp), "split it");
+    let log = lines(&srl(&["log", "id:tuna01", "--dir", d]));
+    assert!(log[0].ends_with("  tuna01  suspend  too hard"), "{log:?}");
+    assert!(log[1].ends_with("  tuna01  suspend  split it"), "{log:?}");
+    srl(&["unsuspend", "id:tuna01", "--dir", d]);
+    assert_eq!(reason(&tmp), serde_json::Value::Null);
 }
 
 #[test]

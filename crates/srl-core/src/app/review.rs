@@ -7,7 +7,7 @@ use serde::Deserialize;
 use crate::log;
 use crate::{
     By, CardEvent, CardId, Catalog, Error, Event, Item, Memories, Move, Result, Review, State,
-    Store,
+    Store, Suspend,
 };
 
 /// What `srl review --stdin` reads: a card ID, its rating, and optionally
@@ -99,27 +99,53 @@ pub fn reset(
     Ok(ids)
 }
 
-/// Suspends (`suspend` true) or unsuspends each of `selected` that is
-/// active, or suspended, and returns their IDs. Drafts are left alone.
+/// Suspends each of `selected` that is active, with `reason` if given, and
+/// returns their IDs. With a reason, cards already suspended are suspended
+/// again, so that it replaces theirs. Drafts are left alone.
 pub fn suspend(
     store: &Store,
     selected: &[(&Item, &CardId)],
     memories: &Memories,
-    suspend: bool,
+    reason: Option<&str>,
     now: &Zoned,
     dry_run: bool,
 ) -> Result<Vec<CardId>> {
     let ids = selected
         .iter()
-        .filter(|(item, card)| !item.is_draft() && memories.is_suspended(card) != suspend)
+        .filter(|(item, card)| {
+            !item.is_draft() && (reason.is_some() || !memories.is_suspended(card))
+        })
         .map(|(_, card)| (*card).clone())
         .collect::<Vec<_>>();
-    let kind = if suspend {
-        Event::Suspend
-    } else {
-        Event::Unsuspend
-    };
-    write(store, card_events(&ids, now, kind), dry_run)?;
+    let events = ids
+        .iter()
+        .map(|id| {
+            Event::Suspend(Suspend {
+                t: log::time(now),
+                card: id.clone(),
+                reason: reason.map(str::to_owned),
+            })
+        })
+        .collect();
+    write(store, events, dry_run)?;
+    Ok(ids)
+}
+
+/// Unsuspends each of `selected` that is suspended, and returns their IDs.
+/// Drafts are left alone.
+pub fn unsuspend(
+    store: &Store,
+    selected: &[(&Item, &CardId)],
+    memories: &Memories,
+    now: &Zoned,
+    dry_run: bool,
+) -> Result<Vec<CardId>> {
+    let ids = selected
+        .iter()
+        .filter(|(item, card)| !item.is_draft() && memories.is_suspended(card))
+        .map(|(_, card)| (*card).clone())
+        .collect::<Vec<_>>();
+    write(store, card_events(&ids, now, Event::Unsuspend), dry_run)?;
     Ok(ids)
 }
 
@@ -290,13 +316,32 @@ mod tests {
     fn suspend_and_unsuspend_skip_drafts_and_cards_already_there() {
         let (_tmp, store, notes) = store();
         let all = notes.cards().collect::<Vec<_>>();
-        let suspended = suspend(&store, &all, &memories(&store), true, &now(), false).unwrap();
+        let suspended = suspend(&store, &all, &memories(&store), None, &now(), false).unwrap();
         assert_eq!(suspended.len(), 3);
-        let again = suspend(&store, &all, &memories(&store), true, &now(), false).unwrap();
+        let again = suspend(&store, &all, &memories(&store), None, &now(), false).unwrap();
         assert_eq!(again, [] as [CardId; 0]);
-        let back = suspend(&store, &all[..1], &memories(&store), false, &now(), false).unwrap();
+        let back = unsuspend(&store, &all[..1], &memories(&store), &now(), false).unwrap();
         assert_eq!(back, [CardId::parse("aaa1").unwrap()]);
         assert!(!memories(&store).is_suspended(&CardId::parse("aaa1").unwrap()));
+        let again = unsuspend(&store, &all[..1], &memories(&store), &now(), false).unwrap();
+        assert_eq!(again, [] as [CardId; 0]);
+    }
+
+    #[test]
+    fn a_reason_replaces_the_reason_of_cards_already_suspended() {
+        let (_tmp, store, notes) = store();
+        let all = notes.cards().collect::<Vec<_>>();
+        let id = CardId::parse("aaa1").unwrap();
+        suspend(&store, &all[..1], &memories(&store), None, &now(), false).unwrap();
+        assert_eq!(memories(&store).suspend_reason(&id), None);
+        let again = suspend(&store, &all, &memories(&store), Some("ugly"), &now(), false).unwrap();
+        assert_eq!(again.len(), 3);
+        assert_eq!(
+            memories(&store).suspend_reason(&id).as_deref(),
+            Some("ugly")
+        );
+        unsuspend(&store, &all[..1], &memories(&store), &now(), false).unwrap();
+        assert_eq!(memories(&store).suspend_reason(&id), None);
     }
 
     #[test]

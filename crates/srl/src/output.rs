@@ -109,7 +109,10 @@ pub(crate) fn events(events: &[&Event]) {
                 format!("review  {}  {by}", review.rating)
             }
             Event::Reset(_) => "reset".to_owned(),
-            Event::Suspend(_) => "suspend".to_owned(),
+            Event::Suspend(suspended) => match &suspended.reason {
+                Some(reason) => format!("suspend  {}", reason.lines().next().unwrap_or("")),
+                None => "suspend".to_owned(),
+            },
             Event::Unsuspend(_) => "unsuspend".to_owned(),
             Event::Move(moved) => format!("move  {}", moved.from),
         };

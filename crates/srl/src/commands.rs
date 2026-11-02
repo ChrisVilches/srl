@@ -52,12 +52,18 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         } => accept(&store()?, &selector(&terms.terms)?, dry_run.dry_run),
         Command::Suspend {
             selector: terms,
+            reason,
             dry_run,
-        } => suspend(&store()?, &selector(&terms.terms)?, true, dry_run.dry_run),
+        } => suspend(
+            &store()?,
+            &selector(&terms.terms)?,
+            reason.as_deref(),
+            dry_run.dry_run,
+        ),
         Command::Unsuspend {
             selector: terms,
             dry_run,
-        } => suspend(&store()?, &selector(&terms.terms)?, false, dry_run.dry_run),
+        } => unsuspend(&store()?, &selector(&terms.terms)?, dry_run.dry_run),
         Command::Move { from, to, dry_run } => move_history(&store()?, &from, &to, dry_run.dry_run),
         Command::Next {
             selector: terms,
@@ -279,6 +285,7 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
                     "status": Status::of(item, card, memories),
                     "state": state_name(memories.state(card)),
                     "due": memories.get(card).due.map(|day| day.to_string()),
+                    "suspend_reason": memories.suspend_reason(card),
                 })
             })
             .collect::<Vec<_>>();
@@ -425,12 +432,12 @@ fn accept(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Result<O
     Ok(found_anything(!written.is_empty()))
 }
 
-/// `srl suspend` and `srl unsuspend`: prints the IDs of the cards that
-/// changed.
+/// `srl suspend`: prints the IDs of the cards that changed. An empty
+/// reason is no reason.
 fn suspend(
     store: &Store,
     selector: &Selector,
-    suspend: bool,
+    reason: Option<&str>,
     dry_run: bool,
 ) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
@@ -439,10 +446,19 @@ fn suspend(
         store,
         &selected,
         &loaded.memories,
-        suspend,
+        reason.filter(|reason| !reason.is_empty()),
         &loaded.now,
         dry_run,
     )?;
+    output::ids(&changed);
+    Ok(found_anything(!changed.is_empty()))
+}
+
+/// `srl unsuspend`: prints the IDs of the cards that changed.
+fn unsuspend(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Result<Outcome> {
+    let loaded = open(store)?;
+    let selected = select(&loaded, selector);
+    let changed = srl_core::unsuspend(store, &selected, &loaded.memories, &loaded.now, dry_run)?;
     output::ids(&changed);
     Ok(found_anything(!changed.is_empty()))
 }

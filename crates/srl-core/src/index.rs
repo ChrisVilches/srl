@@ -24,7 +24,7 @@ use crate::{CardId, Config, Error, History, Log, Memory, Result, Reviewed, Store
 
 /// The version of the tables below. Change it whenever they, or what they
 /// mean, change: a cache of another version is rebuilt.
-const SCHEMA_VERSION: i64 = 6;
+const SCHEMA_VERSION: i64 = 7;
 
 /// The tables. Their layout is not a contract (see `docs/store.md`).
 const SCHEMA: &str = "
@@ -35,7 +35,8 @@ CREATE TABLE log_problems (seq INTEGER PRIMARY KEY, name TEXT NOT NULL, line INT
     reason TEXT NOT NULL);
 CREATE TABLE memories (card TEXT PRIMARY KEY, reviews INTEGER NOT NULL, lapses INTEGER NOT NULL,
     stability REAL, difficulty REAL, first_review TEXT, last_review TEXT, due TEXT,
-    suspended INTEGER NOT NULL, seen_position INTEGER, seen_day TEXT, touched INTEGER NOT NULL);
+    suspended INTEGER NOT NULL, suspend_reason TEXT, seen_position INTEGER, seen_day TEXT,
+    touched INTEGER NOT NULL);
 CREATE TABLE reviews (seq INTEGER PRIMARY KEY, card TEXT NOT NULL, day TEXT NOT NULL,
     rating INTEGER NOT NULL, was_new INTEGER NOT NULL);
 CREATE TABLE kind_answers (key TEXT PRIMARY KEY, answer TEXT NOT NULL, kind TEXT NOT NULL,
@@ -633,8 +634,8 @@ fn insert_memory(
     execute(
         transaction,
         "INSERT OR REPLACE INTO memories (card, reviews, lapses, stability, difficulty, \
-         first_review, last_review, due, suspended, seen_position, seen_day, touched) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+         first_review, last_review, due, suspended, suspend_reason, seen_position, seen_day, \
+         touched) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         (
             id.to_string(),
             to_i64(memory.reviews),
@@ -645,6 +646,7 @@ fn insert_memory(
             memory.last_review.map(|day| day.to_string()),
             memory.due.map(|day| day.to_string()),
             memory.suspended,
+            memory.suspend_reason.as_deref(),
             memory.seen.map(|seen| to_i64(seen.position)),
             memory.seen.map(|seen| seen.day.to_string()),
             memory.touched,
@@ -664,6 +666,7 @@ type MemoryRow = (
     Option<String>,
     Option<String>,
     bool,
+    Option<String>,
     Option<i64>,
     Option<String>,
     bool,
@@ -675,7 +678,7 @@ fn cached_memories(
     transaction
         .prepare(
             "SELECT card, reviews, lapses, stability, difficulty, first_review, last_review, \
-             due, suspended, seen_position, seen_day, touched FROM memories",
+             due, suspended, suspend_reason, seen_position, seen_day, touched FROM memories",
         )?
         .query_map([], |row| {
             Ok((
@@ -691,6 +694,7 @@ fn cached_memories(
                 row.get(9)?,
                 row.get(10)?,
                 row.get(11)?,
+                row.get(12)?,
             ))
         })?
         .map(|row: rusqlite::Result<MemoryRow>| {
@@ -712,6 +716,7 @@ fn memory_row(row: &MemoryRow) -> std::result::Result<Memory, Failure> {
         last,
         due,
         suspended,
+        suspend_reason,
         position,
         day,
         touched,
@@ -748,6 +753,7 @@ fn memory_row(row: &MemoryRow) -> std::result::Result<Memory, Failure> {
         last_review: last.as_deref().map(to_date).transpose()?,
         due: due.as_deref().map(to_date).transpose()?,
         suspended: *suspended,
+        suspend_reason: suspend_reason.clone(),
         seen,
         touched: *touched,
     })
@@ -885,6 +891,11 @@ mod tests {
             &store,
             "log/2026-10.jsonl",
             &event("suspend", "2026-10-02T11:00:00+09:00", "aaa1"),
+        );
+        append(
+            &store,
+            "log/2026-10.jsonl",
+            "{\"type\":\"suspend\",\"t\":\"2026-10-02T11:30:00+09:00\",\"card\":\"aaa2.1\",\"reason\":\"too hard\"}\n",
         );
         append(
             &store,

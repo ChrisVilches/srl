@@ -48,7 +48,8 @@ knows where the card came from, such as a kind whose program draws a new
 question each time, like an arithmetic drill.
 
 A frontend may offer more, with the other commands everyone has: suspending the
-card (`srl suspend id:ID`), opening its note (the file at `file`, relative
+card (`srl suspend id:ID`, with `--reason TEXT` if the person says why,
+so that they can fix the card later), opening its note (the file at `file`, relative
 to the store's folder, in an editor of its choice), or a summary at the
 end, counting the
 cards whose `state` was `new`.
