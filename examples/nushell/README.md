@@ -24,7 +24,7 @@ real `srl` as `^srl`, so `srl` must be on your PATH.
 - **The commands that read data give Nushell data.** These are the commands
   with `--json` (see [docs/cli.md](../../docs/cli.md), "Conventions"). The
   wrapper adds `--json` to them and parses what `srl` prints. Commands that
-  print a list (`find`, `show`, `cards`, `collections`, `kinds`, `log`) give a
+  print a list (`find`, `show`, `cards`, `collections`, `sources`, `kinds`, `log`) give a
   table. `next` and `stats` give a record. Writing `--json` yourself
   changes nothing.
 - **`--raw` gives `srl`'s text instead**, for one command:

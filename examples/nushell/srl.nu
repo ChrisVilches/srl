@@ -4,7 +4,7 @@
 
 # Commands that have --json (docs/cli.md, "Conventions"). The wrapper adds
 # --json to them; any other command runs as it is.
-const DATA = [find show cards collections kinds next stats log]
+const DATA = [find show cards collections sources kinds next stats log]
 # Of those, the ones whose --json prints one object rather than a list.
 const SINGLE = [next stats]
 
@@ -20,7 +20,7 @@ def subcommand [args: list<string>] {
     null
 }
 
-# Run srl. The commands that read data (find, show, cards, collections, kinds,
+# Run srl. The commands that read data (find, show, cards, collections, sources, kinds,
 # next, stats, log) give Nushell data: a table, or a record for `next` and
 # `stats`; --raw gives srl's text instead. A list or record piped in is
 # written to srl as JSONL, for `add`, `edit` and `review` with --stdin.

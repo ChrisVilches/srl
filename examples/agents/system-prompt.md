@@ -240,6 +240,7 @@ Terms separated by spaces must all match; a comma means or; `-` means not.
 |---|---|
 | `in:NAME` | notes in a folder `NAME`, or a note named `NAME` plus an extension (`NAME.md`, …) |
 | `path:GLOB` | note paths: `'path:rust/*'`, `'path:japanese/**'` (quote globs in the shell) |
+| `source:NAME` | items of one source of the store (`srl sources` lists them) |
 | `id:ID` | a card, or every card of an item |
 | `kind:K` | items of a kind: `qa` (also items with no `kind:`) or a kind in `[kinds]` |
 | `status:S` | `active`, `draft`, `suspended` |

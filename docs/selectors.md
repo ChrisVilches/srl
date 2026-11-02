@@ -23,6 +23,7 @@ selector it didn't write puts it after `--`.
 |---|---|
 | `in:NAME` | Cards whose item's address (its note's path, see [notes.md](notes.md), "Which files are notes") has a part between `/` named `NAME`, or a last part named `NAME` without its extension (the part after the last `.`). Names are compared ignoring case, in Unicode NFC: `in:grammar` matches `japanese/Grammar/wo.md`, `grammar.md` and `grammar.txt`, but not `grammar-notes.md`. |
 | `path:GLOB` | Cards whose item's address (its note's path, relative to the store's folder) matches the glob. `*` matches within one part between `/`, `**` across parts: `path:japanese/*` is the notes directly in `japanese/`, `path:japanese/**` everything below it. Addresses and globs are compared in Unicode NFC (see [store.md](store.md), "File names"). |
+| `source:NAME` | Cards whose item comes from the source `NAME` of `.srl/config.toml` (see [sources.md](sources.md)): `source:notes` is the cards of the notes of a store without `[sources]`. |
 | `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1.1` and `k3m9q1.2`. |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind` entry, or a kind named in `[kinds]` of `.srl/config.toml` (see [cards.md](cards.md), "Kinds"). A selector without `kind:` matches items of every kind. |
 | `status:S` | Cards with status `active`, `draft` or `suspended` (see [notes.md](notes.md), "Status") |
@@ -47,9 +48,10 @@ example is for POSIX shells (sh, bash, zsh) and PowerShell 7.3 or later.
 In Windows PowerShell 5.1, write `srl find '\"some words\"'`; in `cmd.exe`,
 write `srl find "\"some words\""`.
 
-A value can't be empty (`in:` or `in:a,,b`), and `id:`, `kind:`, `status:`
-and `state:` values must be valid IDs, kinds, statuses and states. So a
-typo such as `kind:ja-word` fails instead of matching nothing.
+A value can't be empty (`in:` or `in:a,,b`), and `source:`, `id:`, `kind:`,
+`status:` and `state:` values must be sources of the store, valid IDs,
+kinds, statuses and states. So a typo such as `kind:ja-word` fails instead
+of matching nothing.
 
 Three combining rules, and nothing else:
 

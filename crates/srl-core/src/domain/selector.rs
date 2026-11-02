@@ -9,7 +9,7 @@ use crate::store::nfc;
 use crate::{CardId, Config, Error, Item, Kind, Memories, Result, State};
 
 /// The keys of `key:value` terms.
-const KEYS: &str = "in, path, id, kind, status, state";
+const KEYS: &str = "in, path, source, id, kind, status, state";
 
 /// A parsed selector: cards match when they match every term.
 #[derive(Debug, Clone)]
@@ -29,6 +29,8 @@ enum Filter {
     /// Names in NFC, lowercased.
     In(Vec<String>),
     Path(GlobSet),
+    /// Names of sources.
+    Source(Vec<String>),
     /// Card IDs, or item IDs that stand for all their cards.
     Id(Vec<CardId>),
     Kind(Vec<Kind>),
@@ -163,6 +165,7 @@ impl Filter {
         match self {
             Self::In(wanted) => names(item.address()).any(|name| wanted.contains(&name)),
             Self::Path(globs) => globs.is_match(nfc(item.address())),
+            Self::Source(names) => names.iter().any(|name| name == item.source()),
             Self::Id(ids) => ids.iter().any(|id| match id.suffix() {
                 Some(_) => id == card,
                 None => id.item() == item.id(),
@@ -225,6 +228,16 @@ fn keyed(key: &str, values: &str, config: &Config) -> std::result::Result<Filter
                 .collect(),
         )),
         "path" => globs(&values).map(Filter::Path),
+        "source" => each(&values, |value| {
+            if config.sources.contains_key(value) {
+                Ok(value.to_owned())
+            } else {
+                Err(format!(
+                    "`{value}` is not a source of the store; `srl sources` lists them"
+                ))
+            }
+        })
+        .map(Filter::Source),
         "id" => each(&values, |value| {
             CardId::parse(value).map_err(|error| error.to_string())
         })
@@ -395,6 +408,13 @@ mod tests {
     #[test]
     fn empty_selector_matches_every_card() {
         assert_eq!(pick(""), ["aaa1", "aaa2.1", "aaa2.2", "aaa3", "aaa4"]);
+    }
+
+    #[test]
+    fn source_matches_the_items_of_named_sources_of_the_store() {
+        assert_eq!(pick("source:notes").len(), 5);
+        assert_eq!(pick("-source:notes"), Vec::<String>::new());
+        assert!(Selector::parse("source:nope", &Config::default()).is_err());
     }
 
     #[test]

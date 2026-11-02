@@ -1543,6 +1543,8 @@ fn sources_read_their_notes_each_with_its_driver_and_prefix() {
     );
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
     assert!(read(&tmp, "vocab/new.jsonl").contains("\"Q\":\"r\""));
+    let found = srl(&["find", "source:vocab", "--dir", d]);
+    assert_eq!(lines(&found).len(), 2, "{}", stderr(&found));
     let sources = srl(&["sources", "--json", "--dir", d]);
     let sources = json_lines(&sources);
     assert_eq!(sources[1]["name"], "vocab");
