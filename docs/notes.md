@@ -347,7 +347,7 @@ Only four commands ever change a note:
 |---|---|
 | `srl id` | Gives an ID to the items that have none. |
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
-| `srl add NOTE` | Appends new items to the end of `NOTE`, or creates it. |
+| `srl add ADDRESS` | Appends new items to the end of the note at `ADDRESS`, or creates it. |
 | `srl edit --stdin` | Replaces the lines of the items it is given with new ones, for scripts and other programs. |
 
 Every other command only reads notes. The rules for writing:

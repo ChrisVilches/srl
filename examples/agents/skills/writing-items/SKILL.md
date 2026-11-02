@@ -199,7 +199,7 @@ leaves the old card's history behind; see the `fixing-problems` skill.
 ## Adding items with `srl add`
 
 ```sh
-srl add NOTE [--dry-run] --stdin
+srl add ADDRESS [--dry-run] --stdin
 ```
 
 One item object per line on standard input: one JSON object. The
@@ -210,10 +210,12 @@ fields, and their values the fields' text. In a Markdown note, a newline in
 a value (`\n` in JSON) becomes a continuation line, and each item gets an
 srl block of its own, with a fence long enough for the code blocks in its
 fields; in a JSONL note, each item is one line,
-the object itself. `NOTE` is relative to the store's folder, must be a
+the object itself. `ADDRESS` names the note: its path relative to the
+store's folder (after the prefix of its source, if it has one), and it must be a
 note of a source (by default, end in `.md`; see `srl sources`), and
 is created with its folders if it doesn't exist. `srl collections` lists the
-notes, also those without items, for `NOTE` and `"see"`. Items are
+notes by their addresses, also those without items, for `ADDRESS` and
+`"see"`. Items are
 appended at the end, and their IDs are printed. Every line is checked
 first, by the same rules as reading notes, kind programs included: one
 bad line and nothing is added. So `--dry-run` is the way to know whether

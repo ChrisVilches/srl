@@ -142,7 +142,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json --context prose` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `path`, `see` and `context`, as `srl next --json` gives them |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
 | `GET /api/collections` | `srl collections --json` | `{"collections": [ADDRESS…]}` |
-| `POST /api/add` | `srl add NOTE --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"note": NOTE, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, the item as it would be written, for a dry run |
+| `POST /api/add` | `srl add ADDRESS --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"note": ADDRESS, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, the item as it would be written, for a dry run |
 
 `/api/find` gives `srl show` at most 500 item IDs at a time, to keep its
 command line short enough for Windows. When the page stops waiting for

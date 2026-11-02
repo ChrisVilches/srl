@@ -385,13 +385,13 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
     Ok(reported(&problems))
 }
 
-/// `srl add NOTE --stdin`: appends items to a note, and prints their IDs,
-/// or with `--dry-run` the items as they would be written.
+/// `srl add ADDRESS --stdin`: appends items to a collection, and prints
+/// their IDs, or with `--dry-run` the items as they would be written.
 fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
     let (_, notes) = load(store)?;
     let input = stdin()?;
     let dry_run = args.dry_run.dry_run;
-    let added = srl_core::add(&notes, &args.note, &input, seed("for new IDs")?, dry_run)?;
+    let added = srl_core::add(&notes, &args.address, &input, seed("for new IDs")?, dry_run)?;
     if dry_run {
         output::text(&added.text);
     } else {

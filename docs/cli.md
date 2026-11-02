@@ -77,7 +77,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by address, the order of items in the collection, then card ID): one line each with the card ID, `ADDRESS:LINE` and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
-| `srl add NOTE --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
+| `srl add ADDRESS --stdin` | Append new items to the collection at `ADDRESS`, such as a note's path (see "Adding items" below). Prints the new item IDs. |
 | `srl edit --stdin` | Replace items in their notes with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). The rest of each note is unchanged. Prints the IDs of the items. |
 | `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
 | `srl suspend SELECTOR` | Suspend matching active cards. |
@@ -183,7 +183,7 @@ only append to the log.
 ### Adding items
 
 ```sh
-srl add NOTE --stdin
+srl add ADDRESS --stdin
 ```
 
 The items come from standard input, one item object per line (see
@@ -207,10 +207,15 @@ JSONL
 - **Uppercase keys are field names, and their values the fields' text**,
   in the order given. Which fields are accepted is up to the kind, so `srl
   add` works the same for every kind there is; `srl kinds` describes them.
-- `NOTE` is a path relative to the store's folder, and must be a note
-  of a source: matched by its `include`, not by its `exclude`, and not in
-  a folder that starts with `.` (see [notes.md](notes.md), "Which files are notes"). If it
-  doesn't exist, it is created, with its folders.
+- `ADDRESS` is the address of a collection (see [sources.md](sources.md),
+  "Addresses"): for a note of a source without a prefix, its path
+  relative to the store's folder. If no collection has that address, it
+  is created in the one source mounted deepest above it that accepts it:
+  for the notes' drivers, a note whose path, after the prefix, the
+  source's `include` matches and its `exclude` doesn't, outside folders
+  that start with `.` (see [notes.md](notes.md), "Which files are notes"),
+  created with its folders. No source accepting it, or more than one, is
+  an error.
 - The items are appended to the end of the note, in the note's syntax,
   following the rules of [notes.md](notes.md), "How srl writes to notes":
   - In srl blocks, each item is in a block of its own with its entries on

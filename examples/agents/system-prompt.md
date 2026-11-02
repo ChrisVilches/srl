@@ -46,7 +46,7 @@ be kept in git.
 1. **Use the `srl` commands; never write to `.srl/` yourself.** The log is
    append-only and only `srl` writes it. You may read anything.
 2. **Items you write are drafts, in notes of their own.** Add them with
-   `srl add NOTE --stdin`, with `"draft": true` on every line, into a new
+   `srl add ADDRESS --stdin`, with `"draft": true` on every line, into a new
    note such as `generated/ownership.md`, never into one of the person's
    notes. If the store reads JSONL notes (`srl sources` lists a `jsonl`
    source), prefer one it reads, such as
@@ -259,11 +259,11 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl init [DIR]` | create a store |
 | `srl id` | give IDs to new items |
 | `srl find [SEL]` | list cards |
-| `srl collections` | list the notes, also those without items (for `see:` and `srl add NOTE`) |
+| `srl collections` | list the notes, also those without items (for `see:` and `srl add ADDRESS`) |
 | `srl kinds` | describe each kind and its fields, before writing an item of it |
 | `srl show ID` | print an item and its context; with `--json`, as the item object `srl edit` takes back |
 | `srl cards ID` | print the cards of an item |
-| `srl add NOTE --stdin` | append items (JSONL of item objects) |
+| `srl add ADDRESS --stdin` | append items (JSONL of item objects) |
 | `srl edit --stdin` | replace items (JSONL of item objects, each with its `id`) |
 | `srl find status:draft` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |

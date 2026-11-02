@@ -1608,3 +1608,40 @@ fn a_file_two_sources_read_and_an_address_under_a_deeper_prefix_are_errors() {
     );
     assert!(errors.contains("it is the file deep/b.md"), "{errors}");
 }
+
+#[test]
+fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
+    let tmp = store(&[]);
+    let d = dir(&tmp);
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.texts]\ndriver = \"markdown\"\ninclude = [\"**/*.txt\"]\n\n[sources.data]\ndriver = \"jsonl\"\nprefix = \"data/\"\n",
+    );
+    let item = "{\"Q\": \"q\", \"A\": \"a\"}";
+    let add = |address: &str| srl_with_input(&["add", address, "--stdin", "--dir", d], item);
+    assert_eq!(add("a.txt").status.code(), Some(0));
+    assert!(read(&tmp, "a.txt").contains("```srl"));
+    assert_eq!(add("data/b.jsonl").status.code(), Some(0));
+    assert!(read(&tmp, "b.jsonl").starts_with("{\"id\""));
+    // Under the prefix data/, only the jsonl source is asked.
+    let refused = add("data/c.md");
+    assert_eq!(refused.status.code(), Some(2));
+    assert!(
+        stderr(&refused).contains("not matched by `include`"),
+        "{}",
+        stderr(&refused)
+    );
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.more]\ndriver = \"markdown\"\ninclude = [\"more/**/*.md\"]\n",
+    );
+    let both = add("more/d.md");
+    assert_eq!(both.status.code(), Some(2));
+    assert!(
+        stderr(&both).contains("more than one source"),
+        "{}",
+        stderr(&both)
+    );
+}

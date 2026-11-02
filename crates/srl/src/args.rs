@@ -127,7 +127,7 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Append items (JSONL of item objects from standard input) to a note.
+    /// Append items (JSONL of item objects from standard input) to a collection, such as a note.
     Add(AddArgs),
     /// Replace items with standard input (JSONL of items, each naming the item it replaces by `id`).
     Edit {
@@ -207,8 +207,8 @@ pub(crate) enum Command {
 
 #[derive(Debug, Args)]
 pub(crate) struct AddArgs {
-    /// The note, relative to the store's folder; created if it doesn't exist.
-    pub(crate) note: String,
+    /// The address of the collection, such as a note's path; created if it doesn't exist.
+    pub(crate) address: String,
     /// Read the items from standard input: one item object per line, of
     /// fields and the header entries `id` (new if left out), `kind`, `see`
     /// and `draft` (true or false).

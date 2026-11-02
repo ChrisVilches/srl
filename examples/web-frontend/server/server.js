@@ -24,7 +24,7 @@
 //
 //   GET  /api/kinds        srl kinds --json            → { kinds: [kind…] }
 //   GET  /api/collections  srl collections --json      → { collections: [address…] }
-//   POST /api/add          srl add NOTE --stdin [--dry-run], with ITEM as its
+//   POST /api/add          srl add ADDRESS --stdin [--dry-run], with ITEM as its
 //                          one line                    ← { note, item, dry_run }
 //                                                      → { ids } or, with
 //                                                        dry_run, { text }
