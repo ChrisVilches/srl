@@ -182,49 +182,16 @@ questions", once it is planned.
 
 ## Writing notes
 
-- **Item syntaxes for other file formats, as plugins.** Items are written
-  in srl blocks, which are fenced code blocks: Markdown's syntax, which
-  also suits the formats built on it (MDX, Quarto), but not files where a
-  fenced block means nothing, such as Org, AsciiDoc, reStructuredText or
-  the comments of source code; or in JSONL notes, which hold nothing but
-  items. `srl` is not meant to tie you to Markdown, even though Markdown
-  is what makes the most sense for most notes. A
-  program could take over the item syntax for the notes matched by a glob,
-  as kind programs take over making cards: find the items in a note (their
-  lines, header entries and fields), say which lines change for `srl id`,
-  `srl accept`, `srl add` and `srl edit`, give the context, and look for
-  likely mistakes for `srl lint`. Everything after reading the items
-  (kinds, scheduling, the log) would stay the same. In `srl`, these are
-  already the functions that each of the two built-in syntaxes provides
-  (see [rust.md](rust.md), "Sources"), so a program would be a
-  third implementation of them. Since those functions only say which lines
-  change, `srl` would still check and write every change itself, keeping
-  the guarantees of [notes.md](notes.md), "How srl writes to notes". It
-  needs a plugin protocol of its own, much like the one of kind programs,
-  so it is postponed. [plans/sources.md](plans/sources.md) plans a
-  broader version: sources, not syntaxes, as plugins, so that items can
-  also live outside files.
-
-- **Items without a line.** An item's line is only shown to people
-  (`PATH:LINE`, `line` in JSON), and nothing finds an item by it (see
-  [rust.md](rust.md), "Lines are for people"). Some syntaxes can't say
-  well where an item starts: in a pretty-printed JSON document, an item
-  could start on the line of its `{` or of its first key. Such a syntax
-  could give no line, or `srl` could drop lines altogether, and leave
-  finding an item to its ID: `srl show ID` says which note it is in, and
-  each syntax finds it there its own way. `PATH:LINE` would become `PATH`
-  where there is no line, and `line` in JSON `null`; a person opening the
-  note would search for the ID.
-
-  Changes would need the same thought: today every change a syntax makes
-  is a range of whole lines replaced, which fits syntaxes whose items have
-  lines of their own, but not one where items share a line (see
-  [rust.md](rust.md), "What still assumes lines"). Two ways out: a rule
-  that every syntax keeps each item on lines of its own and can name the
-  line it starts on, which keeps everything as it is and rules some
-  formats out; or changes as byte ranges, and lines made optional, which
-  lets any format in and takes the line out of `PATH:LINE` for some
-  notes. [plans/sources.md](plans/sources.md) takes the second way.
+- **Other file formats.** Items can come from any source, and a source
+  can be a program (see [sources.md](sources.md), "Source programs"), so
+  a format such as Org, AsciiDoc, reStructuredText or the comments of
+  source code can already be read by a program. What a program can't do
+  is what the notes' sources do for themselves: keep every other byte of
+  a hand-written file, verify each change against its own parse, and
+  write atomically. A third built-in driver would, for a format common
+  enough to be worth it; or `srl` could offer programs a way to give their
+  changes as line edits that `srl` applies itself, as the notes' sources
+  do.
 
 - **Blank space before added items** (low priority). In a note of srl
   blocks, `srl add` puts a blank line between the note and the items it

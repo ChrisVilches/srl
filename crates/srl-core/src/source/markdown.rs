@@ -154,7 +154,7 @@ impl Source for Markdown {
                     .into_iter()
                     .map(|(line, message)| Finding {
                         collection: path.clone(),
-                        line,
+                        line: Some(line),
                         message,
                     }),
             );

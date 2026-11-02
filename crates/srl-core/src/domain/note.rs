@@ -148,7 +148,7 @@ pub(crate) struct Origin {
     pub(crate) handle: String,
     /// The line where the item starts, counting from 1, as near as its
     /// source can say: only for people.
-    pub(crate) line: usize,
+    pub(crate) line: Option<usize>,
     /// The item as its source read it, which a change gives back as what
     /// it replaces.
     pub(crate) read: Object,
@@ -193,9 +193,9 @@ impl Item {
     }
 
     /// The line where the item starts, counting from 1, as near as its
-    /// syntax can say: only for people, in `ADDRESS:LINE`. Nothing finds an
+    /// source can say: only for people, in `ADDRESS:LINE`. Nothing finds an
     /// item by it (see `docs/rust.md`, "Lines are for people").
-    pub fn line(&self) -> usize {
+    pub fn line(&self) -> Option<usize> {
         self.origin.line
     }
 

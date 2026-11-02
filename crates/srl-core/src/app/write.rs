@@ -23,7 +23,7 @@ pub struct Written {
     pub id: ItemId,
     /// The address of the item's collection.
     pub address: String,
-    pub line: usize,
+    pub line: Option<usize>,
 }
 
 /// What `srl add` did, or would do.
@@ -442,7 +442,7 @@ mod tests {
         let (_tmp, store) = store(&[("a.md", text)]);
         let written = assign_ids(&notes(&store), 7, false).unwrap();
         assert_eq!(written.len(), 2);
-        assert_eq!((written[0].line, written[1].line), (1, 8));
+        assert_eq!((written[0].line, written[1].line), (Some(1), Some(8)));
         assert!(written.iter().all(|done| is_id(done.id.as_str())));
         let (one, two) = (&written[0].id, &written[1].id);
         assert_eq!(
@@ -717,7 +717,7 @@ mod tests {
         let load = || Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         let written = assign_ids(&load(), 7, false).unwrap();
         let lines = written.iter().map(|done| done.line).collect::<Vec<_>>();
-        assert_eq!(lines, [1, 2]);
+        assert_eq!(lines, [Some(1), Some(2)]);
         assert_eq!(load().items().len(), 2);
         assert!(load().problems().is_empty());
     }

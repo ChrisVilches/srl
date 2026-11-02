@@ -90,6 +90,16 @@ impl Catalog {
                 reason: problem.reason,
             }));
             for item in read.items {
+                if !files.contains_key(&item.collection) {
+                    problems.push(Error::Collection {
+                        address: mounted.address(&item.collection),
+                        reason: format!(
+                            "the source {} gives an item in it, but doesn't list it among its \
+                             collections",
+                            mounted.name
+                        ),
+                    });
+                }
                 let origin = Origin {
                     source: index,
                     source_name: mounted.name.clone(),
@@ -100,7 +110,8 @@ impl Catalog {
                     line: item.line,
                     read: item.item,
                 };
-                match written_item(origin, item.written, &programs) {
+                let text = item.written.unwrap_or_else(|| as_one_line(&origin.read));
+                match written_item(origin, text, &programs) {
                     Ok(item) => written.push(item),
                     Err(Unread::Problem(problem)) => problems.push(problem),
                     Err(Unread::Unidentified(origin)) => {
@@ -430,7 +441,7 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
         .into_iter()
         .map(|(line, reason)| Error::Note {
             path: path.to_owned(),
-            line,
+            line: Some(line),
             reason,
         })
         .collect::<Vec<_>>();
@@ -443,7 +454,7 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
             collection: path.to_owned(),
             address: path.to_owned(),
             handle: position.to_string(),
-            line: item.line,
+            line: Some(item.line),
             read: Object {
                 entries: item.entries,
                 fields: item.fields,
@@ -600,7 +611,7 @@ pub(crate) fn check_new(new: &[Object], programs: &Programs) -> Vec<Error> {
             collection: String::new(),
             address: String::new(),
             handle: String::new(),
-            line: index + 1,
+            line: Some(index + 1),
             read: object.clone(),
         };
         match written_item(origin, String::new(), programs) {
@@ -667,6 +678,16 @@ fn written_item(
     })
 }
 
+/// An item as written by a source that gives no text of its own: its item
+/// object on one line, as `srl` writes one.
+fn as_one_line(object: &Object) -> String {
+    serde_json::Value::Object(crate::domain::note::object::written(
+        &object.entries,
+        &object.fields,
+    ))
+    .to_string()
+}
+
 /// Why `fields` can't be an item's fields, whatever its kind: a key
 /// written twice.
 fn repeated_field(fields: &[Field]) -> Option<String> {
@@ -679,7 +700,7 @@ fn repeated_field(fields: &[Field]) -> Option<String> {
 
 /// Keeps the first item of each ID, and reports the others.
 fn unique(items: Vec<Item>) -> (Vec<Item>, Vec<Error>) {
-    let mut first = HashMap::new();
+    let mut first = HashMap::<ItemId, (String, Option<usize>)>::new();
     let mut kept = Vec::new();
     let mut duplicates = Vec::new();
     for item in items {
@@ -688,9 +709,10 @@ fn unique(items: Vec<Item>) -> (Vec<Item>, Vec<Error>) {
                 path: item.origin.address.clone(),
                 line: item.origin.line,
                 reason: format!(
-                    "the ID {} is also used by {address}:{line}; delete the ID from the copy \
+                    "the ID {} is also used by {}; delete the ID from the copy \
                      and run `srl id`",
-                    item.id
+                    item.id,
+                    crate::error::at(address, *line)
                 ),
             });
         } else {
@@ -734,7 +756,7 @@ mod tests {
         assert!(problems.is_empty(), "{problems:?}");
         assert_eq!(items[1].see(), Some("n.md"));
         assert!(items[1].is_draft());
-        assert_eq!(items[1].line(), 2);
+        assert_eq!(items[1].line(), Some(2));
         assert_eq!(items[1].text(), text.lines().nth(1).unwrap());
         assert_eq!(
             items[0].json(None).to_string(),
@@ -764,7 +786,10 @@ mod tests {
         let text = "```srl\nQ: a\nA: b\n```\n```srl id:abc kind:conj\nVERB: x\n```\n```srl\n@ id:abd\nQ: only a question\n```\n";
         let (items, problems) = read_items("n.md", text, &Programs::default());
         assert_eq!(items, [] as [Item; 0]);
-        assert!(matches!(problems[0], Error::MissingId { line: 1, .. }));
+        assert!(matches!(
+            problems[0],
+            Error::MissingId { line: Some(1), .. }
+        ));
         let lines = problems
             .iter()
             .map(|problem| {
@@ -774,7 +799,7 @@ mod tests {
                 *line
             })
             .collect::<Vec<_>>();
-        assert_eq!(lines, [1, 5, 9]);
+        assert_eq!(lines, [Some(1), Some(5), Some(9)]);
     }
 
     #[test]

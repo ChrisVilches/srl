@@ -43,18 +43,18 @@ pub enum Error {
     )]
     InvalidCardId { text: String },
 
-    #[error("{path}:{line}: {reason}")]
+    #[error("{}: {reason}", at(path, *line))]
     Note {
         path: String,
-        line: usize,
+        line: Option<usize>,
         reason: String,
     },
 
     #[error("{address}: {reason}")]
     Collection { address: String, reason: String },
 
-    #[error("{path}:{line}: this item has no ID; run `srl id` to give it one")]
-    MissingId { path: String, line: usize },
+    #[error("{}: this item has no ID; run `srl id` to give it one", at(path, *line))]
+    MissingId { path: String, line: Option<usize> },
 
     #[error(
         "{count} problem(s) in the notes, listed above; fix them first, since srl reads every \
@@ -76,6 +76,12 @@ pub enum Error {
 
     #[error("{reason}; no item of kind {kind} can be read until the program works")]
     KindFailed { kind: String, reason: String },
+
+    #[error(
+        "the source {name} failed: {reason}; no item can be read or written until it works \
+         (see docs/sources.md, \"Source programs\")"
+    )]
+    SourceFailed { name: String, reason: String },
 
     #[error("cannot describe the kind {kind}: {reason}")]
     DescribeFailed { kind: String, reason: String },
@@ -166,15 +172,25 @@ impl Error {
     }
 
     /// The address and line a problem in a source is about, line 0 for a
-    /// collection as a whole (see `docs/notes.md`, "Errors").
+    /// collection as a whole or a problem whose source gives no line (see
+    /// `docs/notes.md`, "Errors").
     pub(crate) fn place(&self) -> Option<(&str, usize)> {
         if let Self::Collection { address, .. } = self {
             return Some((address.as_str(), 0));
         }
         if let Self::Note { path, line, .. } | Self::MissingId { path, line } = self {
-            Some((path.as_str(), *line))
+            Some((path.as_str(), line.unwrap_or(0)))
         } else {
             None
         }
+    }
+}
+
+/// Where something is, for people: `ADDRESS:LINE`, or `ADDRESS` alone when
+/// there is no line (see `docs/sources.md`, "Addresses").
+pub fn at(address: &str, line: Option<usize>) -> String {
+    match line {
+        Some(line) => format!("{address}:{line}"),
+        None => address.to_owned(),
     }
 }

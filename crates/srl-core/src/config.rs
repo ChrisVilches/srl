@@ -52,50 +52,54 @@ impl Default for KindPrograms {
     }
 }
 
-/// What a source is: one of the built-in drivers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
+/// What a source is: one of the built-in drivers, or a program.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Driver {
     /// Notes of srl blocks (see `docs/notes.md`, "The srl block syntax").
     Markdown,
     /// Notes of JSON lines (see `docs/notes.md`, "The JSONL syntax").
     Jsonl,
+    /// A source program (see `docs/sources.md`, "Source programs").
+    Program {
+        /// The program, then its arguments.
+        command: Vec<String>,
+        /// Every key of the source but `program` and `prefix`: the
+        /// program's own, given to it as they are.
+        settings: serde_json::Map<String, serde_json::Value>,
+    },
 }
 
 impl Driver {
-    pub fn as_str(self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Markdown => "markdown",
             Self::Jsonl => "jsonl",
+            Self::Program { .. } => "program",
         }
     }
 
     /// The globs of the notes a source of this driver reads when it gives
     /// no `include`.
-    fn default_include(self) -> &'static str {
+    fn default_include(&self) -> &'static str {
         match self {
             Self::Markdown => "**/*.md",
-            Self::Jsonl => "**/*.jsonl",
+            Self::Jsonl | Self::Program { .. } => "**/*.jsonl",
         }
     }
 }
 
 /// One source of `[sources]`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceConfig {
     pub driver: Driver,
     /// Where the source's collections are among the store's addresses:
     /// `""`, or a path ending in `/`.
-    #[serde(default)]
     pub prefix: String,
     /// Globs of notes, relative to the store's folder; the driver's own
-    /// when not given.
-    #[serde(default)]
+    /// when not given. Only for the notes' drivers.
     include: Option<Vec<String>>,
     /// Globs of notes to ignore, relative to the store's folder. They win
-    /// over `include`.
-    #[serde(default)]
+    /// over `include`. Only for the notes' drivers.
     pub exclude: Vec<String>,
 }
 
@@ -107,6 +111,76 @@ impl Default for SourceConfig {
             include: None,
             exclude: Vec::new(),
         }
+    }
+}
+
+/// A source as written in `config.toml`, before its keys are sorted out.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NotesSource {
+    driver: String,
+    #[serde(default)]
+    prefix: String,
+    include: Option<Vec<String>>,
+    #[serde(default)]
+    exclude: Vec<String>,
+}
+
+impl<'de> Deserialize<'de> for SourceConfig {
+    /// A source of a notes' driver has `driver`, and may have `prefix`,
+    /// `include` and `exclude`, nothing else. A source program has
+    /// `program`, and may have `prefix`; every other key is the program's.
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        use serde::de::Error as _;
+        let mut table = toml::Table::deserialize(deserializer)?;
+        let Some(program) = table.remove("program") else {
+            let source =
+                NotesSource::deserialize(toml::Value::Table(table)).map_err(D::Error::custom)?;
+            let driver = match source.driver.as_str() {
+                "markdown" => Driver::Markdown,
+                "jsonl" => Driver::Jsonl,
+                other => {
+                    return Err(D::Error::custom(format!(
+                        "unknown driver `{other}`; use markdown or jsonl, or name a program \
+                         with `program`"
+                    )));
+                }
+            };
+            return Ok(Self {
+                driver,
+                prefix: source.prefix,
+                include: source.include,
+                exclude: source.exclude,
+            });
+        };
+        if table.contains_key("driver") {
+            return Err(D::Error::custom(
+                "a source has a `driver` or a `program`, not both",
+            ));
+        }
+        let command = Vec::<String>::deserialize(program).map_err(|error| {
+            D::Error::custom(format!(
+                "`program` must be a list of the program and its arguments ({error})"
+            ))
+        })?;
+        let prefix = match table.remove("prefix") {
+            None => String::new(),
+            Some(prefix) => String::deserialize(prefix)
+                .map_err(|error| D::Error::custom(format!("`prefix` must be text ({error})")))?,
+        };
+        let settings = serde_json::to_value(&table)
+            .map_err(D::Error::custom)?
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
+        Ok(Self {
+            driver: Driver::Program { command, settings },
+            prefix,
+            include: None,
+            exclude: Vec::new(),
+        })
     }
 }
 
@@ -282,6 +356,14 @@ fn check_source(name: &str, source: &SourceConfig) -> std::result::Result<(), St
             ));
         }
     }
+    if let Driver::Program { command, .. } = &source.driver
+        && command.is_empty()
+    {
+        return Err(format!(
+            "`sources.{name}.program` is empty; give the program and its arguments, such as \
+             [\"python3\", \"sources/{name}.py\"]"
+        ));
+    }
     globs(&source.include()).map_err(|reason| format!("`sources.{name}.include`: {reason}"))?;
     globs(&source.exclude).map_err(|reason| format!("`sources.{name}.exclude`: {reason}"))?;
     Ok(())
@@ -364,6 +446,30 @@ mod tests {
         assert_eq!(Config::default().sources["notes"], SourceConfig::default());
     }
 
+    #[test]
+    fn a_program_source_keeps_its_own_keys_as_its_settings() {
+        let config = Config::parse(
+            "[sources.vocab]\nprogram = [\"python3\", \"vocab.py\"]\nprefix = \"vocab/\"\ndatabase = \"vocab.json\"\nretries = 3\n",
+        )
+        .unwrap();
+        let vocab = &config.sources["vocab"];
+        assert_eq!(vocab.prefix, "vocab/");
+        let Driver::Program { command, settings } = &vocab.driver else {
+            panic!("not a program: {vocab:?}");
+        };
+        assert_eq!(command, &["python3", "vocab.py"]);
+        assert_eq!(
+            serde_json::Value::Object(settings.clone()),
+            serde_json::json!({"database": "vocab.json", "retries": 3})
+        );
+        for text in [
+            "[sources.vocab]\nprogram = []\n",
+            "[sources.vocab]\nprogram = \"vocab.py\"\n",
+            "[sources.vocab]\nprogram = [\"vocab.py\"]\ndriver = \"jsonl\"\n",
+        ] {
+            assert!(Config::parse(text).is_err(), "accepted {text}");
+        }
+    }
     #[test]
     fn notes_is_refused_with_how_to_write_it_as_a_source() {
         let error = Config::parse("[notes]\ninclude = [\"**/*.md\"]\n").unwrap_err();

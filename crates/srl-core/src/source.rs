@@ -10,6 +10,7 @@
 pub(crate) mod files;
 mod jsonl;
 mod markdown;
+mod program;
 
 use std::fmt;
 
@@ -20,6 +21,7 @@ use crate::{Config, Error, Result, Store};
 use files::NoteFiles;
 use jsonl::Jsonl;
 use markdown::Markdown;
+use program::Program;
 
 /// The operations every source answers.
 pub(crate) trait Source: fmt::Debug {
@@ -73,10 +75,11 @@ pub(crate) struct ReadItem {
     pub(crate) collection: String,
     /// What names the item to its source when it is changed.
     pub(crate) handle: String,
-    /// The line where the item starts, only for people.
-    pub(crate) line: usize,
-    /// The item as written, for `srl show`.
-    pub(crate) written: String,
+    /// The line where the item starts, if the source can say: only for
+    /// people.
+    pub(crate) line: Option<usize>,
+    /// The item as written, for `srl show`, if the source gives it.
+    pub(crate) written: Option<String>,
     pub(crate) item: Object,
 }
 
@@ -84,7 +87,7 @@ pub(crate) struct ReadItem {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Problem {
     pub(crate) collection: String,
-    pub(crate) line: usize,
+    pub(crate) line: Option<usize>,
     pub(crate) reason: String,
 }
 
@@ -104,7 +107,7 @@ pub(crate) struct Description {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Finding {
     pub(crate) collection: String,
-    pub(crate) line: usize,
+    pub(crate) line: Option<usize>,
     pub(crate) message: String,
 }
 
@@ -180,13 +183,16 @@ impl Sources {
                 .iter()
                 .map(|(name, source)| {
                     let files = NoteFiles::new(store, source);
-                    let driver: Box<dyn Source> = match source.driver {
+                    let driver: Box<dyn Source> = match &source.driver {
                         Driver::Markdown => Box::new(Markdown::new(files)),
                         Driver::Jsonl => Box::new(Jsonl::new(files)),
+                        Driver::Program { command, settings } => {
+                            Box::new(Program::new(store, name, command, settings))
+                        }
                     };
                     Mounted {
                         name: name.clone(),
-                        driver: source.driver,
+                        driver: source.driver.clone(),
                         prefix: source.prefix.clone(),
                         source: driver,
                     }

@@ -7,11 +7,10 @@
 //! whole call, and standard error says why.
 
 use std::collections::{BTreeMap, HashSet};
-use std::io::{self, Read, Write as _};
-use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
-use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
+
+use std::path::PathBuf;
+
+use std::time::Duration;
 
 use serde::Deserialize;
 use serde_json::{Map, Value};
@@ -20,11 +19,8 @@ use super::{Cache, FieldDescription};
 use crate::domain::card::{Card, CardId};
 use crate::domain::note::is_field_key;
 use crate::domain::note::{ItemId, is_id_text};
+use crate::process::{self, Failure};
 use crate::{Config, Store};
-
-/// How often a `make` call is checked for having finished, while it may
-/// still run out of time.
-const POLL: Duration = Duration::from_millis(10);
 
 /// An item's card IDs, in groups of siblings.
 type Groups = Vec<Vec<CardId>>;
@@ -271,80 +267,45 @@ impl Programs {
             .command(name)
             .split_first()
             .expect("a kind's command should have been checked to be non-empty");
-        let program = self.program(name, program)?;
-        let mut child = Command::new(&program)
-            .args(args)
-            .arg(call)
-            .current_dir(&self.root)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|error| {
-                format!(
-                    "cannot run `{}` for kind {name} ({error}); check `kinds.{name}` in \
-                     .srl/config.toml",
-                    program.display()
-                )
-            })?;
-        let stdin = child
-            .stdin
-            .take()
-            .expect("a program's stdin should be piped");
+        let file = process::find(&self.root, program).map_err(|error| {
+            format!(
+                "cannot find the program `{program}` of kind {name} ({error}); check \
+                 `kinds.{name}` in .srl/config.toml"
+            )
+        })?;
         let mut input = String::new();
         for line in inputs {
             input.push_str(line);
             input.push('\n');
         }
-        let writer = thread::spawn(move || write_input(stdin, &input));
-        let stdout = reader(
-            child
-                .stdout
-                .take()
-                .expect("a program's stdout should be piped"),
-        );
-        let stderr = reader(
-            child
-                .stderr
-                .take()
-                .expect("a program's stderr should be piped"),
-        );
-        let failed =
-            |error: io::Error| format!("running the program of kind {name} failed: {error}");
-        let Some(status) = wait(&mut child, timeout).map_err(failed)? else {
-            let what = match inputs.len() {
-                1 => "a card".to_owned(),
-                count => format!("{count} cards"),
-            };
-            return Err(format!(
-                "the program of kind {name} took longer than {} seconds to make {what}, so it \
-                 was stopped; make it faster, or raise `kind_programs.card_timeout` in \
-                 .srl/config.toml",
-                timeout.unwrap_or_default().as_secs()
-            ));
-        };
-        let joined = |handle: JoinHandle<io::Result<Vec<u8>>>| {
-            handle
-                .join()
-                .expect("reading a program's output should not panic")
-        };
-        let stdout = joined(stdout).map_err(failed)?;
-        let stderr = joined(stderr).map_err(failed)?;
-        writer
-            .join()
-            .expect("writing a program's input should not panic")
-            .map_err(failed)?;
-        if !status.success() {
-            let reason = String::from_utf8_lossy(&stderr);
-            let reason = reason.trim();
-            return Err(if reason.is_empty() {
-                format!("the program of kind {name} failed ({status}) and gave no reason")
-            } else {
-                format!("the program of kind {name} failed: {reason}")
-            });
-        }
-        let stdout = String::from_utf8(stdout)
-            .map_err(|error| invalid_output(name, call, &format!("it is not UTF-8 ({error})")))?;
+        let stdout =
+            process::run(&self.root, &file, args, call, input, timeout).map_err(|failure| {
+                match failure {
+                    Failure::CannotStart(error) => format!(
+                        "cannot run `{}` for kind {name} ({error}); check `kinds.{name}` in \
+                     .srl/config.toml",
+                        file.display()
+                    ),
+                    Failure::TimedOut => {
+                        let what = match inputs.len() {
+                            1 => "a card".to_owned(),
+                            count => format!("{count} cards"),
+                        };
+                        format!(
+                            "the program of kind {name} took longer than {} seconds to make \
+                         {what}, so it was stopped; make it faster, or raise \
+                         `kind_programs.card_timeout` in .srl/config.toml",
+                            timeout.unwrap_or_default().as_secs()
+                        )
+                    }
+                    Failure::NotUtf8(error) => {
+                        invalid_output(name, call, &format!("it is not UTF-8 ({error})"))
+                    }
+                    Failure::Io(_) | Failure::Status { .. } => {
+                        failure.reason(&format!("the program of kind {name}"))
+                    }
+                }
+            })?;
         let lines = stdout.lines().map(str::to_owned).collect::<Vec<_>>();
         if lines.len() != inputs.len() {
             return Err(invalid_output(
@@ -359,22 +320,6 @@ impl Programs {
             ));
         }
         Ok(lines)
-    }
-
-    /// The file of `program`: a path with a folder is relative to the
-    /// store's folder, unless it is absolute; a bare name is found as the
-    /// platform finds programs.
-    fn program(&self, name: &str, program: &str) -> Result<PathBuf, String> {
-        let path = Path::new(program);
-        if path.is_absolute() || path.components().count() > 1 {
-            return Ok(self.root.join(path));
-        }
-        which::which(program).map_err(|error| {
-            format!(
-                "cannot find the program `{program}` of kind {name} ({error}); check `kinds.{name}` \
-                 in .srl/config.toml"
-            )
-        })
     }
 }
 
@@ -503,46 +448,6 @@ fn made(card: &CardId, output: &str) -> Result<Result<Card, String>, String> {
         prompt_revealed: made.prompt_revealed,
         answer: made.answer,
     }))
-}
-
-/// Writes `input` to a program's standard input, and closes it.
-fn write_input(mut stdin: ChildStdin, input: &str) -> io::Result<()> {
-    match stdin.write_all(input.as_bytes()) {
-        // A program may finish without reading its input; whether it
-        // succeeded is up to its exit status.
-        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
-        result => result,
-    }
-}
-
-/// Reads all of `pipe` on its own thread, so that a program never waits on
-/// a full pipe.
-fn reader(mut pipe: impl Read + Send + 'static) -> JoinHandle<io::Result<Vec<u8>>> {
-    thread::spawn(move || {
-        let mut bytes = Vec::new();
-        pipe.read_to_end(&mut bytes)?;
-        Ok(bytes)
-    })
-}
-
-/// Waits for `child` to finish, for at most `timeout` if there is one.
-/// `None` if it ran out of time, in which case it is stopped.
-fn wait(child: &mut Child, timeout: Option<Duration>) -> io::Result<Option<ExitStatus>> {
-    let Some(timeout) = timeout else {
-        return child.wait().map(Some);
-    };
-    let start = Instant::now();
-    loop {
-        if let Some(status) = child.try_wait()? {
-            return Ok(Some(status));
-        }
-        if start.elapsed() >= timeout {
-            child.kill()?;
-            child.wait()?;
-            return Ok(None);
-        }
-        thread::sleep(POLL);
-    }
 }
 
 #[cfg(test)]

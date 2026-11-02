@@ -329,7 +329,7 @@ pub(super) fn add_read(read: &mut Read, path: &str, parsed: Parsed) {
     read.problems
         .extend(parsed.errors.into_iter().map(|(line, reason)| Problem {
             collection: path.to_owned(),
-            line,
+            line: Some(line),
             reason,
         }));
     read.items.extend(
@@ -340,8 +340,8 @@ pub(super) fn add_read(read: &mut Read, path: &str, parsed: Parsed) {
             .map(|(position, item)| ReadItem {
                 collection: path.to_owned(),
                 handle: position.to_string(),
-                line: item.line,
-                written: item.text,
+                line: Some(item.line),
+                written: Some(item.text),
                 item: Object {
                     entries: item.entries,
                     fields: item.fields,

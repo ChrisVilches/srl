@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use srl_core::{
     By, Card, CardId, CollectionInfo, Context, Event, Item, KindDescription, Lint,
-    SourceDescription, Stats, Written,
+    SourceDescription, Stats, Written, at,
 };
 
 /// Prints one path per line.
@@ -40,7 +40,7 @@ pub(crate) fn addresses(collections: &[CollectionInfo]) {
 /// two spaces.
 pub(crate) fn written(written: &[Written]) {
     for done in written {
-        println!("{}  {}:{}", done.id, done.address, done.line);
+        println!("{}  {}", done.id, at(&done.address, done.line));
     }
 }
 
@@ -49,10 +49,9 @@ pub(crate) fn written(written: &[Written]) {
 pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
     for (item, card) in cards {
         let line = format!(
-            "{}  {}:{}  {}",
+            "{}  {}  {}",
             card,
-            item.address(),
-            item.line(),
+            at(item.address(), item.line()),
             item.label()
         );
         println!("{}", line.trim_end());
@@ -67,7 +66,7 @@ pub(crate) fn items(items: &[(&Item, Option<Context>)]) {
         if index > 0 {
             println!();
         }
-        println!("{}:{}", item.address(), item.line());
+        println!("{}", at(item.address(), item.line()));
         println!("{}", item.text());
         if let Some(context) = context {
             println!("---");
@@ -178,7 +177,7 @@ pub(crate) fn sources(sources: &[SourceDescription]) {
 /// Prints what `srl lint` found, as `PATH:LINE: message`.
 pub(crate) fn lints(found: &[Lint]) {
     for lint in found {
-        println!("{}:{}: {}", lint.address, lint.line, lint.message);
+        println!("{}: {}", at(&lint.address, lint.line), lint.message);
     }
 }
 

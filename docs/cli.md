@@ -105,7 +105,10 @@ without it.
 the item as an srl block of its own: an opening fence made of the same
 backticks or tildes as its block's, `srl`, and the item's entries as
 written (after a space, when it has some); the item's field lines as
-written; and a closing fence like the opening one.
+written; and a closing fence like the opening one. Of a source program,
+it is the text the program gives, or else its item object on one line,
+as `srl` writes one. Where an item has no line, `ADDRESS:LINE` is its
+address alone.
 
 ### Editing items
 

@@ -13,6 +13,7 @@ mod error;
 mod index;
 mod kind;
 mod log;
+mod process;
 mod source;
 mod store;
 
@@ -28,7 +29,7 @@ pub use domain::note::{Field, Item, ItemId};
 pub use domain::schedule::{History, Memories, Memory, Reviewed, Seen, State};
 pub use domain::selector::{Selector, Status};
 pub use domain::stats::{StateCounts, Stats, stats};
-pub use error::{Error, Result};
+pub use error::{Error, Result, at};
 pub use index::Index;
 pub use kind::{FieldDescription, Kind, KindDescription, kinds};
 pub use log::{By, CardEvent, Entry, Event, Log, Move, Review};

@@ -492,7 +492,9 @@ the keys only `srl` gives:
   `source` the name of its source, `file` the file the collection is kept
   in (`null` when it is no file of its own), and `line` the line of its header,
   counting from 1: the opening fence of a block that holds one item, the
-  item's `@` line, or its line in a JSONL note.
+  item's `@` line, or its line in a JSONL note; `null` for an item of a
+  source program that gives no line (see [sources.md](sources.md),
+  "Source programs").
 - `cards` lists the IDs of the item's cards, in order.
 - `context` is the context in the mode chosen, or `null` when there is
   none (mode `none`, an item of a JSONL note without `see`, or nothing but

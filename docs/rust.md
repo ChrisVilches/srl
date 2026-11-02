@@ -41,6 +41,8 @@ crates/
     src/source/markdown/blocks.rs  the srl block syntax itself: parsing, context, formatting, edits, lint
     src/source/jsonl.rs      notes.md, "The JSONL syntax": the source of JSONL notes
     src/source/files.rs      what the notes' sources share: which files, lines, and "How srl writes to notes" (see "Note editing" below)
+    src/source/program.rs    sources.md, "Source programs": a source program, its calls, and checking what it prints
+    src/process.rs      running the programs a store names, kind programs and source programs: one process per call
     src/kind.rs         cards.md, "Kinds": the `qa` kind, asking kinds about items and making cards, describing kinds
     src/kind/program.rs      cards.md, "Kind programs": running the calls in batches, keeping their answers, checking what they print
     src/kind/cloze.rs        cards.md, "Cloze deletions"
@@ -512,6 +514,23 @@ in `source.rs` builds them from the configuration.
 - **The `qa` kind's lint is the core's** (`app/check.rs`), on the items
   every source reads, at each item's line; a source's own `lint` finds
   only the mistakes of its format.
+
+### Source programs
+
+A source can be a program (see [sources.md](sources.md), "Source
+programs"), `source/program.rs`: the same port, answered over standard
+input and output, one process per call, as `process.rs` runs kind
+programs too.
+
+- **Every line it prints is parsed strictly**, and any output that
+  doesn't follow the protocol is a failure of the whole call, as
+  `Error::SourceFailed`.
+- **Its changes are verified by reading it again**: `write` reads the
+  program before and after the call, and compares the items with what
+  the changes should give, since `srl` can't check the program's own
+  storage as it checks a note it parsed itself.
+- **It is tested with `srl-test-source`**, a source program for the tests
+  (see "Testing").
 
 ### Lines are for people
 

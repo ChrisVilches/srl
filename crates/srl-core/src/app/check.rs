@@ -60,7 +60,7 @@ pub fn orphans(notes: &Catalog, memories: &Memories) -> Vec<Error> {
 pub struct Lint {
     /// The address of the collection it is in.
     pub address: String,
-    pub line: usize,
+    pub line: Option<usize>,
     pub message: String,
 }
 
@@ -158,8 +158,8 @@ mod tests {
                 .map(|item| ReadItem {
                     collection: "n.md".to_owned(),
                     handle: String::new(),
-                    line: item.line,
-                    written: item.text,
+                    line: Some(item.line),
+                    written: Some(item.text),
                     item: crate::domain::note::object::Object {
                         entries: item.entries,
                         fields: item.fields,
@@ -175,7 +175,7 @@ mod tests {
         let text = "```srl\n@ id:abc\nQ: {{C1::upper}}\n  {{c1:one colon}}\n  {{c1::Paris::Paris}}\nA: {{C1::in the answer}}\n@ id:abd kind:words\nQ: {{C1::other kind}}\n```\n";
         let found = qa_lints(&read(text));
         let lines = found.iter().map(|finding| finding.line).collect::<Vec<_>>();
-        assert_eq!(lines, [2, 2]);
+        assert_eq!(lines, [Some(2), Some(2)]);
         assert!(found[0].message.contains("looks like a cloze deletion"));
         assert!(found[1].message.contains("hint that is the text it hides"));
     }
