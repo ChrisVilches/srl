@@ -206,6 +206,15 @@ questions", once it is planned.
   space at the end of the note (see [notes.md](notes.md), "How srl writes
   to notes").
 
+## Sources
+
+- **`lint` for source programs.** A source program reports likely
+  mistakes only as problems of `read`, which are errors (see
+  [sources.md](sources.md), "Source programs"). A `lint` call, answered
+  like the others, would let a program report guesses that `srl lint`
+  shows and nothing else, as the notes' sources do. It waits for a
+  program that needs it.
+
 ## Stores
 
 - **Export and import between stores.** Move or copy notes from one store to

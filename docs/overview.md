@@ -259,12 +259,6 @@ The specification:
 | [audit.md](audit.md) | Known problems with the specification, structure and scope, not fixed yet |
 | [rust.md](rust.md) | How the Rust implementation is organized and written |
 
-Plans, not part of the specification:
-
-| Document | Contents |
-|---|---|
-| [plans/sources.md](plans/sources.md) | Sources: items read and written through one port, with Markdown, JSONL and programs as adapters |
-
 Guides, not part of the specification:
 
 | Document | Contents |

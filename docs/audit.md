@@ -404,8 +404,7 @@ still weaker than the layers suggest:
   locks the files. `kind.rs` both defines `qa` and orchestrates the
   programs. Moving `Kind`, `qa` and the log's events into the domain
   would make the layers true by construction, and a crate of its own for
-  the domain would let the compiler keep them so (see
-  [plans/sources.md](plans/sources.md), step 5.1).
+  the domain would let the compiler keep them so.
 - The largest files (`source/markdown/blocks.rs`, `kind/program.rs`,
   `index.rs`), each over 1,000 lines with tests, are where a split would
   pay first.

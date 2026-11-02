@@ -1,6 +1,5 @@
 //! The catalog: every item of a store, read from its sources and checked by
-//! their kinds, with the problems found (see `docs/plans/sources.md`, "The
-//! core holds every item in memory").
+//! their kinds, with the problems found (see `docs/rust.md`, "Sources").
 //!
 //! Everything that crosses sources happens here: item IDs unique in the
 //! store, `see` naming a collection of the store, and the context of an

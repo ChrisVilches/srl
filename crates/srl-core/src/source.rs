@@ -1,5 +1,6 @@
 //! The source port: where items come from, and how they are written back
-//! (see `docs/plans/sources.md`, "The Source port").
+//! (see `docs/sources.md`, "What a source does", and `docs/rust.md`,
+//! "Sources").
 //!
 //! A source is read whole, into the catalog, and everything else in `srl`
 //! works on the catalog. A source is asked again only to show a context, to
@@ -209,7 +210,7 @@ impl Sources {
     /// The source that `address`, of a collection that doesn't exist yet,
     /// would be created in, with the collection's name in it; or why it
     /// can't be created. Of the sources mounted deepest above the address,
-    /// exactly one must accept it (see `docs/plans/sources.md`,
+    /// exactly one must accept it (see `docs/sources.md`,
     /// "Addresses").
     pub(crate) fn for_new(&self, address: &str) -> std::result::Result<(usize, String), String> {
         let deepest = self
