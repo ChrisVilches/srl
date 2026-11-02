@@ -6,7 +6,8 @@ use serde::Deserialize;
 
 use crate::log;
 use crate::{
-    By, CardEvent, CardId, Error, Event, Item, Memories, Move, Notes, Result, Review, State, Store,
+    By, CardEvent, CardId, Catalog, Error, Event, Item, Memories, Move, Result, Review, State,
+    Store,
 };
 
 /// What `srl review --stdin` reads: a card ID, its rating, and optionally
@@ -52,7 +53,7 @@ fn check_rating(rating: u8) -> Result<()> {
 /// store. Returns the events; with `dry_run`, they are not written.
 pub fn review(
     store: &Store,
-    notes: &Notes,
+    notes: &Catalog,
     requests: &[ReviewRequest],
     now: &Zoned,
     dry_run: bool,
@@ -138,7 +139,7 @@ fn card_events(ids: &[CardId], now: &Zoned, kind: fn(CardEvent) -> Event) -> Vec
 /// no events at all (see `docs/scheduling.md`, "Moving history").
 pub fn move_history(
     store: &Store,
-    notes: &Notes,
+    notes: &Catalog,
     memories: &Memories,
     from: &CardId,
     to: &CardId,
@@ -189,7 +190,7 @@ mod tests {
     use super::*;
     use crate::{Config, History, Index, Log, Lookup};
 
-    fn store() -> (TempDir, Store, Notes) {
+    fn store() -> (TempDir, Store, Catalog) {
         let tmp = TempDir::new().unwrap();
         Store::init(tmp.path(), false).unwrap();
         let store = Store::open(&Lookup {
@@ -202,7 +203,7 @@ mod tests {
             "```srl\n@ id:aaa1\nQ: q\nA: a\n\n@ id:aaa2\nQ: {{c1::x}} {{c2::y}}\n\n@ id:aaa3 draft\nQ: d\nA: e\n```\n",
         )
         .unwrap();
-        let notes = Notes::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();
+        let notes = Catalog::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();
         (tmp, store, notes)
     }
 

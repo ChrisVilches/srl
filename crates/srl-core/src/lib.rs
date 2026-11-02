@@ -27,7 +27,7 @@ mod store;
 mod write;
 
 pub use card::{Card, CardId, SUFFIX_SEPARATOR};
-pub use catalog::{Notes, collections};
+pub use catalog::{Catalog, collections};
 pub use check::{Lint, lint, orphans};
 pub use config::Config;
 pub use context::{Context, ContextMode};

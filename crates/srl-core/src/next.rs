@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use jiff::civil::Date;
 
 use crate::{
-    Card, CardId, Config, Item, ItemId, Memories, Notes, Result, Selector, State, Status, random,
+    Card, CardId, Catalog, Config, Item, ItemId, Memories, Result, Selector, State, Status, random,
 };
 
 /// The next card among those that match `selector`, made by its kind to
@@ -15,7 +15,7 @@ use crate::{
 /// made, that is the error, and no other card is tried (see `docs/cli.md`,
 /// "Studying").
 pub fn next<'a>(
-    notes: &'a Notes,
+    notes: &'a Catalog,
     memories: &Memories,
     selector: &Selector,
     config: &Config,
@@ -37,7 +37,7 @@ pub fn next<'a>(
 /// under the sibling rule are the candidates, and the card is one of the
 /// first `max_skip + 1`, chosen uniformly from `seed`.
 fn pick<'a>(
-    notes: &'a Notes,
+    notes: &'a Catalog,
     memories: &Memories,
     selector: Selector,
     config: &Config,
@@ -123,7 +123,7 @@ mod tests {
 
     const DAY: Date = Date::constant(2026, 10, 26);
 
-    fn notes(files: &[(&str, &str)]) -> (TempDir, Notes) {
+    fn notes(files: &[(&str, &str)]) -> (TempDir, Catalog) {
         let tmp = TempDir::new().unwrap();
         Store::init(tmp.path(), false).unwrap();
         let store = Store::open(&Lookup {
@@ -134,7 +134,7 @@ mod tests {
         for (path, text) in files {
             std::fs::write(store.note_file(path), text).unwrap();
         }
-        let notes = Notes::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();
+        let notes = Catalog::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();
         assert!(notes.problems().is_empty(), "{:?}", notes.problems());
         (tmp, notes)
     }
@@ -154,7 +154,7 @@ mod tests {
     }
 
     fn next_card(
-        notes: &Notes,
+        notes: &Catalog,
         entries: &[Entry],
         config: &Config,
         selector: &str,
@@ -164,7 +164,7 @@ mod tests {
 
     /// The card picked with `seed`.
     fn picked(
-        notes: &Notes,
+        notes: &Catalog,
         entries: &[Entry],
         config: &Config,
         selector: &str,
@@ -191,7 +191,7 @@ mod tests {
 
     /// The cards picked with seeds 0 to 99, without repeats, sorted.
     fn picks_over_seeds(
-        notes: &Notes,
+        notes: &Catalog,
         entries: &[Entry],
         config: &Config,
         selector: &str,
@@ -234,7 +234,7 @@ mod tests {
         );
     }
 
-    fn store() -> (TempDir, Notes) {
+    fn store() -> (TempDir, Catalog) {
         notes(&[
             (
                 "a.md",

@@ -6,14 +6,14 @@ use serde::Serialize;
 
 use crate::kind::{has_near_deletion, has_revealing_hint};
 use crate::source::Sources;
-use crate::{CardId, Config, Error, Memories, Notes, Result, Store};
+use crate::{CardId, Catalog, Config, Error, Memories, Result, Store};
 
 /// Every orphan: an ID with reviews in the log, not moved away, but no
 /// card in the store. When it is the only orphan of an item that still
 /// exists, and that item has exactly one card with no events, the notice
 /// says how to move the history there (see `docs/scheduling.md`, "Moving
 /// history").
-pub fn orphans(notes: &Notes, memories: &Memories) -> Vec<Error> {
+pub fn orphans(notes: &Catalog, memories: &Memories) -> Vec<Error> {
     let cards = notes.cards().map(|(_, card)| card).collect::<HashSet<_>>();
     let mut orphans = memories
         .all()

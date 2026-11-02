@@ -3,7 +3,7 @@
 //!
 //! Which collection it is depends only on `see`; what that collection shows
 //! is up to its own source, so an item of one source can name a collection
-//! of another (see [`crate::Notes::contexts`]). How to render it is up to
+//! of another (see [`crate::Catalog::contexts`]). How to render it is up to
 //! whoever shows it, who can tell by the collection's address.
 
 /// How the context is shown. Each frontend chooses it, with `--context`.

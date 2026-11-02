@@ -13,7 +13,7 @@ use jiff::Zoned;
 use jiff::civil::Date;
 use serde::Serialize;
 use srl_core::{
-    Card, CardId, Config, ContextMode, Error, Index, Item, Log, Lookup, Memories, Notes,
+    Card, CardId, Catalog, Config, ContextMode, Error, Index, Item, Log, Lookup, Memories,
     ReviewRequest, Selector, State, Status, Store,
 };
 
@@ -88,7 +88,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
 /// card's memory today, and the time.
 struct Loaded {
     config: Config,
-    notes: Notes,
+    notes: Catalog,
     memories: Memories,
     now: Zoned,
 }
@@ -110,22 +110,22 @@ fn open(store: &Store) -> anyhow::Result<Loaded> {
 
 /// Reads the configuration and every note, and stops if the notes have
 /// any problem (see `docs/notes.md`, "Errors").
-fn load(store: &Store) -> anyhow::Result<(Config, Notes)> {
+fn load(store: &Store) -> anyhow::Result<(Config, Catalog)> {
     load_with(store, &mut Index::open(store))
 }
 
 /// [`load`], with the answers of kind programs kept in `index`. Reports
 /// any problem with the cache.
-fn load_with(store: &Store, index: &mut Index) -> anyhow::Result<(Config, Notes)> {
+fn load_with(store: &Store, index: &mut Index) -> anyhow::Result<(Config, Catalog)> {
     let config = Config::load(store)?;
-    let notes = Notes::load(store, &config, index);
+    let notes = Catalog::load(store, &config, index);
     report_cache(index);
     Ok((config, strict(notes?)?))
 }
 
 /// `notes`, if they have no problems; otherwise reports every problem and
 /// fails.
-fn strict(notes: Notes) -> anyhow::Result<Notes> {
+fn strict(notes: Catalog) -> anyhow::Result<Catalog> {
     notes.problems().iter().for_each(output::problem);
     let count = notes.problems().len();
     if count > 0 {
@@ -173,7 +173,7 @@ fn init(flag: Option<PathBuf>, dir: Option<PathBuf>, dry_run: bool) -> anyhow::R
 fn check(store: &Store) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
     let mut index = Index::open(store);
-    let notes = Notes::load_asking(store, &config, &mut index);
+    let notes = Catalog::load_asking(store, &config, &mut index);
     report_cache(&mut index);
     let notes = notes?;
     let (memories, _, log_problems) = memories(&mut index, &config)?;
@@ -206,7 +206,7 @@ fn lint(store: &Store) -> anyhow::Result<Outcome> {
 fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
     let mut index = Index::open(store);
-    let notes = Notes::load(store, &config, &mut index);
+    let notes = Catalog::load(store, &config, &mut index);
     report_cache(&mut index);
     let notes = notes?;
     notes
@@ -291,7 +291,7 @@ fn state_name(state: State) -> &'static str {
 
 /// The items the IDs given to a command stand for, each once, in the order
 /// given; and the IDs that name nothing, reported.
-fn items_of<'a>(notes: &'a Notes, ids: &[String]) -> (Vec<&'a Item>, Vec<Error>) {
+fn items_of<'a>(notes: &'a Catalog, ids: &[String]) -> (Vec<&'a Item>, Vec<Error>) {
     let mut seen = HashSet::new();
     let mut items = Vec::new();
     let mut problems = Vec::new();

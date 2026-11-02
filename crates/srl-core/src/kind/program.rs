@@ -554,7 +554,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{Error, Index, Log, Lookup, Memories, Notes, Selector};
+    use crate::{Catalog, Error, Index, Log, Lookup, Memories, Selector};
 
     /// The test kind program of `crates/srl-test-kind`, which `cargo test
     /// --workspace` builds next to the test binaries.
@@ -572,18 +572,18 @@ mod tests {
 
     /// A store with `config` and the notes `notes` (path and text), and its
     /// notes as read.
-    fn store_with(config: &str, notes: &[(&str, &str)]) -> (TempDir, Store, Notes) {
+    fn store_with(config: &str, notes: &[(&str, &str)]) -> (TempDir, Store, Catalog) {
         store_in(TempDir::new().unwrap(), config, notes)
     }
 
     /// A store with `config` and one note `a.md` holding `note`, and its
     /// notes as read.
-    fn store(config: &str, note: &str) -> (TempDir, Store, Notes) {
+    fn store(config: &str, note: &str) -> (TempDir, Store, Catalog) {
         store_with(config, &[("a.md", note)])
     }
 
     /// [`store_with`], in `tmp`.
-    fn store_in(tmp: TempDir, config: &str, notes: &[(&str, &str)]) -> (TempDir, Store, Notes) {
+    fn store_in(tmp: TempDir, config: &str, notes: &[(&str, &str)]) -> (TempDir, Store, Catalog) {
         Store::init(tmp.path(), false).unwrap();
         let store = Store::open(&Lookup {
             dir: Some(tmp.path().to_path_buf()),
@@ -594,7 +594,7 @@ mod tests {
         for (path, text) in notes {
             fs::write(store.note_file(path), text).unwrap();
         }
-        let notes = Notes::load(
+        let notes = Catalog::load(
             &store,
             &Config::load(&store).unwrap(),
             &mut Index::open(&store),
@@ -609,16 +609,16 @@ mod tests {
         format!("[kinds]\nfake = ['{}']\n{more}", test_kind().display())
     }
 
-    fn ids(notes: &Notes) -> Vec<String> {
+    fn ids(notes: &Catalog) -> Vec<String> {
         notes.cards().map(|(_, card)| card.to_string()).collect()
     }
 
-    fn problems(notes: &Notes) -> Vec<String> {
+    fn problems(notes: &Catalog) -> Vec<String> {
         notes.problems().iter().map(ToString::to_string).collect()
     }
 
     /// The cards `ids` as made on 2026-10-27, as JSON, or the error.
-    fn make(notes: &Notes, ids: &[&str]) -> Result<Vec<Value>, String> {
+    fn make(notes: &Catalog, ids: &[&str]) -> Result<Vec<Value>, String> {
         let wanted = ids
             .iter()
             .map(|id| notes.card(&CardId::parse(id).unwrap()).unwrap())
@@ -675,13 +675,13 @@ mod tests {
     /// The notes of `store` read again, asking kind programs about every
     /// item if `asking`, and the calls logged to `calls.log`, which is then
     /// emptied.
-    fn reload(store: &Store, asking: bool) -> (Notes, String) {
+    fn reload(store: &Store, asking: bool) -> (Catalog, String) {
         let config = Config::load(store).unwrap();
         let mut index = Index::open(store);
         let notes = if asking {
-            Notes::load_asking(store, &config, &mut index)
+            Catalog::load_asking(store, &config, &mut index)
         } else {
-            Notes::load(store, &config, &mut index)
+            Catalog::load(store, &config, &mut index)
         }
         .unwrap();
         assert!(index.problems().is_empty());
@@ -782,7 +782,7 @@ mod tests {
         fs::write(store.cache_dir(), "not a folder").unwrap();
         fs::write(store.root().join("calls.log"), "").unwrap();
         let mut index = Index::open(&store);
-        let notes = Notes::load(&store, &Config::load(&store).unwrap(), &mut index).unwrap();
+        let notes = Catalog::load(&store, &Config::load(&store).unwrap(), &mut index).unwrap();
         assert_eq!(ids(&notes), ["aaa"]);
         assert!(matches!(
             index.problems()[..],

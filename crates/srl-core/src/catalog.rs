@@ -21,7 +21,7 @@ use crate::{Config, Error, Index, Result, Store};
 
 /// Every item of a store, and the problems in its sources.
 #[derive(Debug)]
-pub struct Notes {
+pub struct Catalog {
     sources: Sources,
     items: Vec<Item>,
     problems: Vec<Error>,
@@ -38,9 +38,9 @@ pub(crate) struct Located {
     pub(crate) collection: String,
 }
 
-impl Notes {
+impl Catalog {
     /// Reads every source of the store. Problems in sources are collected
-    /// in [`Notes::problems`], in the order of the collections and lines
+    /// in [`Catalog::problems`], in the order of the collections and lines
     /// they are about; only failing to read a source is an error here. The
     /// items of every source are checked together, so that each kind
     /// program is asked once about all of its items, and only about the
@@ -51,7 +51,7 @@ impl Notes {
         Self::read(store, config, &mut Cache::Use(index))
     }
 
-    /// Like [`Notes::load`], asking kind programs about every item, and
+    /// Like [`Catalog::load`], asking kind programs about every item, and
     /// keeping their new answers in `index` (`srl check`).
     pub fn load_asking(store: &Store, config: &Config, index: &mut Index) -> Result<Self> {
         Self::read(store, config, &mut Cache::Refresh(index))
@@ -155,7 +155,7 @@ impl Notes {
     }
 
     /// The context of `item` in `mode` (see `docs/notes.md`, "Context"):
-    /// [`Notes::contexts`] for one item.
+    /// [`Catalog::contexts`] for one item.
     pub fn context(&self, item: &Item, mode: ContextMode) -> Result<Option<Context>> {
         let mut contexts = self.contexts(&[item], mode)?;
         Ok(contexts.pop().flatten())
@@ -222,7 +222,7 @@ impl Notes {
     }
 
     /// The card `card` of `item`, made by its kind as it is about to be
-    /// shown on the study day `day`: [`Notes::make_cards`] for one card.
+    /// shown on the study day `day`: [`Catalog::make_cards`] for one card.
     pub fn make_card(&self, item: &Item, card: &CardId, day: Date) -> Result<Card> {
         let mut made = self.make_cards(&[(item, card)], day)?;
         Ok(made.pop().expect("one card should have been made"))

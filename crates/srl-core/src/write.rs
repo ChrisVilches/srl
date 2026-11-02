@@ -14,7 +14,7 @@ use crate::catalog::check_new;
 use crate::note::object::{self, Object};
 use crate::note::{Entries, Origin};
 use crate::source::{Change, Refusal};
-use crate::{Error, Item, ItemId, Notes, Result, random};
+use crate::{Catalog, Error, Item, ItemId, Result, random};
 
 /// One change to an item: which item, where.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,7 +35,7 @@ pub struct Added {
 
 /// `srl id`: gives an ID to every item without one. `notes` must have no
 /// problem other than items without an ID.
-pub fn assign_ids(notes: &Notes, seed: u64, dry_run: bool) -> Result<Vec<Written>> {
+pub fn assign_ids(notes: &Catalog, seed: u64, dry_run: bool) -> Result<Vec<Written>> {
     refuse_problems(notes, true)?;
     let mut fresh = fresh_ids(notes, HashSet::new(), seed);
     let given = notes
@@ -71,7 +71,7 @@ pub fn assign_ids(notes: &Notes, seed: u64, dry_run: bool) -> Result<Vec<Written
 }
 
 /// `srl accept`: removes `draft` from `items` that have it.
-pub fn accept(notes: &Notes, items: &[&Item], dry_run: bool) -> Result<Vec<Written>> {
+pub fn accept(notes: &Catalog, items: &[&Item], dry_run: bool) -> Result<Vec<Written>> {
     refuse_problems(notes, false)?;
     let drafts = items
         .iter()
@@ -105,7 +105,7 @@ pub fn accept(notes: &Notes, items: &[&Item], dry_run: bool) -> Result<Vec<Writt
 /// `srl add ADDRESS`: appends the items of `input`, one item object per
 /// line, to the collection at `address`, or creates it. An item without an
 /// `id` gets a new one.
-pub fn add(notes: &Notes, address: &str, input: &str, seed: u64, dry_run: bool) -> Result<Added> {
+pub fn add(notes: &Catalog, address: &str, input: &str, seed: u64, dry_run: bool) -> Result<Added> {
     refuse_problems(notes, false)?;
     check_address(address)?;
     let (source, collection) = match notes.located(address) {
@@ -177,7 +177,7 @@ pub fn add(notes: &Notes, address: &str, input: &str, seed: u64, dry_run: bool) 
 /// per line, the item its `id` names. Every line is checked, and every
 /// change made and verified, before anything is written. Gives the IDs of
 /// the items, in the order of `input`.
-pub fn edit(notes: &Notes, input: &str, dry_run: bool) -> Result<Vec<ItemId>> {
+pub fn edit(notes: &Catalog, input: &str, dry_run: bool) -> Result<Vec<ItemId>> {
     refuse_problems(notes, false)?;
     let lines = read_input(notes, input)?;
     let mut seen = HashSet::new();
@@ -234,7 +234,7 @@ fn replacement(origin: &Origin, after: Object) -> Change {
 /// the other; gives the text of the items added. A refused change is named
 /// by its place in `changes`.
 fn write(
-    notes: &Notes,
+    notes: &Catalog,
     changes: &[(usize, Change)],
     dry_run: bool,
 ) -> std::result::Result<String, Refusal> {
@@ -291,7 +291,7 @@ fn unexpected(refusal: Refusal) -> Error {
 /// The item objects of `input`, one per line, each with its line, counting
 /// from 1; blank lines are skipped. A `see` must name a collection of
 /// `notes`.
-fn read_input(notes: &Notes, input: &str) -> Result<Vec<(usize, Object)>> {
+fn read_input(notes: &Catalog, input: &str) -> Result<Vec<(usize, Object)>> {
     input
         .lines()
         .enumerate()
@@ -309,7 +309,11 @@ fn read_input(notes: &Notes, input: &str) -> Result<Vec<(usize, Object)>> {
 
 /// New item IDs from `seed`, each used by no item of `notes`, not in
 /// `taken`, and given only once.
-fn fresh_ids(notes: &Notes, mut taken: HashSet<ItemId>, seed: u64) -> impl Iterator<Item = ItemId> {
+fn fresh_ids(
+    notes: &Catalog,
+    mut taken: HashSet<ItemId>,
+    seed: u64,
+) -> impl Iterator<Item = ItemId> {
     taken.extend(notes.items().iter().map(|item| item.id().clone()));
     random::numbers(seed)
         .map(ItemId::from_number)
@@ -318,7 +322,7 @@ fn fresh_ids(notes: &Notes, mut taken: HashSet<ItemId>, seed: u64) -> impl Itera
 
 /// Fails if `notes` has problems, except items without an ID when
 /// `missing_ids` allows them.
-fn refuse_problems(notes: &Notes, missing_ids: bool) -> Result<()> {
+fn refuse_problems(notes: &Catalog, missing_ids: bool) -> Result<()> {
     let count = notes
         .problems()
         .iter()
@@ -336,7 +340,7 @@ fn refuse_problems(notes: &Notes, missing_ids: bool) -> Result<()> {
 /// about all of them (see [`check_new`]). The first problem is an error
 /// about its line, unless it is a kind program failing as a whole, which is
 /// no line's fault.
-fn check_lines(new: &[Object], lines: &[(usize, Object)], notes: &Notes) -> Result<()> {
+fn check_lines(new: &[Object], lines: &[(usize, Object)], notes: &Catalog) -> Result<()> {
     let Some(problem) = check_new(new, notes.programs()).into_iter().next() else {
         return Ok(());
     };
@@ -379,7 +383,7 @@ fn check_address(address: &str) -> Result<()> {
 /// One line of `srl add --stdin` or `srl edit --stdin`: an item object
 /// whose `see`, if any, names a collection of `notes`. Errors are plain
 /// reasons.
-fn item_of(notes: &Notes, line: &str) -> std::result::Result<Object, String> {
+fn item_of(notes: &Catalog, line: &str) -> std::result::Result<Object, String> {
     let object = object::read(line)?;
     if let Some(see) = &object.entries.see
         && notes.located(see).is_none()
@@ -419,12 +423,12 @@ mod tests {
         (tmp, store)
     }
 
-    fn notes(store: &Store) -> Notes {
-        Notes::load(store, &Config::default(), &mut Index::open(store)).unwrap()
+    fn notes(store: &Store) -> Catalog {
+        Catalog::load(store, &Config::default(), &mut Index::open(store)).unwrap()
     }
 
-    fn notes_with(store: &Store, config: &Config) -> Notes {
-        Notes::load(store, config, &mut Index::open(store)).unwrap()
+    fn notes_with(store: &Store, config: &Config) -> Catalog {
+        Catalog::load(store, config, &mut Index::open(store)).unwrap()
     }
 
     fn read(store: &Store, path: &str) -> String {
@@ -586,7 +590,7 @@ mod tests {
         let mut config = Config::default();
         config.notes.include = vec!["**/*.md".to_owned(), "**/*.jsonl".to_owned()];
         let (_tmp, store) = store(&[("a.jsonl", "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}")]);
-        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let notes = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         let input = "{\"id\": \"mine\", \"Q\": \"r\", \"A\": \"b\", \"kind\": \"qa\", \"see\": \"a.jsonl\"}\n{\"draft\": true, \"Q\": \"{{c1::s}}\"}\n";
         let added = add(&notes, "a.jsonl", input, 3, false).unwrap();
         assert_eq!(added.ids[0].as_str(), "mine");
@@ -597,7 +601,7 @@ mod tests {
                 "{{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}}\n{{\"id\":\"mine\",\"see\":\"a.jsonl\",\"Q\":\"r\",\"A\":\"b\"}}\n{{\"id\":\"{two}\",\"draft\":true,\"Q\":\"{{{{c1::s}}}}\"}}\n"
             )
         );
-        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let notes = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         assert!(notes.problems().is_empty(), "{:?}", notes.problems());
         let taken = "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}";
         assert!(add(&notes, "a.jsonl", taken, 3, false).is_err());
@@ -609,7 +613,7 @@ mod tests {
         config.notes.include = vec!["*.jsonl".to_owned()];
         let text = "{\"Q\": \"q\", \"A\": \"a\", \"draft\": true}\r\n\r\n{\"id\": \"keep\", \"Q\": \"r\", \"A\": \"b\"}\r\n";
         let (_tmp, store) = store(&[("a.jsonl", text)]);
-        let load = || Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let load = || Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         let written = assign_ids(&load(), 7, false).unwrap();
         let id = &written[0].id;
         let notes = load();
@@ -630,7 +634,7 @@ mod tests {
         let text = "Before.\n```srl id:aaa1\nQ: old\nA: old\n```\n\n````srl\n@ id:aaa2\nQ: old\nA: old\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n";
         let lines = "{\"id\": \"bbb1\", \"Q\": \"old\", \"A\": \"old\"}\n";
         let (_tmp, store) = store(&[("a.md", text), ("b.jsonl", lines)]);
-        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let notes = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         let input = "{\"id\": \"aaa2\", \"Q\": \"new\\n```\\ncode\\n```\", \"A\": \"a\", \"address\": \"x\", \"cards\": []}\n{\"id\": \"aaa1\", \"draft\": true, \"Q\": \"new\", \"A\": \"new\\n\\nmore\"}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\", \"see\": \"a.md\"}\n";
         let ids = edit(&notes, input, false).unwrap();
         let ids = ids.iter().map(ItemId::as_str).collect::<Vec<_>>();
@@ -643,7 +647,7 @@ mod tests {
             read(&store, "b.jsonl"),
             "{\"id\":\"bbb1\",\"see\":\"a.md\",\"Q\":\"new\",\"A\":\"a\"}\n"
         );
-        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let notes = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         let closing = "{\"id\": \"aaa3\", \"Q\": \"q\\n````\"}";
         assert!(edit(&notes, closing, false).is_err());
     }
@@ -655,7 +659,7 @@ mod tests {
         let text = "```srl\n@ id:aaa1\nQ: one\nA: a\n\n@ id:aaa2\nQ: two\nA: a\n\n@ id:aaa3\nQ: three\nA: a\n```\n";
         let lines = "{\"id\": \"bbb1\", \"Q\": \"one\", \"A\": \"a\"}\n{\"id\": \"bbb2\", \"Q\": \"two\", \"A\": \"a\"}\n{\"id\": \"bbb3\", \"Q\": \"three\", \"A\": \"a\"}\n";
         let (_tmp, store) = store(&[("a.md", text), ("b.jsonl", lines)]);
-        let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let notes = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         // The first items given grow by a line, so that a later edit made
         // from the top down would miss its item.
         let input = "{\"id\": \"aaa1\", \"Q\": \"one\\nmore\", \"A\": \"a\"}\n{\"id\": \"bbb1\", \"Q\": \"1\", \"A\": \"a\"}\n{\"id\": \"aaa3\", \"Q\": \"three\\nmore\", \"A\": \"a\"}\n{\"id\": \"bbb3\", \"Q\": \"3\", \"A\": \"a\"}\n";
@@ -709,7 +713,7 @@ mod tests {
             "a.jsonl",
             "{\"Q\": \"q\", \"A\": \"a\"}\n{\"Q\": \"q\", \"A\": \"a\"}\n",
         )]);
-        let load = || Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let load = || Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         let written = assign_ids(&load(), 7, false).unwrap();
         let lines = written.iter().map(|done| done.line).collect::<Vec<_>>();
         assert_eq!(lines, [1, 2]);
@@ -728,7 +732,7 @@ mod tests {
                 "{\"id\": \"old2\", \"Q\": \"q\", \"A\": \"a\"}\r\n",
             ),
         ]);
-        let load = || Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
+        let load = || Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         let item = "{\"id\": \"new1\", \"Q\": \"r\", \"A\": \"a\"}\n{\"id\": \"new2\", \"Q\": \"s\", \"A\": \"a\"}";
         let added = add(&load(), "a.jsonl", item, 3, false).unwrap();
         assert_eq!(

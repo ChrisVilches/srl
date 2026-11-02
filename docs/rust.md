@@ -440,7 +440,7 @@ syntax its extension chooses (see "The item syntax" below).
 | `lint()` | The likely mistakes in the source. |
 
 - **The catalog holds every item in memory** (`catalog.rs`, the type
-  `Notes`). It reads every source, turns what they read into `Item`s,
+  `Catalog`). It reads every source, turns what they read into `Item`s,
   each with its `Origin` (source, collection, address, handle, line, and
   the item as read), checks them with their kinds, and keeps the rules
   that cross sources: IDs unique in the store, `see` naming a collection
@@ -652,6 +652,6 @@ answers stay in use until `srl check` or until the cache is deleted:
   `kind/program.rs` keeps each line a kind program printed, and a kept
   line goes through the same parsing as a fresh one, so it gives the same
   items and the same messages. Whether a call runs at all is decided by
-  `kind::Cache`: `Notes::load` uses the kept answers, `Notes::load_asking`
+  `kind::Cache`: `Catalog::load` uses the kept answers, `Catalog::load_asking`
   (`srl check`) asks again, and `note::check_new` (checking items about to be
   written) keeps nothing.

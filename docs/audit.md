@@ -130,7 +130,7 @@ and it fails silently.
 **Severity High · Difficulty Moderate**
 
 `srl review` loads every note before it writes (`crates/srl/src/commands.rs`,
-`fn review`, which calls `Notes::load`). By [notes.md](notes.md), "Errors", any
+`fn review`, which calls `Catalog::load`). By [notes.md](notes.md), "Errors", any
 error in any note then stops it. So:
 
 1. A frontend shows a card and the person rates it.
