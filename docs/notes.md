@@ -306,16 +306,17 @@ store: each frontend chooses it with `--context MODE` on `srl next`, and
 
 | Mode | Shows |
 |---|---|
-| `prose` | The note without its srl blocks. |
-| `full` | The note with the field lines of its items, as written, and the blank lines between them, without the fences of the srl blocks and their `@` lines. |
+| `prose` | The note without its items: without its srl blocks; nothing for a JSONL note, which is all items. |
+| `full` | The note with its items: the field lines of srl blocks, as written, and the blank lines between them, without the fences of the blocks and their `@` lines; a JSONL note as it is. |
 | `none` | Nothing. |
 
 For a note of srl blocks, in every mode, the YAML front-matter is removed,
 runs of blank lines become one, and blank lines at the start and the end
 are removed. A block with an error is removed in every mode.
 
-**A JSONL note named by `see` is given as it is**, in modes `prose` and
-`full` alike: every line, with nothing removed, as the file holds it,
+**Mode `prose` never shows items**, so a JSONL note named by `see` gives
+no context in it. **In mode `full`, a JSONL note is given as it is**:
+every line, with nothing removed, as the file holds it,
 line endings included. Only a UTF-8 byte order mark is left out, as it is
 from every note.
 
@@ -329,12 +330,6 @@ the store's folder. It is `null` when `context` is `null`. `srl` doesn't
 say how to read the text: whoever shows it decides that from the address, as
 it likes, with any fallbacks it wants (see [frontends.md](frontends.md),
 "Rendering").
-
-> **TODO (design):** the two syntaxes give their notes as context by
-> different rules: srl blocks are removed from a note in `prose` mode, but
-> a JSONL note named by `see` is given whole, its items included, and is
-> never the context of its own items. Each rule is simple, but together
-> they are not one rule; a single rule for both is wanted.
 
 ## How srl writes to notes
 

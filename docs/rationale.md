@@ -139,9 +139,10 @@ stay out of the store unless a glob names them.
 
 Trade-off: `srl` writes a JSONL item it changes as a new line, without its
 spacing or key order, so a JSONL note is not for formatting by hand. And
-the two syntaxes give their notes as context by different rules (see
-[notes.md](notes.md), "Context"): srl blocks are removed from a note, but
-a JSONL note is all items, so it is given whole when `see` names it, and
+the two syntaxes give their notes as context by their own rules (see
+[notes.md](notes.md), "Context"), with one in common, that mode `prose`
+never shows items: srl blocks are removed from a note, and
+a JSONL note is all items, so it is given only in mode `full`, whole, and
 is never the context of its own items.
 
 ## Why only srl blocks make items

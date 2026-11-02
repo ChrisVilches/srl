@@ -518,12 +518,20 @@ fn jsonl_notes_hold_one_item_per_line_and_no_context() {
             .unwrap()
             .contains("Admiring tone")
     );
-    // A `see` naming a JSONL note gives it as it is.
+    // A `see` naming a JSONL note gives it as it is, in mode `full`.
     let input =
         "{\"Q\": \"Which fish?\", \"A\": \"Sea bream.\", \"see\": \"generated/items.jsonl\"}\n";
     let added = srl_with_input(&["add", "fish.md", "--stdin", "--dir", d], input);
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
-    let shown = srl(&["show", &lines(&added)[0], "--json", "--dir", d]);
+    let shown = srl(&[
+        "show",
+        &lines(&added)[0],
+        "--json",
+        "--context",
+        "full",
+        "--dir",
+        d,
+    ]);
     assert_eq!(
         json_lines(&shown)[0]["context"],
         read(&tmp, "generated/items.jsonl")
@@ -556,7 +564,7 @@ fn store_with_jsonl(notes: &[(&str, &str)]) -> TempDir {
 }
 
 #[test]
-fn a_jsonl_note_is_a_context_as_it_is_in_every_mode_but_none() {
+fn a_jsonl_note_is_a_context_as_it_is_in_mode_full_only() {
     let items = "\n{\"id\": \"own001\", \"Q\": \"q\", \"A\": \"a\"}\n\n";
     let tmp = store_with_jsonl(&[
         ("items.jsonl", items),
@@ -575,15 +583,16 @@ fn a_jsonl_note_is_a_context_as_it_is_in_every_mode_but_none() {
         (shown["context"].clone(), shown["context_address"].clone())
     };
     let nothing = (serde_json::Value::Null, serde_json::Value::Null);
+    assert_eq!(
+        context("see001", "full"),
+        (items.into(), "items.jsonl".into())
+    );
     for mode in ["prose", "full"] {
-        assert_eq!(
-            context("see001", mode),
-            (items.into(), "items.jsonl".into()),
-            "{mode}"
-        );
         assert_eq!(context("own001", mode), nothing, "{mode}");
         assert_eq!(context("see002", mode), nothing, "{mode}");
     }
+    // `prose` never shows items, and a JSONL note is nothing but items.
+    assert_eq!(context("see001", "prose"), nothing);
     assert_eq!(context("see001", "none"), nothing);
     // The frontend contract gives the same.
     let next = next_card(d, &["id:own001"]);

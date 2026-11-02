@@ -46,10 +46,16 @@ impl Syntax for Jsonl {
         None
     }
 
-    /// The note as it is, in every mode: nothing is removed but a byte
-    /// order mark, which is no part of a note's text.
-    fn context(&self, text: &str, _mode: ContextMode) -> Option<String> {
-        unless_blank(text.strip_prefix('\u{feff}').unwrap_or(text).to_owned())
+    /// Nothing in mode `prose`, which never shows items, and a JSONL note
+    /// is all items; in mode `full`, the note as it is: nothing is removed
+    /// but a byte order mark, which is no part of a note's text.
+    fn context(&self, text: &str, mode: ContextMode) -> Option<String> {
+        match mode {
+            ContextMode::Prose | ContextMode::None => None,
+            ContextMode::Full => {
+                unless_blank(text.strip_prefix('\u{feff}').unwrap_or(text).to_owned())
+            }
+        }
     }
 
     fn with_id(&self, text: &str, item: usize, id: &ItemId) -> Option<Edit> {
@@ -167,19 +173,23 @@ mod tests {
     }
 
     #[test]
-    fn a_jsonl_note_is_given_whole_and_never_to_its_own_items() {
+    fn a_jsonl_note_is_given_whole_in_mode_full_only_and_never_to_its_own_items() {
         let text = "\n{\"Q\": \"q\"}\n\n";
+        assert_eq!(
+            Jsonl.context(text, ContextMode::Full).as_deref(),
+            Some(text)
+        );
+        assert_eq!(Jsonl.context(text, ContextMode::Prose), None);
+        assert_eq!(Jsonl.context("\n  \n", ContextMode::Full), None);
         for mode in [ContextMode::Prose, ContextMode::Full] {
-            assert_eq!(Jsonl.context(text, mode).as_deref(), Some(text));
             assert_eq!(Jsonl.own_context(text, mode), None);
-            assert_eq!(Jsonl.context("\n  \n", mode), None);
-            // A byte order mark is the one thing left out.
-            let marked = "\u{feff}{\"Q\": \"q\"}\r\n";
-            assert_eq!(
-                Jsonl.context(marked, mode).as_deref(),
-                Some("{\"Q\": \"q\"}\r\n")
-            );
         }
+        // A byte order mark is the one thing left out.
+        let marked = "\u{feff}{\"Q\": \"q\"}\r\n";
+        assert_eq!(
+            Jsonl.context(marked, ContextMode::Full).as_deref(),
+            Some("{\"Q\": \"q\"}\r\n")
+        );
     }
 
     #[test]

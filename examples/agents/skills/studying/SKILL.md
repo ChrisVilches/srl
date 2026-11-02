@@ -23,7 +23,7 @@ srl-web in:grammar          # only notes in a folder named grammar
 
 For each card, space or Enter shows the answer, then the context (the
 note around the item, or the one its `see` names; none for an item of a
-JSONL note without `see`, and a JSONL note named by `see` shown as a code
+JSONL note without `see`, and in mode `full` a JSONL note named by `see`, shown as a code
 block); `1`–`4` records the
 rating; `s` suspends the card without rating it. In `srl-tui`, the card
 and the context scroll in panels of their own: `j`/`k` or the arrows
@@ -114,7 +114,7 @@ as yours. Only run one when the person asks for it. Each round:
    how much of the note comes along: `prose` (the default) without its
    items, `full` with them, `none` nothing. An item of a JSONL note
    without `see` has no context (`null`), and a JSONL note named by `see`
-   comes whole, as it is, in `prose` and `full` alike.
+   comes whole, as it is, in `full` only: `prose` never shows items.
 2. Show the prompt, and wait for the person's answer or for them to ask for
    the answer.
 3. Show the answer: `prompt_revealed` (the prompt with a cloze's blanks

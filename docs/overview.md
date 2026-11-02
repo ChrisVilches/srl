@@ -314,7 +314,3 @@ Main design decisions still to take:
   way, and running it by hand takes more knowledge than a person should
   need. A safer helper is wanted, in `srl` or built on top
   ([scheduling.md](scheduling.md), "Moving history").
-- **One context rule for both item syntaxes.** Today srl blocks are
-  removed from a Markdown note shown as context, but a JSONL note named by
-  `see` is shown whole, and is never the context of its own items
-  ([notes.md](notes.md), "Context").

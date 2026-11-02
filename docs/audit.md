@@ -70,7 +70,6 @@ The open findings cluster in three places:
 | H3 | Kind programs make a store machine-specific, and a cloned store runs code on any command | Brittleness | High | Moderate |
 | H4 | Card IDs of kind programs can change silently, orphaning history | Brittleness | High | Easy |
 | M1 | Two item syntaxes are two models of where a question lives | Vision | Medium | Hard |
-| M2 | A JSONL context gives away the answers of other items | Specification | Medium | Easy |
 | M3 | Kind programs are the main extension mechanism, but the vision doesn't say so | Vision | Medium | Easy |
 | M4 | Invalid log lines are skipped, against "fail loudly" | Specification | Medium | Easy |
 | M5 | "Every rule in one sentence" no longer describes the specification | Vision | Medium | Moderate |
@@ -233,8 +232,8 @@ Both are legitimate, and neither needs an LLM: an Anki importer or a
 script that turns a vocabulary list into items wants JSONL as much as any
 agent does. But they pull in different directions. The second has added a
 whole item syntax, `see`, an item object shared by four
-places, and the open "one context rule for both syntaxes" question, which
-is a symptom: the two syntaxes give their notes as context by different
+places, and context rules of its own, which
+are a symptom: the two syntaxes give their notes as context by different
 rules because they hold questions in different places.
 
 The rationale keeps the Goals' order ("Not every question is typed next
@@ -243,23 +242,8 @@ which model is primary.
 
 **Possible fix:** keep notes primary, as the Goals say, and treat JSONL
 notes as the format for items that programs write: say so in "Item
-syntaxes", and let their context rules follow from it (see M2). This is a
+syntaxes", and let their context rules follow from it. This is a
 vision decision, hence Hard, though the doc edit is small once made.
-
-### M2. A JSONL context gives away the answers of other items
-
-**Severity Medium · Difficulty Easy**
-
-[notes.md](notes.md), "Context": a JSONL note named by `see` "is given as it
-is … every line", in `prose` mode too. So a card whose `see` names a JSONL
-note shows, after its answer, every question and answer in that note.
-Those may be cards you study the same day, which defeats the sibling rule's
-purpose (seeing one gives away another). It also breaks the symmetry with
-Markdown notes, whose `prose` mode removes items for that reason.
-
-**Possible fix:** in `prose` mode, a JSONL note gives no context (or its
-items' fields stripped); `full` keeps it whole. This also answers the open
-"one context rule" question: `prose` never shows items, in either syntax.
 
 ### M3. Kind programs are the main extension mechanism, but the vision doesn't say so
 
@@ -482,7 +466,7 @@ Worth keeping as they are:
    decide on per-device logs.
 3. **H2**: let commands that write the log record despite unrelated note
    errors.
-4. **M2**, **M4**, **L2**, **L9**: small rule changes, best made
+4. **M4**, **L2**, **L9**: small rule changes, best made
    before more programs depend on current behaviour.
 5. **M3**: state kinds as the extension mechanism, and settle their
    contract, since every plugin builds on it.
