@@ -499,7 +499,7 @@ fn next(
             path: &'a str,
             see: Option<&'a str>,
             context: Option<String>,
-            context_format: Option<&'static str>,
+            context_path: Option<String>,
         }
         let context = srl_core::context(store, item, mode)?;
         output::json_lines(&[Next {
@@ -508,7 +508,7 @@ fn next(
             kind: item.kind().as_str(),
             path: item.path(),
             see: item.see(),
-            context_format: context.as_ref().map(|context| context.format.as_str()),
+            context_path: context.as_ref().map(|context| context.path.clone()),
             context: context.map(|context| context.text),
         }])?;
     } else {

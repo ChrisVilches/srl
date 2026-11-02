@@ -233,7 +233,7 @@ files of their own, linked to the knowledge by `see`.
 Both are legitimate, and neither needs an LLM: an Anki importer or a
 script that turns a vocabulary list into items wants JSONL as much as any
 agent does. But they pull in different directions. The second has added a
-whole item syntax, `see`, `context_format`, an item object shared by four
+whole item syntax, `see`, an item object shared by four
 places, and the open "one context rule for both syntaxes" question, which
 is a symptom: the two syntaxes give their notes as context by different
 rules because they hold questions in different places.

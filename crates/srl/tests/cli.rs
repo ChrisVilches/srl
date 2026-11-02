@@ -567,18 +567,18 @@ fn a_jsonl_note_is_a_context_as_it_is_in_every_mode_but_none() {
         ),
     ]);
     let d = dir(&tmp);
-    // The context and its format.
+    // The context and the note it comes from.
     let context = |id: &str, mode: &str| {
         let output = srl(&["show", id, "--json", "--context", mode, "--dir", d]);
         assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
         let shown = &json_lines(&output)[0];
-        (shown["context"].clone(), shown["context_format"].clone())
+        (shown["context"].clone(), shown["context_path"].clone())
     };
     let nothing = (serde_json::Value::Null, serde_json::Value::Null);
     for mode in ["prose", "full"] {
         assert_eq!(
             context("see001", mode),
-            (items.into(), "jsonl".into()),
+            (items.into(), "items.jsonl".into()),
             "{mode}"
         );
         assert_eq!(context("own001", mode), nothing, "{mode}");
@@ -590,14 +590,14 @@ fn a_jsonl_note_is_a_context_as_it_is_in_every_mode_but_none() {
     assert_eq!(next["path"], "items.jsonl");
     assert_eq!(next["see"], serde_json::Value::Null);
     assert_eq!(next["context"], serde_json::Value::Null);
-    assert_eq!(next["context_format"], serde_json::Value::Null);
+    assert_eq!(next["context_path"], serde_json::Value::Null);
     let seen = next_card(d, &["id:see001", "--context", "full"]);
     assert_eq!(seen["context"], items);
-    assert_eq!(seen["context_format"], "jsonl");
+    assert_eq!(seen["context_path"], "items.jsonl");
 }
 
 #[test]
-fn a_markdown_note_named_by_see_from_a_jsonl_note_is_a_markdown_context() {
+fn a_markdown_note_named_by_see_from_a_jsonl_note_is_the_context_path() {
     let tmp = store_with_jsonl(&[
         (
             "items.jsonl",
@@ -610,7 +610,7 @@ fn a_markdown_note_named_by_see_from_a_jsonl_note_is_a_markdown_context() {
     assert_eq!(shown.status.code(), Some(0), "{}", stderr(&shown));
     let shown = &json_lines(&shown)[0];
     assert_eq!(shown["context"], "# A\n\nProse.\n");
-    assert_eq!(shown["context_format"], "markdown");
+    assert_eq!(shown["context_path"], "a.md");
 }
 
 #[test]
@@ -716,12 +716,12 @@ fn next_json_gives_the_card_with_its_state_note_and_context() {
             "path": "japanese/grammar/wo.md",
             "see": null,
             "context": "# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n",
-            "context_format": "markdown",
+            "context_path": "japanese/grammar/wo.md",
         })
     );
     let none = next_card(d, &["--context", "none"]);
     assert_eq!(none["context"], serde_json::Value::Null);
-    assert_eq!(none["context_format"], serde_json::Value::Null);
+    assert_eq!(none["context_path"], serde_json::Value::Null);
     assert!(
         next_card(d, &["--context", "full"])["context"]
             .as_str()

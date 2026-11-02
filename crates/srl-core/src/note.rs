@@ -245,7 +245,7 @@ impl Item {
 
     /// The item object, with every entry and the keys only `srl` gives
     /// (see `docs/notes.md`, "The item object"), with its context and the
-    /// context's format.
+    /// path of the note it comes from.
     pub fn json(&self, context: Option<&Context>) -> Value {
         let mut object = Map::new();
         object.insert("id".to_owned(), Value::from(self.id.as_str()));
@@ -263,8 +263,8 @@ impl Item {
             Value::from(context.map(|context| context.text.as_str())),
         );
         object.insert(
-            "context_format".to_owned(),
-            Value::from(context.map(|context| context.format.as_str())),
+            "context_path".to_owned(),
+            Value::from(context.map(|context| context.path.as_str())),
         );
         Value::Object(object)
     }
@@ -698,7 +698,7 @@ mod tests {
         assert_eq!(items[1].text(), text.lines().nth(1).unwrap());
         assert_eq!(
             items[0].json(None).to_string(),
-            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","path":"n.jsonl","line":1,"cards":["abc"],"context":null,"context_format":null}"#
+            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","path":"n.jsonl","line":1,"cards":["abc"],"context":null,"context_path":null}"#
         );
         // The same text in any other note is prose, with no item.
         let (md, problems) = read_items("n.md", text, &Programs::default());

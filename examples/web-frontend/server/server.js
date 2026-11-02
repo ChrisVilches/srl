@@ -162,7 +162,7 @@ export function createSrlServer({ dir, selector, staticDir, onChange }) {
           path: item.path,
           see: item.see,
           context: item.context,
-          context_format: item.context_format,
+          context_path: item.context_path,
         },
       };
     },

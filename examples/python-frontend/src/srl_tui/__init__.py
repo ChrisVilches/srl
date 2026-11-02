@@ -113,15 +113,19 @@ class CardMarkdown(Markdown):
         self.parsed = self.parser.parse(markup)  # Rich has no way to give it a parser
 
 
+MARKDOWN_EXTENSIONS = (".md", ".markdown", ".mdx", ".qmd")
+
+
 def context_markdown(card):
-    """The card's context, as Markdown to render. A context in any format but
-    markdown (context_format) goes in a code block as plain text, json for a
-    JSONL note, with a fence longer than any run of backticks in it."""
+    """The card's context, as Markdown to render, by the extension of its note
+    (context_path). A context from any note but a Markdown one goes in a code
+    block as plain text, json for a JSONL note, with a fence longer than any
+    run of backticks in it."""
     context = card["context"]
-    context_format = card.get("context_format")
-    if context_format == "markdown":
+    path = (card.get("context_path") or "").lower()
+    if path.endswith(MARKDOWN_EXTENSIONS):
         return context
-    language = "json" if context_format == "jsonl" else ""
+    language = "json" if path.endswith(".jsonl") else ""
     longest = max((len(run) for run in re.findall("`+", context)), default=0)
     fence = "`" * max(3, longest + 1)
     return f"{fence}{language}\n{context.rstrip(chr(10))}\n{fence}\n"

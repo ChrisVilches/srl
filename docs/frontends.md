@@ -70,7 +70,7 @@ context:
  "state": "due", "kind": "qa",
  "path": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
- "context_format": "markdown"}
+ "context_path": "japanese/grammar/wo-mono-tomo-sezu.md"}
 ```
 
 | Field | Meaning |
@@ -81,7 +81,7 @@ context:
 | `path` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "The item object"). |
 | `see` | The note its `see` names, or `null`. |
 | `context` | The context, in the mode the frontend chose, or `null` when there is none (see [notes.md](notes.md), "Context"). |
-| `context_format` | What the context's text is: `markdown` or `jsonl` for now (see "Rendering"). `null` when `context` is. |
+| `context_path` | The note the context comes from: `see`, or else `path` (see "Rendering"). `null` when `context` is. |
 
 **The frontend chooses the context's mode** with `--context`: `prose` (the
 default), `full` or `none`. How much of the note to show is a choice about
@@ -90,19 +90,18 @@ presentation, so it belongs to the frontend, not to the store.
 ## Rendering
 
 Card text is Markdown, and may also hold `==highlight==` (see
-[cards.md](cards.md), "Text formatting"). **The context's text is in the
-format `context_format` names**, which `srl` takes from the syntax of the
-note it comes from (see [notes.md](notes.md), "Context"), so a frontend
-never has to guess it from a file name:
+[cards.md](cards.md), "Text formatting"). **`srl` doesn't say what the
+context's text is: the frontend decides how to render it from
+`context_path`**, the note it comes from (see [notes.md](notes.md),
+"Context"), for example by its extension: Markdown for `.md`, Quarto for
+`.qmd`, JSON lines for `.jsonl`. What the text holds is the note's, as
+`notes.md` describes for each mode: a note of srl blocks without its front
+matter and, in mode `prose`, without its blocks; a JSONL note as it is.
 
-| `context_format` | The text |
-|---|---|
-| `markdown` | The note's Markdown. |
-| `jsonl` | A JSONL note's lines, as they are. |
-
-A frontend renders the formats it supports as it likes, and **shows any
-other format as plain text**, including values added after it was
-written. Supporting only `markdown`, or no format at all, is fine.
+A frontend renders the notes it supports as it likes, and **shows any
+other note as plain text**, with whatever fallbacks it wants, such as for
+a file whose content doesn't match its extension. Rendering only Markdown,
+or nothing at all, is fine.
 
 - The context is the note as written, so it may use syntax beyond
   CommonMark that notes commonly have, such as GFM tables. A frontend may

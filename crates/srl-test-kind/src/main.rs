@@ -185,7 +185,7 @@ fn make(input: &Value) -> Result<String, String> {
             "day {}; context {} ({}); in {folder}",
             get("day"),
             get("context"),
-            get("context_format")
+            get("context_path")
         ),
     })
     .to_string())

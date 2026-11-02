@@ -319,13 +319,12 @@ from every note.
 in mode `none`: frontends show nothing, and `context` is `null` in JSON. So
 a note that holds only items has no context in `prose` mode.
 
-**A context has a format**, given with it as `context_format` in JSON,
-so that whoever shows it need not guess how to read it. The note it comes
-from decides it, by its syntax: `markdown` for a note of srl blocks,
-whatever its extension, and `jsonl` for a JSONL note. It is `null` when
-`context` is `null`. More formats may be added later, so whoever reads
-`context_format` must accept values it doesn't know (see
-[frontends.md](frontends.md), "Rendering").
+**A context comes with the path of its note**, given as `context_path`
+in JSON: the note named by `see`, or else the item's own note, relative to
+the store's folder. It is `null` when `context` is `null`. `srl` doesn't
+say how to read the text: whoever shows it decides that from the path, as
+it likes, with any fallbacks it wants (see [frontends.md](frontends.md),
+"Rendering").
 
 > **TODO (design):** the two syntaxes give their notes as context by
 > different rules: srl blocks are removed from a note in `prose` mode, but
@@ -447,7 +446,7 @@ edit --stdin` as it is.
  "path": "japanese/grammar/wo-mono-tomo-sezu.md", "line": 11,
  "cards": ["p4n8d2.1"],
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
- "context_format": "markdown"}
+ "context_path": "japanese/grammar/wo-mono-tomo-sezu.md"}
 ```
 
 Its keys:
@@ -459,7 +458,7 @@ Its keys:
 | `see` | The path of the note shown as context, as text. `null` is the same as leaving it out. |
 | `draft` | `true` or `false`. `false` is the same as leaving it out. |
 | a field name: uppercase letters `A`–`Z`, digits and `_`, starting with a letter | The field's text. |
-| `path`, `line`, `cards`, `context`, `context_format` | Given by `srl` only (see below), and ignored wherever an item object is read. |
+| `path`, `line`, `cards`, `context`, `context_path` | Given by `srl` only (see below), and ignored wherever an item object is read. |
 
 - Header entries are lowercase and field names uppercase, so they never
   clash. Any other key is an error, so a typo such as `drfat` fails
@@ -480,5 +479,5 @@ the keys only `srl` gives:
 - `context` is the context in the mode chosen, or `null` when there is
   none (mode `none`, an item of a JSONL note without `see`, or nothing but
   blank space left).
-- `context_format` is the context's format, `markdown` or `jsonl`, or
-  `null` when `context` is (see "Context").
+- `context_path` is the note the context comes from, or `null` when
+  `context` is (see "Context").
