@@ -366,9 +366,10 @@ their lines:
     after the colon, `q:`, or `Q` with a full-width colon or letter
     (`Q：`, `Ｑ:`);
   - a cloze deletion (`{{c1::…}}`);
-- in the `Q` of a `qa` item, something that was probably meant to be a
-  cloze deletion (`{{C1::…}}`, or `{{c1:…}}` with one colon), and a
-  deletion whose hint is the text it hides;
+- in the `Q` of a `qa` item of any source, something that was probably
+  meant to be a cloze deletion (`{{C1::…}}`, or `{{c1:…}}` with one
+  colon), and a deletion whose hint is the text it hides, each reported
+  once, at the item's line;
 - an srl block whose closing fence is indented (by one to three spaces): it
   is almost always the end of a code block in a field, which closed the
   srl block too early (see [notes.md](notes.md), "The srl block syntax", rule
@@ -383,8 +384,10 @@ lines inside an srl block are never reported: mistakes there are errors,
 which `srl check` reports.
 
 A JSONL note holds nothing but items and blank lines, and a line that is
-neither is an error, so only the `Q` of its `qa` items is looked at, as
-above. Each finding is reported at the item's line.
+neither is an error, so only the `Q` of its `qa` items is looked at.
+The mistakes of a format are its source's to find; those in the `Q` of
+`qa` items, `srl`'s, the same in every source (see
+[sources.md](sources.md), "What a source does").
 
 Only the item syntaxes and the `qa` kind are known to `srl lint`: it
 doesn't look at the fields of items of kind programs, nor for their fields

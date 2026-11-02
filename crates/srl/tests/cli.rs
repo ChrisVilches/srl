@@ -640,7 +640,7 @@ fn lint_and_check_read_jsonl_notes_by_their_syntax() {
     assert_eq!(found.len(), 2, "{found:?}");
     assert!(found[0].starts_with("a.md:1: "), "{found:?}");
     assert!(
-        found[1].starts_with("items.jsonl:1: this looks like a cloze"),
+        found[1].starts_with("items.jsonl:1: a line of Q looks like a cloze"),
         "{found:?}"
     );
     write(

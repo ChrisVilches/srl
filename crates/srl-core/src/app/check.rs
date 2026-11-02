@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use serde::Serialize;
 
 use crate::kind::{has_near_deletion, has_revealing_hint};
-use crate::source::Sources;
+use crate::source::{Finding, Read, Sources};
 use crate::store::nfc;
 use crate::{CardId, Catalog, Config, Error, Memories, Result, Store};
 
@@ -64,13 +64,19 @@ pub struct Lint {
     pub message: String,
 }
 
-/// `srl lint`: asks every source for likely mistakes, and gives them in
+/// `srl lint`: asks every source for likely mistakes, adds those of the
+/// `qa` kind in the items they read, and gives them in
 /// the order of their addresses and lines (see `docs/cli.md`,
 /// "Checking"). These are guesses, so they are never errors.
 pub fn lint(store: &Store, config: &Config) -> Result<Vec<Lint>> {
     let mut found = Vec::new();
     for mounted in Sources::new(store, config).all() {
-        found.extend(mounted.source.lint()?.into_iter().map(|finding| Lint {
+        let findings = mounted
+            .source
+            .lint()?
+            .into_iter()
+            .chain(qa_lints(&mounted.source.read()?));
+        found.extend(findings.map(|finding| Lint {
             address: mounted.address(&finding.collection),
             line: finding.line,
             message: finding.message,
@@ -80,26 +86,97 @@ pub fn lint(store: &Store, config: &Config) -> Result<Vec<Lint>> {
     Ok(found)
 }
 
-/// The suspicious lines of the `Q` of a `qa` item, each with the line of
-/// the note a message about it names.
-pub(crate) fn question_suspicions(lines: Vec<(usize, String)>) -> Vec<(usize, String)> {
+/// The likely mistakes in the `Q` of a `qa` item, each once, in the order
+/// of the lines of `Q` they are first found on.
+fn question_suspicions(question: &str) -> Vec<&'static str> {
     let mut found = Vec::new();
-    for (number, line) in lines {
-        let line = line.as_str();
+    for line in question.lines() {
         let message = if has_near_deletion(line) {
             Some(
-                "this looks like a cloze deletion but isn't one, so it is shown as written; \
-                 write `{{c1::text}}`, with a lowercase `c` and two colons",
+                "a line of Q looks like a cloze deletion but isn't one, so it is shown as \
+                 written; write `{{c1::text}}`, with a lowercase `c` and two colons",
             )
         } else if has_revealing_hint(line) {
             Some(
-                "this cloze deletion's hint is the text it hides, so the prompt shows the \
-                 answer; change the hint or remove it",
+                "a cloze deletion of Q has a hint that is the text it hides, so the prompt \
+                 shows the answer; change the hint or remove it",
             )
         } else {
             None
         };
-        found.extend(message.map(|message| (number, message.to_owned())));
+        if let Some(message) = message
+            && !found.contains(&message)
+        {
+            found.push(message);
+        }
     }
     found
+}
+
+/// The likely mistakes the `qa` kind finds in the items read from a
+/// source, at each item's line: in the `Q` of its items whose kind is `qa`
+/// (see `docs/cli.md`, "Checking").
+fn qa_lints(read: &Read) -> Vec<Finding> {
+    read.items
+        .iter()
+        .filter(|item| {
+            item.item
+                .entries
+                .kind
+                .as_deref()
+                .is_none_or(|kind| kind == "qa")
+        })
+        .flat_map(|item| {
+            let question = item
+                .item
+                .fields
+                .iter()
+                .find(|field| field.key == "Q")
+                .map_or("", |field| field.text.as_str());
+            question_suspicions(question)
+                .into_iter()
+                .map(|message| Finding {
+                    collection: item.collection.clone(),
+                    line: item.line,
+                    message: message.to_owned(),
+                })
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::source::ReadItem;
+
+    fn read(text: &str) -> Read {
+        let parsed = crate::source::parse("n.md", text);
+        Read {
+            items: parsed
+                .items
+                .into_iter()
+                .map(|item| ReadItem {
+                    collection: "n.md".to_owned(),
+                    handle: String::new(),
+                    line: item.line,
+                    written: item.text,
+                    item: crate::domain::note::object::Object {
+                        entries: item.entries,
+                        fields: item.fields,
+                    },
+                })
+                .collect(),
+            problems: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn mistaken_deletions_in_questions_are_found_once_each_at_their_item() {
+        let text = "```srl\n@ id:abc\nQ: {{C1::upper}}\n  {{c1:one colon}}\n  {{c1::Paris::Paris}}\nA: {{C1::in the answer}}\n@ id:abd kind:words\nQ: {{C1::other kind}}\n```\n";
+        let found = qa_lints(&read(text));
+        let lines = found.iter().map(|finding| finding.line).collect::<Vec<_>>();
+        assert_eq!(lines, [2, 2]);
+        assert!(found[0].message.contains("looks like a cloze deletion"));
+        assert!(found[1].message.contains("hint that is the text it hides"));
+    }
 }

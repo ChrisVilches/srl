@@ -509,9 +509,9 @@ in `source.rs` builds them from the configuration.
   read and written by `domain/note/object.rs`, for the JSONL source and for the
   standard input of `srl add` and `srl edit`. `Item::json` writes it for
   `srl show --json`.
-- **The `qa` kind's lint** looks at the lines of `Q` that each source
-  says it is written on (`check::question_suspicions`): in srl blocks,
-  the lines of the note; in a JSONL note, the item's line.
+- **The `qa` kind's lint is the core's** (`app/check.rs`), on the items
+  every source reads, at each item's line; a source's own `lint` finds
+  only the mistakes of its format.
 
 ### Lines are for people
 

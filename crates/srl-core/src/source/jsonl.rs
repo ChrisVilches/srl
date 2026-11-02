@@ -5,13 +5,12 @@
 
 use serde_json::Value;
 
-use crate::app::check::question_suspicions;
 use crate::domain::context::ContextMode;
 use crate::domain::note::object::{self, Object};
 use crate::domain::note::{Entries, Field};
 use crate::source::files::{
-    Edit, Lines, NoteFiles, Parsed, ParsedItem, add_read, append, apply, by_collection,
-    changed_meanwhile, keyed, lines, position_of, unless_blank, verified,
+    Edit, NoteFiles, Parsed, ParsedItem, add_read, append, apply, by_collection, changed_meanwhile,
+    keyed, lines, position_of, unless_blank, verified,
 };
 use crate::source::{
     Change, Collection, ContextRequest, Description, Finding, Read, Refusal, Source,
@@ -27,13 +26,6 @@ pub(super) fn parse(text: &str) -> Parsed {
         match object::read(content) {
             Ok(Object { entries, fields }) => parsed.items.push(ParsedItem {
                 entries,
-                spans: vec![
-                    Lines {
-                        first: line,
-                        last: line
-                    };
-                    fields.len()
-                ],
                 fields,
                 line,
                 text: content.to_owned(),
@@ -69,19 +61,6 @@ pub(super) fn replace(
 /// What `srl add` puts between two items: a line ending, since JSON lines
 /// follow each other.
 const GAP: &str = "\n";
-
-/// The lines of field `field` of `item`, as `srl lint` looks at them:
-/// the lines of the field's text, all named by the item's line, since
-/// JSON writes a field on its item's line.
-fn lines_of_field(item: &ParsedItem, field: usize) -> Vec<(usize, String)> {
-    item.fields.get(field).map_or_else(Vec::new, |field| {
-        field
-            .text
-            .lines()
-            .map(|line| (item.line, line.to_owned()))
-            .collect()
-    })
-}
 
 /// The notes of a `jsonl` source.
 #[derive(Debug)]
@@ -201,41 +180,11 @@ impl Source for Jsonl {
         Ok(appended)
     }
 
-    /// A JSONL note holds nothing but items, so only the `Q` of its `qa`
-    /// items is looked at, each finding at its item's line.
+    /// A JSONL note holds nothing but items and blank lines, and a line
+    /// that is neither is an error, so there is nothing to guess.
     fn lint(&self) -> crate::Result<Vec<Finding>> {
-        let mut found = Vec::new();
-        for path in self.files.paths()? {
-            let text = self.files.text(&path)?;
-            found.extend(lint_text(&text).into_iter().map(|(line, message)| Finding {
-                collection: path.clone(),
-                line,
-                message,
-            }));
-        }
-        Ok(found)
+        Ok(Vec::new())
     }
-}
-
-/// The suspicious lines of a JSONL note whose text is `text`: the `qa`
-/// kind's, in the `Q` of its items, each at its item's line.
-fn lint_text(text: &str) -> Vec<(usize, String)> {
-    let mut found = Vec::new();
-    for item in parse(text).items {
-        if item
-            .entries
-            .kind
-            .as_deref()
-            .is_some_and(|kind| kind != "qa")
-        {
-            continue;
-        }
-        if let Some(question) = item.fields.iter().position(|field| field.key == "Q") {
-            found.extend(question_suspicions(lines_of_field(&item, question)));
-        }
-    }
-    found.sort_by_key(|(line, _)| *line);
-    found
 }
 
 /// The lines of `text` that are not blank, with their numbers.
@@ -309,23 +258,5 @@ mod tests {
             context(marked, ContextMode::Full).as_deref(),
             Some("{\"Q\": \"q\"}\r\n")
         );
-    }
-
-    #[test]
-    fn a_fields_lines_are_named_by_the_items_line() {
-        let text = "\n{\"Q\": \"a\\nb\", \"A\": \"c\"}\n";
-        let item = &parse(text).items[0];
-        assert_eq!(
-            lines_of_field(item, 0),
-            [(2, "a".to_owned()), (2, "b".to_owned())]
-        );
-    }
-
-    #[test]
-    fn only_questions_are_linted_at_their_items_line() {
-        let text = "{\"id\": \"abc\", \"Q\": \"{{c1::fine}}\"}\n\n{\"id\": \"abd\", \"Q\": \"{{C1::upper}}\", \"A\": \"Q: a\"}\n";
-        let found = lint_text(text);
-        assert_eq!(found.len(), 1);
-        assert_eq!(found[0].0, 3);
     }
 }

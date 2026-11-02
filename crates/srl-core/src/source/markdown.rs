@@ -11,7 +11,6 @@
 mod blocks;
 
 use crate::Result;
-use crate::app::check::question_suspicions;
 use crate::domain::note::Entries;
 use crate::domain::note::object::Object;
 use crate::source::files::{
@@ -144,18 +143,21 @@ impl Source for Markdown {
         Ok(appended)
     }
 
-    /// The likely mistakes in every note, in the order of the notes and
-    /// their lines: those of srl blocks, then the `qa` kind's, in the `Q` of
-    /// its items, on the lines `Q` is written on.
+    /// The likely mistakes of srl blocks in every note, in the order of the
+    /// notes and their lines (see `docs/cli.md`, "Checking").
     fn lint(&self) -> Result<Vec<Finding>> {
         let mut found = Vec::new();
         for path in self.files.paths()? {
             let text = self.files.text(&path)?;
-            found.extend(lint_text(&text).into_iter().map(|(line, message)| Finding {
-                collection: path.clone(),
-                line,
-                message,
-            }));
+            found.extend(
+                blocks::lint(&text)
+                    .into_iter()
+                    .map(|(line, message)| Finding {
+                        collection: path.clone(),
+                        line,
+                        message,
+                    }),
+            );
         }
         Ok(found)
     }
@@ -209,53 +211,8 @@ fn replacement(
     Ok((Some(edit), unchanged))
 }
 
-/// The suspicious lines of a note whose text is `text`, with their numbers
-/// (from 1), in order: those of srl blocks, then the `qa` kind's, in the
-/// `Q` of its items, on the lines `Q` is written on.
-fn lint_text(text: &str) -> Vec<(usize, String)> {
-    let mut found = blocks::lint(text);
-    for item in blocks::parse(text).items {
-        if item
-            .entries
-            .kind
-            .as_deref()
-            .is_some_and(|kind| kind != "qa")
-        {
-            continue;
-        }
-        if let Some(question) = item.fields.iter().position(|field| field.key == "Q") {
-            found.extend(question_suspicions(blocks::lines_of_field(
-                text, &item, question,
-            )));
-        }
-    }
-    found.sort_by_key(|(line, _)| *line);
-    found
-}
-
 /// The items of a note of srl blocks whose text is `text`.
 #[cfg(test)]
 pub(super) fn parse(text: &str) -> crate::source::files::Parsed {
     blocks::parse(text)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn found_lines(text: &str) -> Vec<usize> {
-        lint_text(text).into_iter().map(|(line, _)| line).collect()
-    }
-
-    #[test]
-    fn mistaken_deletions_in_questions_are_found() {
-        let text = "```srl\n@ id:abc\nQ: {{C1::upper}}\n  {{c1:one colon}}\n  {{c1::Paris::Paris}}\nA: {{C1::in the answer}}\n@ id:abd kind:words\nQ: {{C1::other kind}}\n```\n";
-        assert_eq!(found_lines(text), [3, 4, 5]);
-    }
-
-    #[test]
-    fn the_syntax_and_the_kind_are_both_linted_in_line_order() {
-        let text = "Q: bare\n\n```srl id:abc\nQ: {{C1::upper}}\n```\n\n- ```srl\n";
-        assert_eq!(found_lines(text), [1, 4, 7]);
-    }
 }

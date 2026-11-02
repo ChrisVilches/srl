@@ -8,7 +8,7 @@
 use crate::domain::context::ContextMode;
 use crate::domain::note::{Entries, Field, ItemId, is_field_key};
 use crate::kind::has_deletion;
-use crate::source::files::{Edit, Lines, Parsed, ParsedItem, lines, unless_blank};
+use crate::source::files::{Edit, Parsed, ParsedItem, lines, unless_blank};
 
 /// The items of a note of srl blocks, and its problems.
 pub(super) fn parse(text: &str) -> Parsed {
@@ -90,21 +90,6 @@ pub(super) fn replace(
 /// What `srl add` puts between two items: a blank line, since each item is
 /// a block of its own.
 pub(super) const GAP: &str = "\n\n";
-
-/// The lines of the note field `field` of `item` is written on, as they
-/// are, each named by its own line, as `srl lint` looks at them.
-pub(super) fn lines_of_field(text: &str, item: &ParsedItem, field: usize) -> Vec<(usize, String)> {
-    let Some(span) = item.spans.get(field) else {
-        return Vec::new();
-    };
-    lines(text)
-        .into_iter()
-        .enumerate()
-        .take(span.last)
-        .skip(span.first - 1)
-        .map(|(index, line)| (index + 1, line.to_owned()))
-        .collect()
-}
 
 /// What a line of a note is for its context (see `docs/notes.md`,
 /// "Context").
@@ -584,7 +569,6 @@ impl Parser<'_> {
                 entries: line.entries_read,
                 line: header + 1,
                 fields: body.fields,
-                spans: body.spans,
                 text,
             },
             end: body.last + 1,
@@ -837,10 +821,9 @@ fn is_blank(line: &str) -> bool {
     line.trim().is_empty()
 }
 
-/// The fields of an item, where each is, and the index of its last line.
+/// The fields of an item, and the index of its last line.
 struct Body {
     fields: Vec<Field>,
-    spans: Vec<Lines>,
     last: usize,
 }
 
@@ -908,32 +891,22 @@ fn item_body(
         }
         break;
     }
-    let (fields, spans) = fields
+    let fields = fields
         .into_iter()
-        .map(|(key, mut text, start, end)| {
+        .map(|(key, mut text, _, _)| {
             if text.first().is_some_and(String::is_empty) {
                 text.remove(0);
             }
             while text.last().is_some_and(|line| is_blank(line)) {
                 text.pop();
             }
-            (
-                Field {
-                    key,
-                    text: text.join("\n"),
-                },
-                Lines {
-                    first: start + 1,
-                    last: end + 1,
-                },
-            )
+            Field {
+                key,
+                text: text.join("\n"),
+            }
         })
-        .unzip();
-    Body {
-        fields,
-        spans,
-        last,
-    }
+        .collect();
+    Body { fields, last }
 }
 
 /// Why `line`, outside items, looks like part of one.
@@ -1117,15 +1090,6 @@ mod tests {
         assert_eq!(roles(text)[4], Role::Item);
         assert_eq!(one.item.text, "~~~~srl id:abc\nQ: a\nA: b\n~~~~");
         assert_eq!(two.item.text, "~~~~srl\nQ: c\n  more\n~~~~");
-    }
-
-    #[test]
-    fn fields_know_their_lines() {
-        let parsed = parse("```srl\nQ: a\n  b\n\n  c\n\nA: d\n```\n");
-        assert_eq!(
-            parsed.items[0].spans,
-            [Lines { first: 2, last: 5 }, Lines { first: 7, last: 7 }]
-        );
     }
 
     #[test]
@@ -1351,17 +1315,6 @@ mod tests {
         assert_eq!(context(only_items, ContextMode::Prose), None);
         assert!(context(only_items, ContextMode::Full).is_some());
         assert_eq!(context("", ContextMode::Full), None);
-    }
-
-    #[test]
-    fn a_fields_lines_are_the_lines_of_the_note_it_is_written_on() {
-        let text = "Prose.\n```srl\nQ: a\n  b\n\nA: c\n```\n";
-        let item = &parse(text).items[0];
-        assert_eq!(
-            lines_of_field(text, item, 0),
-            [(3, "Q: a".to_owned()), (4, "  b".to_owned())]
-        );
-        assert_eq!(lines_of_field(text, item, 1), [(6, "A: c".to_owned())]);
     }
 
     #[test]

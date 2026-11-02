@@ -121,13 +121,6 @@ pub(crate) fn lines(text: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Where something is: from line `first` to line `last`, counting from 1.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Lines {
-    pub(crate) first: usize,
-    pub(crate) last: usize,
-}
-
 /// An item as a file's format reads it, before its kind turns it into
 /// cards.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -137,9 +130,6 @@ pub(crate) struct ParsedItem {
     /// The line that names the item in messages and in `ADDRESS:LINE`:
     /// where it starts, as near as the format can say. Only for people.
     pub(crate) line: usize,
-    /// Where each field is written, in the order of `fields`, for `srl
-    /// lint`.
-    pub(crate) spans: Vec<Lines>,
     /// The item written on its own, lines joined with `\n`: what `srl show`
     /// prints.
     pub(crate) text: String,
