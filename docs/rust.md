@@ -341,7 +341,12 @@ Write tests for every module that has logic, which is nearly all of
   program that keeps its items in a JSON file and whose settings, its keys
   in `[sources]`, make it fail a call, print given output, refuse every
   change, or claim changes it doesn't make, and log its calls (see its
-  `main.rs`). Tests find it next to their own binary, as `srl-test-kind`.
+  `main.rs`). With `url`, it keeps its items on a small web service
+  instead, which a test starts on `127.0.0.1` with the standard library:
+  it checks a token, answers with an `ETag`, and refuses a stale `PUT`, so
+  that the test can count the requests a command makes and see the
+  program's own cache save them, with no network. Tests find it next to
+  their own binary, as `srl-test-kind`.
 - **Integration tests control the time and the random numbers** with
   `SRL_NOW` and `SRL_SEED`, setting `TZ` too when the time zone matters
   (see [cli.md](cli.md), "Conventions"). Tests that span several days set

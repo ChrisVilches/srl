@@ -1860,3 +1860,136 @@ fn a_change_a_source_program_refuses_or_doesn_t_make_fails_the_command() {
         stderr(&added)
     );
 }
+
+/// A web service on `127.0.0.1` for the test source's `url`: it keeps a
+/// store's items as one resource, `/data`, and gives it with an `ETag`
+/// (304 when the `If-None-Match` is current), replaces it on `PUT` (412
+/// when the `If-Match` isn't current), and refuses requests without the
+/// bearer token `secret` with 401. Each request is logged as its method
+/// and the status it got.
+struct Service {
+    url: String,
+    data: std::sync::Arc<std::sync::Mutex<(u64, String)>>,
+    requests: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+}
+
+impl Service {
+    #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+    fn start(data: &str) -> Self {
+        use std::io::{BufRead as _, BufReader, Read as _};
+        use std::sync::{Arc, Mutex};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let state = Arc::new(Mutex::new((1_u64, data.to_owned())));
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let (shared, log) = (Arc::clone(&state), Arc::clone(&requests));
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let mut stream = stream.unwrap();
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                let mut head = Vec::new();
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    if line == "\r\n" || line.is_empty() {
+                        break;
+                    }
+                    head.push(line.trim_end().to_owned());
+                }
+                let header = |name: &str| {
+                    head.iter()
+                        .filter_map(|line| line.split_once(": "))
+                        .find(|(key, _)| key.eq_ignore_ascii_case(name))
+                        .map(|(_, value)| value.to_owned())
+                };
+                let length = header("Content-Length").map_or(0, |length| length.parse().unwrap());
+                let mut body = vec![0; length];
+                reader.read_exact(&mut body).unwrap();
+                let method = head.first().unwrap().split(' ').next().unwrap().to_owned();
+                let mut data = shared.lock().unwrap();
+                let etag = format!("\"v{}\"", data.0);
+                let (status, answer) =
+                    if header("Authorization").as_deref() != Some("Bearer secret") {
+                        (401, "a bearer token is needed".to_owned())
+                    } else if method == "GET"
+                        && header("If-None-Match").as_deref() == Some(etag.as_str())
+                    {
+                        (304, String::new())
+                    } else if method == "GET" {
+                        (200, data.1.clone())
+                    } else if header("If-Match").as_deref() != Some(etag.as_str()) {
+                        (412, "it changed".to_owned())
+                    } else {
+                        *data = (data.0 + 1, String::from_utf8(body).unwrap());
+                        (200, String::new())
+                    };
+                let etag = format!("\"v{}\"", data.0);
+                log.lock().unwrap().push(format!("{method} {status}"));
+                write!(
+                    stream,
+                    "HTTP/1.1 {status} X\r\nETag: {etag}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{answer}",
+                    answer.len()
+                )
+                .unwrap();
+            }
+        });
+        Self {
+            url,
+            data: state,
+            requests,
+        }
+    }
+
+    /// The requests since the last call, as `METHOD STATUS`.
+    #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+    fn requests(&self) -> Vec<String> {
+        std::mem::take(&mut *self.requests.lock().unwrap())
+    }
+
+    /// The items the service keeps.
+    #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+    fn data(&self) -> String {
+        self.data.lock().unwrap().1.clone()
+    }
+}
+
+#[test]
+fn a_source_program_of_a_web_service_checks_its_settings_with_it_and_caches_its_answers() {
+    let service = Service::start(WORDS);
+    let more = format!(
+        "url = \"{}\"\ntoken = \"secret\"\ncache = \"service-cache.json\"\n",
+        service.url
+    );
+    let tmp = store_with_program(&[], "", &more);
+    let d = dir(&tmp);
+    // Two calls, each a request; the second is answered from the cache.
+    let found = srl(&["find", "--dir", d]);
+    assert_eq!(found.status.code(), Some(0), "{}", stderr(&found));
+    assert_eq!(lines(&found).len(), 2);
+    assert_eq!(service.requests(), ["GET 200", "GET 304"]);
+    assert!(srl(&["find", "--dir", d]).status.success());
+    assert_eq!(service.requests(), ["GET 304", "GET 304"]);
+    // A change: read, written with the version read, and read again.
+    let edited = srl_with_input(
+        &["edit", "--stdin", "--dir", d],
+        "{\"id\": \"cat001\", \"Q\": \"猫\", \"A\": \"a cat\"}",
+    );
+    assert_eq!(edited.status.code(), Some(0), "{}", stderr(&edited));
+    assert_eq!(
+        service.requests(),
+        [
+            "GET 304", "GET 304", "GET 304", "GET 304", "PUT 200", "GET 200"
+        ]
+    );
+    assert!(service.data().contains("a cat"));
+    // The settings are the program's to check, here by the service.
+    let more = format!("url = \"{}\"\ntoken = \"wrong\"\n", service.url);
+    let tmp = store_with_program(&[], "", &more);
+    let output = srl(&["find", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("the service answered 401: a bearer token is needed"),
+        "{}",
+        stderr(&output)
+    );
+}

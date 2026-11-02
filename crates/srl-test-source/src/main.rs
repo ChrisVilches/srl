@@ -17,6 +17,11 @@
 //! - `refuse`: `write` answers every change with this error, and writes
 //!   nothing.
 //! - `lie`: `write` answers `ok` to every change, and writes nothing.
+//! - `url`: in place of `data`, a web service at `http://host:port` that
+//!   keeps the same JSON as one resource, `/data`: `GET` gives it with an
+//!   `ETag`, and `PUT` with `If-Match` replaces it, refused with 412 when
+//!   it changed. `token` is sent as a bearer token, and `cache` names a
+//!   file that keeps the last answer, asked again with `If-None-Match`.
 //!
 //! An item's line is `null`, and its text as written is `null` too, so
 //! `srl` shows its item object. A collection's context is its `context`,
@@ -108,17 +113,8 @@ fn answer(
     config: &Map<String, Value>,
     inputs: &[Map<String, Value>],
 ) -> Result<Vec<Value>, String> {
-    let data_file = config
-        .get("data")
-        .and_then(Value::as_str)
-        .ok_or("the setting `data` is missing; give the file the items are kept in")?;
-    let mut data = match fs::read_to_string(data_file) {
-        Ok(text) => serde_json::from_str::<Value>(&text).map_err(|error| error.to_string())?,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            json!({"next": 1, "collections": {}})
-        }
-        Err(error) => return Err(format!("cannot read {data_file}: {error}")),
-    };
+    let place = Place::of(config)?;
+    let (mut data, version) = place.load()?;
     let collections = at(&data, "collections")
         .as_object()
         .cloned()
@@ -155,18 +151,19 @@ fn answer(
                 json!({"context": context})
             })
             .collect()),
-        "write" => write(config, inputs, &mut data, data_file),
+        "write" => write(config, inputs, &mut data, &place, version.as_deref()),
         _ => Err(format!("`{call}` is not a call")),
     }
 }
 
-/// Makes the changes of `inputs` to `data`, and writes it to `data_file`,
+/// Makes the changes of `inputs` to `data`, read at `version`, and saves it,
 /// unless one is refused, it is a dry run, or the settings say otherwise.
 fn write(
     config: &Map<String, Value>,
     inputs: &[Map<String, Value>],
     data: &mut Value,
-    data_file: &str,
+    place: &Place,
+    version: Option<&str>,
 ) -> Result<Vec<Value>, String> {
     if let Some(reason) = config.get("refuse").and_then(Value::as_str) {
         return Ok(inputs.iter().map(|_| json!({"error": reason})).collect());
@@ -227,8 +224,168 @@ fn write(
     }
     let lie = config.get("lie") == Some(&json!(true));
     if !dry_run && !refused && !lie {
-        fs::write(data_file, data.to_string())
-            .map_err(|error| format!("cannot write {data_file}: {error}"))?;
+        place.save(data, version)?;
     }
     Ok(answers)
+}
+
+/// Where the items are kept: a file, or a web service that keeps them as
+/// one resource, `/data`.
+enum Place {
+    File(String),
+    Service {
+        /// `host:port`.
+        address: String,
+        token: Option<String>,
+        /// A file that keeps the last answer and its entity tag, so that an
+        /// unchanged resource is not sent again.
+        cache: Option<String>,
+    },
+}
+
+impl Place {
+    /// The place the settings name: `url` (`http://host:port`), with
+    /// `token` and `cache`, or else `data`.
+    fn of(config: &Map<String, Value>) -> Result<Self, String> {
+        let setting = |key: &str| config.get(key).and_then(Value::as_str).map(str::to_owned);
+        if let Some(url) = setting("url") {
+            let address = url
+                .strip_prefix("http://")
+                .ok_or_else(|| format!("`url` must start with http://, not {url}"))?;
+            return Ok(Self::Service {
+                address: address.trim_end_matches('/').to_owned(),
+                token: setting("token"),
+                cache: setting("cache"),
+            });
+        }
+        setting("data").map(Self::File).ok_or_else(|| {
+            "the setting `data` or `url` is missing; give where the items are kept".to_owned()
+        })
+    }
+
+    /// The items, and the version they were read at, if the place has
+    /// versions.
+    fn load(&self) -> Result<(Value, Option<String>), String> {
+        match self {
+            Self::File(file) => match fs::read_to_string(file) {
+                Ok(text) => Ok((
+                    serde_json::from_str::<Value>(&text).map_err(|error| error.to_string())?,
+                    None,
+                )),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                    Ok((json!({"next": 1, "collections": {}}), None))
+                }
+                Err(error) => Err(format!("cannot read {file}: {error}")),
+            },
+            Self::Service {
+                address,
+                token,
+                cache,
+            } => {
+                let cached = cache
+                    .as_ref()
+                    .and_then(|cache| fs::read_to_string(cache).ok())
+                    .and_then(|text| serde_json::from_str::<Value>(&text).ok());
+                let etag = cached
+                    .as_ref()
+                    .and_then(|cached| cached.get("etag"))
+                    .and_then(Value::as_str);
+                let mut headers = authorization(token.as_deref());
+                if let Some(etag) = etag {
+                    headers.push(("If-None-Match".to_owned(), etag.to_owned()));
+                }
+                let (status, etag, body) = http(address, "GET", &headers, None)?;
+                match status {
+                    304 => {
+                        let cached = cached.unwrap_or_default();
+                        Ok((
+                            at(&cached, "data").clone(),
+                            at(&cached, "etag").as_str().map(str::to_owned),
+                        ))
+                    }
+                    200 => {
+                        let data = serde_json::from_str::<Value>(&body)
+                            .map_err(|error| error.to_string())?;
+                        if let (Some(cache), Some(etag)) = (cache, &etag) {
+                            fs::write(cache, json!({"etag": etag, "data": data}).to_string())
+                                .map_err(|error| {
+                                    format!("cannot write the cache {cache}: {error}")
+                                })?;
+                        }
+                        Ok((data, etag))
+                    }
+                    _ => Err(format!("the service answered {status}: {}", body.trim())),
+                }
+            }
+        }
+    }
+
+    /// Saves `data`, read at `version`. The service refuses it if the
+    /// items changed since.
+    fn save(&self, data: &Value, version: Option<&str>) -> Result<(), String> {
+        match self {
+            Self::File(file) => fs::write(file, data.to_string())
+                .map_err(|error| format!("cannot write {file}: {error}")),
+            Self::Service { address, token, .. } => {
+                let mut headers = authorization(token.as_deref());
+                if let Some(version) = version {
+                    headers.push(("If-Match".to_owned(), version.to_owned()));
+                }
+                let (status, _, body) = http(address, "PUT", &headers, Some(&data.to_string()))?;
+                match status {
+                    200 => Ok(()),
+                    412 => Err("the items changed on the service since they were read".to_owned()),
+                    _ => Err(format!("the service answered {status}: {}", body.trim())),
+                }
+            }
+        }
+    }
+}
+
+/// The header that carries `token`, if there is one.
+fn authorization(token: Option<&str>) -> Vec<(String, String)> {
+    token
+        .map(|token| ("Authorization".to_owned(), format!("Bearer {token}")))
+        .into_iter()
+        .collect()
+}
+
+/// A request `method` to `/data` of the service at `address`, with
+/// `headers` and `body`: the status, the entity tag and the body of the
+/// answer.
+fn http(
+    address: &str,
+    method: &str,
+    headers: &[(String, String)],
+    body: Option<&str>,
+) -> Result<(u16, Option<String>, String), String> {
+    let failed = |error: io::Error| format!("cannot reach the service at {address}: {error}");
+    let mut stream = std::net::TcpStream::connect(address).map_err(failed)?;
+    let body = body.unwrap_or_default();
+    let mut request = format!(
+        "{method} /data HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nContent-Length: {}\r\n",
+        body.len()
+    );
+    for (name, value) in headers {
+        request.push_str(&[name.as_str(), ": ", value.as_str(), "\r\n"].concat());
+    }
+    request.push_str("\r\n");
+    request.push_str(body);
+    stream.write_all(request.as_bytes()).map_err(failed)?;
+    let mut answer = String::new();
+    io::Read::read_to_string(&mut stream, &mut answer).map_err(failed)?;
+    let (head, body) = answer
+        .split_once("\r\n\r\n")
+        .ok_or("the service's answer has no end of headers")?;
+    let mut lines = head.lines();
+    let status = lines
+        .next()
+        .and_then(|line| line.split(' ').nth(1))
+        .and_then(|code| code.parse::<u16>().ok())
+        .ok_or("the service's answer has no status")?;
+    let etag = lines
+        .filter_map(|line| line.split_once(':'))
+        .find(|(name, _)| name.eq_ignore_ascii_case("etag"))
+        .map(|(_, value)| value.trim().to_owned());
+    Ok((status, etag, body.to_owned()))
 }
