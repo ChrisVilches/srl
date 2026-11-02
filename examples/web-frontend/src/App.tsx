@@ -5,6 +5,7 @@ import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
 import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges, Waiting } from './CardParts';
 import { useKeys, useStartWhenShown } from './hooks';
+import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
 import { SelectorInput, TopBar, type View } from './TopBar';
 
@@ -141,14 +142,25 @@ function Study({ active }: { active: boolean }) {
     [phase, selector, step, toNext],
   );
 
-  const suspend = useCallback(() => {
-    if ((phase.kind !== 'prompt' && phase.kind !== 'answer') || selector === null) return;
-    const { card } = phase;
-    step(async () => {
-      await api.suspend(card.id);
-      await toNext(selector);
-    });
-  }, [phase, selector, step, toNext]);
+  // Suspending first asks why, in a dialog; the reason may be left empty.
+  const [askingWhy, setAskingWhy] = useState(false);
+  const askWhy = useCallback(() => {
+    if (phase.kind !== 'prompt' && phase.kind !== 'answer') return;
+    setAskingWhy(true);
+  }, [phase]);
+
+  const suspend = useCallback(
+    (reason: string) => {
+      setAskingWhy(false);
+      if ((phase.kind !== 'prompt' && phase.kind !== 'answer') || selector === null) return;
+      const { card } = phase;
+      step(async () => {
+        await api.suspend(card.id, reason.trim());
+        await toNext(selector);
+      });
+    },
+    [phase, selector, step, toNext],
+  );
 
   // Keys: space or Enter shows the answer, 1–4 rate, s suspends.
   useKeys(active, (event) => {
@@ -160,7 +172,8 @@ function Study({ active }: { active: boolean }) {
     } else if (['1', '2', '3', '4'].includes(event.key)) {
       rate(Number(event.key) as Rating);
     } else if (event.key === 's') {
-      suspend();
+      event.preventDefault();
+      askWhy();
     }
   });
 
@@ -188,8 +201,9 @@ function Study({ active }: { active: boolean }) {
           <DoneView selector={selector ?? ''} stats={stats} onCheck={() => loadNext(selector ?? '')} />
         )}
         {(phase.kind === 'prompt' || phase.kind === 'answer') && (
-          <CardView phase={phase} busy={busy} onReveal={reveal} onRate={rate} onSuspend={suspend} />
+          <CardView phase={phase} busy={busy} onReveal={reveal} onRate={rate} onSuspend={askWhy} />
         )}
+        <SuspendDialog open={askingWhy} onSuspend={suspend} onClose={() => setAskingWhy(false)} />
       </main>
     </div>
   );
@@ -258,6 +272,49 @@ function CardView({
         </div>
       </div>
     </div>
+  );
+}
+
+// Asks why the card is suspended, so that it can be fixed later: srl keeps
+// the reason, and srl find --json gives it. Enter suspends, Shift+Enter
+// starts a new line, Escape cancels.
+function SuspendDialog({
+  open,
+  onSuspend,
+  onClose,
+}: {
+  open: boolean;
+  onSuspend: (reason: string) => void;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  useEffect(() => {
+    if (open) setReason('');
+  }, [open]);
+
+  return (
+    <Modal open={open} title="Suspend this card" onClose={onClose}>
+      <label className="flex flex-col gap-1 text-sm text-stone-500">
+        Why? What to fix before studying it again (optional)
+        <textarea
+          autoFocus
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              onSuspend(reason);
+            }
+          }}
+          rows={3}
+          placeholder="e.g. too hard for now; split it in two"
+          className="rounded-lg border border-stone-300 bg-white p-2 text-base text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+        />
+      </label>
+      <button onClick={() => onSuspend(reason)} className={`self-start px-5 py-2.5 ${MAIN_BUTTON}`}>
+        Suspend <Key>Enter</Key>
+      </button>
+    </Modal>
   );
 }
 

@@ -20,7 +20,9 @@ macOS and Windows (it is tried on Linux only).
   from a note that isn't Markdown (by the extension of `context_address`),
   such as a JSONL note, is shown as a code block.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
-  card without recording a review.
+  card without recording a review, after asking why in a dialog: what to
+  fix before studying it again. The reason may be left empty; Enter
+  suspends, Shift+Enter starts a new line, Escape cancels.
 - When the next card takes a while to make, as when its kind program asks
   an LLM, a spinner says so, with the seconds it has taken. Cards that
   come in under 300 ms replace the last one without it.
@@ -42,7 +44,8 @@ as how `ja_word` marks words, without studying:
 - Choosing a card makes it with `srl cards`, running its kind program, and
   shows it as studying does: the prompt, or, turned, the revealed prompt,
   the answer and the context. The JSON side shows the card as `srl cards
-  --json` prints it.
+  --json` prints it. A card suspended with a reason shows the reason above
+  it, so `status:suspended` lists the cards to fix, and what to fix.
 - A kind program can take a while: the page counts the seconds while it
   runs. A card is made once it has stayed chosen
   for a moment, so moving through the list makes no card on the way, and
@@ -147,7 +150,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/on-change` | nothing | `{"busy": …, "last": …}`: whether a change is still waiting for its run, and the last run, `{"seq": N, "error": …}` with `error` `null` on success, or `null` before any |
 | `GET /api/next?sel=…` | `srl next SEL --json --context prose` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
 | `POST /api/review` | `srl review --stdin`, with the request body | `{}` |
-| `POST /api/suspend` | `srl suspend id:CARD`, for `{"card": CARD}` | `{}` |
+| `POST /api/suspend` | `srl suspend id:CARD --reason=REASON`, for `{"card": CARD, "reason": REASON}`; an empty or missing `reason` is none | `{}` |
 | `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --context none` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind` and `excerpt`, the first line of its first field |
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json --context prose` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `address`, `see`, `context` and `context_address`, as `srl next --json` gives them (not its `source` and `file`) |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |

@@ -281,6 +281,12 @@ function Preview({
         </span>
       </div>
 
+      {found.suspend_reason !== null && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-500/40 dark:bg-amber-400/10">
+          <div className="font-medium text-amber-800 dark:text-amber-300">Suspended because</div>
+          <p className="mt-1 whitespace-pre-wrap">{found.suspend_reason}</p>
+        </div>
+      )}
       {editing && <EditItem id={found.item} onSaved={() => onEdited(true)} onCancel={() => onEdited(false)} />}
       {!editing && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
       {!editing && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}

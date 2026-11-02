@@ -7,7 +7,8 @@
 //   GET  /api/next?sel=…   srl next SEL --json --context CONTEXT
 //                                                      → { card } or { card: null }
 //   POST /api/review       srl review --stdin          ← { card, rating, response? }
-//   POST /api/suspend      srl suspend id:CARD         ← { card }
+//   POST /api/suspend      srl suspend id:CARD --reason REASON
+//                                                      ← { card, reason? }
 //
 // The card browser, which shows any card without studying it:
 //
@@ -120,8 +121,13 @@ export function createSrlServer({ dir, selector, staticDir, onChange }) {
       return {};
     },
 
+    // An empty or missing reason is no reason.
     'POST /api/suspend': async (_url, body) => {
-      await srl(['suspend', `id:${requireId(body.card)}`]);
+      const reason = body.reason ?? '';
+      if (typeof reason !== 'string') {
+        throw new BadRequest('reason must be text');
+      }
+      await srl(['suspend', `id:${requireId(body.card)}`, `--reason=${reason}`]);
       changed();
       return {};
     },

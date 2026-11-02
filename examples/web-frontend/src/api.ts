@@ -28,6 +28,8 @@ export type FoundCard = {
   status: 'active' | 'draft' | 'suspended';
   state: string;
   due: string | null;
+  // Why the card is suspended, if it was suspended with a reason.
+  suspend_reason: string | null;
   kind: string;
   excerpt: string;
 };
@@ -109,7 +111,8 @@ export const api = {
   next: async (selector: string) =>
     (await call<{ card: Card | null }>(`/api/next?${new URLSearchParams({ sel: selector })}`)).card,
   review: (card: string, rating: Rating) => change<object>('/api/review', { card, rating }),
-  suspend: (card: string) => change<object>('/api/suspend', { card }),
+  // An empty REASON is no reason.
+  suspend: (card: string, reason: string) => change<object>('/api/suspend', { card, reason }),
   find: async (selector: string) =>
     (await call<{ cards: FoundCard[] }>(`/api/find?${new URLSearchParams({ sel: selector })}`)).cards,
   // Makes the card, running its kind program. Aborting SIGNAL stops srl.

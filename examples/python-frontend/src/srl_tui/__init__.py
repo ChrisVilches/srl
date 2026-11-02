@@ -11,7 +11,8 @@ CONTEXT` for the card and its context, `srl review --stdin` for the rating.
 Keys act at once, without Enter: space or Enter shows the answer, 1-4 rate,
 j/k or the arrows scroll the panel in focus, Ctrl-D/Ctrl-U by half of it,
 g/G to its top and bottom, Tab moves the focus between the card and the
-context, s suspends the card, q quits.
+context, s suspends the card after asking why (Enter alone: no reason),
+q quits.
 """
 
 import json
@@ -188,6 +189,28 @@ def wait_for(keys):
             return key
 
 
+def read_line(prompt):
+    """Reads a line on the last line of the screen, key by key, in place of
+    the keys bar: Enter gives the text, Escape or Ctrl-C None. Backspace
+    deletes; a text wider than the screen shows its end."""
+    text = ""
+    while True:
+        width = console.width - len(prompt) - 1
+        console.file.write("\r\x1b[2K")
+        console.print(Text(prompt, "bold"), Text(text[-width:] if width > 0 else ""),
+                      sep="", end="", no_wrap=True, overflow="crop")
+        console.file.flush()
+        key = read_key()
+        if key in ("\r", "\n"):
+            return text
+        if key in ("\x1b", CTRL_C):
+            return None
+        if key in ("\x7f", "\b"):
+            text = text[:-1]
+        elif key.isprintable() and len(key) == 1:
+            text += key
+
+
 # The keys each side of the card takes, and the end of the bar that lists them.
 SCROLL_KEYS = {"j", "k", "up", "down", CTRL_D, CTRL_U, "g", "G"}
 QUESTION_KEYS = {" ", "\n", "s", "q"} | SCROLL_KEYS
@@ -361,8 +384,12 @@ class Session:
                 elif key == "G":
                     scroll[focus] = sys.maxsize
                 elif key == "s":
-                    srl("suspend", f"id:{card['id']}")
-                    break
+                    # Why, so that the card can be fixed later; Enter alone
+                    # suspends without a reason, Escape doesn't suspend.
+                    reason = read_line("  why? (Enter suspends, Esc cancels): ")
+                    if reason is not None:
+                        srl("suspend", f"id:{card['id']}", f"--reason={reason.strip()}")
+                        break
 
     def review(self, card, rating):
         srl("review", "--stdin", stdin=json.dumps({"card": card["id"], "rating": rating}))

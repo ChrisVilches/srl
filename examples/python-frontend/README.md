@@ -38,6 +38,10 @@ screen needs a modern terminal such as Windows Terminal.
   `1`–`4` rate, `j`/`k` or the arrows scroll the panel in focus,
   Ctrl-D/Ctrl-U by half of it, `g`/`G` to its top and bottom, Tab
   switches the focus, `s` suspends the card, `q` (or Ctrl-C) quits.
+- `s` first asks, on the last line, why the card is suspended: what to fix
+  before studying it again, which `srl` keeps with the suspension (`srl
+  find --json` gives it). Enter suspends, with no reason if nothing was
+  typed; Escape doesn't suspend.
 - It ends with a summary: the cards reviewed, the new ones among them, and
   the Again ratings. If `srl` fails, it prints what `srl` said and exits
   with 2.
