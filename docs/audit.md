@@ -309,7 +309,7 @@ kind programs have four calls, a batch protocol, cache keys and error
 attribution; the cache's incremental replay is a paragraph of conditions;
 `srl lint` has a page of heuristics. About 4,200 lines of documents
 describe about 14,000 lines of Rust, much of it cross-references and
-designs for hypothetical syntaxes ([rust.md](rust.md), "What still assumes
+designs for hypothetical formats ([rust.md](rust.md), "What still assumes
 lines"; [ideas.md](ideas.md), "Items without a line").
 
 This matters because the docs are declared the source of truth and must be
