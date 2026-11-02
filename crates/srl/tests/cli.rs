@@ -1645,3 +1645,218 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
         stderr(&both)
     );
 }
+
+/// A store with `notes`, the notes of a source `notes`, and a source
+/// `vocab` at the prefix `vocab/` that is the test source program of
+/// `crates/srl-test-source`, keeping its items in `vocab.json` (holding
+/// `data`), logging its calls in `calls.log`, and with the settings `more`.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn store_with_program(notes: &[(&str, &str)], data: &str, more: &str) -> TempDir {
+    let program = Path::new(env!("CARGO_BIN_EXE_srl"))
+        .with_file_name(format!("srl-test-source{}", std::env::consts::EXE_SUFFIX));
+    assert!(
+        program.exists(),
+        "{} isn't built; run `cargo test --workspace`",
+        program.display()
+    );
+    let tmp = store(notes);
+    write(&tmp, "vocab.json", data);
+    write(
+        &tmp,
+        ".srl/config.toml",
+        &format!(
+            "[sources.notes]\ndriver = \"markdown\"\n\n[sources.vocab]\nprogram = ['{}']\nprefix = \"vocab/\"\ndata = \"vocab.json\"\nlog = \"calls.log\"\n{more}",
+            program.to_str().unwrap()
+        ),
+    );
+    tmp
+}
+
+/// The data of the test source: a collection `words` with a context, an
+/// item without an ID that names `lesson.md`, and a draft.
+const VOCAB: &str = r#"{"next": 3, "collections": {"words": {"context": "Words of the lesson.", "items": [
+  {"handle": "h1", "item": {"see": "lesson.md", "Q": "犬", "A": "dog"}},
+  {"handle": "h2", "item": {"id": "cat001", "draft": true, "Q": "猫", "A": "cat"}}]}}}"#;
+
+/// Valid data of the test source: a collection `words` with a context and
+/// two items.
+const WORDS: &str = r#"{"next": 3, "collections": {"words": {"context": "Words.", "items": [
+  {"handle": "h1", "item": {"id": "dog001", "Q": "犬", "A": "dog"}},
+  {"handle": "h2", "item": {"id": "cat001", "Q": "猫", "A": "cat"}}]}}}"#;
+
+/// The calls the test source got, as `CALL LINES`, and forgets them.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn calls(tmp: &TempDir) -> Vec<String> {
+    let path = tmp.path().join("calls.log");
+    let calls = fs::read_to_string(&path).unwrap_or_default();
+    if path.exists() {
+        fs::remove_file(path).unwrap();
+    }
+    calls.lines().map(str::to_owned).collect()
+}
+
+#[test]
+fn a_source_program_s_items_are_given_ids_studied_changed_and_shown() {
+    let tmp = store_with_program(
+        &[(
+            "lesson.md",
+            "# Lesson\n\nAnimals.\n\n```srl id:les001 see:vocab/words\nQ: q\nA: a\n```\n",
+        )],
+        VOCAB,
+        "",
+    );
+    let d = dir(&tmp);
+    let ids = srl(&["id", "--dir", d]);
+    assert_eq!(ids.status.code(), Some(0), "{}", stderr(&ids));
+    let given = lines(&ids);
+    assert_eq!(given.len(), 1);
+    assert!(given[0].ends_with("  vocab/words"), "{given:?}");
+    let found = srl(&["find", "source:vocab", "--json", "--dir", d]);
+    let found = json_lines(&found);
+    assert_eq!(found.len(), 2);
+    assert_eq!(found[0]["address"], "vocab/words");
+    assert_eq!(found[0]["file"], serde_json::Value::Null);
+    assert_eq!(found[0]["line"], serde_json::Value::Null);
+    // An item of the program names a note; a note names the program's
+    // collection; each context is its own source's.
+    let shown = srl(&["show", "les001", "cat001", "--json", "--dir", d]);
+    let shown = json_lines(&shown);
+    assert_eq!(shown[0]["context"], "Words of the lesson.");
+    assert_eq!(shown[0]["context_address"], "vocab/words");
+    let dog = &json_lines(&srl(&["find", "犬", "--json", "--dir", d]))[0]["item"];
+    let dog = dog.as_str().unwrap().to_owned();
+    let shown = &json_lines(&srl(&["show", &dog, "--json", "--dir", d]))[0];
+    assert_eq!(shown["context"], "# Lesson\n\nAnimals.\n");
+    // Without a text of its own, an item is shown as its item object.
+    let plain = srl(&["show", "cat001", "--context", "none", "--dir", d]);
+    assert_eq!(
+        stdout(&plain),
+        "vocab/words\n{\"id\":\"cat001\",\"draft\":true,\"Q\":\"猫\",\"A\":\"cat\"}\n"
+    );
+    calls(&tmp);
+    let accepted = srl(&["accept", "id:cat001", "--dir", d]);
+    assert_eq!(accepted.status.code(), Some(0), "{}", stderr(&accepted));
+    // One read and one collections to load, then a read, a write and a
+    // read to verify it.
+    assert_eq!(
+        calls(&tmp),
+        ["collections 1", "read 1", "read 1", "write 1", "read 1"]
+    );
+    let edited = srl_with_input(
+        &["edit", "--stdin", "--dir", d],
+        "{\"id\": \"cat001\", \"Q\": \"猫\", \"A\": \"a cat\"}",
+    );
+    assert_eq!(edited.status.code(), Some(0), "{}", stderr(&edited));
+    let added = srl_with_input(
+        &["add", "vocab/birds", "--stdin", "--dir", d],
+        "{\"Q\": \"鳥\", \"A\": \"bird\"}",
+    );
+    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+    let data = read(&tmp, "vocab.json");
+    assert!(
+        data.contains("a cat") && data.contains("birds") && !data.contains("draft"),
+        "{data}"
+    );
+    assert!(srl(&["check", "--dir", d]).status.success());
+}
+
+#[test]
+fn a_command_calls_a_source_program_a_fixed_number_of_times() {
+    let tmp = store_with_program(&[], WORDS, "");
+    let d = dir(&tmp);
+    assert!(srl(&["find", "--dir", d]).status.success());
+    assert_eq!(calls(&tmp), ["collections 1", "read 1"]);
+    assert!(srl(&["next", "--json", "--dir", d]).status.success());
+    assert_eq!(calls(&tmp), ["collections 1", "read 1", "context 1"]);
+    assert!(
+        srl(&["show", "cat001", "--json", "--context", "none", "--dir", d])
+            .status
+            .success()
+    );
+    assert_eq!(calls(&tmp), ["collections 1", "read 1"]);
+    assert!(srl(&["sources", "--dir", d]).status.success());
+    assert_eq!(calls(&tmp), ["describe 1"]);
+}
+
+#[test]
+fn a_source_program_that_fails_or_breaks_the_protocol_stops_commands() {
+    for (more, expected) in [
+        (
+            "fail = \"read\"\n",
+            "the source vocab failed: its call `read` failed: broken",
+        ),
+        (
+            "raw_call = \"read\"\nraw_output = \"not json\\n\"\n",
+            "its call `read` printed invalid output",
+        ),
+        (
+            "raw_call = \"read\"\nraw_output = '{\"collection\": \"words\", \"handle\": \"a\", \"item\": {\"Q\": \"q\"}, \"extra\": 1}'\n",
+            "the key `extra`",
+        ),
+        (
+            "raw_call = \"read\"\nraw_output = '{\"collection\": \"../x\", \"handle\": \"a\", \"item\": {\"Q\": \"q\"}}'\n",
+            "is not a collection's name",
+        ),
+        (
+            "raw_call = \"context\"\nraw_output = \"\"\n",
+            "it printed 0 lines for 1 input lines",
+        ),
+    ] {
+        let tmp = store_with_program(&[], WORDS, more);
+        let d = dir(&tmp);
+        let output = if more.contains("context") {
+            srl(&["next", "--json", "--dir", d])
+        } else {
+            srl(&["find", "--dir", d])
+        };
+        assert_eq!(output.status.code(), Some(2), "{more}");
+        assert!(
+            stderr(&output).contains(expected),
+            "{more}: {}",
+            stderr(&output)
+        );
+    }
+}
+
+#[test]
+fn a_change_a_source_program_refuses_or_doesn_t_make_fails_the_command() {
+    let tmp = store_with_program(&[], WORDS, "refuse = \"the database is read-only\"\n");
+    let d = dir(&tmp);
+    let added = srl_with_input(
+        &["add", "vocab/words", "--stdin", "--dir", d],
+        "{\"Q\": \"q\", \"A\": \"a\"}",
+    );
+    assert_eq!(added.status.code(), Some(2));
+    assert!(
+        stderr(&added)
+            .contains("line 1 of standard input is not a valid item: the database is read-only"),
+        "{}",
+        stderr(&added)
+    );
+    let tmp = store_with_program(&[], WORDS, "lie = true\n");
+    let d = dir(&tmp);
+    let added = srl_with_input(
+        &["add", "vocab/words", "--stdin", "--dir", d],
+        "{\"Q\": \"q\", \"A\": \"a\"}",
+    );
+    assert_eq!(added.status.code(), Some(2));
+    assert!(
+        stderr(&added).contains("didn't make exactly the changes"),
+        "{}",
+        stderr(&added)
+    );
+    // A collection the program doesn't create is refused before it is asked
+    // to write.
+    let tmp = store_with_program(&[], WORDS, "creates = [\"words\"]\n");
+    let d = dir(&tmp);
+    let added = srl_with_input(
+        &["add", "vocab/fish", "--stdin", "--dir", d],
+        "{\"Q\": \"q\", \"A\": \"a\"}",
+    );
+    assert_eq!(added.status.code(), Some(2));
+    assert!(
+        stderr(&added).contains("creates no collection named fish"),
+        "{}",
+        stderr(&added)
+    );
+}

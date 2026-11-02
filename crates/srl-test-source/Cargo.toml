@@ -1,0 +1,15 @@
+[package]
+name = "srl-test-source"
+description = "A source program for srl's tests, keeping items in a JSON file. Not published."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

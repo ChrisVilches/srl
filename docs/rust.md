@@ -57,6 +57,7 @@ crates/
     tests/cli.rs        tests that run the real binary, one rule at a time
     tests/scenarios.rs  tests that run the real binary through a person's usual days
   srl-test-kind/        a kind program for the tests (see "Testing"); not published
+  srl-test-source/      a source program for the tests (see "Testing"); not published
 ```
 
 ### The core is a library, the CLI is a thin layer on top
@@ -336,6 +337,11 @@ Write tests for every module that has logic, which is nearly all of
   no interpreter, so the tests run the same on every platform. Tests find
   it next to their own binary, where `cargo test --workspace` builds it;
   with `cargo test -p srl` alone it isn't built, and those tests say so.
+- **Source programs are tested with `srl-test-source`**, a small Rust
+  program that keeps its items in a JSON file and whose settings, its keys
+  in `[sources]`, make it fail a call, print given output, refuse every
+  change, or claim changes it doesn't make, and log its calls (see its
+  `main.rs`). Tests find it next to their own binary, as `srl-test-kind`.
 - **Integration tests control the time and the random numbers** with
   `SRL_NOW` and `SRL_SEED`, setting `TZ` too when the time zone matters
   (see [cli.md](cli.md), "Conventions"). Tests that span several days set
