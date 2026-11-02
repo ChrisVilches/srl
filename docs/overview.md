@@ -209,6 +209,8 @@ it what `srl` is and does, or something done with it?**
     [guides/frontends.md](guides/frontends.md)).
   - `examples/nushell/`: `srl.nu`, a Nushell module that gives `srl`'s data
     as Nushell tables and records, without `--json`.
+  - `examples/source-tinydb/`: a source program that keeps items in a
+    TinyDB database (see [sources.md](sources.md), "Source programs").
   - `examples/screenshots/`: screenshots of `srl-tui` and `srl-web`, with
     a demo store and the scripts that take them; its `SKILL.md` tells an
     agent how to take new ones.

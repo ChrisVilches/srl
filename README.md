@@ -245,6 +245,7 @@ of it: copy them and change them.
 | [`kind-ja-words/`](examples/kind-ja-words/) | A kind program: one card per marked word of a Japanese sentence. |
 | [`kind-llm-generated/`](examples/kind-llm-generated/) | A kind program: an LLM writes a new question each time the card is shown. |
 | [`nushell/`](examples/nushell/) | A Nushell wrapper that gives `srl`'s data as tables and records. |
+| [`source-tinydb/`](examples/source-tinydb/) | A source program that keeps items in a TinyDB database instead of in notes. |
 | [`screenshots/`](examples/screenshots/) | Screenshots of `srl-web` and `srl-tui`, and instructions for an agent to take new ones. |
 
 ## Documentation
