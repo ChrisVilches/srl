@@ -1,9 +1,8 @@
 # Plan: sources, data access as adapters
 
-**Status: proposed, mostly decided.** Nothing here is implemented. Most
-decisions are taken; the two still open, how addresses work and whether
-`srl` removes items from contexts, are marked **Open decision**, with the
-recommended choice first. "Decisions" near the end lists them all. The
+**Status: decided, not started.** Nothing here is implemented. Every
+decision is taken; "Decisions" near the end lists them, with the
+alternatives that were considered where they explain the choice. The
 steps at the end are in the order to carry them out. Each one is a commit,
 and updates the specification, the guides and the examples as it lands
 (see [../../AGENTS.md](../../AGENTS.md)). When the last step lands, this
@@ -84,7 +83,7 @@ Not goals:
 | **Source** | A named place items are read from and written to, configured in `.srl/config.toml` as `[sources.NAME]`: `notes`, `generated`, `vocab`. |
 | **Driver** | What a source is: one of the built-in drivers, `markdown` or `jsonl`, or a **source program**, named by its command, as a kind program is. The driver is the adapter; a source is a driver with its settings. Two sources may use the same driver with different settings. |
 | **Collection** | A group of items inside a source, named by a string the driver chooses: a note's path for the built-in drivers, a table in a database, a resource in a web API. Collections are written like paths, with `/` between parts (`japanese/grammar/wo.md`, `words`, `decks/n5`). |
-| **Prefix** | A source's place in the store's one namespace of addresses: a string set in its configuration, `""` by default, such as `"vocab/"`. |
+| **Prefix** | Where a source is mounted in the store's one tree of addresses: set in its configuration, `""` by default, or a path ending in `/`, such as `"vocab/"`. |
 | **Address** | The name of a collection everywhere outside its driver: **the source's prefix followed by the collection**. `japanese/grammar/wo.md` (the `notes` source, prefix `""`), `vocab/words` (the `vocab` source, prefix `"vocab/"`, collection `words`). Addresses are unique in the store. |
 | **Handle** | An opaque string a driver gives with each item it reads, and gets back when it is asked to change that item: a database's own key, a URL, a position in a note. The core never reads it. |
 
@@ -96,53 +95,78 @@ an address is the note's path, as today.
 
 ### Addresses
 
-> **Open decision: one namespace of addresses, built from prefixes
-> (recommended).** The address must work the same for every driver, with
-> no case for files. Three ways:
->
-> 1. **Prefixes (recommended).** Every source is mounted at a prefix in
->    one namespace, like file systems in a folder tree. An address is
->    prefix + collection, for every source; the default prefix is `""`, so
->    notes keep their paths as addresses, and every `see`, message and
->    `srl add` argument written today keeps working. A source of a
->    database is given `prefix = "vocab/"` and its table `words` is
->    `vocab/words`. Two sources that give the same address are an error
->    naming both, fixed by giving one of them a prefix. Addresses look like
->    paths everywhere, so `path:` and `in:` match them the same for every
->    source. The cost: one more setting, and an address no longer says
->    which source it is in (`srl collections` and the JSON key `source`
->    do).
-> 2. **Always `SOURCE:COLLECTION`.** `notes:japanese/grammar/wo.md:12`.
->    Uniform and explicit, but noisier in the common store, every `see`
->    written today must be rewritten, and messages are no longer
->    `FILE:LINE:`, which editors such as Neovim read as is.
-> 3. **Relative to the item's own source, `SOURCE:COLLECTION` across
->    sources.** `see:other.md` in a note stays as is, but every JSONL item
->    whose `see` names a note must be rewritten (`see:notes:…`), and
->    messages and listings need the qualified form anyway, so it is the
->    second way with a shortcut in `see` only.
->
-> The rest of this plan is written for the first way. The second and
-> third change the same places: the address rules below, the JSON keys,
-> and steps 1.1, 3.2, 3.3 and 3.4.
+**A store is one tree of addresses, and each source is mounted in it at
+its prefix**, the way Unix mounts file systems in one tree of folders.
+In Unix, everything is a file: a disk, a network share and `/proc` are
+all reached by paths, and the driver below each mount point decides what
+a path means. Here, every collection is reached by an address, whatever
+its driver: a collection plays the part of a file, its items are its
+content, and `srl collections` lists the tree. The core only ever sees
+addresses; how a driver stores a collection (a file, a table, a URL) is
+its own business.
 
-**How an address is resolved**, the same for every source:
+An address is the source's prefix followed by the collection's name. The
+default prefix is `""`, so a store of notes is mounted at the root and
+its addresses are the notes' paths: every `see`, message and `srl add`
+argument written today keeps working. A database source with `prefix =
+"vocab/"` and a table `words` gives `vocab/words`.
+
+The rules, the same for every source:
+
+1. **A prefix is `""` or a path ending in `/`**, made of parts like a
+   note's path: `"vocab/"`, `"db/jp/"`. A prefix that ends inside a
+   part, such as `"voc"`, is an error, so a prefix always names a whole
+   folder of the tree.
+2. **An address belongs to the sources mounted deepest above it**: those
+   whose prefix is the longest one the address starts with. Every address
+   a source gives must belong to it, so **a source that gives an address
+   under another source's deeper prefix is an error**, naming both. With
+   notes at `""` and the database at `"vocab/"`, a note
+   `vocab/readme.md` is such an error. Unix would quietly hide the folder
+   under the mount point; `srl` says so instead (fail loudly), and you
+   fix it by excluding the note (`exclude = ["vocab/**"]`) or mounting
+   the database elsewhere.
+3. **Sources may share a prefix**, as `notes` and `generated` both at
+   `""`; they share that part of the tree, and **no address may be given
+   by two sources**. Two built-in sources whose globs match the same file
+   break this rule, so a file of the store belongs to one source at most.
+4. **No two collections may give the same `file`** (see "Where an item
+   comes from"). It catches two file sources reading one file under
+   different prefixes. It is a rule about a value drivers give, not about
+   drivers: the core checks it without knowing what a file source is.
+5. **A prefix needs no folder on disk.** Unix needs a folder to mount
+   on; `srl` doesn't, because git keeps no empty folder, so a store
+   cloned from git would lose its mount points, and a web API source has
+   nothing on disk at all. A folder with the prefix's name may exist, and
+   holding the source's own files there is natural (the database file at
+   `vocab/vocab.json`); it only matters when a file source reads files in
+   it, which rule 2 reports.
+
+**How an address is resolved** to a source:
 
 - **An existing collection**: the one whose address it is, among the
-  collections every source lists. Addresses are unique, so there is at
-  most one.
-- **A new collection**, for `srl add`: the sources whose prefix the
-  address starts with, and which accept the rest as a new collection.
-  Each source says which new collections it accepts as globs, relative to
-  its prefix: a built-in driver's are its `include` minus its `exclude`;
-  a program gives its own in `describe` (none, if it can't create
-  collections). Exactly one source must accept it; none or several is an
-  error naming them.
+  collections every source lists. By rules 2 and 3 there is at most one.
+- **A new collection**, for `srl add`: among the sources mounted deepest
+  above the address (rule 2), those that accept the rest of the address
+  as a new collection. Each source says which new collections it accepts,
+  as globs relative to its prefix: a built-in driver's are its `include`
+  minus its `exclude`; a program gives its own in `describe` (none, if it
+  can't create collections). Exactly one source must accept it; none or
+  several is an error naming them.
 
-The core needs nothing else about a collection to name it. A driver may
-also say which **file** a collection is, relative to the store's folder,
-for editors; that is information it gives, not a rule of the core (see
-"Frontends").
+So the core needs no rule for any kind of source: every source gives
+collections, every collection has an address, and the address decides.
+Whether there is a file behind a collection is information a driver may
+give, for editors (see "Frontends"), never something the core branches
+on.
+
+Alternatives considered: **always `SOURCE:COLLECTION`**
+(`notes:japanese/grammar/wo.md:12`), uniform too but noisier in the
+common store, every `see` written today rewritten, and messages no longer
+`FILE:LINE:`, which editors such as Neovim read as is; and **`see`
+relative to the item's own source, `SOURCE:COLLECTION` across sources**,
+which still needs the qualified form in messages and listings, and still
+rewrites every JSONL `see` that names a note.
 
 ### Where an item comes from
 
@@ -276,6 +300,13 @@ shown.** An item without `see` gets its own collection's context from its
 own source (`own: true`); an item with `see` gets the named collection's
 context from the source that owns that collection (`own: false`).
 
+**The owner is found by the address alone**, as every address is (see
+"Addresses"): when it builds the catalog, the core makes a table from
+every source's `collections`, address to source and collection, and looks
+`see` up in it. Files play no part: a `see` naming a note and one naming
+a database table are looked up the same way, and rules 2 and 3 there
+guarantee that one source at most owns an address.
+
 So an item of a web API source whose `see` names `japanese/wo.md` doesn't
 depend on Markdown: its driver stores `see` as a string and never reads
 it. The core resolves the address to the `notes` source and asks the
@@ -287,32 +318,24 @@ Even if no driver removed anything, the operation would stay: only the
 driver can turn a collection into text to show (a note is its file, but a
 database table has no text until its driver gives one).
 
-> **Open decision: who hides the items of a context.**
->
-> 1. **Each driver, as today (recommended).** `prose` mode removes the
->    collection's items, by the driver's own rules: srl blocks for
->    `markdown`, everything for `jsonl` (which fixes
->    [../audit.md](../audit.md), M2, and the open question "one context
->    rule": `prose` never shows items, in any source); a program decides
->    for its own. Frontends stay unaware of formats, as
->    [../frontends.md](../frontends.md) promises ("they don't know about
->    notes, kinds or cloze syntax"), and every frontend, script and kind
->    program (whose `make` gets the context) gets the same text without
->    seeing other items' answers.
-> 2. **Nobody: a context is the collection as its driver stores it, and
->    frontends hide items if they want**, as a presentation improvement.
->    `srl` gets simpler: no modes, no `--context`, one rule for every
->    driver ("the collection as stored"). But hiding items needs knowing
->    the format, so each frontend that wants it reimplements srl blocks
->    (and any other driver's format), which breaks "frontends don't know
->    about notes"; a frontend that doesn't shows the answers of the other
->    items of the note after every card, which is what the sibling rule
->    tries to avoid; and kind programs get those answers in `make`'s
->    context too.
-> 3. **Both: the context as stored, plus where its items are** (ranges of
->    the text), so a frontend can hide them without knowing the format.
->    Generic, but a bigger contract for every driver and every frontend,
->    for what the first way gives as plain text.
+**Each driver hides its own items.** In mode `prose`, a context never
+shows items, in any source: the `markdown` driver removes srl blocks, as
+today; the `jsonl` driver gives nothing for a JSONL note named by `see`
+(today it gives the note whole, items included, in `prose` too; `full`
+keeps that), which fixes [../audit.md](../audit.md), M2, and answers the
+open question "one context rule for both item syntaxes"; a program
+removes its own items in its own way. Mode `full` shows items as each
+driver writes them. Frontends stay unaware of formats, as
+[../frontends.md](../frontends.md) promises, and every frontend, script
+and kind program (whose `make` gets the context) gets the same text
+without other items' answers.
+
+Alternatives considered: **contexts as stored, with frontends hiding
+items** as a presentation improvement, which removes the modes from
+`srl` but makes every frontend that hides items know every driver's
+format, and lets every frontend that doesn't show other items' answers
+after each card; and **contexts as stored plus the ranges of their
+items**, generic but a bigger contract for every driver and frontend.
 
 ## Built-in drivers
 
@@ -335,9 +358,9 @@ include = ["generated/**/*.jsonl"]
   the same meaning as today in `[notes]`. Their collections are the paths
   of the files they match, relative to the store's folder, and each
   collection is the file of the same path.
-- A file both sources match gives the same address twice, an error like
-  any two sources giving the same address (see "Addresses"), so a file
-  belongs to one source.
+- A file two sources match is an error, by the rules of "Addresses"
+  (the same address from two sources, or the same `file` from two
+  collections), so a file belongs to one source.
 - **Without `[sources]`, a store has one source, `notes`**, with driver
   `markdown`, `include = ["**/*.md"]` and prefix `""`: today's default.
 - `[notes]` is removed. A configuration that still has it is an error
@@ -434,14 +457,11 @@ the price is visible to whoever chooses the program.
 
 ### Caching
 
-- **Built-in drivers keep everything inside `.srl/`.** Today they cache
-  nothing: notes are read and parsed on every use (see
-  [../store.md](../store.md), "The index cache"). If they ever cache
-  (see [../ideas.md](../ideas.md), "Performance"), it is in
-  `.srl/cache/`, with the rest of what `srl` derives, so the store stays
-  easy to manage: deleting `.srl/cache/` forgets everything, and git
-  ignores it.
-- **Source programs cache where they choose.** `srl` gives them no
+- **Built-in drivers cache nothing, as today**: every note is read and
+  parsed on every use (see [../store.md](../store.md), "The index
+  cache"). Caching them is not part of this plan; it stays an idea (see
+  [../ideas.md](../ideas.md), "Performance").
+- **Source programs decide for themselves.** `srl` gives them no
   folder and doesn't cache what they read: it can't know when a database
   or a service changed, and the index cache must never change a result.
   A program that caches keeps its cache wherever it wants, usually set in
@@ -464,7 +484,9 @@ item's input line, which doesn't depend on where the item came from.
   reported once as problems of the source. Like an error in a note, they
   stop every command that reads items.
 - An ID given by two items, in one source or in two, is an error, as
-  today. So is an address given by two sources.
+  today. So is breaking a rule of "Addresses": an address given by two
+  sources, an address under another source's deeper prefix, or a `file`
+  given by two collections.
 - After `write`, `srl` reads the source again and compares: every item
   not changed must be as before, every `add` must have added exactly its
   item, every `replace` must give exactly `after`. If not, the command
@@ -592,6 +614,9 @@ still being a file a person can back up.
   as a `see` target, the same.
 - Its README shows a store that mixes it with Markdown notes: database
   items whose `see` names a note, and notes whose items `see` a table.
+- **No cache.** TinyDB reads one local JSON file, so a cache would save
+  nothing and show nothing. The proof that a program can decide its own
+  caching is the web API test below, where a cache saves requests.
 
 Other engines considered: SQLite with JSON columns (not really a document
 database, and `srl` already uses SQLite for its cache, which would blur
@@ -619,22 +644,22 @@ coverage that runs on every `cargo test`:
 
 ## Decisions
 
-| Decision | Taken | Status |
-|---|---|---|
-| Names | source, driver, collection, prefix, address, handle | decided |
-| Address | prefix + collection, one namespace (see "Addresses") | **open**: or always `SOURCE:COLLECTION`, or relative to the item's source |
-| Context | each driver hides its items in `prose`; the core routes `see` to the owning source | **open**: or contexts as stored, items hidden by frontends; or as stored with item ranges |
-| ID uniqueness | in the store, across sources; not across stores | decided |
-| JSON keys | `address`, `source`, `file`, nullable `line`, `context_address` | decided, follows the address decision |
-| `line` | kept, optional, for people | decided |
-| `see` | an address; no plain files, no URLs | decided |
-| Selectors | `source:` added; `path:` and `in:` on addresses; none of a driver's own | decided |
-| Configuration | `[sources.NAME]`, `driver` or `program`, `prefix`; `[notes]` removed | decided |
-| Order of `srl find` | by address, then items as read, then card ID | decided |
-| Caching | built-in drivers only ever in `.srl/cache/`; programs where they choose; `srl` doesn't cache reads | decided |
-| Plugins | processes, batch calls, as kind programs | decided |
-| Verifying writes | `srl` reads a program's source again after `write` | decided |
-| Crate split | optional, last | decided |
+| Decision | Taken |
+|---|---|
+| Names | source, driver, collection, prefix, address, handle |
+| Address | one tree: sources mounted at prefixes, an address is prefix + collection; a source owns what is under its prefix but deeper mounts; no address from two sources, no file from two collections; no folder needed (see "Addresses") |
+| Context | each driver hides its own items in `prose`, `jsonl` included; the core finds the owner of `see` by its address |
+| ID uniqueness | in the store, across sources; not across stores |
+| JSON keys | `address`, `source`, `file`, nullable `line`, `context_address` |
+| `line` | kept, optional, for people |
+| `see` | an address; no plain files, no URLs |
+| Selectors | `source:` added; `path:` and `in:` on addresses; none of a driver's own |
+| Configuration | `[sources.NAME]`, `driver` or `program`, `prefix`; `[notes]` removed |
+| Order of `srl find` | by address, then items as read, then card ID |
+| Caching | none in `srl`, built-in drivers included, as today; programs decide for themselves; not in the TinyDB example, shown in the web API test |
+| Plugins | processes, batch calls, as kind programs |
+| Verifying writes | `srl` reads a program's source again after `write` |
+| Crate split | optional, last |
 
 ## Steps
 
@@ -644,7 +669,7 @@ specification, guides and examples describing what it does. The first
 phase changes only names; the second only the code's structure; the
 specification changes for real from the third on.
 
-### Phase 1: names, nothing else
+### Phase 1: names, and one small rule
 
 Small, breaking renames that the end state needs anyway, done while the
 rest of `srl` stays as it is. Each defines its new term for notes alone,
@@ -663,6 +688,12 @@ so the specification stays true in between.
   log"). Removes [../audit.md](../audit.md), L1.
 - **1.4 Selectors are described on addresses**: `path:` and `in:` say
   "the item's address" (a note's path, for now). Docs only.
+- **1.5 A JSONL note named by `see` gives no context in mode `prose`**,
+  and stays whole in `full` (see "Context"). Small, but not only a name;
+  it is here because it needs nothing else of this plan. Removes
+  [../audit.md](../audit.md), M2, and the open question "one context rule
+  for both item syntaxes" in [../overview.md](../overview.md) and
+  [../notes.md](../notes.md).
 
 ### Phase 2: the boundary, in the code
 
@@ -716,12 +747,10 @@ guides and the examples together.
   pieces and contracts.
 - **3.2 Sources in outputs**: `source` and `file` keys, `line` may be
   `null`, the `source:` selector, `srl collections` across sources.
-- **3.3 `see` resolves through sources**, and context is asked of the
-  source that owns the collection, by whichever context rule is decided.
-  The open question "one context rule for both item syntaxes" in
-  [../overview.md](../overview.md) and [../notes.md](../notes.md) is
-  answered by it, and [../audit.md](../audit.md), M1 and M2, are
-  rewritten or removed.
+- **3.3 `see` resolves through sources**: the core looks the address up
+  among every source's collections, and asks the owner for the context.
+  [../audit.md](../audit.md), M1, is rewritten or removed: two drivers
+  are two sources, not two models inside one.
 - **3.4 `srl add ADDRESS`**, with new collections resolved by prefix and
   the globs each source accepts.
 - **3.5 Examples and guides**: `srl-web` (add form from `srl
