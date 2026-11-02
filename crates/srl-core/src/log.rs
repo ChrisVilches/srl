@@ -9,9 +9,13 @@ use std::time::{Duration, Instant};
 use jiff::Zoned;
 use jiff::civil::{Date, DateTime};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::config::Schedule;
+use crate::kind::Kind;
+use crate::note::Entries;
+use crate::note::object::written;
 use crate::{CardId, Error, Item, Result, Store};
 
 /// The lock file that every append holds (see `docs/log.md`, "Files").
@@ -124,10 +128,18 @@ pub(crate) fn time(now: &Zoned) -> String {
     now.strftime("%Y-%m-%dT%H:%M:%S%:z").to_string()
 }
 
-/// The `hash` of an item: the start of the SHA-256 of its text, in hex.
+/// The `hash` of an item: the start of the SHA-256, in hex, of its kind and
+/// fields as an item object, written as `srl` writes one (see
+/// `docs/log.md`). Its ID, `see` and `draft` are left out, and so is how
+/// its note writes it, so that only a change to the question changes it.
 pub(crate) fn hash(item: &Item) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
-    Sha256::digest(item.text().as_bytes())
+    let entries = Entries {
+        kind: matches!(item.kind(), Kind::Program(_)).then(|| item.kind().as_str().to_owned()),
+        ..Entries::default()
+    };
+    let object = Value::Object(written(&entries, item.fields())).to_string();
+    Sha256::digest(object.as_bytes())
         .iter()
         .flat_map(|byte| [byte >> 4, byte & 0x0f])
         .take(HASH_LEN)
@@ -363,22 +375,22 @@ mod tests {
     }
 
     #[test]
-    fn the_hash_is_the_start_of_the_items_sha256() {
+    fn the_hash_is_the_start_of_the_sha256_of_the_kind_and_fields() {
+        let programs = crate::kind::Programs::default();
         let (items, _) = crate::note::read_items(
             "a.md",
-            "Prose.\n```srl id:abc\nQ: q\nA: a\n```\n\nMore.\n",
-            &crate::kind::Programs::default(),
+            "Prose.\n````srl id:abc draft see:b.md\nQ: q\nA: a\n````\n\nMore.\n",
+            &programs,
         );
-        // `printf -- '```srl id:abc\nQ: q\nA: a\n```' | sha256sum | cut -c1.12`
-        assert_eq!(hash(&items[0]), "54b0d17db858");
-        // In a JSONL note, the item as written is its line.
+        // `printf '%s' '{"Q":"q","A":"a"}' | sha256sum | cut -c1-12`
+        assert_eq!(hash(&items[0]), "23531498e859");
+        // However the item is written, and whatever its ID, `see` and draft.
         let (items, _) = crate::note::read_items(
             "a.jsonl",
-            "\n{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\r\n",
-            &crate::kind::Programs::default(),
+            "\n{\"id\": \"xyz\", \"Q\": \"q\",\"kind\":\"qa\", \"A\": \"a\"}\r\n",
+            &programs,
         );
-        // `printf '%s' '{"id": "abc", "Q": "q", "A": "a"}' | sha256sum | cut -c1.12`
-        assert_eq!(hash(&items[0]), "4fe96b449782");
+        assert_eq!(hash(&items[0]), "23531498e859");
     }
 
     #[test]

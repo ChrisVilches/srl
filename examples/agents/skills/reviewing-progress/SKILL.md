@@ -91,7 +91,7 @@ A review event:
  "rating": 3, "response": null, "by": "human", "hash": "3fa91c0d22be"}
 ```
 
-`hash` identifies the item's text at review time, so reviews before and
+`hash` identifies the item's question (its kind and fields) at review time, so reviews before and
 after a rewrite of the item can be told apart.
 
 ## Workload

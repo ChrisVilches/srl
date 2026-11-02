@@ -1,13 +1,14 @@
 # Plan: sources, data access as adapters
 
-**Status: approved, not started.** Nothing here is implemented. Every
+**Status: approved, under way.** Steps done: 1.1, 1.2, 1.3. Every
 decision is taken; "Decisions" near the end lists them, and the sections
 before it give the alternatives that were considered where they explain
-the choice. The
-steps at the end are in the order to carry them out. Each one is a commit,
-and updates the specification, the guides and the examples as it lands
-(see [../../AGENTS.md](../../AGENTS.md)). When the last step lands, this
-document is deleted.
+the choice. The steps at the end are in the order to carry them out. Each
+one is a commit, and updates the specification, the guides and the
+examples as it lands (see [../../AGENTS.md](../../AGENTS.md)). Where this
+plan says "today", it means before the plan; the documents in `docs/`
+describe what is built so far. When the last step lands, this document is
+deleted.
 
 ## Why
 
@@ -592,12 +593,12 @@ in the collection's name.
 
 ### The log
 
-The review `hash` is defined today as the hash of "the item as written",
-which depends on the syntax ([../audit.md](../audit.md), L1). It becomes
-the hash of the item object as `srl` writes it (entries and fields, no
-keys that only `srl` gives), the same for every driver, so that moving an
-item between sources or formats doesn't change it. Old events keep their
-hashes; `srl` never uses them.
+The review `hash` was defined as the hash of "the item as written", which
+depends on the syntax. It is the hash of the item's kind and fields as an
+item object, written as `srl` writes one (without `id`, `see` and
+`draft`), the same for every driver, so that moving an item between
+sources or formats, or accepting it, doesn't change it. Old events keep
+their hashes; `srl` never uses them. (Done in step 1.3.)
 
 ## Frontends
 
@@ -713,7 +714,7 @@ so the specification stays true in between.
   that read `context_path`, the agent skills.
 - **1.2 `srl notes` becomes `srl collections`**, with `{"address": …}`
   in JSON. Examples: `srl-web`'s add form, Nushell, agent skills.
-- **1.3 The review `hash` is the hash of the item object** (see "The
+- **1.3 The review `hash` is the hash of the item's kind and fields** (see "The
   log"). Removes [../audit.md](../audit.md), L1.
 - **1.4 Selectors are described on addresses**: `path:` and `in:` say
   "the item's address" (a note's path, for now). Docs only.

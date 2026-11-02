@@ -64,7 +64,7 @@ Each part of `srl` already allows this:
 - **Prompt and answer match**, because they come out of the same `make`
   call, and `srl next --json` gives both at once. A frontend holds the
   card it got; it never asks for it again.
-- **Reviews record only the card ID** (and `hash`, of the item's text), so
+- **Reviews record only the card ID** (and `hash`, of the item's kind and fields), so
   a card that changes doesn't affect the log. What was actually asked is
   not in the log. A frontend that wants it can pass it in `response`, or
   the program can keep its own record.

@@ -74,7 +74,6 @@ The open findings cluster in three places:
 | M3 | Kind programs are the main extension mechanism, but the vision doesn't say so | Vision | Medium | Easy |
 | M4 | Invalid log lines are skipped, against "fail loudly" | Specification | Medium | Easy |
 | M5 | "Every rule in one sentence" no longer describes the specification | Vision | Medium | Moderate |
-| L1 | The review `hash` is defined by a display format | Specification | Low | Easy |
 | L2 | Exit codes are surprising for linters and write commands | Specification | Low | Easy |
 | L3 | The default store is used silently from any directory | Specification | Low | Easy |
 | L4 | The card ID separator is described as changeable | Specification | Low | Trivial |
@@ -346,22 +345,6 @@ restating it (context rules, for example, are restated in `notes.md`,
 
 ## Low
 
-### L1. The review `hash` is defined by a display format
-
-**Severity Low · Difficulty Easy**
-
-`hash` is the SHA-256 of "the item as written, as `srl show` prints it
-without `--json`" ([log.md](log.md)). So it changes when nothing about the
-question did: moving an item between syntaxes, changing its fence length,
-or `srl edit` rewriting a JSONL line with other key order or spacing. Its
-one purpose, "did my retention change after I rewrote this item?", gets
-false positives, and a future change to `srl show` output would change it
-for all items.
-
-**Fix:** hash a canonical form, such as the item object of its `kind` and
-fields (not `id`, `see`, `draft`), serialized one fixed way. Old hashes
-stay valid as what they were.
-
 ### L2. Exit codes are surprising for linters and write commands
 
 **Severity Low · Difficulty Easy (but a breaking change)**
@@ -499,7 +482,7 @@ Worth keeping as they are:
    decide on per-device logs.
 3. **H2**: let commands that write the log record despite unrelated note
    errors.
-4. **M2**, **M4**, **L1**, **L2**, **L9**: small rule changes, best made
+4. **M2**, **M4**, **L2**, **L9**: small rule changes, best made
    before more programs depend on current behaviour.
 5. **M3**: state kinds as the extension mechanism, and settle their
    contract, since every plugin builds on it.
