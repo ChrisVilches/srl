@@ -22,9 +22,11 @@ export function CardFace({ card, revealed, badges }: { card: ShownCard; revealed
   return (
     <>
       <article className="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
-        <div className="flex items-center justify-between px-6 pt-4 text-xs text-stone-400">
-          <span className="font-mono">{card.id}</span>
-          <span className="flex gap-2">
+        <div className="flex items-center justify-between gap-3 px-6 pt-4 text-xs text-stone-400">
+          <span className="min-w-0 truncate font-mono" title={card.id}>
+            {card.id}
+          </span>
+          <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <KindBadge kind={card.kind} />
             {badges}
           </span>
@@ -47,12 +49,13 @@ export function CardFace({ card, revealed, badges }: { card: ShownCard; revealed
 
 const PILL = 'rounded-full px-2 py-0.5';
 
-// The kind that made a card, in violet when it isn't qa.
+// The kind that made a card, in violet when it isn't qa. A long name is cut
+// short, whole in the tooltip.
 export function KindBadge({ kind }: { kind: string }) {
   return (
     <span
-      title="The kind that made this card"
-      className={`${PILL} font-mono ${kind === 'qa' ? '' : 'bg-violet-100 font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300'}`}
+      title={`The kind that made this card: ${kind}`}
+      className={`${PILL} max-w-48 truncate font-mono ${kind === 'qa' ? '' : 'bg-violet-100 font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300'}`}
     >
       {kind}
     </span>
@@ -70,7 +73,7 @@ export function StateBadges({ status, state }: { status?: FoundCard['status']; s
         </span>
       )}
       <span
-        className={state === 'new' ? `${PILL} bg-sky-100 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300` : ''}
+        className={`${PILL} ${state === 'new' ? 'bg-sky-100 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300' : ''}`}
       >
         {state}
       </span>

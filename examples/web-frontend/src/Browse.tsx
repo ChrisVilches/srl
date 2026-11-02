@@ -278,7 +278,7 @@ function Preview({
         <button onClick={onEdit} disabled={editing} title="Edit the item of this card, whatever its source" className={`py-1 ${QUIET_BUTTON}`}>
           Edit item
         </button>
-        <span className="ml-auto font-mono text-xs text-stone-400">
+        <span className="ml-auto min-w-0 truncate font-mono text-xs text-stone-400" title={found.address}>
           {found.address}
           {found.line === null ? '' : `:${found.line}`} · due {found.due ?? '—'}
         </span>
