@@ -89,11 +89,14 @@ A JSONL note holds nothing but items, and has no context of its own, so
 each item names its note with `see`. `srl add` and `srl edit` take items
 in that same form, whatever note they go to, and `srl id` gives IDs to the
 lines that have none. JSONL notes are read once your configuration names
-them, in `.srl/config.toml`:
+a source of them, in `.srl/config.toml`, beside the notes:
 
 ```toml
-[notes]
-include = ["**/*.md", "**/*.jsonl"]
+[sources.notes]
+driver = "markdown"
+
+[sources.data]
+driver = "jsonl"
 ```
 
 A card's identity is its ID, so you can reword a question or move its note
@@ -217,7 +220,7 @@ srl stats                 # what's new, due, young, mature
 ```
 
 To add items without writing Markdown, send them as JSON lines to a JSONL
-note (once `include` names `*.jsonl`, see above), or to a Markdown note,
+note (once a `jsonl` source reads them, see above), or to a Markdown note,
 where `srl` writes the srl blocks for you:
 
 ```sh

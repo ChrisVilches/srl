@@ -67,9 +67,10 @@ any particular note-taking app.
 
 ## Principles
 
-1. **The store is the database, and it is made of text files.** Items are
-   lines in notes, Markdown or JSONL, and reviews are lines in JSONL files.
-   A SQLite index exists only as a cache that can be deleted at any time.
+1. **The store is the database, and it is made of text files.** Items come
+   from the store's sources, which by default are lines in notes, Markdown
+   or JSONL, and reviews are lines in JSONL files. A SQLite index exists
+   only as a cache that can be deleted at any time.
 2. **People and programs are equal.** Anything a script or any other
    program can do with `srl`, a person can also do with the same commands.
 3. **The CLI is the API.** Every command is non-interactive, with JSON
@@ -90,7 +91,7 @@ any particular note-taking app.
  Your study folder (the store): the data layer
  ┌──────────────────────────────────────────────────────────────────────┐
  │   **/*.md            your notes (by default); items inside them      │
- │   *.jsonl            notes of items only, if `include` names them    │
+ │   *.jsonl            notes of items only, if a source reads them     │
  │   .srl/config.toml   configuration                                   │
  │   .srl/log/*.jsonl   append-only review events                       │
  └──────────────────────────────────────────────────────────────────────┘
@@ -110,9 +111,10 @@ any particular note-taking app.
 | Term | Meaning |
 |---|---|
 | **Store** | A folder of notes (Markdown files by default) with a `.srl/` folder in it, which holds the configuration, the log and caches. |
-| **Note** | A file in the store that `srl` reads for items: by default, any Markdown file. A note may hold items; the rest of it is yours. |
-| **Item** | A question written in a note: header entries (`id`, `kind`, `see`, `draft`) and fields such as `Q` and `A`. In every note but a JSONL note it is in an srl block (a fenced code block whose language is `srl`): a header such as the fence ```` ```srl id:x7k2m9 ```` followed by fields such as `Q:` and `A:`; in a JSONL note it is a line, as a JSON object. It has an ID, and gives one or more cards. |
-| **Item syntax** | How items are written in a note: srl blocks, or JSONL in notes whose name ends with `.jsonl`. |
+| **Source** | A place items come from and are written back to, named in `.srl/config.toml`: by default, `notes`, every Markdown file of the store. Each has a driver, `markdown` or `jsonl`, and is mounted at a prefix in the store's one tree of addresses. |
+| **Note** | A file in the store that a source reads for items: by default, any Markdown file. A note may hold items; the rest of it is yours. A note is a collection of its source, and its address is its path, after the source's prefix. |
+| **Item** | A question written in a note: header entries (`id`, `kind`, `see`, `draft`) and fields such as `Q` and `A`. In a note of srl blocks it is in an srl block (a fenced code block whose language is `srl`): a header such as the fence ```` ```srl id:x7k2m9 ```` followed by fields such as `Q:` and `A:`; in a JSONL note it is a line, as a JSON object. It has an ID, and gives one or more cards. |
+| **Item syntax** | How items are written in a note: srl blocks in the notes of a `markdown` source, or JSONL in the notes of a `jsonl` source. |
 | **Kind** | How an item's fields become cards. `qa`, a question and an answer with optional cloze deletions, is built in and the default; any other kind is a program named in `.srl/config.toml`. A kind also decides which of an item's cards are siblings, and describes its fields (`srl kinds`). |
 | **Card** | One question, ready to show: an ID, a prompt, and, when the kind gives them, the prompt as revealed with the answer and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
 | **Context** | The note an item belongs to, or the note its `see` names, which frontends show after the answer of its cards. A JSONL note is never the context of its own items. |
@@ -159,7 +161,7 @@ extensions.
 
 | Fixed (in the core) | Pluggable (outside the core) |
 |---|---|
-| Store layout, item syntaxes, the `qa` kind | Frontends (terminal, web, ambient, …) |
+| Store layout, sources and their drivers, item syntaxes, the `qa` kind | Frontends (terminal, web, ambient, …) |
 | Card format, frontend contract | Importers, generators and other tools that write items |
 | Review event format, FSRS scheduling, the sibling rule | Judging answers: by you, or by a program you choose |
 | Selector language | Writing notes and items: by hand or by program |
@@ -242,6 +244,7 @@ The specification:
 | Document | Contents |
 |---|---|
 | [store.md](store.md) | Store layout, how a store is found, configuration, the index cache |
+| [sources.md](sources.md) | Sources of items: drivers, collections, prefixes and addresses, what every source does |
 | [notes.md](notes.md) | Notes and the item syntaxes: srl blocks, JSONL notes, header entries, fields, the item object, IDs, status, context, how `srl` writes to notes |
 | [cards.md](cards.md) | The `qa` kind, cloze deletions, kind programs and groups of siblings, card IDs, the card format and its text formatting |
 | [scheduling.md](scheduling.md) | Ratings, FSRS, days, choosing the next card, siblings, new-card limits, states |

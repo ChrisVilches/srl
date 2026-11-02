@@ -276,8 +276,10 @@ fn find_json_prints_one_card_per_line() {
         json_lines(&output),
         [
             serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo.md",
+                "source": "notes", "file": "japanese/grammar/wo.md",
                 "line": 10, "status": "active", "state": "new", "due": null}),
             serde_json::json!({"id": "saba01", "item": "saba01", "address": "kanji/fish.md",
+                "source": "notes", "file": "kanji/fish.md",
                 "line": 6, "status": "draft", "state": "new", "due": null}),
         ]
     );
@@ -496,7 +498,7 @@ fn jsonl_notes_hold_one_item_per_line_and_no_context() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[notes]\ninclude = [\"**/*.md\", \"**/*.jsonl\"]\n",
+        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.data]\ndriver = \"jsonl\"\n",
     );
     let items = "{\"Q\": \"鯛\", \"A\": \"たい — sea bream\"}\n{\"id\": \"wo0001\", \"see\": \"japanese/grammar/wo.md\", \"Q\": \"{{c1::嵐}}をものともせず\"}\n";
     write(&tmp, "generated/items.jsonl", items);
@@ -558,7 +560,7 @@ fn store_with_jsonl(notes: &[(&str, &str)]) -> TempDir {
     write(
         &tmp,
         ".srl/config.toml",
-        "[notes]\ninclude = [\"**/*.md\", \"**/*.jsonl\"]\n",
+        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.data]\ndriver = \"jsonl\"\n",
     );
     tmp
 }
@@ -723,6 +725,8 @@ fn next_json_gives_the_card_with_its_state_note_and_context() {
             "state": "new",
             "kind": "qa",
             "address": "japanese/grammar/wo.md",
+            "source": "notes",
+            "file": "japanese/grammar/wo.md",
             "see": null,
             "context": "# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n",
             "context_address": "japanese/grammar/wo.md",
@@ -921,7 +925,7 @@ fn excluded_notes_and_dot_folders_are_not_read() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[notes]\nexclude = [\"templates/**\"]\n",
+        "[sources.notes]\ndriver = \"markdown\"\nexclude = [\"templates/**\"]\n",
     );
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(0));
 }
@@ -938,7 +942,7 @@ fn collections_lists_every_note_without_reading_it() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[notes]\nexclude = [\"templates/**\"]\n",
+        "[sources.notes]\ndriver = \"markdown\"\nexclude = [\"templates/**\"]\n",
     );
     let output = srl(&["collections", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
@@ -954,7 +958,7 @@ fn collections_lists_every_note_without_reading_it() {
     let output = srl(&["collections", "--json", "--dir", d]);
     assert_eq!(
         json_lines(&output)[1],
-        serde_json::json!({"address": "japanese/grammar/wo.md"})
+        serde_json::json!({"address": "japanese/grammar/wo.md", "source": "notes", "file": "japanese/grammar/wo.md"})
     );
     let empty = store(&[]);
     assert_eq!(
@@ -1003,7 +1007,7 @@ fn include_makes_other_files_notes() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[notes]\ninclude = [\"**/*.md\", \"**/*.txt\"]\n",
+        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"**/*.md\", \"**/*.txt\"]\n",
     );
     let output = srl(&["find", "--json", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
@@ -1027,7 +1031,11 @@ fn include_replaces_the_default_rather_than_adding_to_it() {
     let tmp = japanese();
     let d = dir(&tmp);
     write(&tmp, "extra.txt", TEXT_NOTE);
-    write(&tmp, ".srl/config.toml", "[notes]\ninclude = [\"*.txt\"]\n");
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"*.txt\"]\n",
+    );
     let output = srl(&["find", "--json", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let cards = json_lines(&output);
@@ -1043,13 +1051,13 @@ fn exclude_wins_over_include() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[notes]\ninclude = [\"**/*.md\", \"**/*.txt\"]\n",
+        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"**/*.md\", \"**/*.txt\"]\n",
     );
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(2));
     write(
         &tmp,
         ".srl/config.toml",
-        "[notes]\ninclude = [\"**/*.md\", \"**/*.txt\"]\nexclude = [\"drafts/**\"]\n",
+        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"**/*.md\", \"**/*.txt\"]\nexclude = [\"drafts/**\"]\n",
     );
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(0));
 }
@@ -1058,7 +1066,11 @@ fn exclude_wins_over_include() {
 fn an_invalid_include_glob_is_a_configuration_error() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, ".srl/config.toml", "[notes]\ninclude = [\"[\"]\n");
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"[\"]\n",
+    );
     let output = srl(&["find", "--dir", d]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
@@ -1083,7 +1095,7 @@ fn add_takes_paths_that_include_matches_and_exclude_does_not() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[notes]\ninclude = [\"**/*.md\", \"**/*.txt\"]\nexclude = [\"drafts/**\"]\n",
+        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"**/*.md\", \"**/*.txt\"]\nexclude = [\"drafts/**\"]\n",
     );
     let output = srl_with_input(&["add", "drafts/a.txt", "--stdin", "--dir", d], item);
     assert_eq!(output.status.code(), Some(2));
@@ -1488,4 +1500,109 @@ fn invalid_srl_now_and_srl_seed_exit_with_2_and_explain() {
         .unwrap();
     assert_eq!(seed.status.code(), Some(2));
     assert!(stderr(&seed).contains("SRL_SEED"), "{}", stderr(&seed));
+}
+
+#[test]
+fn sources_read_their_notes_each_with_its_driver_and_prefix() {
+    let tmp = store(&[
+        (
+            "japanese/wo.md",
+            "Prose.\n\n```srl id:aaa1\nQ: q\nA: a\n```\n",
+        ),
+        (
+            "vocab/words.jsonl",
+            "{\"id\": \"bbb1\", \"see\": \"japanese/wo.md\", \"Q\": \"q\", \"A\": \"a\"}\n",
+        ),
+    ]);
+    let d = dir(&tmp);
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.vocab]\ndriver = \"jsonl\"\nprefix = \"words/\"\ninclude = [\"vocab/**/*.jsonl\"]\n",
+    );
+    let collections = srl(&["collections", "--json", "--dir", d]);
+    assert_eq!(
+        json_lines(&collections),
+        [
+            serde_json::json!({"address": "japanese/wo.md", "source": "notes", "file": "japanese/wo.md"}),
+            serde_json::json!({"address": "words/vocab/words.jsonl", "source": "vocab", "file": "vocab/words.jsonl"}),
+        ]
+    );
+    let found = srl(&["find", "--dir", d]);
+    assert_eq!(found.status.code(), Some(0), "{}", stderr(&found));
+    assert!(lines(&found)[1].starts_with("bbb1  words/vocab/words.jsonl:1  "));
+    // A `see` and `srl add` name collections by their address.
+    let shown = srl(&["show", "bbb1", "--json", "--dir", d]);
+    let shown = &json_lines(&shown)[0];
+    assert_eq!(shown["source"], "vocab");
+    assert_eq!(shown["context_address"], "japanese/wo.md");
+    let item = "{\"Q\": \"r\", \"A\": \"b\"}";
+    let added = srl_with_input(
+        &["add", "words/vocab/new.jsonl", "--stdin", "--dir", d],
+        item,
+    );
+    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+    assert!(read(&tmp, "vocab/new.jsonl").contains("\"Q\":\"r\""));
+    let sources = srl(&["sources", "--json", "--dir", d]);
+    let sources = json_lines(&sources);
+    assert_eq!(sources[1]["name"], "vocab");
+    assert_eq!(sources[1]["driver"], "jsonl");
+    assert_eq!(sources[1]["prefix"], "words/");
+    assert_eq!(
+        sources[1]["creates"]["include"],
+        serde_json::json!(["vocab/**/*.jsonl"])
+    );
+}
+
+#[test]
+fn notes_in_the_config_are_refused_with_how_to_write_them_as_sources() {
+    let tmp = store(&[]);
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[notes]\ninclude = [\"**/*.md\"]\n",
+    );
+    let output = srl(&["find", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("[sources.notes]"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn a_file_two_sources_read_and_an_address_under_a_deeper_prefix_are_errors() {
+    let tmp = store(&[
+        ("a.md", "```srl id:aaa1\nQ: q\nA: a\n```\n"),
+        ("deep/b.md", "Prose.\n"),
+    ]);
+    let d = dir(&tmp);
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.again]\ndriver = \"markdown\"\ninclude = [\"a.md\"]\n",
+    );
+    let output = srl(&["find", "--dir", d]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("a.md: the sources again and notes both give it"),
+        "{}",
+        stderr(&output)
+    );
+    write(
+        &tmp,
+        ".srl/config.toml",
+        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.deep]\ndriver = \"markdown\"\nprefix = \"deep/\"\ninclude = [\"deep/*.md\"]\n",
+    );
+    let output = srl(&["check", "--dir", d]);
+    assert_eq!(output.status.code(), Some(2));
+    let errors = stderr(&output);
+    // `deep/b.md` of notes is under the prefix of deep; deep gives
+    // `deep/deep/b.md`, and both are the same file.
+    assert!(
+        errors.contains("deep/b.md: the source notes gives it, but it is under the prefix deep/"),
+        "{errors}"
+    );
+    assert!(errors.contains("it is the file deep/b.md"), "{errors}");
 }

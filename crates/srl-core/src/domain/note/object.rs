@@ -14,7 +14,15 @@ use crate::domain::note::{Entries, Field, ItemId, is_field_key};
 
 /// The keys that `srl show --json` prints and nothing reads: they are
 /// ignored wherever an item object is read.
-pub(crate) const READ_ONLY: [&str; 5] = ["address", "line", "cards", "context", "context_address"];
+pub(crate) const READ_ONLY: [&str; 7] = [
+    "address",
+    "source",
+    "file",
+    "line",
+    "cards",
+    "context",
+    "context_address",
+];
 
 /// An item object as read: its entries and its fields, in order.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -76,7 +84,7 @@ pub(crate) fn read(text: &str) -> Result<Object, String> {
                 return Err(format!(
                     "`{key}` is neither a header entry (`id`, `kind`, `see`, `draft`), a field \
                      name (uppercase letters, digits and _, starting with a letter), nor a key \
-                     only srl gives (`address`, `line`, `cards`, `context`, `context_address`)"
+                     only srl gives (`address`, `source`, `file`, `line`, `cards`, `context`, `context_address`)"
                 ));
             }
         }

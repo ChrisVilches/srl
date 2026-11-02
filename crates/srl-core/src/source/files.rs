@@ -11,44 +11,47 @@ use std::path::Path;
 
 use globset::GlobSet;
 
+use crate::config::SourceConfig;
 use crate::domain::note::object::Object;
 use crate::domain::note::{Entries, Field};
-use crate::source::{Change, Collection, Problem, Read, ReadItem, Refusal};
+use crate::source::{Change, Collection, Description, Problem, Read, ReadItem, Refusal};
 use crate::store::nfc;
 use crate::{Error, Result, Store};
 
-/// The files of a store a source reads: those `include` matches, `exclude`
-/// doesn't, and `only` matches too when it is given.
+/// The files of a store a source reads: those `include` matches and
+/// `exclude` doesn't.
 #[derive(Debug)]
 pub(super) struct NoteFiles {
     store: Store,
     include: GlobSet,
     exclude: GlobSet,
-    only: Option<GlobSet>,
+    /// The globs as given, for [`NoteFiles::describe`].
+    globs: (Vec<String>, Vec<String>),
 }
 
 impl NoteFiles {
-    pub(super) fn new(
-        store: &Store,
-        include: GlobSet,
-        exclude: GlobSet,
-        only: Option<GlobSet>,
-    ) -> Self {
+    pub(super) fn new(store: &Store, source: &SourceConfig) -> Self {
         Self {
             store: store.clone(),
-            include,
-            exclude,
-            only,
+            include: source.include_set(),
+            exclude: source.exclude_set(),
+            globs: (source.include(), source.exclude.clone()),
+        }
+    }
+
+    /// The source, described by `description`, with the files it reads as
+    /// the collections `srl add` may create.
+    pub(super) fn describe(&self, description: &str) -> Description {
+        Description {
+            summary: description.to_owned(),
+            include: self.globs.0.clone(),
+            exclude: self.globs.1.clone(),
         }
     }
 
     /// The paths of the files, in order (see [`Store::note_paths`]).
     pub(super) fn paths(&self) -> Result<Vec<String>> {
-        let mut paths = self.store.note_paths(&self.include, &self.exclude)?;
-        if let Some(only) = &self.only {
-            paths.retain(|path| only.is_match(nfc(path)));
-        }
-        Ok(paths)
+        self.store.note_paths(&self.include, &self.exclude)
     }
 
     /// The files as collections: each named by its path.
@@ -80,9 +83,7 @@ impl NoteFiles {
         let path = nfc(path);
         if !self.include.is_match(&path) {
             Some("the path is not matched by `include` in .srl/config.toml".to_owned())
-        } else if self.exclude.is_match(&path)
-            || self.only.as_ref().is_some_and(|only| !only.is_match(&path))
-        {
+        } else if self.exclude.is_match(&path) {
             Some("the path is excluded by `exclude` in .srl/config.toml".to_owned())
         } else {
             None

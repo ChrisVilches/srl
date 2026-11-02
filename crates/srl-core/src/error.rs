@@ -50,6 +50,9 @@ pub enum Error {
         reason: String,
     },
 
+    #[error("{address}: {reason}")]
+    Collection { address: String, reason: String },
+
     #[error("{path}:{line}: this item has no ID; run `srl id` to give it one")]
     MissingId { path: String, line: usize },
 
@@ -162,9 +165,12 @@ impl Error {
         move |source| Self::Io { path, source }
     }
 
-    /// The note and line a problem in a note is about (see
-    /// `docs/notes.md`, "Errors").
+    /// The address and line a problem in a source is about, line 0 for a
+    /// collection as a whole (see `docs/notes.md`, "Errors").
     pub(crate) fn place(&self) -> Option<(&str, usize)> {
+        if let Self::Collection { address, .. } = self {
+            return Some((address.as_str(), 0));
+        }
         if let Self::Note { path, line, .. } | Self::MissingId { path, line } = self {
             Some((path.as_str(), *line))
         } else {

@@ -1,19 +1,22 @@
 # Notes and items
 
-A **note** is a file in the store that `srl` reads for items: by default,
-any Markdown file (see "Which files are notes"). An **item** is a question
-written inside a note. Everything else in a note is yours: `srl` reads it
-only to show it as context, and never changes it.
+An **item** is a question, with its header entries and fields. Items come
+from the store's **sources** (see [sources.md](sources.md)). A **note** is
+a file of the store that a source of one of the two built-in drivers
+reads for items: by default, any Markdown file (see "Which files are
+notes"). Everything else in a note is yours: `srl` reads it only to show
+it as context, and never changes it.
 
-Items are written in one of two **item syntaxes**, chosen by the note's
-file name (see "Item syntaxes"):
+This document describes items, which are the same whatever their source,
+and the notes of the two built-in drivers. Each driver writes items in
+its own **item syntax** (see "Item syntaxes"):
 
-- **srl blocks**, in every note but JSONL notes: fenced code blocks whose
-  language is `srl`, inside your Markdown. A block holds one item, with the
-  item's entries on its opening fence, or several, each starting with an
-  `@` line that holds its entries.
-- **JSONL**, in notes whose name ends with `.jsonl`: one item per line, as
-  a JSON object. These notes are data, written by programs such as
+- **srl blocks**, in the notes of a `markdown` source: fenced code blocks
+  whose language is `srl`, inside your Markdown. A block holds one item,
+  with the item's entries on its opening fence, or several, each starting
+  with an `@` line that holds its entries.
+- **JSONL**, in the notes of a `jsonl` source: one item per line, as a
+  JSON object. These notes are data, written by programs such as
   importers and generators, and hold nothing but items.
 
 ````markdown
@@ -47,51 +50,53 @@ JSONL note:
 
 ## Which files are notes
 
-**A file is a note when a glob in `include` matches its path, no glob in
-`exclude` does, and it is not in a folder whose name starts with `.`**
-(`.srl/`, `.git/`, `.obsidian/`, …). Both are set in `.srl/config.toml`
-(see [store.md](store.md), "Configuration"). By default `include` is
-`["**/*.md"]` and `exclude` is empty: every Markdown file is a note.
-Each note is a **collection**, a group of items named by its address (its
-path, see below), and
-`srl collections` lists them (see [cli.md](cli.md)), including the notes that
-hold no items.
+**A file is a note of a source when a glob of the source's `include`
+matches its path, no glob of its `exclude` does, and it is not in a
+folder whose name starts with `.`** (`.srl/`, `.git/`, `.obsidian/`, …).
+Each source sets both in `.srl/config.toml` (see [sources.md](sources.md),
+"Configuration"). Without `[sources]`, a store has one source, `notes`,
+with driver `markdown` and `include = ["**/*.md"]`: every Markdown file is
+a note of srl blocks.
 
-So JSONL notes are read only when `include` matches them, for example with
-`include = ["**/*.md", "**/*.jsonl"]`, or `"items/**/*.jsonl"` to keep them
-in one folder. Every file that `include` matches must be a valid note, so a
-glob that matches JSON files meant for other programs makes them errors.
+So JSONL notes are read only by a `jsonl` source, such as
+`[sources.data]` with `driver = "jsonl"`, whose `include` is
+`["**/*.jsonl"]` unless it says otherwise; `"items/**/*.jsonl"` keeps them
+in one folder. Every file a source's `include` matches must be a valid
+note, so a glob that matches files meant for other programs makes them
+errors. A file belongs to one source at most (see [sources.md](sources.md),
+"Addresses").
 
-A note's **path** is relative to the store's folder, with `/` between
-folders. It is also the note's **address**: the name JSON outputs give
-the note an item is in (`address`) and the note its context comes from
-(`context_address`). Files are UTF-8. Both `\n` and `\r\n` line endings are read, and a
-UTF-8 byte order mark is ignored.
+Each note is a **collection**, a group of items. Its name is its **path**,
+relative to the store's folder, with `/` between folders, and its
+**address**, the name it has everywhere else, is its source's prefix
+followed by its path: for a note of a source without a prefix, as
+`notes` has, its path. JSON outputs give the address of the note an item
+is in (`address`), and of the note its context comes from
+(`context_address`). `srl collections` lists every collection, including
+the notes that hold no items (see [cli.md](cli.md)).
+
+Files are UTF-8. Both `\n` and `\r\n` line endings are read, and a UTF-8
+byte order mark is ignored.
 
 ## Item syntaxes
 
-**A note whose file name ends with `.jsonl` is in the JSONL syntax; every
-other note is in the srl block syntax.** The extension is matched exactly,
-in lowercase. Nothing else decides it, not even what the file holds.
+**A note is in the item syntax of its source's driver**: srl blocks for
+`markdown`, JSONL for `jsonl`. Nothing else decides it, not even the
+note's name or what it holds.
 
-Every note but a JSONL note is read the same way, whatever its name: a
-`.txt` note has the same srl blocks, fenced code blocks and context as a
-`.md` note, and its fields are formatted as in [cards.md](cards.md), "Text
-formatting". The srl block syntax is Markdown's, so it suits Markdown and
-the formats built on it, such as MDX and Quarto; which other files make
-sense as notes is up to you.
+Every note of a `markdown` source is read the same way, whatever its
+name: a `.txt` note has the same srl blocks, fenced code blocks and
+context as a `.md` note, and its fields are formatted as in
+[cards.md](cards.md), "Text formatting". The srl block syntax is
+Markdown's, so it suits Markdown and the formats built on it, such as MDX
+and Quarto; which other files make sense as notes is up to you.
 
 Both syntaxes write the same items: the same header entries (see "Header
 entries"), fields, IDs and status. Everything after reading the items
-(kinds, cards, scheduling, the log, selectors) is the same for both. They
-differ in what else a note holds, and so in its context (see "Context"),
-and in how `srl` writes to it (see "How srl writes to notes").
-
-Choosing the syntax by the extension is a convention, picked because it is
-one rule that needs no setting: a Markdown note full of JSON lines, or a
-`.jsonl` file of srl blocks, is rare (see [rationale.md](rationale.md),
-"Why JSONL notes, and why the extension decides").
-
+(kinds, cards, scheduling, the log, selectors) is the same for both, and
+for every source. They differ in what else a note holds, and so in its
+context (see "Context"), and in how `srl` writes to it (see "How srl
+writes to notes").
 ## The srl block syntax
 
 An item is a **header** followed by **field** lines, inside an srl block.
@@ -215,7 +220,7 @@ A JSONL note holds one item per line, and nothing else:
 3. **Any other line is an error**: text that is not JSON, JSON that is not
    an object, or an object that is not a valid item object.
 
-An item's line, in `PATH:LINE`, is the line it is on. Field text is anything JSON can write: line endings, code blocks, fences
+An item's line, in `ADDRESS:LINE`, is the line it is on. Field text is anything JSON can write: line endings, code blocks, fences
 of any length, quotes and backslashes need nothing but JSON's escapes.
 
 A JSONL note is data, not prose: it is never a context of its own items
@@ -258,7 +263,7 @@ misspelled one is an error.
   the item's: `x7k2m9`, or `p4n8d2.1` and `p4n8d2.2` (see
   [cards.md](cards.md), "Card IDs"). Because an item ID never contains `.`,
   a card ID always names its item.
-- **An item's line is for people only.** `PATH:LINE` in listings and
+- **An item's line is for people only.** `ADDRESS:LINE` in listings and
   messages, and `line` in JSON, say where the item starts, as near as its
   syntax can say: the line of its header, or its line in a JSONL note.
   `srl` never finds an item by its line: commands that change an item
@@ -293,8 +298,11 @@ of a JSONL note without `see` has no context.** Frontends show it after the
 answer of each of the item's cards, taking it from `srl next --json`; `srl
 show` prints it too.
 
-- `see` is a path relative to the store's folder, to a note of the store,
-  in either syntax. A `see` that names anything else is an error.
+- `see` is the address of a collection of the store, of any source: for
+  a note of a source without a prefix, its path relative to the store's
+  folder. A `see` that names anything else is an error. What a collection
+  shows as context is up to its own source, whatever source the item
+  comes from (see [sources.md](sources.md), "Context").
 - `see` is meant for items that ask about another note, such as items a
   script imported or generated into a file of their own. Every item of a
   JSONL note that asks about a note needs it.
@@ -385,7 +393,7 @@ Every other command only reads notes. The rules for writing:
    which git ignores (see [store.md](store.md), "Version control and
    syncing"); it can be deleted at any time no `srl` command is running.
 5. **Every change is reported.** `srl id` prints one line per item it gave
-   an ID: the ID and `PATH:LINE`, separated by two spaces. `srl accept`,
+   an ID: the ID and `ADDRESS:LINE`, separated by two spaces. `srl accept`,
    `srl add` and `srl edit` print the IDs of the items they changed or
    added (see [cli.md](cli.md)). With `--dry-run` they write nothing, and
    print the same (`srl add`: the items it would write).
@@ -398,9 +406,9 @@ Every other command only reads notes. The rules for writing:
 
 ## Errors
 
-Every command that reads items reads every note, and **any error in any
-note stops it**: it reports every error it found, as `PATH:LINE: message`
-on standard error, one per line, in the order of the notes and their
+Every command that reads items reads every source, and **any error in any
+source stops it**: it reports every error it found, as `ADDRESS:LINE: message`
+on standard error, one per line, in the order of the addresses and their
 lines, and exits with status 2. The errors are:
 
 - an srl block that is never closed, or a fence of backticks with a
@@ -421,7 +429,9 @@ lines, and exits with status 2. The errors are:
   [cards.md](cards.md));
 - a kind program that fails as a whole, reported once, without a line
   (see [cards.md](cards.md), "How srl calls them");
-- a `see` that doesn't name a note of the store.
+- a `see` that doesn't name a collection of the store;
+- a collection that breaks a rule of addresses (see
+  [sources.md](sources.md), "Addresses"), reported as `ADDRESS: message`.
 
 `srl id` is the exception for items without an ID: that is the error it
 fixes. `srl check` reports the same errors and more (see [cli.md](cli.md)).
@@ -448,7 +458,8 @@ edit --stdin` as it is.
 ```json
 {"id": "p4n8d2", "kind": "qa", "see": null, "draft": false,
  "Q": "嵐を{{c1::ものともせず}}、漁師たちは海へ出た。",
- "address": "japanese/grammar/wo-mono-tomo-sezu.md", "line": 11,
+ "address": "japanese/grammar/wo-mono-tomo-sezu.md", "source": "notes",
+ "file": "japanese/grammar/wo-mono-tomo-sezu.md", "line": 11,
  "cards": ["p4n8d2.1"],
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
  "context_address": "japanese/grammar/wo-mono-tomo-sezu.md"}
@@ -463,7 +474,7 @@ Its keys:
 | `see` | The path of the note shown as context, as text. `null` is the same as leaving it out. |
 | `draft` | `true` or `false`. `false` is the same as leaving it out. |
 | a field name: uppercase letters `A`–`Z`, digits and `_`, starting with a letter | The field's text. |
-| `address`, `line`, `cards`, `context`, `context_address` | Given by `srl` only (see below), and ignored wherever an item object is read. |
+| `address`, `source`, `file`, `line`, `cards`, `context`, `context_address` | Given by `srl` only (see below), and ignored wherever an item object is read. |
 
 - Header entries are lowercase and field names uppercase, so they never
   clash. Any other key is an error, so a typo such as `drfat` fails
@@ -477,7 +488,9 @@ Its keys:
 `srl show --json` prints every entry, defaults included, its fields, then
 the keys only `srl` gives:
 
-- `address` is the note the item is in, and `line` the line of its header,
+- `address` is the address of the collection the item is in, its note,
+  `source` the name of its source, `file` the file the collection is kept
+  in (`null` when it is no file of its own), and `line` the line of its header,
   counting from 1: the opening fence of a block that holds one item, the
   item's `@` line, or its line in a JSONL note.
 - `cards` lists the IDs of the item's cards, in order.

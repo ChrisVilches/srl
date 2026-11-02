@@ -9,6 +9,7 @@
 use std::collections::{HashMap, HashSet};
 
 use jiff::civil::Date;
+use serde::Serialize;
 
 use crate::domain::card::{Card, CardId};
 use crate::domain::context::{Context, ContextMode};
@@ -36,6 +37,7 @@ pub(crate) struct Located {
     pub(crate) address: String,
     pub(crate) source: usize,
     pub(crate) collection: String,
+    pub(crate) file: Option<String>,
 }
 
 impl Catalog {
@@ -65,13 +67,22 @@ impl Catalog {
         let mut problems = Vec::new();
         let mut unidentified = Vec::new();
         for (index, mounted) in sources.all().iter().enumerate() {
-            collections.extend(mounted.source.collections()?.into_iter().map(|collection| {
-                Located {
+            let mine = mounted
+                .source
+                .collections()?
+                .into_iter()
+                .map(|collection| Located {
                     address: mounted.address(&collection.name),
                     source: index,
                     collection: collection.name,
-                }
-            }));
+                    file: collection.file,
+                })
+                .collect::<Vec<_>>();
+            let files = mine
+                .iter()
+                .map(|located| (located.collection.clone(), located.file.clone()))
+                .collect::<HashMap<_, _>>();
+            collections.extend(mine);
             let read = mounted.source.read()?;
             problems.extend(read.problems.into_iter().map(|problem| Error::Note {
                 path: mounted.address(&problem.collection),
@@ -81,7 +92,9 @@ impl Catalog {
             for item in read.items {
                 let origin = Origin {
                     source: index,
+                    source_name: mounted.name.clone(),
                     address: mounted.address(&item.collection),
+                    file: files.get(&item.collection).cloned().flatten(),
                     collection: item.collection,
                     handle: item.handle,
                     line: item.line,
@@ -105,6 +118,7 @@ impl Catalog {
         collections.sort_by_cached_key(|located| by_address(&located.address));
         written.sort_by_cached_key(|item: &Item| by_address(&item.origin.address));
         unidentified.sort_by_cached_key(|origin| by_address(&origin.address));
+        problems.extend(clashes(&sources, &collections));
         let (items, checked) = check_items(written, &programs, cache);
         problems.extend(checked);
         let (items, duplicates) = unique(items);
@@ -332,21 +346,78 @@ impl Catalog {
     }
 }
 
-/// The address of every collection of the store, in order, without reading
-/// any item (`srl collections`).
-pub fn collections(store: &Store, config: &Config) -> Result<Vec<String>> {
-    let mut addresses = Vec::new();
+/// A collection of the store, as `srl collections` lists it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CollectionInfo {
+    pub address: String,
+    /// The name of its source.
+    pub source: String,
+    /// The file it is kept in, relative to the store's folder, if it is a
+    /// file of its own.
+    pub file: Option<String>,
+}
+
+/// Every collection of the store, in the order of their addresses, without
+/// reading any item (`srl collections`).
+pub fn collections(store: &Store, config: &Config) -> Result<Vec<CollectionInfo>> {
+    let mut found = Vec::new();
     for mounted in Sources::new(store, config).all() {
-        addresses.extend(
+        found.extend(
             mounted
                 .source
                 .collections()?
                 .into_iter()
-                .map(|collection| mounted.address(&collection.name)),
+                .map(|collection| CollectionInfo {
+                    address: mounted.address(&collection.name),
+                    source: mounted.name.clone(),
+                    file: collection.file,
+                }),
         );
     }
-    addresses.sort_by_cached_key(|address| by_address(address));
-    Ok(addresses)
+    found.sort_by_cached_key(|collection| by_address(&collection.address));
+    Ok(found)
+}
+
+/// A source of the store, as `srl sources` describes it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceDescription {
+    pub name: String,
+    /// Its driver: `markdown` or `jsonl`.
+    pub driver: String,
+    pub prefix: String,
+    pub description: String,
+    /// The collections `srl add` may create in it, as globs relative to its
+    /// prefix: those a glob of `include` matches and none of `exclude`
+    /// does.
+    pub creates: Creates,
+}
+
+/// The globs of the collections a source may create.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Creates {
+    pub include: Vec<String>,
+    pub exclude: Vec<String>,
+}
+
+/// Every source of the store, in the order of their names (`srl sources`).
+pub fn sources(store: &Store, config: &Config) -> Result<Vec<SourceDescription>> {
+    Sources::new(store, config)
+        .all()
+        .iter()
+        .map(|mounted| {
+            let described = mounted.source.describe()?;
+            Ok(SourceDescription {
+                name: mounted.name.clone(),
+                driver: mounted.driver.as_str().to_owned(),
+                prefix: mounted.prefix.clone(),
+                description: described.summary,
+                creates: Creates {
+                    include: described.include,
+                    exclude: described.exclude,
+                },
+            })
+        })
+        .collect()
 }
 
 /// The items of the note at `path` whose text is `text`, checked by their
@@ -367,6 +438,8 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
     for (position, item) in parsed.items.into_iter().enumerate() {
         let origin = Origin {
             source: 0,
+            source_name: "notes".to_owned(),
+            file: Some(path.to_owned()),
             collection: path.to_owned(),
             address: path.to_owned(),
             handle: position.to_string(),
@@ -431,6 +504,70 @@ fn check_items(
     (items, problems)
 }
 
+/// The collections that break a rule of addresses (see `docs/sources.md`,
+/// "Addresses"): an address under another source's deeper prefix, an
+/// address that two sources give, or a file that two collections are.
+fn clashes(sources: &Sources, collections: &[Located]) -> Vec<Error> {
+    let mounted = sources.all();
+    let name = |index: usize| mounted.get(index).map_or("", |source| source.name.as_str());
+    let mut problems = Vec::new();
+    for located in collections {
+        let own = mounted
+            .get(located.source)
+            .map_or(0, |source| source.prefix.len());
+        if let Some(deeper) = mounted
+            .iter()
+            .find(|other| other.prefix.len() > own && located.address.starts_with(&other.prefix))
+        {
+            problems.push(Error::Collection {
+                address: located.address.clone(),
+                reason: format!(
+                    "the source {} gives it, but it is under the prefix {} of the source {}, \
+                     which holds every address there; leave it out of {} (with `exclude`) or \
+                     give {} another prefix",
+                    name(located.source),
+                    deeper.prefix,
+                    deeper.name,
+                    name(located.source),
+                    deeper.name
+                ),
+            });
+        }
+    }
+    let mut seen = HashMap::<String, &Located>::new();
+    for located in collections {
+        if let Some(first) = seen.insert(nfc(&located.address), located) {
+            problems.push(Error::Collection {
+                address: located.address.clone(),
+                reason: format!(
+                    "the sources {} and {} both give it; leave it out of one of them (with \
+                     `exclude`), or give one of them a prefix",
+                    name(first.source),
+                    name(located.source)
+                ),
+            });
+        }
+    }
+    let mut files = HashMap::<String, &Located>::new();
+    for located in collections {
+        let Some(file) = &located.file else {
+            continue;
+        };
+        if let Some(first) = files.insert(nfc(file), located) {
+            problems.push(Error::Collection {
+                address: located.address.clone(),
+                reason: format!(
+                    "it is the file {file}, which {} of the source {} is too; leave it out of \
+                     one of the sources (with `exclude`)",
+                    first.address,
+                    name(first.source)
+                ),
+            });
+        }
+    }
+    problems
+}
+
 /// The key collections are sorted by: their address in NFC, so that the
 /// Unicode form of a file's name never changes the order (see
 /// `docs/store.md`, "File names"), then as written.
@@ -458,6 +595,8 @@ pub(crate) fn check_new(new: &[Object], programs: &Programs) -> Vec<Error> {
     for (index, object) in new.iter().enumerate() {
         let origin = Origin {
             source: 0,
+            source_name: String::new(),
+            file: None,
             collection: String::new(),
             address: String::new(),
             handle: String::new(),
@@ -589,7 +728,7 @@ mod tests {
     }
 
     #[test]
-    fn the_notes_extension_chooses_how_its_items_are_read() {
+    fn items_of_a_jsonl_note_and_their_item_object() {
         let text = "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"abd\", \"see\": \"n.md\", \"draft\": true, \"Q\": \"{{c1::r}}\"}\n";
         let (items, problems) = read_items("n.jsonl", text, &Programs::default());
         assert!(problems.is_empty(), "{problems:?}");
@@ -599,9 +738,9 @@ mod tests {
         assert_eq!(items[1].text(), text.lines().nth(1).unwrap());
         assert_eq!(
             items[0].json(None).to_string(),
-            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","address":"n.jsonl","line":1,"cards":["abc"],"context":null,"context_address":null}"#
+            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","address":"n.jsonl","source":"notes","file":"n.jsonl","line":1,"cards":["abc"],"context":null,"context_address":null}"#
         );
-        // The same text in any other note is prose, with no item.
+        // The same text in a note of srl blocks is prose, with no item.
         let (md, problems) = read_items("n.md", text, &Programs::default());
         assert!(md.is_empty() && problems.is_empty());
     }

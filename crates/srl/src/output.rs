@@ -10,7 +10,10 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use serde::Serialize;
-use srl_core::{By, Card, CardId, Context, Event, Item, KindDescription, Lint, Stats, Written};
+use srl_core::{
+    By, Card, CardId, CollectionInfo, Context, Event, Item, KindDescription, Lint,
+    SourceDescription, Stats, Written,
+};
 
 /// Prints one path per line.
 pub(crate) fn paths(paths: &[PathBuf]) {
@@ -26,10 +29,10 @@ pub(crate) fn ids<T: Display>(ids: &[T]) {
     }
 }
 
-/// Prints one address per line.
-pub(crate) fn addresses(addresses: &[String]) {
-    for address in addresses {
-        println!("{address}");
+/// Prints the address of each collection, one per line.
+pub(crate) fn addresses(collections: &[CollectionInfo]) {
+    for collection in collections {
+        println!("{}", collection.address);
     }
 }
 
@@ -150,6 +153,24 @@ pub(crate) fn kinds(kinds: &[KindDescription]) {
         println!("{}  {}", kind.name, kind.description);
         for field in &kind.fields {
             println!("  {}  {}", field.name, field.description);
+        }
+    }
+}
+
+/// Prints sources for people: for each, a line with its name and
+/// description, then a line for its driver, its prefix if it has one, and
+/// its globs, indented by two spaces, each name and value separated by two
+/// spaces.
+pub(crate) fn sources(sources: &[SourceDescription]) {
+    for source in sources {
+        println!("{}  {}", source.name, source.description);
+        println!("  driver  {}", source.driver);
+        if !source.prefix.is_empty() {
+            println!("  prefix  {}", source.prefix);
+        }
+        println!("  include  {}", source.creates.include.join(" "));
+        if !source.creates.exclude.is_empty() {
+            println!("  exclude  {}", source.creates.exclude.join(" "));
         }
     }
 }

@@ -107,7 +107,7 @@ and the formats built on it, and every other file read as a note but a
 JSONL note has to use it too (see [notes.md](notes.md), "Item
 syntaxes").
 
-## Why JSONL notes, and why the extension decides
+## Why JSONL notes
 
 Not every question is typed next to the knowledge by hand: importers and
 generators write them in bulk, in files of their own, with `see` naming the
@@ -116,7 +116,7 @@ fence lengths, continuation lines, two forms of block. A JSON object per
 line is what such programs write best, and `srl add` already took it. A
 JSONL note is that format kept as is: parsing a line is a JSON parse, a
 field holds any text without counting fences, and an item is one line, so
-`PATH:LINE`, line diffs and `srl`'s line edits work as they do for srl
+`ADDRESS:LINE`, line diffs and `srl`'s line edits work as they do for srl
 blocks. JSONL rather than one JSON document because a document has no
 lines that are items: editing one item would mean rewriting the file.
 YAML was left out because free text in it is easy to misread silently: a
@@ -128,14 +128,13 @@ JSONL note, a line given to `srl add` or `srl edit`, and what `srl show
 --json` prints. So what `srl` prints can be changed and given back as it
 is, and programs need to know one format only.
 
-A note's syntax is decided by its extension, `.jsonl`, and nothing else:
-not a setting, and not what the file holds. Looking inside a file can't
-tell a JSONL note with a mistake from a file that is not one, so a broken
-note would silently give no items. The extension is a convention, and an
-opinionated one: it means a Markdown note can't hold JSON lines, nor a
-`.jsonl` file srl blocks, which is rarely wanted. Which JSONL files are
-notes is still up to `include`, so JSON files meant for other programs
-stay out of the store unless a glob names them.
+A note's syntax is decided by its source's driver, and nothing else: not
+its name, and not what the file holds. Looking inside a file can't tell a
+JSONL note with a mistake from a file that is not one, so a broken note
+would silently give no items. Which files are JSONL notes is up to the
+`include` of a `jsonl` source, so JSON files meant for other programs
+stay out of the store unless a glob names them (see "Why sources").
+
 
 Trade-off: `srl` writes a JSONL item it changes as a new line, without its
 spacing or key order, so a JSONL note is not for formatting by hand. And
@@ -144,6 +143,35 @@ the two syntaxes give their notes as context by their own rules (see
 never shows items: srl blocks are removed from a note, and
 a JSONL note is all items, so it is given only in mode `full`, whole, and
 is never the context of its own items.
+
+## Why sources
+
+Notes of srl blocks and JSONL notes are two formats, and other places to
+keep items are easy to imagine: a database, a web service, another file
+format. Each one added inside `srl` blurred what `srl` is: its rules for
+files, lines and extensions leaked into JSON outputs, selectors, the
+configuration and the rules of other formats. What `srl` is, is what
+happens to items once they are read: kinds, cards, scheduling, the log,
+selectors and the frontend contract. Where items come from is data
+access, and it sits behind one boundary, as a database sits behind a
+repository in Clean Architecture or hexagonal architecture: every source
+does the same few things (see [sources.md](sources.md), "What a source
+does"), and nothing else in `srl` knows how any of them keeps its items.
+
+- **A source is chosen by the configuration, not by a file's name.** One
+  rule, the same for every source; a store of Markdown notes still needs
+  no setting at all, since the default source reads them.
+- **Each driver is its format, whole**, with no shared syntax to fit:
+  each reads, shows and writes its notes its own way, even where that
+  means two of them write some code twice.
+- **One tree of addresses** names every collection the same way, with a
+  prefix for each source, so that `see`, `srl add`, messages and
+  selectors need no case for any source, and a store of notes keeps its
+  paths as addresses (see [sources.md](sources.md), "Addresses").
+- **The context of an item is asked of the source of the collection
+  shown**, so that a source never needs another's rules: an item of one
+  source can name a note of another, and only that note's source knows
+  what to hide in it.
 
 ## Why only srl blocks make items
 
@@ -209,7 +237,7 @@ left to IDs, because people who name an item themselves write
 `jp-grammar-desu`. `.` is safe everywhere a card ID goes: file names on
 every platform, URLs, shells and selectors. `:` reads well too, but
 Windows file names can't contain it, a relative link `a:b` is read as a
-URL scheme, and it looks like `PATH:LINE` and `key:value`.
+URL scheme, and it looks like `ADDRESS:LINE` and `key:value`.
 
 Trade-off: `k3m9q1.2` looks a little like a version number, and `.` can't
 be used in an ID.

@@ -19,10 +19,10 @@ what they learn is reviewed just before they would forget it.
 - A **store** is a folder of notes with a `.srl/` folder in it. `.srl/`
   holds the configuration (`.srl/config.toml`) and the review log
   (`.srl/log/*.jsonl`). Everything outside `.srl/` belongs to the person.
-- A **note** is any `.md` file in the store, unless `include` in
-  `.srl/config.toml` names other files. A note whose name ends in `.jsonl`
-  is a **JSONL note**: it holds nothing but items, one JSON object per
-  line, and is read only if `include` names it.
+- A **note** is a file a source of the store reads, set in `[sources]` of
+  `.srl/config.toml`: by default, any `.md` file. A note of a source whose
+  driver is `jsonl` is a **JSONL note**: it holds nothing but items, one
+  JSON object per line. `srl sources` says which sources the store has.
 - An **item** is a question written in a note: in a Markdown note, in an
   srl block (a fenced code block whose language is `srl`), fields `Q:` and
   `A:` after a header; in a JSONL note, one line such as
@@ -48,8 +48,8 @@ be kept in git.
 2. **Items you write are drafts, in notes of their own.** Add them with
    `srl add NOTE --stdin`, with `"draft": true` on every line, into a new
    note such as `generated/ownership.md`, never into one of the person's
-   notes. If the store reads JSONL notes (`srl collections` lists one, or
-   `include` names `*.jsonl`), prefer one, such as
+   notes. If the store reads JSONL notes (`srl sources` lists a `jsonl`
+   source), prefer one it reads, such as
    `generated/ownership.jsonl`. When they ask about one of the person's
    notes, give each one `"see": "THAT_NOTE"` so it is shown as their
    context; an item of a JSONL note has no other context. Drafts are never

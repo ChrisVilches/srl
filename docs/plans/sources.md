@@ -1,6 +1,6 @@
 # Plan: sources, data access as adapters
 
-**Status: approved, under way.** Steps done: phases 1 and 2. Every
+**Status: approved, under way.** Steps done: phases 1 and 2, 3.1. Every
 decision is taken; "Decisions" near the end lists them, and the sections
 before it give the alternatives that were considered where they explain
 the choice. The steps at the end are in the order to carry them out. Each

@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::kind::{has_near_deletion, has_revealing_hint};
 use crate::source::Sources;
+use crate::store::nfc;
 use crate::{CardId, Catalog, Config, Error, Memories, Result, Store};
 
 /// Every orphan: an ID with reviews in the log, not moved away, but no
@@ -63,7 +64,8 @@ pub struct Lint {
     pub message: String,
 }
 
-/// `srl lint`: asks every source for likely mistakes (see `docs/cli.md`,
+/// `srl lint`: asks every source for likely mistakes, and gives them in
+/// the order of their addresses and lines (see `docs/cli.md`,
 /// "Checking"). These are guesses, so they are never errors.
 pub fn lint(store: &Store, config: &Config) -> Result<Vec<Lint>> {
     let mut found = Vec::new();
@@ -74,6 +76,7 @@ pub fn lint(store: &Store, config: &Config) -> Result<Vec<Lint>> {
             message: finding.message,
         }));
     }
+    found.sort_by_cached_key(|lint| (nfc(&lint.address), lint.address.clone(), lint.line));
     Ok(found)
 }
 

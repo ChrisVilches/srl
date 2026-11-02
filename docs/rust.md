@@ -488,10 +488,10 @@ knows how it keeps its items.
 
 ### The notes' sources
 
-The store's notes are read by two sources, chosen for each note by its
-extension (see [notes.md](notes.md), "Item syntaxes"): `source/jsonl.rs`
-for notes whose name ends with `.jsonl`, `source/markdown.rs` for every
-other note. `Sources::new` in `source.rs` builds them from `[notes]`.
+The store's notes are read by the sources of `[sources]`, each with its
+driver (see [sources.md](sources.md)): `source/markdown.rs` for a
+`markdown` source, `source/jsonl.rs` for a `jsonl` source. `Sources::new`
+in `source.rs` builds them from the configuration.
 
 - **Each source is its format, whole.** `markdown.rs` reads, shows and
   changes notes of srl blocks, with the syntax itself (parsing,

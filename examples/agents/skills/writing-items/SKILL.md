@@ -6,10 +6,10 @@ description: The full syntax of srl items (srl blocks, headers, fields, continua
 # Writing items
 
 Items live in Markdown notes, in srl blocks (below), or in JSONL notes,
-whose names end in `.jsonl`: one JSON object per line, the same item
+of a `jsonl` source: one JSON object per line, the same item
 object that `srl add` takes (see "Adding items with `srl add`"), and
-nothing else. A JSONL note is read only if `include` in
-`.srl/config.toml` names it.
+nothing else. A JSONL note is read only by a source of the store with
+`driver = "jsonl"` in `.srl/config.toml` (`srl sources` lists them).
 
 ## The syntax, in full
 
@@ -82,7 +82,7 @@ notes, or renaming the note never changes its schedule.
 
 ## JSONL notes
 
-A note whose name ends in `.jsonl` (lowercase) holds nothing but items,
+A note of a `jsonl` source holds nothing but items,
 one per line, as **item objects**:
 
 ```json
@@ -106,9 +106,10 @@ one per line, as **item objects**:
 - **`srl id`, `srl accept` and `srl edit` write the item's line again**,
   compact and with its keys in srl's order. Format the file with `jq` if
   you want; srl reads it the same.
-- It is read only if `include` in `.srl/config.toml` names it, for
-  example `include = ["**/*.md", "generated/**/*.jsonl"]`. Every file
-  `include` names must be a valid note.
+- It is read only by a `jsonl` source of `.srl/config.toml`, such as
+  `[sources.generated]` with `driver = "jsonl"` and
+  `include = ["generated/**/*.jsonl"]`. Every file
+  a source's `include` matches must be a valid note.
 
 ## Fields of the `qa` kind
 
@@ -208,9 +209,9 @@ its context) and `"draft"` (`true` or `false`). The uppercase keys are
 fields, and their values the fields' text. In a Markdown note, a newline in
 a value (`\n` in JSON) becomes a continuation line, and each item gets an
 srl block of its own, with a fence long enough for the code blocks in its
-fields; in a JSONL note (a name ending in `.jsonl`), each item is one line,
+fields; in a JSONL note, each item is one line,
 the object itself. `NOTE` is relative to the store's folder, must be a
-note (by default, end in `.md`; see `include` in `.srl/config.toml`), and
+note of a source (by default, end in `.md`; see `srl sources`), and
 is created with its folders if it doesn't exist. `srl collections` lists the
 notes, also those without items, for `NOTE` and `"see"`. Items are
 appended at the end, and their IDs are printed. Every line is checked
@@ -231,7 +232,7 @@ when it is about one of the person's notes. Items about different notes
 can go in one call. Use `--dry-run` to show the person the items before
 writing them. A Markdown note of your own may also hold prose: write the
 note with its explanation first, then add the items to it. If the store
-reads JSONL notes (`srl collections` lists some, or `include` names `*.jsonl`),
+reads JSONL notes (`srl sources` lists a `jsonl` source),
 prefer one, such as `generated/rust.jsonl`, for items alone: there is no
 fence to get wrong. An item of a JSONL note has no context but its
 `"see"`, so give it one.

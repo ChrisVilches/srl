@@ -35,6 +35,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Id { dry_run } => id(&store()?, dry_run.dry_run),
         Command::Collections { json } => collections(&store()?, json.json),
         Command::Kinds { json } => kinds(&store()?, json.json),
+        Command::Sources { json } => sources(&store()?, json.json),
         Command::Find {
             selector: terms,
             json,
@@ -219,21 +220,27 @@ fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
     Ok(found_anything(!written.is_empty()))
 }
 
-/// `srl collections`: lists the address of every note, without reading the
-/// notes, so errors in them don't stop it. Exit 1 if the store has none.
+/// `srl collections`: lists every collection, without reading any item, so
+/// errors in them don't stop it. Exit 1 if the store has none.
 fn collections(store: &Store, json: bool) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    let paths = srl_core::collections(store, &config)?;
+    let found = srl_core::collections(store, &Config::load(store)?)?;
     if json {
-        let lines = paths
-            .iter()
-            .map(|address| serde_json::json!({ "address": address }))
-            .collect::<Vec<_>>();
-        output::json_lines(&lines)?;
+        output::json_lines(&found)?;
     } else {
-        output::addresses(&paths);
+        output::addresses(&found);
     }
-    Ok(found_anything(!paths.is_empty()))
+    Ok(found_anything(!found.is_empty()))
+}
+
+/// `srl sources`: describes every source, without reading any item.
+fn sources(store: &Store, json: bool) -> anyhow::Result<Outcome> {
+    let described = srl_core::sources(store, &Config::load(store)?)?;
+    if json {
+        output::json_lines(&described)?;
+    } else {
+        output::sources(&described);
+    }
+    Ok(Outcome::Done)
 }
 
 /// `srl kinds`: describes every kind, `qa` first, without reading the
@@ -266,6 +273,8 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
                     "id": card,
                     "item": item.id(),
                     "address": item.address(),
+                    "source": item.source(),
+                    "file": item.file(),
                     "line": item.line(),
                     "status": Status::of(item, card, memories),
                     "state": state_name(memories.state(card)),
@@ -486,6 +495,8 @@ fn next(
             state: &'static str,
             kind: &'a str,
             address: &'a str,
+            source: &'a str,
+            file: Option<&'a str>,
             see: Option<&'a str>,
             context: Option<String>,
             context_address: Option<String>,
@@ -496,6 +507,8 @@ fn next(
             state: state_name(loaded.memories.state(card.id())),
             kind: item.kind().as_str(),
             address: item.address(),
+            source: item.source(),
+            file: item.file(),
             see: item.see(),
             context_address: context.as_ref().map(|context| context.address.clone()),
             context: context.map(|context| context.text),

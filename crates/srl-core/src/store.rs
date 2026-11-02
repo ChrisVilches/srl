@@ -37,9 +37,12 @@ const DEFAULT_STORE: &str = "srl";
 /// commented out (see `docs/store.md`, "Configuration").
 pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is optional; these are the defaults.
 
-[notes]
+# The sources of items. Without any, a store has the one below.
+# [sources.notes]
+# driver = "markdown"        # markdown (notes of srl blocks) or jsonl (notes of JSON lines)
 # include = ["**/*.md"]      # globs of notes, relative to the store's folder
 # exclude = []               # globs of notes to ignore; they win over include
+# prefix = ""                # where its collections are among the store's addresses
 
 [schedule]
 # desired_retention = 0.9    # FSRS target probability of recall

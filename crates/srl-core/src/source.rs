@@ -13,17 +13,13 @@ mod markdown;
 
 use std::fmt;
 
-use crate::config::globs;
+use crate::config::Driver;
 use crate::domain::context::ContextMode;
 use crate::domain::note::object::Object;
 use crate::{Config, Error, Result, Store};
 use files::NoteFiles;
 use jsonl::Jsonl;
 use markdown::Markdown;
-
-/// The glob of the files of the `jsonl` source: those whose name ends with
-/// `.jsonl` (see `docs/notes.md`, "Item syntaxes").
-const JSONL: &str = "**/*.jsonl";
 
 /// The operations every source answers.
 pub(crate) trait Source: fmt::Debug {
@@ -49,6 +45,9 @@ pub(crate) trait Source: fmt::Debug {
 
     /// The likely mistakes in the source (see `docs/cli.md`, "Checking").
     fn lint(&self) -> Result<Vec<Finding>>;
+
+    /// What the source is, for `srl sources`.
+    fn describe(&self) -> Result<Description>;
 }
 
 /// A collection of a source: a group of items, named by the source.
@@ -87,6 +86,18 @@ pub(crate) struct Problem {
     pub(crate) collection: String,
     pub(crate) line: usize,
     pub(crate) reason: String,
+}
+
+/// What a source says about itself, for `srl sources`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Description {
+    /// What the source is, in a sentence.
+    pub(crate) summary: String,
+    /// The globs of the collections `srl add` may create in it, relative
+    /// to its prefix: those a glob of `include` matches and none of
+    /// `exclude` does.
+    pub(crate) include: Vec<String>,
+    pub(crate) exclude: Vec<String>,
 }
 
 /// A likely mistake a source found in a collection.
@@ -146,6 +157,8 @@ pub(crate) struct Sources {
 /// A source, with its prefix.
 #[derive(Debug)]
 pub(crate) struct Mounted {
+    pub(crate) name: String,
+    pub(crate) driver: Driver,
     pub(crate) prefix: String,
     pub(crate) source: Box<dyn Source>,
 }
@@ -158,39 +171,27 @@ impl Mounted {
 }
 
 impl Sources {
-    /// The sources of `store`, as `config` sets them: the notes of
-    /// `[notes]`, those whose name ends with `.jsonl` in a `jsonl` source,
-    /// and the others in a `markdown` source.
+    /// The sources of `store`, as `[sources]` sets them, in the order of
+    /// their names.
     pub(crate) fn new(store: &Store, config: &Config) -> Self {
-        let notes = &config.notes;
-        let jsonl = || globs(&[JSONL]).expect("the glob of JSONL notes should be valid");
-        let not_jsonl = globs(
-            &notes
-                .exclude
-                .iter()
-                .map(String::as_str)
-                .chain([JSONL])
-                .collect::<Vec<_>>(),
-        )
-        .expect("the exclude globs should have been checked when read");
-        let markdown = NoteFiles::new(store, notes.include_set(), not_jsonl, None);
-        let jsonl = NoteFiles::new(
-            store,
-            notes.include_set(),
-            notes.exclude_set(),
-            Some(jsonl()),
-        );
         Self {
-            mounted: vec![
-                Mounted {
-                    prefix: String::new(),
-                    source: Box::new(Markdown::new(markdown)),
-                },
-                Mounted {
-                    prefix: String::new(),
-                    source: Box::new(Jsonl::new(jsonl)),
-                },
-            ],
+            mounted: config
+                .sources
+                .iter()
+                .map(|(name, source)| {
+                    let files = NoteFiles::new(store, source);
+                    let driver: Box<dyn Source> = match source.driver {
+                        Driver::Markdown => Box::new(Markdown::new(files)),
+                        Driver::Jsonl => Box::new(Jsonl::new(files)),
+                    };
+                    Mounted {
+                        name: name.clone(),
+                        driver: source.driver,
+                        prefix: source.prefix.clone(),
+                        source: driver,
+                    }
+                })
+                .collect(),
         }
     }
 

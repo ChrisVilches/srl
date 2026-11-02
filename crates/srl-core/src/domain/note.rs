@@ -135,10 +135,15 @@ impl fmt::Display for ItemId {
 pub(crate) struct Origin {
     /// The item's source, by its place among the store's sources.
     pub(crate) source: usize,
+    /// The source's name.
+    pub(crate) source_name: String,
     /// The collection the item is in, named by its source.
     pub(crate) collection: String,
     /// The collection's address: the source's prefix, then the collection.
     pub(crate) address: String,
+    /// The file the collection is kept in, relative to the store's folder,
+    /// if it is a file of its own: only for people and editors.
+    pub(crate) file: Option<String>,
     /// What names the item to its source when it is changed.
     pub(crate) handle: String,
     /// The line where the item starts, counting from 1, as near as its
@@ -174,6 +179,17 @@ impl Item {
     /// relative to the store's folder, with `/` between folders.
     pub fn address(&self) -> &str {
         &self.origin.address
+    }
+
+    /// The name of the item's source.
+    pub fn source(&self) -> &str {
+        &self.origin.source_name
+    }
+
+    /// The file the item's collection is kept in, relative to the store's
+    /// folder, if it is a file of its own: only for people and editors.
+    pub fn file(&self) -> Option<&str> {
+        self.origin.file.as_deref()
     }
 
     /// The line where the item starts, counting from 1, as near as its
@@ -260,6 +276,11 @@ impl Item {
             "address".to_owned(),
             Value::from(self.origin.address.as_str()),
         );
+        object.insert(
+            "source".to_owned(),
+            Value::from(self.origin.source_name.as_str()),
+        );
+        object.insert("file".to_owned(), Value::from(self.origin.file.clone()));
         object.insert("line".to_owned(), Value::from(self.origin.line));
         object.insert("cards".to_owned(), serde_json::json!(self.cards));
         object.insert(

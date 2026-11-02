@@ -48,7 +48,7 @@ knows where the card came from, such as a kind whose program draws a new
 question each time, like an arithmetic drill.
 
 A frontend may offer more, with the other commands everyone has: suspending the
-card (`srl suspend id:ID`), opening its note (the file at `address`, relative
+card (`srl suspend id:ID`), opening its note (the file at `file`, relative
 to the store's folder, in an editor of its choice), or a summary at the
 end, counting the
 cards whose `state` was `new`.
@@ -68,7 +68,8 @@ context:
  "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
  "answer": "Despite everyone's opposition, she started a company.",
  "state": "due", "kind": "qa",
- "address": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
+ "address": "japanese/grammar/wo-mono-tomo-sezu.md", "source": "notes",
+ "file": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
  "context_address": "japanese/grammar/wo-mono-tomo-sezu.md"}
 ```
@@ -78,7 +79,9 @@ context:
 | `id`, `prompt`, `prompt_revealed`, `answer` | The card (see [cards.md](cards.md)). `prompt_revealed` and `answer` may be `null`. |
 | `state` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Choosing the next card"). |
 | `kind` | The item's kind: `qa`, or the name of a kind program in `.srl/config.toml`, as in `srl show --json` (see [cards.md](cards.md), "Kinds"). |
-| `address` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "The item object"). |
+| `address` | The address of the collection the item is in, such as its note, as in `srl show --json` (see [notes.md](notes.md), "The item object"). |
+| `source` | The name of the item's source (see [sources.md](sources.md)). |
+| `file` | The file the item's collection is kept in, relative to the store's folder, or `null` when it is no file of its own. |
 | `see` | The note its `see` names, or `null`. |
 | `context` | The context, in the mode the frontend chose, or `null` when there is none (see [notes.md](notes.md), "Context"). |
 | `context_address` | The note the context comes from: `see`, or else `address` (see "Rendering"). `null` when `context` is. |

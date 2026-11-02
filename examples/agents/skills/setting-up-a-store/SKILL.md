@@ -41,27 +41,33 @@ and the message says which folder it looked at.
 
 ## Which files are notes
 
-Every file in the store matched by `include` in the configuration (by
-default, every `.md` file), except files in folders whose name starts with
-`.` (`.srl/`, `.git/`, `.obsidian/`) and files matched by `exclude`, which
-always wins. Files must be UTF-8.
+Items come from the store's sources, set in `[sources]` of
+`.srl/config.toml`. Without any, the store has one, `notes`: every `.md`
+file is a note of srl blocks in Markdown (see the `writing-items` skill),
+except files in folders whose name starts with `.` (`.srl/`, `.git/`,
+`.obsidian/`) and files matched by `exclude`, which always wins. Files
+must be UTF-8.
 
-The extension decides how items are written in a note: a note whose name
-ends in `.jsonl` holds one item object per line, and every other note
-holds srl blocks in Markdown (see the `writing-items` skill). JSONL notes
-are read only when `include` names them, for example
-`include = ["**/*.md", "generated/**/*.jsonl"]` for items that scripts and
-agents write. Every file `include` names must be a valid note, so don't
-let a glob catch JSON files meant for other programs.
+JSONL notes, one item object per line, are read by a source of their
+own, with `driver = "jsonl"` and the globs of their files, for example
+`include = ["generated/**/*.jsonl"]` for items that scripts and agents
+write. `[sources]` replaces the default source, so a store with both
+names both: `[sources.notes]` with `driver = "markdown"`, and
+`[sources.generated]` with `driver = "jsonl"`. Every file a source's
+`include` matches must be a valid note, so don't let a glob catch JSON
+files meant for other programs. `srl sources` describes the sources, and
+`srl collections` lists every note.
 
 ## Configuration
 
 `.srl/config.toml`. Every setting is optional; these are the defaults:
 
 ```toml
-[notes]
+[sources.notes]              # the one source of a store without [sources]
+driver = "markdown"          # notes of srl blocks; "jsonl" for notes of JSON lines
 include = ["**/*.md"]        # globs of notes, e.g. ["**/*.md", "**/*.txt"]; replaces the default
 exclude = []                 # globs of notes to ignore, e.g. ["templates/**", "inbox.md"]
+prefix = ""                  # where its notes are among the store's addresses; "" keeps their paths
 
 [schedule]
 desired_retention = 0.9      # target chance of remembering a card when it is due

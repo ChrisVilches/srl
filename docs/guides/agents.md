@@ -27,7 +27,7 @@ the agent does it, outside `srl`, and records the rating it decided.
    only after `srl accept`.
 2. **Agents write new notes, not into yours.** Items an agent generates go
    into a note of their own, such as `generated/wo-mono-tomo-sezu.md`, or a
-   JSONL note (`generated/wo-mono-tomo-sezu.jsonl`) when `include` names
+   JSONL note (`generated/wo-mono-tomo-sezu.jsonl`) when a `jsonl` source reads
    them, with `see` naming the note they ask about. They then show your note as their
    context, and your note stays as you wrote it. The one exception is
    `srl edit --stdin`, for an agent you allow to edit your items.
@@ -122,7 +122,7 @@ What keeps them small:
   item objects, with no srl block syntax at all, and they pick a fence long
   enough for the fields when the note is Markdown.
 - **Keep generated items in JSONL notes**, such as
-  `generated/wo-mono-tomo-sezu.jsonl`, once `include` names them: there is
+  `generated/wo-mono-tomo-sezu.jsonl`, once a `jsonl` source reads them: there is
   no fence anywhere, and `jq` reads and changes them.
 - **Open blocks written by hand with `~~~srl`** when a field holds code:
   a tilde fence is never closed by backticks, so there is nothing to count.

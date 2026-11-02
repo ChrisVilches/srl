@@ -83,9 +83,11 @@ systems can hold both.
 Every key is optional. These are the defaults:
 
 ```toml
-[notes]
+[sources.notes]              # the one source of a store without [sources]
+driver = "markdown"          # notes of srl blocks; or "jsonl", notes of JSON lines
 include = ["**/*.md"]        # globs of notes, relative to the store's folder
 exclude = []                 # globs of notes to ignore; they win over include
+prefix = ""                  # where its collections are among the store's addresses
 
 [schedule]
 desired_retention = 0.9      # FSRS target probability of recall
@@ -104,8 +106,9 @@ card_timeout = 60            # seconds a kind program may take to make a card
 ```
 
 A key or table that is not listed here is an error, so a typo such as
-`new_per_dya = 3` fails instead of being ignored; the keys of `[kinds]`
-are the exception, since they are names you choose. So is a value of the
+`new_per_dya = 3` fails instead of being ignored; the names of sources
+and the keys of `[kinds]`
+are the exceptions, since they are names you choose. So is a value of the
 wrong type or out of range: `desired_retention` must be between 0 and 1
 (exclusive), `day_starts_at` an hour from 0 to 23, and `card_timeout` at
 least 1. Commands that need the configuration fail with a message
@@ -117,16 +120,18 @@ of the program and its arguments. `qa` can't be one of them. How kind
 programs are run, and what `card_timeout` limits, is in
 [cards.md](cards.md), "Kind programs".
 
-`include` and `exclude` globs match paths relative to the store's folder:
-`*` matches within one folder, `**` across folders. The notes are the files
-`include` matches, minus those `exclude` matches (see
-[notes.md](notes.md), "Which files are notes"):
+`[sources]` names the sources of items, each with its driver, its
+globs of notes and its prefix; without it, the store has the one source
+above. How sources are configured, and what each key means, is in
+[sources.md](sources.md), "Configuration":
 
 - `include` replaces the default rather than adding to it:
   `include = ["**/*.md", "**/*.txt"]` reads Markdown and text files,
-  `include = ["notes/**/*.md"]` only the Markdown files under `notes/`,
-  and `include = ["**/*.md", "items/**/*.jsonl"]` also the JSONL notes
-  under `items/` (see [notes.md](notes.md), "Item syntaxes").
+  `include = ["notes/**/*.md"]` only the Markdown files under `notes/`.
+  JSONL notes are read by a source of their own, such as
+  `[sources.data]` with `driver = "jsonl"` and
+  `include = ["items/**/*.jsonl"]` (see [notes.md](notes.md), "Item
+  syntaxes").
 - `exclude` always wins: `exclude = ["templates/**", "inbox.md"]` ignores
   every file under `templates/` and the file `inbox.md`, whatever
   `include` says.

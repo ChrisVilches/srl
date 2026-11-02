@@ -16,7 +16,7 @@ mod log;
 mod source;
 mod store;
 
-pub use app::catalog::{Catalog, collections};
+pub use app::catalog::{Catalog, CollectionInfo, Creates, SourceDescription, collections, sources};
 pub use app::check::{Lint, lint, orphans};
 pub use app::next::next;
 pub use app::review::{ReviewRequest, move_history, reset, review, suspend};

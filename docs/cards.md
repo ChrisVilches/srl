@@ -382,8 +382,8 @@ asked about the item.
 When something goes wrong, the place it happens says whose fault it is:
 
 - **An error `validate` gives is an error in the note**, like a `qa` item
-  without `Q`, reported at the item's line, as `PATH:LINE: FIELD:
-  message`, or `PATH:LINE: message` when it is about no field.
+  without `Q`, reported at the item's line, as `ADDRESS:LINE: FIELD:
+  message`, or `ADDRESS:LINE: message` when it is about no field.
 - **An answer about one item that doesn't follow the rules above**, from
   `validate` or `groups`, is an error in the note at that item, saying
   that the program printed invalid output.

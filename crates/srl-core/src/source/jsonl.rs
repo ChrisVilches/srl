@@ -13,7 +13,9 @@ use crate::source::files::{
     Edit, Lines, NoteFiles, Parsed, ParsedItem, add_read, append, apply, by_collection,
     changed_meanwhile, keyed, lines, position_of, unless_blank, verified,
 };
-use crate::source::{Change, Collection, ContextRequest, Finding, Read, Refusal, Source};
+use crate::source::{
+    Change, Collection, ContextRequest, Description, Finding, Read, Refusal, Source,
+};
 
 /// Each line that is not blank is an item.
 pub(super) fn parse(text: &str) -> Parsed {
@@ -174,6 +176,12 @@ impl Source for Jsonl {
                 Ok(context(&self.files.text(request.collection)?, request.mode))
             })
             .collect()
+    }
+
+    fn describe(&self) -> crate::Result<Description> {
+        Ok(self
+            .files
+            .describe("Notes of JSON lines: files of one item object per line, and nothing else."))
     }
 
     fn refuses(&self, collection: &str) -> Option<String> {

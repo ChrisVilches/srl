@@ -579,7 +579,7 @@ mod tests {
     fn add_takes_any_path_include_matches() {
         let (_tmp, store) = store(&[]);
         let mut config = Config::default();
-        config.notes.include = vec!["**/*.txt".to_owned()];
+        config.sources = crate::config::sources_of(&["**/*.txt"]);
         let item = "{\"Q\": \"q\", \"A\": \"a\"}";
         assert!(add(&notes_with(&store, &config), "a.md", item, 3, false).is_err());
         add(&notes_with(&store, &config), "new/a.txt", item, 3, false).unwrap();
@@ -589,7 +589,7 @@ mod tests {
     #[test]
     fn add_writes_json_lines_to_a_jsonl_note_and_keeps_given_ids() {
         let mut config = Config::default();
-        config.notes.include = vec!["**/*.md".to_owned(), "**/*.jsonl".to_owned()];
+        config.sources = crate::config::sources_of(&["**/*.md", "**/*.jsonl"]);
         let (_tmp, store) = store(&[("a.jsonl", "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}")]);
         let notes = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         let input = "{\"id\": \"mine\", \"Q\": \"r\", \"A\": \"b\", \"kind\": \"qa\", \"see\": \"a.jsonl\"}\n{\"draft\": true, \"Q\": \"{{c1::s}}\"}\n";
@@ -611,7 +611,7 @@ mod tests {
     #[test]
     fn ids_and_accept_write_json_lines_again() {
         let mut config = Config::default();
-        config.notes.include = vec!["*.jsonl".to_owned()];
+        config.sources = crate::config::sources_of(&["*.jsonl"]);
         let text = "{\"Q\": \"q\", \"A\": \"a\", \"draft\": true}\r\n\r\n{\"id\": \"keep\", \"Q\": \"r\", \"A\": \"b\"}\r\n";
         let (_tmp, store) = store(&[("a.jsonl", text)]);
         let load = || Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
@@ -631,7 +631,7 @@ mod tests {
     #[test]
     fn edit_replaces_items_in_any_syntax_and_keeps_the_rest() {
         let mut config = Config::default();
-        config.notes.include = vec!["*.md".to_owned(), "*.jsonl".to_owned()];
+        config.sources = crate::config::sources_of(&["*.md", "*.jsonl"]);
         let text = "Before.\n```srl id:aaa1\nQ: old\nA: old\n```\n\n````srl\n@ id:aaa2\nQ: old\nA: old\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n";
         let lines = "{\"id\": \"bbb1\", \"Q\": \"old\", \"A\": \"old\"}\n";
         let (_tmp, store) = store(&[("a.md", text), ("b.jsonl", lines)]);
@@ -656,7 +656,7 @@ mod tests {
     #[test]
     fn several_edits_in_one_block_or_one_jsonl_note_each_find_their_item() {
         let mut config = Config::default();
-        config.notes.include = vec!["*.md".to_owned(), "*.jsonl".to_owned()];
+        config.sources = crate::config::sources_of(&["*.md", "*.jsonl"]);
         let text = "```srl\n@ id:aaa1\nQ: one\nA: a\n\n@ id:aaa2\nQ: two\nA: a\n\n@ id:aaa3\nQ: three\nA: a\n```\n";
         let lines = "{\"id\": \"bbb1\", \"Q\": \"one\", \"A\": \"a\"}\n{\"id\": \"bbb2\", \"Q\": \"two\", \"A\": \"a\"}\n{\"id\": \"bbb3\", \"Q\": \"three\", \"A\": \"a\"}\n";
         let (_tmp, store) = store(&[("a.md", text), ("b.jsonl", lines)]);
@@ -707,7 +707,7 @@ mod tests {
     #[test]
     fn ids_go_to_the_items_without_one_by_their_position() {
         let mut config = Config::default();
-        config.notes.include = vec!["*.jsonl".to_owned()];
+        config.sources = crate::config::sources_of(&["*.jsonl"]);
         // Two items alike in everything, but where they are, are told apart
         // by their position.
         let (_tmp, store) = store(&[(
@@ -725,7 +725,7 @@ mod tests {
     #[test]
     fn add_to_a_jsonl_note_starts_a_new_line_and_keeps_its_line_endings() {
         let mut config = Config::default();
-        config.notes.include = vec!["**/*.jsonl".to_owned()];
+        config.sources = crate::config::sources_of(&["**/*.jsonl"]);
         let (_tmp, store) = store(&[
             ("a.jsonl", "{\"id\": \"old1\", \"Q\": \"q\", \"A\": \"a\"}"),
             (

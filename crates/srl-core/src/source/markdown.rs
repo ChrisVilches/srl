@@ -18,7 +18,9 @@ use crate::source::files::{
     Edit, Keyed, NoteFiles, add_read, append, apply, by_collection, changed_meanwhile, keyed,
     position_of, verified,
 };
-use crate::source::{Change, Collection, ContextRequest, Finding, Read, Refusal, Source};
+use crate::source::{
+    Change, Collection, ContextRequest, Description, Finding, Read, Refusal, Source,
+};
 
 /// The notes of a `markdown` source.
 #[derive(Debug)]
@@ -116,6 +118,13 @@ impl Source for Markdown {
                 ))
             })
             .collect()
+    }
+
+    fn describe(&self) -> Result<Description> {
+        Ok(self.files.describe(
+            "Notes of srl blocks: Markdown files, or files of any format built on it, \
+             with items in fenced code blocks whose language is srl.",
+        ))
     }
 
     fn refuses(&self, collection: &str) -> Option<String> {

@@ -358,7 +358,7 @@ fn an_agents_questions_in_a_jsonl_note_are_studied_like_any_other() {
         ("geography/capitals.md", CAPITALS),
         (
             ".srl/config.toml",
-            "[notes]\ninclude = [\"**/*.md\", \"generated/**/*.jsonl\"]\n",
+            "[sources.notes]\ndriver = \"markdown\"\n\n[sources.generated]\ndriver = \"jsonl\"\ninclude = [\"generated/**/*.jsonl\"]\n",
         ),
     ]);
     let now = at(1, 19);

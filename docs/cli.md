@@ -17,11 +17,11 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 ## Conventions
 
 - **`--json` for data.** Every command that reads data out of the store
-  (`find`, `show`, `cards`, `collections`, `kinds`, `next`, `stats`, `log`) can
+  (`find`, `show`, `cards`, `collections`, `sources`, `kinds`, `next`, `stats`, `log`) can
   print JSON instead (JSONL for lists). The default output is for people.
   Commands that change the store print the IDs they changed, one per line
-  (`srl id` adds `PATH:LINE`), and `srl lint` prints its findings as
-  `PATH:LINE: message`; they have no `--json`.
+  (`srl id` adds `ADDRESS:LINE`), and `srl lint` prints its findings as
+  `ADDRESS:LINE: message`; they have no `--json`.
 - **Never interactive.** No command asks questions or waits for a person.
   Studying is up to frontends (see [frontends.md](frontends.md)), and
   editing notes is up to your editor.
@@ -65,15 +65,16 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
 | `srl check` | Check the notes, the configuration and the log; report each problem on standard error and exit with 2 if there are any (see "Checking" below). |
 | `srl lint` | Look for likely mistakes: text probably meant to be an item, and items probably not written as meant (see "Checking" below). |
-| `srl id` | Give an ID to every item without one (see [notes.md](notes.md), "How srl writes to notes"). Prints `ID  PATH:LINE` per item; exit 1 if every item already had one. |
-| `srl collections [--json]` | List the collections of the store, its notes (see [notes.md](notes.md), "Which files are notes"): one address per line, sorted as `srl find` sorts notes. With `--json`, one object per collection: `{"address": "japanese/grammar/wo.md"}`. It doesn't read the notes, so errors in them don't stop it. Exit 1 if the store has none. |
+| `srl id` | Give an ID to every item without one (see [notes.md](notes.md), "How srl writes to notes"). Prints `ID  ADDRESS:LINE` per item; exit 1 if every item already had one. |
+| `srl collections [--json]` | List the collections of the store, of every source, such as its notes (see [sources.md](sources.md)): one address per line, in the order of their addresses, as `srl find` sorts them. With `--json`, one object per collection, with its address, its source and its file, or `null` when it is no file of its own: `{"address": "japanese/grammar/wo.md", "source": "notes", "file": "japanese/grammar/wo.md"}`. It doesn't read any item, so errors in them don't stop it. Exit 1 if the store has none. |
+| `srl sources [--json]` | Describe the sources of the store, in the order of their names (see [sources.md](sources.md)): for each, a line with its name and description, then lines, indented by two spaces, for its driver, its prefix if it has one, its `include` globs and its `exclude` globs if it has some, each name and value separated by two spaces and globs by one. With `--json`, one object per source: `{"name": "notes", "driver": "markdown", "prefix": "", "description": "…", "creates": {"include": ["**/*.md"], "exclude": []}}`, where `creates` gives the collections `srl add` may create in it, relative to its prefix. It doesn't read any item. |
 | `srl kinds [--json]` | Describe the kinds of the store: `qa`, then the kind programs of `[kinds]` sorted by name (see [cards.md](cards.md), "Describing a kind"). For each, a line with its name and description, then a line per field, indented by two spaces, with its name and description; names and descriptions are separated by two spaces. With `--json`, one object per kind: `{"name": "qa", "description": "…", "fields": [{"name": "Q", "description": "…"}, …]}`. It doesn't read the notes. If a kind program can't describe its kind, it fails at once with the reason, and prints nothing. |
 
 ### Items and cards
 
 | Command | Does |
 |---|---|
-| `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by note path, the order of items in the note, then card ID): one line each with the card ID, `PATH:LINE` and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
+| `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by address, the order of items in the collection, then card ID): one line each with the card ID, `ADDRESS:LINE` and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
 | `srl add NOTE --stdin` | Append new items to `NOTE` (see "Adding items" below). Prints the new item IDs. |
@@ -87,13 +88,14 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 
 ```json
 {"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo-mono-tomo-sezu.md",
+ "source": "notes", "file": "japanese/grammar/wo-mono-tomo-sezu.md",
  "line": 10, "status": "active", "state": "due", "due": "2026-10-24"}
 ```
 
 `due` is the study day the card is due, or `null` for a new card. `srl show
 --json` prints one item object per item, with every entry and the keys
 only `srl` gives (see [notes.md](notes.md), "The item object"). Without
-`--json`, `srl show` prints, for each item: a line `PATH:LINE`, the item as
+`--json`, `srl show` prints, for each item: a line `ADDRESS:LINE`, the item as
 written in its syntax, and, if there is a context, a line `---` and the
 context. Items are separated by blank lines. `--context MODE` chooses the
 context's mode (see [notes.md](notes.md), "Context"); it is `prose`
@@ -116,7 +118,7 @@ srl edit --stdin < item.jsonl
 Standard input holds one item object per line (see [notes.md](notes.md),
 "The item object"), each with the `id` of the item it replaces, which can
 be in any note and either syntax. Blank lines are ignored. What `srl show
---json` prints is such input: its keys `address`, `line`, `cards`, `context`
+--json` prints is such input: its keys `address`, `source`, `file`, `line`, `cards`, `context`
 and `context_address` are ignored. Each object is the whole new item, not a
 change to the old one: an entry left out takes its default, and a field
 left out is
@@ -205,9 +207,9 @@ JSONL
 - **Uppercase keys are field names, and their values the fields' text**,
   in the order given. Which fields are accepted is up to the kind, so `srl
   add` works the same for every kind there is; `srl kinds` describes them.
-- `NOTE` is a path relative to the store's folder, and must be a note:
-  matched by `include`, not by `exclude`, and not in a folder that starts
-  with `.` (see [notes.md](notes.md), "Which files are notes"). If it
+- `NOTE` is a path relative to the store's folder, and must be a note
+  of a source: matched by its `include`, not by its `exclude`, and not in
+  a folder that starts with `.` (see [notes.md](notes.md), "Which files are notes"). If it
   doesn't exist, it is created, with its folders.
 - The items are appended to the end of the note, in the note's syntax,
   following the rules of [notes.md](notes.md), "How srl writes to notes":
@@ -343,7 +345,7 @@ its concern.
 `srl lint` looks for mistakes `srl check` can't call errors, because only
 srl blocks make items (see [notes.md](notes.md), "The srl block syntax"), and
 because an item can be valid and still not be what you meant. It reports,
-as `PATH:LINE: message` on standard output, in the order of the notes and
+as `ADDRESS:LINE: message` on standard output, in the order of the addresses and
 their lines:
 
 - outside srl blocks, lines that look like part of one. Each may come at
