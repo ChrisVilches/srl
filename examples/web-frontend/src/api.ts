@@ -24,7 +24,7 @@ export type FoundCard = {
   id: string;
   item: string;
   address: string;
-  line: number;
+  line: number | null;
   status: 'active' | 'draft' | 'suspended';
   state: string;
   due: string | null;
@@ -123,4 +123,10 @@ export const api = {
     (await call<{ text: string }>('/api/add', { note, item, dry_run: true })).text,
   // Writes the item to the end of NOTE, and gives its new ID.
   add: async (note: string, item: NewItem) => (await change<{ ids: string[] }>('/api/add', { note, item })).ids,
+  // The item of ID as srl show --json prints it: its entries, fields and the
+  // keys only srl gives, which srl edit ignores.
+  item: async (id: string) =>
+    (await call<{ item: Record<string, unknown> }>(`/api/item?${new URLSearchParams({ id })}`)).item,
+  // Replaces the item of the object's id with it, whatever its source.
+  edit: async (item: Record<string, unknown>) => (await change<{ ids: string[] }>('/api/edit', { item })).ids,
 };

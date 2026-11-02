@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type FoundCard, type ShownCard } from './api';
 import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, StateBadges, Waiting } from './CardParts';
+import { EditItem } from './EditItem';
 import { useKeys, useStartWhenShown } from './hooks';
 import { SelectorInput, TopBar } from './TopBar';
 
@@ -32,6 +33,8 @@ export function Browse({ active }: { active: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [made, setMade] = useState<Record<string, Made>>({});
   const [side, setSide] = useState<Side>('prompt');
+  // The card whose item is being edited, if any.
+  const [editing, setEditing] = useState<string | null>(null);
   // The card being made, to stop when another is chosen.
   const making = useRef<{ id: string; abort: AbortController } | null>(null);
 
@@ -146,6 +149,12 @@ export function Browse({ active }: { active: boolean }) {
             side={side}
             onSide={setSide}
             onMake={() => selected !== null && make(selected)}
+            editing={editing !== null && editing === selected}
+            onEdit={() => setEditing(selected)}
+            onEdited={(saved) => {
+              setEditing(null);
+              if (saved) find(selector ?? '');
+            }}
           />
         </div>
       </main>
@@ -193,7 +202,7 @@ function CardList({
               <KindBadge kind={card.kind} />
               <StateBadges status={card.status} state={card.state} />
               {made[card.id]?.kind === 'making' && <span className="text-amber-600">making…</span>}
-              <span className="ml-auto font-mono">:{card.line}</span>
+              {card.line !== null && <span className="ml-auto font-mono">:{card.line}</span>}
             </div>
             <div className="mt-1 truncate text-sm">{card.excerpt}</div>
           </button>
@@ -209,12 +218,19 @@ function Preview({
   side,
   onSide,
   onMake,
+  editing,
+  onEdit,
+  onEdited,
 }: {
   found: FoundCard | null;
   made: Made | undefined;
   side: Side;
   onSide: (side: Side) => void;
   onMake: () => void;
+  editing: boolean;
+  onEdit: () => void;
+  // Called with whether the item was saved.
+  onEdited: (saved: boolean) => void;
 }) {
   if (found === null) {
     return (
@@ -256,14 +272,19 @@ function Preview({
         >
           Make again <Key>r</Key>
         </button>
+        <button onClick={onEdit} disabled={editing} title="Edit the item of this card, whatever its source" className={`py-1 ${QUIET_BUTTON}`}>
+          Edit item
+        </button>
         <span className="ml-auto font-mono text-xs text-stone-400">
-          {found.address}:{found.line} · due {found.due ?? '—'}
+          {found.address}
+          {found.line === null ? '' : `:${found.line}`} · due {found.due ?? '—'}
         </span>
       </div>
 
-      {made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
-      {made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
-      {made?.kind === 'ready' && (
+      {editing && <EditItem id={found.item} onSaved={() => onEdited(true)} onCancel={() => onEdited(false)} />}
+      {!editing && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
+      {!editing && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
+      {!editing && made?.kind === 'ready' && (
         <>
           {side === 'json' ? (
             <pre className="overflow-x-auto rounded-2xl border border-stone-200 bg-white p-5 font-mono text-sm whitespace-pre-wrap dark:border-stone-800 dark:bg-stone-900">

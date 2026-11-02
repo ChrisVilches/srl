@@ -54,6 +54,13 @@ as how `ja_word` marks words, without studying:
   the Study tab is first shown, so a page opened on `#browse` runs no
   `srl next`.
 
+In the card browser, **Edit item** edits the item of the chosen card,
+whatever its source: a note, or a database or service behind a source
+program. It shows the item's fields and whether it is a draft, as `srl show
+--json` gives them, and **Save** gives the whole item to `srl edit
+--stdin`; `srl` finds the item by its ID, and its source writes it. The
+cards are then found again.
+
 It also **adds items** (the Add tab, or `#add`), one at a time:
 
 - The kind is chosen among those `srl kinds` describes, and the form
@@ -146,6 +153,8 @@ scheduling here; that belongs to `srl`.
 | `GET /api/sources` | `srl sources --json` | `{"sources": […]}`, each source as `srl sources` printed it |
 | `GET /api/collections` | `srl collections --json` | `{"collections": [ADDRESS…]}` |
 | `POST /api/add` | `srl add ADDRESS --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"note": ADDRESS, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, the item as it would be written, for a dry run |
+| `GET /api/item?id=…` | `srl show ID --json --context none` | `{"item": …}`, the item object `srl show` printed |
+| `POST /api/edit` | `srl edit --stdin`, for `{"item": ITEM}`; `ITEM` is its one line | `{"ids": […]}` |
 
 `/api/find` gives `srl show` at most 500 item IDs at a time, to keep its
 command line short enough for Windows. When the page stops waiting for

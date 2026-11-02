@@ -30,6 +30,12 @@
 //                                                      → { ids } or, with
 //                                                        dry_run, { text }
 //
+// Editing an item, of any source:
+//
+//   GET  /api/item?id=ID   srl show ID --json --context none → { item }
+//   POST /api/edit         srl edit --stdin, with ITEM as its one line
+//                                                      ← { item } → { ids }
+//
 // With --on-change, the program runs after each change srl-web makes to the
 // store (review, suspend, add without dry_run; see on-change.js):
 //
@@ -195,6 +201,24 @@ export function createSrlServer({ dir, selector, staticDir, onChange }) {
         changed();
       }
       return dryRun ? { text: stdout } : { ids: stdout.split('\n').filter((line) => line.trim() !== '') };
+    },
+
+    // The item of a card or item ID, as srl show --json prints it, to edit.
+    'GET /api/item': async (url) => {
+      const id = requireId(url.searchParams.get('id'));
+      const { stdout } = await srl(['show', '--json', '--context', 'none', id]);
+      return { item: jsonLines(stdout)[0] };
+    },
+
+    // The item, given whole, replaces the item of its id: srl checks it,
+    // and its source writes it, whatever source that is.
+    'POST /api/edit': async (_url, body) => {
+      if (body.item === null || typeof body.item !== 'object' || Array.isArray(body.item)) {
+        throw new BadRequest('item must be a JSON object');
+      }
+      const { stdout } = await srl(['edit', '--stdin'], JSON.stringify(body.item) + '\n');
+      changed();
+      return { ids: stdout.split('\n').filter((line) => line.trim() !== '') };
     },
   };
 
