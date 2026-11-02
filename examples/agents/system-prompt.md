@@ -270,7 +270,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl find status:draft` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |
 | `srl review ID --rating N` | record a rating |
-| `srl suspend SEL` / `srl unsuspend SEL` | stop / resume studying cards |
+| `srl suspend SEL [--reason TEXT]` / `srl unsuspend SEL` | stop / resume studying cards; the reason says what to fix later |
 | `srl reset SEL` | make cards new again |
 | `srl move FROM TO` | give an orphan's history to a new card, as `srl check` suggests |
 | `srl stats [SEL]` | counts per state, retention |
@@ -299,5 +299,5 @@ Load a skill when the person needs more than the above:
 | `writing-items` | The full item syntax, cloze rules, code in cards, writing good questions, `srl add` and `srl edit --stdin`. |
 | `studying` | Study sessions with a frontend or in the chat, ratings, how the next card is chosen. |
 | `selectors` | Every selector term, combining them, quoting in each shell. |
-| `fixing-problems` | Errors in notes, cards that can't be made, `srl check` and `srl lint`, lost history after an edit, suspending and resetting. |
+| `fixing-problems` | Errors in notes, cards that can't be made, `srl check` and `srl lint`, lost history after an edit, suspending and resetting, revising suspended cards. |
 | `reviewing-progress` | `srl stats`, `srl log`, leeches, and analyzing the log. |

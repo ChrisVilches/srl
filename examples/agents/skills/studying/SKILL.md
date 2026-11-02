@@ -25,7 +25,8 @@ For each card, space or Enter shows the answer, then the context (the
 note around the item, or the one its `see` names; none for an item of a
 JSONL note without `see`, and in mode `full` a JSONL note named by `see`, shown as a code
 block); `1`–`4` records the
-rating; `s` suspends the card without rating it. In `srl-tui`, the card
+rating; `s` suspends the card without rating it, after asking why (what
+to fix before studying it again; it may be left empty). In `srl-tui`, the card
 and the context scroll in panels of their own: `j`/`k` or the arrows
 scroll the one in focus (Ctrl-D/Ctrl-U by half of it, `g`/`G` to its top
 and bottom), Tab moves the focus, and `q` quits. Each keeps a count of the
@@ -158,7 +159,7 @@ read cards with `srl cards ID` or `srl find`, and ask.
 | Command | Does |
 |---|---|
 | `srl review ID --rating N` | Rate a card outside a session, even if not due (treated as an early review). |
-| `srl suspend SEL` / `srl unsuspend SEL` | Stop / resume studying cards; the note doesn't change. |
+| `srl suspend SEL [--reason TEXT]` / `srl unsuspend SEL` | Stop / resume studying cards; the note doesn't change. The reason says what to fix; see the `fixing-problems` skill. |
 | `srl reset SEL` | Make cards new again. Their history stays in the log. |
 
 `--dry-run` shows what `srl review` or `srl reset` would write.

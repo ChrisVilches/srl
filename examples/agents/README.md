@@ -19,7 +19,8 @@ agents/
     studying/                   study sessions, ratings, which card comes next
     selectors/                  the selector language and shell quoting
     fixing-problems/            errors, cards a kind program can't make,
-                                srl check and lint, lost history
+                                srl check and lint, lost history,
+                                revising suspended cards
     reviewing-progress/         srl stats, srl log, leeches
 ```
 

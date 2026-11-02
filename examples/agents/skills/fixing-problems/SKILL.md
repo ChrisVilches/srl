@@ -1,6 +1,6 @@
 ---
 name: fixing-problems
-description: Diagnose and fix srl problems - errors in notes or sources that stop every command, a card a kind program can't make that stops srl next, srl check and srl lint, items that silently aren't items, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, and locking or cache messages. Load whenever an srl command fails, or when cards are missing or behave unexpectedly.
+description: Diagnose and fix srl problems - errors in notes or sources that stop every command, a card a kind program can't make that stops srl next, srl check and srl lint, items that silently aren't items, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, locking or cache messages, and revising suspended cards by the reasons they were suspended with. Load whenever an srl command fails, when cards are missing or behave unexpectedly, or when the person wants to fix cards they suspended.
 ---
 
 # Fixing problems
@@ -53,9 +53,9 @@ way every time, because nothing changes until someone acts:
 - **Fix what failed**, as the reason says: a missing API key, an API that
   is down, a program that isn't installed, a program that took longer
   than `card_timeout`. Then run `srl next` again.
-- **Or set the card aside** with `srl suspend id:ID`, and later
-  `srl unsuspend id:ID`. Suspending changes what the person studies, so
-  ask them first.
+- **Or set the card aside** with `srl suspend id:ID --reason "…"`, saying
+  what failed, and later `srl unsuspend id:ID`. Suspending changes what
+  the person studies, so ask them first.
 
 `srl cards ID` makes the card too, so it shows whether the fix worked.
 The person can also see it rendered in the Browse tab of `srl-web`.
@@ -119,6 +119,31 @@ schedule.
 - `srl suspend SEL`: stop studying cards, without deleting them; the note
   isn't changed. `srl unsuspend SEL` undoes it. `srl find status:suspended`
   lists them.
+- `srl suspend SEL --reason TEXT` also keeps why: what the person found
+  wrong with the card, so that it can be fixed later. `srl find --json`
+  gives it as `suspend_reason` (`null` when none was given), and `srl log`
+  shows it. Suspending cards that are already suspended with a new
+  `--reason` replaces their reason; without `--reason` they are left
+  alone. When you suspend a card the person complained about, put their
+  complaint in `--reason`, in their words.
+
+## Revising suspended cards
+
+People suspend cards they dislike or that are too hard for now, saying
+why, and come back later to fix them. When asked to:
+
+1. `srl find status:suspended --json` lists them; each line's
+   `suspend_reason` says what to fix. Cards without a reason: ask the
+   person, or look at their reviews with `srl log id:ID`.
+2. `srl show ITEM --json` gives the item (`item` in the find line), with
+   its context. Fix what the reason says: a clearer question or answer,
+   more context (in the note, or with `see`), or split the item into two
+   with `srl add` and remove the old one (see the `writing-items` skill).
+   Show the person the new item before writing it with `srl edit --stdin`.
+3. Ask before `srl unsuspend id:ID`: it puts the card back into their
+   studying. A rewritten item keeps its card's schedule; `srl reset id:ID`
+   starts it over, if the person wants that. A split item's new cards are
+   new; its old cards are gone, so there is nothing to unsuspend.
 - `srl reset SEL`: make cards new again, for a fresh start. History stays
   in the log. Check the selector with `srl find SEL` (or `--dry-run`)
   first, since an empty selector matches every card.
