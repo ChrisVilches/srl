@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type FoundCard, type ShownCard } from './api';
 import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, StateBadges, Waiting } from './CardParts';
 import { EditItem } from './EditItem';
+import { JsonView } from './JsonView';
 import { useKeys, useStartWhenShown } from './hooks';
 import { SelectorInput, TopBar } from './TopBar';
 
@@ -293,18 +294,14 @@ function Preview({
       {!editing && made?.kind === 'ready' && (
         <>
           {side === 'json' ? (
-            <pre className="overflow-x-auto rounded-2xl border border-stone-200 bg-white p-5 font-mono text-sm whitespace-pre-wrap dark:border-stone-800 dark:bg-stone-900">
-              {JSON.stringify(
-                {
-                  id: made.card.id,
-                  prompt: made.card.prompt,
-                  prompt_revealed: made.card.prompt_revealed,
-                  answer: made.card.answer,
-                },
-                null,
-                2,
-              )}
-            </pre>
+            <JsonView
+              value={{
+                id: made.card.id,
+                prompt: made.card.prompt,
+                prompt_revealed: made.card.prompt_revealed,
+                answer: made.card.answer,
+              }}
+            />
           ) : (
             <CardFace
               card={made.card}
