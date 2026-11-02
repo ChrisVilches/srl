@@ -1,26 +1,23 @@
-//! Notes and the items in them (see `docs/notes.md`).
+//! Items: their entries, fields and IDs (see `docs/notes.md`), and how
+//! they are written in notes.
 //!
-//! How items are written in a note is the business of [`syntax`] alone:
-//! this module turns what it reads into [`Item`]s, which the rest of `srl`
-//! works with.
+//! How items are written in a note is the business of [`syntax`] alone;
+//! the catalog turns what every source reads into [`Item`]s, which the rest
+//! of `srl` works with.
 
 pub(crate) mod object;
 pub(crate) mod syntax;
 
-use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::fs;
 
-use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::card::{Card, CardId};
-use crate::context::{Context, ContextMode, context};
-use crate::kind::{Answer, Asked, Cache, Kind, Programs, ToMake, check};
-use crate::store::nfc;
-use crate::{Config, Error, Index, Result, Store};
-use syntax::ParsedItem;
+use crate::card::CardId;
+use crate::context::Context;
+use crate::kind::Kind;
+use crate::{Error, Result};
+use object::Object;
 
 /// One field of an item: its key and its text.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,35 +144,40 @@ impl fmt::Display for ItemId {
     }
 }
 
-/// Where an item comes from: what names it to people, and to whatever
-/// changes it.
+/// Where an item comes from: what names it to people, and to the source
+/// that changes it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Origin {
-    /// The collection the item is in: its note, by its path, relative to
-    /// the store's folder, with `/` between folders.
+    /// The item's source, by its place among the store's sources.
+    pub(crate) source: usize,
+    /// The collection the item is in, named by its source.
     pub(crate) collection: String,
-    /// What names the item when it is changed: its position among the
-    /// items of its note, counting from 0.
+    /// The collection's address: the source's prefix, then the collection.
+    pub(crate) address: String,
+    /// What names the item to its source when it is changed.
     pub(crate) handle: String,
     /// The line where the item starts, counting from 1, as near as its
-    /// syntax can say: only for people.
+    /// source can say: only for people.
     pub(crate) line: usize,
+    /// The item as its source read it, which a change gives back as what
+    /// it replaces.
+    pub(crate) read: Object,
 }
 
-/// One item of a note, with its cards.
+/// One item of a store, with its cards.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Item {
-    id: ItemId,
-    origin: Origin,
-    kind: Kind,
-    see: Option<String>,
-    draft: bool,
-    fields: Vec<Field>,
-    text: String,
+    pub(crate) id: ItemId,
+    pub(crate) origin: Origin,
+    pub(crate) kind: Kind,
+    pub(crate) see: Option<String>,
+    pub(crate) draft: bool,
+    pub(crate) fields: Vec<Field>,
+    pub(crate) text: String,
     /// The card IDs in groups of siblings, as the kind gave them.
-    groups: Vec<Vec<CardId>>,
+    pub(crate) groups: Vec<Vec<CardId>>,
     /// Every card ID of `groups`, in order.
-    cards: Vec<CardId>,
+    pub(crate) cards: Vec<CardId>,
 }
 
 impl Item {
@@ -183,10 +185,10 @@ impl Item {
         &self.id
     }
 
-    /// The address of the item's collection: its note's path, relative to
-    /// the store's folder, with `/` between folders.
+    /// The address of the item's collection: for a note, its path,
+    /// relative to the store's folder, with `/` between folders.
     pub fn address(&self) -> &str {
-        &self.origin.collection
+        &self.origin.address
     }
 
     /// The line where the item starts, counting from 1, as near as its
@@ -271,7 +273,7 @@ impl Item {
         }
         object.insert(
             "address".to_owned(),
-            Value::from(self.origin.collection.as_str()),
+            Value::from(self.origin.address.as_str()),
         );
         object.insert("line".to_owned(), Value::from(self.origin.line));
         object.insert("cards".to_owned(), serde_json::json!(self.cards));
@@ -285,369 +287,6 @@ impl Item {
         );
         Value::Object(object)
     }
-}
-
-/// Every item of a store, and the problems in its notes.
-#[derive(Debug)]
-pub struct Notes {
-    items: Vec<Item>,
-    problems: Vec<Error>,
-    paths: Vec<String>,
-    programs: Programs,
-}
-
-impl Notes {
-    /// Reads every note of the store. Problems in notes are collected in
-    /// [`Notes::problems`], in the order of the notes and lines they are
-    /// about; only failing to read a file is an error here. The items of
-    /// every note are checked together, so that each kind program is asked
-    /// once about all of its items, and only about the items it has no
-    /// answer for in `index` (see `docs/cards.md`, "How srl calls them").
-    /// Problems with the cache are reported by [`Index::problems`].
-    pub fn load(store: &Store, config: &Config, index: &mut Index) -> Result<Self> {
-        Self::read(store, config, &mut Cache::Use(index))
-    }
-
-    /// Like [`Notes::load`], asking kind programs about every item, and
-    /// keeping their new answers in `index` (`srl check`).
-    pub fn load_asking(store: &Store, config: &Config, index: &mut Index) -> Result<Self> {
-        Self::read(store, config, &mut Cache::Refresh(index))
-    }
-
-    fn read(store: &Store, config: &Config, cache: &mut Cache<'_>) -> Result<Self> {
-        let paths = store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())?;
-        let programs = Programs::new(store, config);
-        let mut written = Vec::new();
-        let mut problems = Vec::new();
-        for path in &paths {
-            let text = read_note(store, path)?;
-            let (note_items, note_problems) = read_syntax(path, &text, &programs);
-            written.extend(note_items);
-            problems.extend(note_problems);
-        }
-        let (items, checked) = check_items(written, &programs, cache);
-        problems.extend(checked);
-        let (items, duplicates) = unique(items);
-        problems.extend(duplicates);
-        let known = paths.iter().map(|path| nfc(path)).collect::<HashSet<_>>();
-        problems.extend(items.iter().filter_map(|item| {
-            let see = item.see.as_deref()?;
-            (!known.contains(&nfc(see))).then(|| Error::Note {
-                path: item.origin.collection.clone(),
-                line: item.origin.line,
-                reason: format!(
-                    "`see:{see}` doesn't name a note of the store; give a path relative to the \
-                     store's folder, such as japanese/grammar/wo.md"
-                ),
-            })
-        }));
-        in_place_order(&mut problems);
-        Ok(Self {
-            items,
-            problems,
-            paths,
-            programs,
-        })
-    }
-
-    /// The kind programs the items were read with.
-    pub(crate) fn programs(&self) -> &Programs {
-        &self.programs
-    }
-
-    /// The card `card` of `item`, made by its kind as it is about to be
-    /// shown on the study day `day`: [`Notes::make_cards`] for one card.
-    pub fn make_card(&self, store: &Store, item: &Item, card: &CardId, day: Date) -> Result<Card> {
-        let mut made = self.make_cards(store, &[(item, card)], day)?;
-        Ok(made.pop().expect("one card should have been made"))
-    }
-
-    /// The cards `cards`, each with its item, made by their kinds for the
-    /// study day `day`, in order; each kind program makes all of its cards
-    /// in one call (see `docs/cards.md`, "Kind programs"). Fails at the
-    /// first card, in order, that can't be made: only a kind program can
-    /// fail here, reading its item's note again for the context, or the
-    /// program itself.
-    pub fn make_cards(
-        &self,
-        store: &Store,
-        cards: &[(&Item, &CardId)],
-        day: Date,
-    ) -> Result<Vec<Card>> {
-        // Only kind programs get the context, read once for each item.
-        let mut contexts = HashMap::new();
-        for (item, _) in cards {
-            if matches!(item.kind, Kind::Program(_)) && !contexts.contains_key(&item.id) {
-                contexts.insert(&item.id, context(store, item, ContextMode::Prose)?);
-            }
-        }
-        let wanted = cards
-            .iter()
-            .map(|(item, card)| ToMake {
-                card,
-                kind: &item.kind,
-                fields: &item.fields,
-                context: contexts.get(&item.id).and_then(Option::as_ref),
-            })
-            .collect::<Vec<_>>();
-        crate::kind::make(&wanted, &self.programs, day)
-            .into_iter()
-            .zip(cards)
-            .map(|(made, (_, card))| {
-                made.map_err(|reason| Error::CardFailed {
-                    card: card.to_string(),
-                    reason,
-                })
-            })
-            .collect()
-    }
-
-    /// The items, in the order they are written: by note path, then line.
-    pub fn items(&self) -> &[Item] {
-        &self.items
-    }
-
-    /// The problems in the notes. Every command that reads items stops if
-    /// there are any (see `docs/notes.md`, "Errors").
-    pub fn problems(&self) -> &[Error] {
-        &self.problems
-    }
-
-    /// Every note's path, in order.
-    pub fn paths(&self) -> &[String] {
-        &self.paths
-    }
-
-    /// The item with this ID.
-    pub fn item(&self, id: &ItemId) -> Option<&Item> {
-        self.items.iter().find(|item| item.id() == id)
-    }
-
-    /// The card with this ID, and its item.
-    pub fn card(&self, id: &CardId) -> Option<(&Item, &CardId)> {
-        let item = self.item(id.item())?;
-        item.cards
-            .iter()
-            .find(|card| *card == id)
-            .map(|card| (item, card))
-    }
-
-    /// Every card, with its item, in the order they are written.
-    pub fn cards(&self) -> impl Iterator<Item = (&Item, &CardId)> {
-        self.items
-            .iter()
-            .flat_map(|item| item.cards.iter().map(move |card| (item, card)))
-    }
-
-    /// The items an ID given to a command stands for: the item of a card
-    /// ID, or the item of an item ID (see `docs/cli.md`, "Conventions").
-    pub fn item_of(&self, text: &str) -> Result<&Item> {
-        let unknown = || Error::UnknownId {
-            id: text.to_owned(),
-        };
-        let id = CardId::parse(text)?;
-        let item = self.item(id.item()).ok_or_else(unknown)?;
-        if id.suffix().is_some() && !item.cards.contains(&id) {
-            return Err(unknown());
-        }
-        Ok(item)
-    }
-}
-
-/// The text of the note at `path`.
-pub(crate) fn read_note(store: &Store, path: &str) -> Result<String> {
-    let file = store.note_file(path);
-    fs::read_to_string(&file).map_err(Error::io(file))
-}
-
-/// The items of the note at `path` whose text is `text`, checked by their
-/// kinds, and its problems in the order of their lines.
-#[cfg(test)]
-pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
-    let (written, mut problems) = read_syntax(path, text, programs);
-    let (items, checked) = check_items(written, programs, &mut Cache::None);
-    problems.extend(checked);
-    in_place_order(&mut problems);
-    (items, problems)
-}
-
-/// Asks the kinds of `written` about them, and gives the items they
-/// accepted, with their cards, and the problems: why an item is invalid,
-/// and the kind programs that failed as a whole.
-fn check_items(
-    written: Vec<Item>,
-    programs: &Programs,
-    cache: &mut Cache<'_>,
-) -> (Vec<Item>, Vec<Error>) {
-    let asked = written
-        .iter()
-        .map(|item| Asked {
-            kind: &item.kind,
-            id: &item.id,
-            fields: &item.fields,
-        })
-        .collect::<Vec<_>>();
-    let (answers, mut problems) = check(&asked, programs, cache);
-    let mut items = Vec::new();
-    for (mut item, answer) in written.into_iter().zip(answers) {
-        match answer {
-            Some(Answer::Cards(groups)) => {
-                item.cards = groups.concat();
-                item.cards.sort();
-                item.groups = groups;
-                items.push(item);
-            }
-            Some(Answer::Invalid(reasons)) => {
-                problems.extend(reasons.into_iter().map(|reason| Error::Note {
-                    path: item.origin.collection.clone(),
-                    line: item.origin.line,
-                    reason,
-                }));
-            }
-            // Its program failed as a whole, which is a problem already.
-            None => {}
-        }
-    }
-    (items, problems)
-}
-
-/// Sorts `problems` by the note and line they are about, notes in the order
-/// they are read, keeping the order of problems about the same line;
-/// problems about no note come last.
-fn in_place_order(problems: &mut [Error]) {
-    problems.sort_by_cached_key(|problem| match problem.place() {
-        Some((path, line)) => (false, nfc(path), path.to_owned(), line),
-        None => (true, String::new(), String::new(), 0),
-    });
-}
-
-/// Checks new items, given by their entries and fields, as if they were
-/// read from a note, all at once, so that each kind program is asked once
-/// about all of them. A problem's line is the position of its item in
-/// `new`, counting from 1; a kind program that failed as a whole is a
-/// problem without a line.
-pub(crate) fn check_new(new: &[(Entries, Vec<Field>)], programs: &Programs) -> Vec<Error> {
-    let mut problems = Vec::new();
-    let mut items = Vec::new();
-    for (index, (entries, fields)) in new.iter().enumerate() {
-        let raw = ParsedItem {
-            entries: entries.clone(),
-            line: index + 1,
-            fields: fields.clone(),
-            spans: Vec::new(),
-            text: String::new(),
-        };
-        match written_item("", 0, raw, programs) {
-            Ok(item) => items.push(item),
-            Err(problem) => problems.push(problem),
-        }
-    }
-    problems.extend(check_items(items, programs, &mut Cache::None).1);
-    in_place_order(&mut problems);
-    problems
-}
-
-/// The items of the note at `path` whose text is `text`, as written, before
-/// their kinds are asked about them (they have no cards yet), and the
-/// problems of their syntax and entries.
-fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
-    let parsed = syntax::of(path).parse(text);
-    let mut problems = parsed
-        .errors
-        .into_iter()
-        .map(|(line, reason)| Error::Note {
-            path: path.to_owned(),
-            line,
-            reason,
-        })
-        .collect::<Vec<_>>();
-    let mut items = Vec::new();
-    for (position, raw) in parsed.items.into_iter().enumerate() {
-        match written_item(path, position, raw, programs) {
-            Ok(item) => items.push(item),
-            Err(problem) => problems.push(problem),
-        }
-    }
-    (items, problems)
-}
-
-/// The item `raw` of the note at `path`, at `position` among its items,
-/// without its cards yet, or the problem of its entries or fields.
-fn written_item(path: &str, position: usize, raw: ParsedItem, programs: &Programs) -> Result<Item> {
-    let at = |reason: String| Error::Note {
-        path: path.to_owned(),
-        line: raw.line,
-        reason,
-    };
-    let kind = raw
-        .entries
-        .kind
-        .as_deref()
-        .map_or(Ok(Kind::Qa), |name| {
-            Kind::parse(name, |name| programs.has(name))
-        })
-        .map_err(at)?;
-    let Some(id) = raw.entries.id else {
-        return Err(Error::MissingId {
-            path: path.to_owned(),
-            line: raw.line,
-        });
-    };
-    if let Some(reason) = repeated_field(&raw.fields) {
-        return Err(at(reason));
-    }
-    Ok(Item {
-        id,
-        origin: Origin {
-            collection: path.to_owned(),
-            handle: position.to_string(),
-            line: raw.line,
-        },
-        kind,
-        see: raw.entries.see,
-        draft: raw.entries.draft,
-        fields: raw.fields,
-        text: raw.text,
-        cards: Vec::new(),
-        groups: Vec::new(),
-    })
-}
-
-/// Why `fields` can't be an item's fields, whatever its kind: a key
-/// written twice.
-fn repeated_field(fields: &[Field]) -> Option<String> {
-    let mut seen = HashSet::new();
-    fields
-        .iter()
-        .find(|field| !seen.insert(field.key.as_str()))
-        .map(|field| format!("the field {} appears twice; keep one", field.key))
-}
-
-/// Keeps the first item of each ID, and reports the others.
-fn unique(items: Vec<Item>) -> (Vec<Item>, Vec<Error>) {
-    let mut first = HashMap::new();
-    let mut kept = Vec::new();
-    let mut duplicates = Vec::new();
-    for item in items {
-        if let Some((path, line)) = first.get(&item.id) {
-            duplicates.push(Error::Note {
-                path: item.origin.collection.clone(),
-                line: item.origin.line,
-                reason: format!(
-                    "the ID {} is also used by {path}:{line}; delete the ID from the copy and \
-                     run `srl id`",
-                    item.id
-                ),
-            });
-        } else {
-            first.insert(
-                item.id.clone(),
-                (item.origin.collection.clone(), item.origin.line),
-            );
-            kept.push(item);
-        }
-    }
-    (kept, duplicates)
 }
 
 #[cfg(test)]
@@ -689,96 +328,5 @@ mod tests {
         }
         assert_eq!(ItemId::from_number(0).as_str(), "aaaaaa");
         assert_eq!(ItemId::from_number(35).as_str(), "9aaaaa");
-    }
-
-    #[test]
-    fn items_get_their_cards_and_text() {
-        let text = "# Title\n\n```srl\n@  id:x7k2m9 \nQ: What?\nA: That.\n\n@ id:k3m9q1 draft see:a.md\nQ: {{c1::a}} {{c2::b}}\n```\n";
-        let (items, problems) = read_items("n.md", text, &Programs::default());
-        assert!(problems.is_empty(), "{problems:?}");
-        assert_eq!(items.len(), 2);
-        assert_eq!(items[0].text(), "```srl id:x7k2m9\nQ: What?\nA: That.\n```");
-        assert_eq!(items[0].label(), "What?");
-        assert_eq!(items[0].cards().len(), 1);
-        assert!(items[1].is_draft());
-        assert_eq!(items[1].see(), Some("a.md"));
-        let ids = items[1]
-            .cards()
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>();
-        assert_eq!(ids, ["k3m9q1.1", "k3m9q1.2"]);
-    }
-
-    #[test]
-    fn the_notes_extension_chooses_how_its_items_are_read() {
-        let text = "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"abd\", \"see\": \"n.md\", \"draft\": true, \"Q\": \"{{c1::r}}\"}\n";
-        let (items, problems) = read_items("n.jsonl", text, &Programs::default());
-        assert!(problems.is_empty(), "{problems:?}");
-        assert_eq!(items[1].see(), Some("n.md"));
-        assert!(items[1].is_draft());
-        assert_eq!(items[1].line(), 2);
-        assert_eq!(items[1].text(), text.lines().nth(1).unwrap());
-        assert_eq!(
-            items[0].json(None).to_string(),
-            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","address":"n.jsonl","line":1,"cards":["abc"],"context":null,"context_address":null}"#
-        );
-        // The same text in any other note is prose, with no item.
-        let (md, problems) = read_items("n.md", text, &Programs::default());
-        assert!(md.is_empty() && problems.is_empty());
-    }
-
-    #[test]
-    fn a_field_written_twice_is_a_problem_whatever_the_kind() {
-        let (items, problems) = read_items(
-            "n.md",
-            "```srl id:abc\nQ: a\nQ: b\nA: c\n```\n",
-            &Programs::default(),
-        );
-        assert_eq!(items, [] as [Item; 0]);
-        assert_eq!(
-            problems[0].to_string(),
-            "n.md:1: the field Q appears twice; keep one"
-        );
-    }
-
-    #[test]
-    fn missing_ids_unknown_kinds_and_bad_fields_are_problems() {
-        let text = "```srl\nQ: a\nA: b\n```\n```srl id:abc kind:conj\nVERB: x\n```\n```srl\n@ id:abd\nQ: only a question\n```\n";
-        let (items, problems) = read_items("n.md", text, &Programs::default());
-        assert_eq!(items, [] as [Item; 0]);
-        assert!(matches!(problems[0], Error::MissingId { line: 1, .. }));
-        let lines = problems
-            .iter()
-            .map(|problem| {
-                let (Error::Note { line, .. } | Error::MissingId { line, .. }) = problem else {
-                    panic!("unexpected {problem}");
-                };
-                *line
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(lines, [1, 5, 9]);
-    }
-
-    #[test]
-    fn a_duplicate_id_keeps_the_first_item() {
-        let (first, _) = read_items(
-            "a.md",
-            "```srl id:abc\nQ: a\nA: b\n```\n",
-            &Programs::default(),
-        );
-        let (second, _) = read_items(
-            "b.md",
-            "```srl id:abc\nQ: c\nA: d\n```\n",
-            &Programs::default(),
-        );
-        let (kept, duplicates) = unique(first.into_iter().chain(second).collect());
-        assert_eq!(kept.len(), 1);
-        assert_eq!(kept[0].address(), "a.md");
-        assert!(
-            duplicates[0]
-                .to_string()
-                .starts_with("b.md:1: the ID abc is also used by a.md:1")
-        );
     }
 }

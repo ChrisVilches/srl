@@ -132,8 +132,12 @@ gone.
   that fails as a whole is reported as itself, not as a line.
 - **Each item is written in the syntax of its note** (see
   [notes.md](notes.md), "How srl writes to notes"):
+  - An item given unchanged is left as it is.
   - In a JSONL note, its line is written again.
-  - In srl blocks, an item that has its block to itself is replaced, block
+  - In srl blocks, an item whose only change is `id` added or `draft`
+    removed has its header changed, as by `srl id` and `srl accept`.
+    Otherwise, an item that has its
+    block to itself is replaced, block
     and all, by a block of its own, as `srl add` writes it. An item that
     starts with an `@` line keeps its place in its block: its lines are
     replaced by an `@` line with the new entries (`@` alone when there

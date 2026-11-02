@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn the_hash_is_the_start_of_the_sha256_of_the_kind_and_fields() {
         let programs = crate::kind::Programs::default();
-        let (items, _) = crate::note::read_items(
+        let (items, _) = crate::catalog::read_items(
             "a.md",
             "Prose.\n````srl id:abc draft see:b.md\nQ: q\nA: a\n````\n\nMore.\n",
             &programs,
@@ -385,7 +385,7 @@ mod tests {
         // `printf '%s' '{"Q":"q","A":"a"}' | sha256sum | cut -c1-12`
         assert_eq!(hash(&items[0]), "23531498e859");
         // However the item is written, and whatever its ID, `see` and draft.
-        let (items, _) = crate::note::read_items(
+        let (items, _) = crate::catalog::read_items(
             "a.jsonl",
             "\n{\"id\": \"xyz\", \"Q\": \"q\",\"kind\":\"qa\", \"A\": \"a\"}\r\n",
             &programs,

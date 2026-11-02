@@ -315,7 +315,7 @@ mod tests {
     use jiff::civil::date;
 
     use super::*;
-    use crate::note::read_items;
+    use crate::catalog::read_items;
     use crate::{By, Config, Entry, Event, Log, Review};
 
     /// The notes of the tests, with their items.

@@ -618,13 +618,13 @@ mod tests {
     }
 
     /// The cards `ids` as made on 2026-10-27, as JSON, or the error.
-    fn make(store: &Store, notes: &Notes, ids: &[&str]) -> Result<Vec<Value>, String> {
+    fn make(notes: &Notes, ids: &[&str]) -> Result<Vec<Value>, String> {
         let wanted = ids
             .iter()
             .map(|id| notes.card(&CardId::parse(id).unwrap()).unwrap())
             .collect::<Vec<_>>();
         notes
-            .make_cards(store, &wanted, date(2026, 10, 27))
+            .make_cards(&wanted, date(2026, 10, 27))
             .map(|cards| {
                 cards
                     .iter()
@@ -1002,13 +1002,13 @@ mod tests {
 
     #[test]
     fn a_card_gets_its_suffix_context_and_day_and_runs_in_the_store() {
-        let (tmp, store, notes) = store(
+        let (tmp, _store, notes) = store(
             &config(""),
             "# Verbs\n\n```srl id:abc kind:fake\nGROUPS: te\n```\n",
         );
         let folder = tmp.path().file_name().unwrap().to_string_lossy();
         assert_eq!(
-            make(&store, &notes, &["abc.te"]).unwrap(),
+            make(&notes, &["abc.te"]).unwrap(),
             [serde_json::json!({
                 "id": "abc.te",
                 "prompt": "te?",
@@ -1022,11 +1022,11 @@ mod tests {
 
     #[test]
     fn the_cards_of_a_kind_are_made_in_one_call_in_order() {
-        let (tmp, store, notes) = store(
+        let (tmp, _store, notes) = store(
             &config(""),
             "```srl id:abc kind:fake\nGROUPS: a b\nLOG: calls.log\n```\n\n```srl id:qqq\nQ: q\nA: a\n```\n",
         );
-        let made = make(&store, &notes, &["abc.b", "qqq", "abc.a"]).unwrap();
+        let made = make(&notes, &["abc.b", "qqq", "abc.a"]).unwrap();
         let ids = made
             .iter()
             .map(|card| card["id"].clone())
@@ -1038,13 +1038,13 @@ mod tests {
 
     #[test]
     fn a_card_may_leave_out_its_revealed_prompt_and_answer() {
-        let (_tmp, store, notes) = store(
+        let (_tmp, _store, notes) = store(
             &config(""),
             "```srl id:abc kind:fake\nMAKE_RAW: {\"prompt\": \"p\"}\n```\n\n```srl id:abd kind:fake\nMAKE_RAW: {\"prompt\": \"p\", \"prompt_revealed\": null, \"answer\": null}\n```\n",
         );
         for id in ["abc", "abd"] {
             assert_eq!(
-                make(&store, &notes, &[id]).unwrap(),
+                make(&notes, &[id]).unwrap(),
                 [
                     serde_json::json!({"id": id, "prompt": "p", "prompt_revealed": null, "answer": null})
                 ]
@@ -1054,11 +1054,11 @@ mod tests {
 
     #[test]
     fn a_card_the_program_cant_make_slow_or_invalid_is_an_error() {
-        let (_tmp, store, notes) = store(
+        let (_tmp, _store, notes) = store(
             &config("[kind_programs]\ncard_timeout = 1\n"),
             "```srl\n@ id:aaa kind:fake\nFAIL_MAKE: _\n\n@ id:aab kind:fake\nSLEEP_MAKE: 5\n\n@ id:aac kind:fake\nMAKE_RAW: {\"prompt_revealed\": \"p\", \"answer\": \"a\"}\n\n@ id:aad kind:fake\nBREAK_MAKE: on purpose\n\n@ id:aae kind:fake\nMAKE_RAW: {\"error\": \" \"}\n```\n",
         );
-        let made = |id: &str| make(&store, &notes, &[id]).unwrap_err();
+        let made = |id: &str| make(&notes, &[id]).unwrap_err();
         assert_eq!(
             made("aaa"),
             "cannot make the card aaa (fix what failed, or set the card aside with `srl suspend \
@@ -1072,19 +1072,14 @@ mod tests {
 
     #[test]
     fn the_time_limit_grows_with_the_cards_made_at_once() {
-        let (_tmp, store, notes) = store(
+        let (_tmp, _store, notes) = store(
             &config("[kind_programs]\ncard_timeout = 1\n"),
             "```srl id:abc kind:fake\nGROUPS: a b c\nSLEEP_MAKE: 2\n```\n",
         );
         // Three cards may take three seconds: two seconds is in time.
-        assert_eq!(
-            make(&store, &notes, &["abc.a", "abc.b", "abc.c"])
-                .unwrap()
-                .len(),
-            3
-        );
+        assert_eq!(make(&notes, &["abc.a", "abc.b", "abc.c"]).unwrap().len(), 3);
         assert!(
-            make(&store, &notes, &["abc.a"])
+            make(&notes, &["abc.a"])
                 .unwrap_err()
                 .contains("took longer than 1 seconds to make a card")
         );
@@ -1120,7 +1115,7 @@ mod tests {
 
     #[test]
     fn a_card_that_fails_fails_next_without_trying_another() {
-        let (_tmp, store, notes) = store(
+        let (_tmp, _store, notes) = store(
             &config(""),
             "```srl id:abc kind:fake\nGROUPS: a b\nFAIL_MAKE: a\n```\n",
         );
@@ -1132,7 +1127,6 @@ mod tests {
         let day = date(2026, 10, 27);
         let memories = Memories::replay(&log, &config, day).unwrap();
         let next = crate::next(
-            &store,
             &notes,
             &memories,
             &Selector::parse("", &Config::default()).unwrap(),

@@ -347,24 +347,30 @@ Every other command only reads notes. The rules for writing:
 1. **Only the lines of the items changed are written; every other byte of
    the file stays the same**, including line endings and a byte order
    mark. How an item's lines change depends on the syntax:
-   - **srl blocks: `srl id` and `srl accept` change header lines only.**
+   - **srl blocks: a change of `id` or `draft` alone changes header lines
+     only**, whether `srl id`, `srl accept` or `srl edit` makes it.
      `id:ID` is added right after the `srl` of an opening fence or the `@`
      of an `@` line, with one space before it. `draft` is removed together
-     with the spaces before it. `srl edit` writes the item as `srl add`
+     with the spaces before it. Any other change by `srl edit` writes the
+     item as `srl add`
      would, in a block of its own, or, when it starts with an `@` line,
      as an `@` line and its field lines in the same block.
    - **JSONL: the item's line is written again**, as the item object of
      its entries and fields, in that order: only the entries that differ
      from their defaults, without spaces (`{"id":"x7k2m9","Q":"…"}`). Its
      spacing, the order of its keys and its escapes are not kept.
+
+   In either syntax, an item `srl edit` is given unchanged is left as it
+   is.
 2. **Every note is checked before the first one is written.** If any note
    has an error, the command reports every error and changes nothing. For
    `srl id`, an item without an ID is not an error, since that is what it
    fixes.
 3. **A note that changed while `srl` was working is not written.** Each
    item to change is found in the note as it is when the command writes
-   it: by its ID, or, for `srl id`, by having none. If an item is not there
-   any more, or the note has an error now, the command stops and says so.
+   it: by its ID, or, for `srl id`, by its place among the note's items.
+   If an item is not there any more, or not as `srl` read it, or the
+   note has an error now, the command stops and says so.
    Right before writing, the file is read again and compared with what
    `srl` read. If it differs, for example because your editor saved it in
    between, the command stops and says so; notes it wrote before stay

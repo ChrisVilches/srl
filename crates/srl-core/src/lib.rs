@@ -7,6 +7,7 @@
 //! calls to this crate and prints the results.
 
 mod card;
+mod catalog;
 mod check;
 mod config;
 mod context;
@@ -20,20 +21,22 @@ mod random;
 mod review;
 mod schedule;
 mod selector;
+mod source;
 mod stats;
 mod store;
 mod write;
 
 pub use card::{Card, CardId, SUFFIX_SEPARATOR};
+pub use catalog::{Notes, collections};
 pub use check::{Lint, lint, orphans};
 pub use config::Config;
-pub use context::{Context, ContextMode, context};
+pub use context::{Context, ContextMode};
 pub use error::{Error, Result};
 pub use index::Index;
 pub use kind::{FieldDescription, Kind, KindDescription, kinds};
 pub use log::{By, CardEvent, Entry, Event, Log, Move, Review};
 pub use next::next;
-pub use note::{Field, Item, ItemId, Notes};
+pub use note::{Field, Item, ItemId};
 pub use review::{ReviewRequest, move_history, reset, review, suspend};
 pub use schedule::{History, Memories, Memory, Reviewed, Seen, State};
 pub use selector::{Selector, Status};

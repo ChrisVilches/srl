@@ -21,14 +21,17 @@ crates/
     src/error.rs        the core's Error type
     src/store.rs        one module per area of the specification:
                           store.md: finding, creating and listing a store and its notes
-    src/note.rs           notes.md: the item model (entries, fields, IDs, status), reading notes into items
+    src/note.rs           notes.md: the item model (entries, fields, IDs, status), where an item comes from (`Origin`)
     src/note/syntax.rs    notes.md, "Item syntaxes": the `Syntax` trait, and choosing a note's syntax by its extension (see "The item syntax" below)
     src/note/syntax/blocks.rs  notes.md, "The srl block syntax": `Syntax` for srl blocks, with their context
     src/note/syntax/jsonl.rs   notes.md, "The JSONL syntax": `Syntax` for JSONL notes, with their context
     src/note/object.rs    notes.md, "The item object": reading and writing items as JSON objects
-    src/context.rs        notes.md, "Context": which note is an item's context; what it shows is its syntax's
-    src/write.rs          notes.md, "How srl writes to notes" (see "Note editing" below)
-    src/check.rs          cli.md, "Checking": `srl check`, and `srl lint` but for the syntax's own findings
+    src/source.rs         the `Source` port: what every source of items answers (see "Sources" below)
+    src/source/files.rs   notes.md: the notes of the store as a source, and "How srl writes to notes" (see "Note editing" below)
+    src/catalog.rs        every item of the store, read from its sources and checked by their kinds; which collection is an item's context
+    src/context.rs        notes.md, "Context": the context's modes, and the `Context` given
+    src/write.rs          notes.md, "How srl writes to notes": what `srl id`, `srl accept`, `srl add` and `srl edit` change, checked before any source writes it
+    src/check.rs          cli.md, "Checking": `srl check`, and `srl lint` through the sources
     src/stats.rs          cli.md, "Analysis": `srl stats`
     src/config.rs         store.md, "Configuration"; the study day
     src/card.rs           cards.md: the card format and card IDs
@@ -284,7 +287,7 @@ Known places:
 | Where | What differs | Status |
 |---|---|---|
 | `store.rs`, `note_paths`, `nfc`; [store.md](store.md) | macOS often lists file names in Unicode NFD, so paths could sort and match differently | Handled: paths are sorted and matched against `path:`, `in:` and `exclude` in NFC, on every platform |
-| `write.rs`; [notes.md](notes.md) | Replacing a note atomically: a rename over an existing file, which Windows refuses while another program holds the file open without sharing | Handled: the rename's error is reported and the note left as it was. **TODO in code and spec**: not run on Windows |
+| `source/files.rs`, `replace_file`; [notes.md](notes.md) | Replacing a note atomically: a rename over an existing file, which Windows refuses while another program holds the file open without sharing | Handled: the rename's error is reported and the note left as it was. **TODO in code and spec**: not run on Windows |
 | `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `.srl/log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
 | `index.rs`, `connect`; [store.md](store.md) | SQLite's file locking is unreliable on network file systems (NFS, SMB) on every platform: concurrent updates could damage the index cache | **TODO in code and spec**: damage is usually detected and the cache rebuilt; keep stores on a local disk for now |
 
@@ -418,6 +421,42 @@ Clap turns doc comments into `--help` text, where the backticks that
 things like `SRL_DIR`, use the `help = "…"` attribute instead of a doc
 comment.
 
+## Sources
+
+Where items come from, and how they are written back, is behind one
+boundary: the trait `Source` in `source.rs`. The rest of `srl-core` gets
+items from it, with where they came from, and asks it to change them; it
+knows nothing of files, notes or syntaxes. The store's notes are one
+source, `Files` in `source/files.rs`, which reads each note in the item
+syntax its extension chooses (see "The item syntax" below).
+
+| Method | Gives |
+|---|---|
+| `collections()` | The source's collections, each named by the source, with the file it is kept in if any. A note is a collection, named by its path. |
+| `read()` | Every item, with its collection, its handle (what names it to the source when it changes), its line, its text as written and its entries and fields; and every problem found. |
+| `context(requests)` | What each requested collection shows as context, to its own items or to the items that name it with `see`. |
+| `refuses(collection)` | Why `srl add` can't create a collection, or nothing. |
+| `write(changes, dry_run)` | Makes a list of changes: `Add` an item to a collection, or `Replace` the item of a handle, read as `before`, with `after`. Every change is made and checked before anything is written; a change refused is named by its place. |
+| `lint()` | The likely mistakes in the source. |
+
+- **The catalog holds every item in memory** (`catalog.rs`, the type
+  `Notes`). It reads every source, turns what they read into `Item`s,
+  each with its `Origin` (source, collection, address, handle, line, and
+  the item as read), checks them with their kinds, and keeps the rules
+  that cross sources: IDs unique in the store, `see` naming a collection
+  of the store. Everything else works on the catalog, never on a source.
+- **Addresses name collections everywhere outside their source**: the
+  source's prefix, then the collection. The notes source has no prefix,
+  so a note's address is its path.
+- **The context of an item is asked of the source that owns the
+  collection shown**: the one `see` names, found by its address, or the
+  item's own. Each source is asked once about all of the items that need
+  it.
+- **Changes give back the item as it was read.** `write.rs` decides what
+  changes and checks it (item objects, IDs, kinds, `see`), then gives
+  each source its changes; a `Replace` carries the item as read, and the
+  source refuses it when the item is no longer that.
+
 ## The item syntax
 
 How items are written in a note (see [notes.md](notes.md), "Item
@@ -428,7 +467,7 @@ JSONL notes. It is the boundary between notes as text and items as data.
 **A syntax is an implementation of the trait `Syntax`**, and
 `syntax::of(path)` picks the one for a note by its extension alone
 (`&Jsonl` for `.jsonl`, `&Blocks` otherwise). That choice is the only
-thing the rest of `srl` decides: it calls the trait's methods on what
+thing the notes source, `source/files.rs`, decides: it calls the trait's methods on what
 `of` gives, and knows nothing of fences, `@` lines or JSON lines, nor
 which syntax it holds. No code outside `note/syntax/` matches on a syntax.
 
@@ -436,7 +475,7 @@ which syntax it holds. No code outside `note/syntax/` matches on a syntax.
 |---|---|
 | `parse(text)` | The note's items, as `ParsedItem`s (entries, fields, the line that names the item in messages, where each field is written, the item written on its own), in the order they are written, and its errors. |
 | `own_context(text, mode)` | What the note shows as the context of its own items, those without `see`. srl blocks: the note without its items in mode `prose`. JSONL: nothing, ever. |
-| `context(text, mode)` | What the note shows as the context of the items that name it with `see`, in any syntax. srl blocks: the same as `own_context`. JSONL: the note as it is, without a byte order mark. |
+| `context(text, mode)` | What the note shows as the context of the items that name it with `see`, in any syntax. srl blocks: the same as `own_context`. JSONL: nothing in mode `prose`; the note as it is, without a byte order mark, in mode `full`. |
 | `with_id(text, item, id)` | The `Edit` that gives item number `item` (its position among the items `parse` gives) an ID. |
 | `without_draft(text, item)` | The `Edit` that removes `draft` from it. |
 | `replace(text, item, entries, fields)` | The `Edit` that replaces it with an item of these entries and fields, as `srl edit --stdin` takes them. |
@@ -451,7 +490,7 @@ input of `srl add` and `srl edit`. `Item::json` writes it for `srl show
 --json`.
 
 - **Context rules belong to the note shown, not to the item.**
-  `context.rs` only picks the note: the one `see` names, through its
+  The catalog only picks the note: the one `see` names, through its
   syntax's `context`, or the item's own, through its syntax's
   `own_context`. So an item of one syntax can name a note of another,
   and each note is shown by its own rules. `Context` gives the text with
@@ -460,16 +499,16 @@ input of `srl add` and `srl edit`. `Item::json` writes it for `srl show
   nothing whatever the syntax, and reads nothing.
 - **An `Edit` is lines replaced by other lines**, numbered from 1 as
   `note::lines` splits them. The syntax decides which lines and what they
-  become; `write.rs` applies the edit, keeping line endings and a byte
+  become; `source/files.rs` applies the edit, keeping line endings and a byte
   order mark, and makes the change safe (see "Note editing").
 - **What doesn't depend on the syntax stays outside it**: the entries and
   fields themselves, the rule for field names, splitting a note into lines
-  (`note.rs`); picking which note is the context (`context.rs`); the lint
+  (`note.rs`); picking which note is the context (`catalog.rs`); the lint
   of the `qa` kind, which looks at the lines of `Q` that `field_lines`
-  gives (`check.rs`).
+  gives (`check.rs`, called by `source/files.rs`).
 - **New items are checked without a syntax.** `srl add` and `srl edit`
   check their items' entries and fields with the kinds directly
-  (`note::check_new`), so an item is judged the same whatever note it
+  (`catalog::check_new`), so an item is judged the same whatever note it
   goes to.
 
 So another syntax, such as the plugins of [ideas.md](ideas.md), "Writing
@@ -506,7 +545,7 @@ there are; they are worth keeping in mind before adding another, not
 problems today.
 
 - **Changes are line ranges.** Every change a syntax gives is an `Edit`:
-  lines `first` to `last` replaced by other lines. `write.rs` applies it,
+  lines `first` to `last` replaced by other lines. `source/files.rs` applies it,
   keeping line endings, a byte order mark and every other line as they
   are, which is how "only the lines of the items changed are written"
   holds (see [notes.md](notes.md), "How srl writes to notes"). That
@@ -517,7 +556,7 @@ problems today.
   too: up to the whole file. Verification would still catch a change that
   reads back wrong, since it compares the items, not the lines, but the
   promise that nothing else is touched would be the syntax's to keep,
-  not `write.rs`'s. Such a syntax would want byte ranges instead of line
+  not `source/files.rs`'s. Such a syntax would want byte ranges instead of line
   ranges, or would rewrite its file whole, as the JSONL syntax already
   does with an item's line.
 - **Messages name lines.** Errors, `srl lint` and `PATH:LINE` everywhere
@@ -539,7 +578,7 @@ re-serializing, no normalized whitespace or line endings. The one thing it
 writes again is the line of a JSONL item it changes, which is data, not
 text written for people. The commands that
 change notes (see [notes.md](notes.md), "How srl writes to notes") go
-through one module, `write.rs`, which asks the item syntax for each change
+through one module, `source/files.rs`, which asks the item syntax for each change
 as an `Edit` (see "The item syntax"), with these rules:
 
 1. **It edits lines, not data.** It changes header lines (adding `id:ID`,
@@ -550,8 +589,9 @@ as an `Edit` (see "The item syntax"), with these rules:
    final newline. New lines get the line ending of the note's first line,
    or `\n` in a note without one.
 2. **It finds each item in the note as it is now.** It reads the note
-   again, finds the item by its ID (or, for `srl id`, every item without
-   one), and names it to the syntax by its position. An item that is gone,
+   again, finds the item by its ID (or, for `srl id`, by its handle, its
+   position), and names it to the syntax by its position. An item that is
+   gone, or no longer as it was read (the `before` of the change),
    or a note that has an error now, means the note changed since it was
    read: the command stops, and says so.
 3. **It verifies its own work.** After editing, it parses the new text and
@@ -569,7 +609,7 @@ as an `Edit` (see "The item syntax"), with these rules:
    than three backticks, `@` lines, quoted values, non-ASCII text around
    the edited line, and a note changed between reading and writing. The
    edits themselves (which lines, what they become) are tested in the item
-   syntax, and applying them to real files in `write.rs`.
+   syntax, and applying them to real files in `source/files.rs`.
 
 ## The command line
 

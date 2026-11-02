@@ -37,7 +37,7 @@ pub(crate) fn addresses(addresses: &[String]) {
 /// two spaces.
 pub(crate) fn written(written: &[Written]) {
     for done in written {
-        println!("{}  {}:{}", done.id, done.path, done.line);
+        println!("{}  {}:{}", done.id, done.address, done.line);
     }
 }
 
@@ -157,7 +157,7 @@ pub(crate) fn kinds(kinds: &[KindDescription]) {
 /// Prints what `srl lint` found, as `PATH:LINE: message`.
 pub(crate) fn lints(found: &[Lint]) {
     for lint in found {
-        println!("{}:{}: {}", lint.path, lint.line, lint.message);
+        println!("{}:{}: {}", lint.address, lint.line, lint.message);
     }
 }
 

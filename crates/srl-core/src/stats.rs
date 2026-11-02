@@ -110,7 +110,7 @@ mod tests {
     use jiff::civil::{Date, date};
 
     use super::*;
-    use crate::note::read_items;
+    use crate::catalog::read_items;
     use crate::{By, Config, Entry, Event, History, Log, Review};
 
     fn reviewed(id: &str, day: Date, rating: u8) -> Entry {

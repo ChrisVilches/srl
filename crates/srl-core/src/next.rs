@@ -6,8 +6,7 @@ use std::collections::HashMap;
 use jiff::civil::Date;
 
 use crate::{
-    Card, CardId, Config, Item, ItemId, Memories, Notes, Result, Selector, State, Status, Store,
-    random,
+    Card, CardId, Config, Item, ItemId, Memories, Notes, Result, Selector, State, Status, random,
 };
 
 /// The next card among those that match `selector`, made by its kind to
@@ -16,7 +15,6 @@ use crate::{
 /// made, that is the error, and no other card is tried (see `docs/cli.md`,
 /// "Studying").
 pub fn next<'a>(
-    store: &Store,
     notes: &'a Notes,
     memories: &Memories,
     selector: &Selector,
@@ -27,7 +25,7 @@ pub fn next<'a>(
     let Some((item, card)) = pick(notes, memories, selector.clone(), config, seed) else {
         return Ok(None);
     };
-    Ok(Some((item, notes.make_card(store, item, card, day)?)))
+    Ok(Some((item, notes.make_card(item, card, day)?)))
 }
 
 /// The next card among those that match `selector` (plus

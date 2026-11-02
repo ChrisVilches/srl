@@ -214,7 +214,7 @@ fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
         .iter()
         .filter(|problem| !matches!(problem, Error::MissingId { .. }))
         .for_each(output::problem);
-    let written = srl_core::assign_ids(store, &notes, seed("for new IDs")?, dry_run)?;
+    let written = srl_core::assign_ids(&notes, seed("for new IDs")?, dry_run)?;
     output::written(&written);
     Ok(found_anything(!written.is_empty()))
 }
@@ -223,7 +223,7 @@ fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
 /// notes, so errors in them don't stop it. Exit 1 if the store has none.
 fn collections(store: &Store, json: bool) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
-    let paths = store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())?;
+    let paths = srl_core::collections(store, &config)?;
     if json {
         let lines = paths
             .iter()
@@ -331,10 +331,8 @@ fn context_mode(mode: crate::args::ContextMode) -> ContextMode {
 fn show(store: &Store, ids: &[String], mode: ContextMode, json: bool) -> anyhow::Result<Outcome> {
     let (_, notes) = load(store)?;
     let (items, problems) = items_of(&notes, ids);
-    let shown = items
-        .into_iter()
-        .map(|item| Ok((item, srl_core::context(store, item, mode)?)))
-        .collect::<srl_core::Result<Vec<_>>>()?;
+    let contexts = notes.contexts(&items, mode)?;
+    let shown = items.into_iter().zip(contexts).collect::<Vec<_>>();
     if json {
         let lines = shown
             .iter()
@@ -369,7 +367,7 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
     }
     // A card that can't be made fails the whole command before anything is
     // printed (see `docs/cli.md`, "Cards").
-    let found = notes.make_cards(store, &found, day)?;
+    let found = notes.make_cards(&found, day)?;
     if json {
         output::json_lines(&found)?;
     } else {
@@ -381,18 +379,10 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
 /// `srl add NOTE --stdin`: appends items to a note, and prints their IDs,
 /// or with `--dry-run` the items as they would be written.
 fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
-    let (config, notes) = load(store)?;
+    let (_, notes) = load(store)?;
     let input = stdin()?;
     let dry_run = args.dry_run.dry_run;
-    let added = srl_core::add(
-        store,
-        &config,
-        &notes,
-        &args.note,
-        &input,
-        seed("for new IDs")?,
-        dry_run,
-    )?;
+    let added = srl_core::add(&notes, &args.note, &input, seed("for new IDs")?, dry_run)?;
     if dry_run {
         output::text(&added.text);
     } else {
@@ -405,7 +395,7 @@ fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
 /// their IDs.
 fn edit(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
     let (_, notes) = load(store)?;
-    let ids = srl_core::edit(store, &notes, &stdin()?, dry_run)?;
+    let ids = srl_core::edit(&notes, &stdin()?, dry_run)?;
     output::ids(&ids);
     Ok(found_anything(!ids.is_empty()))
 }
@@ -420,7 +410,7 @@ fn accept(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Result<O
         .map(|(item, _)| item)
         .filter(|item| item.is_draft() && seen.insert(item.id().clone()))
         .collect::<Vec<_>>();
-    let written = srl_core::accept(store, &loaded.notes, &items, dry_run)?;
+    let written = srl_core::accept(&loaded.notes, &items, dry_run)?;
     let ids = written.iter().map(|done| &done.id).collect::<Vec<_>>();
     output::ids(&ids);
     Ok(found_anything(!written.is_empty()))
@@ -477,7 +467,6 @@ fn next(
 ) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
     let next = srl_core::next(
-        store,
         &loaded.notes,
         &loaded.memories,
         selector,
@@ -501,7 +490,7 @@ fn next(
             context: Option<String>,
             context_address: Option<String>,
         }
-        let context = srl_core::context(store, item, mode)?;
+        let context = loaded.notes.context(item, mode)?;
         output::json_lines(&[Next {
             card: &card,
             state: state_name(loaded.memories.state(card.id())),
