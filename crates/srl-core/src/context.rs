@@ -38,7 +38,7 @@ pub fn context(store: &Store, item: &Item, mode: ContextMode) -> Result<Option<C
     if mode == ContextMode::None {
         return Ok(None);
     }
-    let note = item.see().unwrap_or(item.path());
+    let note = item.see().unwrap_or(item.address());
     let syntax = syntax::of(note);
     let text = read_note(store, note)?;
     let text = if item.see().is_some() {

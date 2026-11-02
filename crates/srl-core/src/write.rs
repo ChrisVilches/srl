@@ -114,7 +114,7 @@ pub fn accept(
     let by_note = items.iter().filter(|item| item.is_draft()).fold(
         BTreeMap::<&str, Vec<&Item>>::new(),
         |mut by_note, item| {
-            by_note.entry(item.path()).or_default().push(item);
+            by_note.entry(item.address()).or_default().push(item);
             by_note
         },
     );
@@ -289,7 +289,7 @@ pub fn edit(store: &Store, notes: &Notes, input: &str, dry_run: bool) -> Result<
     let by_note = targets.into_iter().fold(
         BTreeMap::<&str, Vec<(usize, &Item, &Object)>>::new(),
         |mut by_note, target| {
-            by_note.entry(target.1.path()).or_default().push(target);
+            by_note.entry(target.1.address()).or_default().push(target);
             by_note
         },
     );

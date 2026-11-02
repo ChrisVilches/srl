@@ -161,8 +161,8 @@ fn names(path: &str) -> impl Iterator<Item = String> + '_ {
 impl Filter {
     fn matches(&self, item: &Item, card: &CardId, memories: &Memories) -> bool {
         match self {
-            Self::In(wanted) => names(item.path()).any(|name| wanted.contains(&name)),
-            Self::Path(globs) => globs.is_match(nfc(item.path())),
+            Self::In(wanted) => names(item.address()).any(|name| wanted.contains(&name)),
+            Self::Path(globs) => globs.is_match(nfc(item.address())),
             Self::Id(ids) => ids.iter().any(|id| match id.suffix() {
                 Some(_) => id == card,
                 None => id.item() == item.id(),

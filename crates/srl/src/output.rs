@@ -48,7 +48,7 @@ pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
         let line = format!(
             "{}  {}:{}  {}",
             card,
-            item.path(),
+            item.address(),
             item.line(),
             item.label()
         );
@@ -64,7 +64,7 @@ pub(crate) fn items(items: &[(&Item, Option<Context>)]) {
         if index > 0 {
             println!();
         }
-        println!("{}:{}", item.path(), item.line());
+        println!("{}:{}", item.address(), item.line());
         println!("{}", item.text());
         if let Some(context) = context {
             println!("---");

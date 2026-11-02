@@ -147,12 +147,26 @@ impl fmt::Display for ItemId {
     }
 }
 
+/// Where an item comes from: what names it to people, and to whatever
+/// changes it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Origin {
+    /// The collection the item is in: its note, by its path, relative to
+    /// the store's folder, with `/` between folders.
+    pub(crate) collection: String,
+    /// What names the item when it is changed: its position among the
+    /// items of its note, counting from 0.
+    pub(crate) handle: String,
+    /// The line where the item starts, counting from 1, as near as its
+    /// syntax can say: only for people.
+    pub(crate) line: usize,
+}
+
 /// One item of a note, with its cards.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Item {
     id: ItemId,
-    path: String,
-    line: usize,
+    origin: Origin,
     kind: Kind,
     see: Option<String>,
     draft: bool,
@@ -169,17 +183,17 @@ impl Item {
         &self.id
     }
 
-    /// The note's path, relative to the store's folder, with `/` between
-    /// folders.
-    pub fn path(&self) -> &str {
-        &self.path
+    /// The address of the item's collection: its note's path, relative to
+    /// the store's folder, with `/` between folders.
+    pub fn address(&self) -> &str {
+        &self.origin.collection
     }
 
     /// The line where the item starts, counting from 1, as near as its
-    /// syntax can say: only for people, in `PATH:LINE`. Nothing finds an
-    /// item by it (see `docs/rust.md`, "The item syntax").
+    /// syntax can say: only for people, in `ADDRESS:LINE`. Nothing finds an
+    /// item by it (see `docs/rust.md`, "Lines are for people").
     pub fn line(&self) -> usize {
-        self.line
+        self.origin.line
     }
 
     pub fn kind(&self) -> &Kind {
@@ -255,8 +269,11 @@ impl Item {
         for field in &self.fields {
             object.insert(field.key.clone(), Value::from(field.text.as_str()));
         }
-        object.insert("address".to_owned(), Value::from(self.path.as_str()));
-        object.insert("line".to_owned(), Value::from(self.line));
+        object.insert(
+            "address".to_owned(),
+            Value::from(self.origin.collection.as_str()),
+        );
+        object.insert("line".to_owned(), Value::from(self.origin.line));
         object.insert("cards".to_owned(), serde_json::json!(self.cards));
         object.insert(
             "context".to_owned(),
@@ -316,8 +333,8 @@ impl Notes {
         problems.extend(items.iter().filter_map(|item| {
             let see = item.see.as_deref()?;
             (!known.contains(&nfc(see))).then(|| Error::Note {
-                path: item.path.clone(),
-                line: item.line,
+                path: item.origin.collection.clone(),
+                line: item.origin.line,
                 reason: format!(
                     "`see:{see}` doesn't name a note of the store; give a path relative to the \
                      store's folder, such as japanese/grammar/wo.md"
@@ -482,8 +499,8 @@ fn check_items(
             }
             Some(Answer::Invalid(reasons)) => {
                 problems.extend(reasons.into_iter().map(|reason| Error::Note {
-                    path: item.path.clone(),
-                    line: item.line,
+                    path: item.origin.collection.clone(),
+                    line: item.origin.line,
                     reason,
                 }));
             }
@@ -520,7 +537,7 @@ pub(crate) fn check_new(new: &[(Entries, Vec<Field>)], programs: &Programs) -> V
             spans: Vec::new(),
             text: String::new(),
         };
-        match written_item("", raw, programs) {
+        match written_item("", 0, raw, programs) {
             Ok(item) => items.push(item),
             Err(problem) => problems.push(problem),
         }
@@ -545,8 +562,8 @@ fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<E
         })
         .collect::<Vec<_>>();
     let mut items = Vec::new();
-    for raw in parsed.items {
-        match written_item(path, raw, programs) {
+    for (position, raw) in parsed.items.into_iter().enumerate() {
+        match written_item(path, position, raw, programs) {
             Ok(item) => items.push(item),
             Err(problem) => problems.push(problem),
         }
@@ -554,9 +571,9 @@ fn read_syntax(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<E
     (items, problems)
 }
 
-/// The item `raw` of the note at `path`, without its cards yet, or the
-/// problem of its entries or fields.
-fn written_item(path: &str, raw: ParsedItem, programs: &Programs) -> Result<Item> {
+/// The item `raw` of the note at `path`, at `position` among its items,
+/// without its cards yet, or the problem of its entries or fields.
+fn written_item(path: &str, position: usize, raw: ParsedItem, programs: &Programs) -> Result<Item> {
     let at = |reason: String| Error::Note {
         path: path.to_owned(),
         line: raw.line,
@@ -581,8 +598,11 @@ fn written_item(path: &str, raw: ParsedItem, programs: &Programs) -> Result<Item
     }
     Ok(Item {
         id,
-        path: path.to_owned(),
-        line: raw.line,
+        origin: Origin {
+            collection: path.to_owned(),
+            handle: position.to_string(),
+            line: raw.line,
+        },
         kind,
         see: raw.entries.see,
         draft: raw.entries.draft,
@@ -611,8 +631,8 @@ fn unique(items: Vec<Item>) -> (Vec<Item>, Vec<Error>) {
     for item in items {
         if let Some((path, line)) = first.get(&item.id) {
             duplicates.push(Error::Note {
-                path: item.path.clone(),
-                line: item.line,
+                path: item.origin.collection.clone(),
+                line: item.origin.line,
                 reason: format!(
                     "the ID {} is also used by {path}:{line}; delete the ID from the copy and \
                      run `srl id`",
@@ -620,7 +640,10 @@ fn unique(items: Vec<Item>) -> (Vec<Item>, Vec<Error>) {
                 ),
             });
         } else {
-            first.insert(item.id.clone(), (item.path.clone(), item.line));
+            first.insert(
+                item.id.clone(),
+                (item.origin.collection.clone(), item.origin.line),
+            );
             kept.push(item);
         }
     }
@@ -751,7 +774,7 @@ mod tests {
         );
         let (kept, duplicates) = unique(first.into_iter().chain(second).collect());
         assert_eq!(kept.len(), 1);
-        assert_eq!(kept[0].path(), "a.md");
+        assert_eq!(kept[0].address(), "a.md");
         assert!(
             duplicates[0]
                 .to_string()

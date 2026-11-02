@@ -265,7 +265,7 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
                 serde_json::json!({
                     "id": card,
                     "item": item.id(),
-                    "address": item.path(),
+                    "address": item.address(),
                     "line": item.line(),
                     "status": Status::of(item, card, memories),
                     "state": state_name(memories.state(card)),
@@ -506,7 +506,7 @@ fn next(
             card: &card,
             state: state_name(loaded.memories.state(card.id())),
             kind: item.kind().as_str(),
-            address: item.path(),
+            address: item.address(),
             see: item.see(),
             context_address: context.as_ref().map(|context| context.address.clone()),
             context: context.map(|context| context.text),
