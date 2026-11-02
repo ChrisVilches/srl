@@ -21,8 +21,8 @@ selector it didn't write puts it after `--`.
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | Cards whose item's address (its note's path, see [notes.md](notes.md), "Which files are notes") has a part between `/` named `NAME`, or a last part named `NAME` without its extension (the part after the last `.`). Names are compared ignoring case, in Unicode NFC: `in:grammar` matches `japanese/Grammar/wo.md`, `grammar.md` and `grammar.txt`, but not `grammar-notes.md`. |
-| `path:GLOB` | Cards whose item's address (its note's path, relative to the store's folder) matches the glob. `*` matches within one part between `/`, `**` across parts: `path:japanese/*` is the notes directly in `japanese/`, `path:japanese/**` everything below it. Addresses and globs are compared in Unicode NFC (see [store.md](store.md), "File names"). |
+| `in:NAME` | Cards whose item's address (see [sources.md](sources.md), "Addresses"; for a note of a source without a prefix, its path) has a part between `/` named `NAME`, or a last part named `NAME` without its extension (the part after the last `.`). Names are compared ignoring case, in Unicode NFC: `in:grammar` matches `japanese/Grammar/wo.md`, `grammar.md` and `grammar.txt`, but not `grammar-notes.md`. |
+| `path:GLOB` | Cards whose item's address matches the glob, whatever its source. `*` matches within one part between `/`, `**` across parts: `path:japanese/*` is the collections directly in `japanese/`, such as its notes, `path:japanese/**` everything below it. Addresses and globs are compared in Unicode NFC (see [store.md](store.md), "File names"). |
 | `source:NAME` | Cards whose item comes from the source `NAME` of `.srl/config.toml` (see [sources.md](sources.md)): `source:notes` is the cards of the notes of a store without `[sources]`. |
 | `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1.1` and `k3m9q1.2`. |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind` entry, or a kind named in `[kinds]` of `.srl/config.toml` (see [cards.md](cards.md), "Kinds"). A selector without `kind:` matches items of every kind. |

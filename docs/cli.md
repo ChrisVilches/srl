@@ -29,7 +29,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
   error, as one plain message each, saying what to do about it.
 - **Exit codes:** 0 success (or something found), 1 nothing found or nothing
   left, 2 error.
-- **Errors in notes stop every command that reads items** (see
+- **Errors in sources stop every command that reads items** (see
   [notes.md](notes.md), "Errors"), except `srl id` for items without an ID,
   `srl check`, which reports them, and `srl lint`.
 - **`--dry-run`** on every command that writes: show what would change, change
@@ -63,11 +63,11 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | Command | Does |
 |---|---|
 | `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
-| `srl check` | Check the notes, the configuration and the log; report each problem on standard error and exit with 2 if there are any (see "Checking" below). |
+| `srl check` | Check the sources, the configuration and the log; report each problem on standard error and exit with 2 if there are any (see "Checking" below). |
 | `srl lint` | Look for likely mistakes: text probably meant to be an item, and items probably not written as meant (see "Checking" below). |
 | `srl id` | Give an ID to every item without one (see [notes.md](notes.md), "How srl writes to notes"). Prints `ID  ADDRESS:LINE` per item; exit 1 if every item already had one. |
 | `srl collections [--json]` | List the collections of the store, of every source, such as its notes (see [sources.md](sources.md)): one address per line, in the order of their addresses, as `srl find` sorts them. With `--json`, one object per collection, with its address, its source and its file, or `null` when it is no file of its own: `{"address": "japanese/grammar/wo.md", "source": "notes", "file": "japanese/grammar/wo.md"}`. It doesn't read any item, so errors in them don't stop it. Exit 1 if the store has none. |
-| `srl sources [--json]` | Describe the sources of the store, in the order of their names (see [sources.md](sources.md)): for each, a line with its name and description, then lines, indented by two spaces, for its driver, its prefix if it has one, its `include` globs and its `exclude` globs if it has some, each name and value separated by two spaces and globs by one. With `--json`, one object per source: `{"name": "notes", "driver": "markdown", "prefix": "", "description": "…", "creates": {"include": ["**/*.md"], "exclude": []}}`, where `creates` gives the collections `srl add` may create in it, relative to its prefix. It doesn't read any item. |
+| `srl sources [--json]` | Describe the sources of the store, in the order of their names (see [sources.md](sources.md)): for each, a line with its name and description, then lines, indented by two spaces, for its driver (`markdown`, `jsonl`, or `program` for a source program), its prefix if it has one, the `include` globs and the `exclude` globs if it has some, each name and value separated by two spaces and globs by one. With `--json`, one object per source: `{"name": "notes", "driver": "markdown", "prefix": "", "description": "…", "creates": {"include": ["**/*.md"], "exclude": []}}`. The globs, in `creates` with `--json`, are those of the collections `srl add` may create in it, relative to its prefix: for the notes' drivers, its `include` and `exclude`; for a source program, the globs its `describe` gives, and no `exclude`. It doesn't read any item. |
 | `srl kinds [--json]` | Describe the kinds of the store: `qa`, then the kind programs of `[kinds]` sorted by name (see [cards.md](cards.md), "Describing a kind"). For each, a line with its name and description, then a line per field, indented by two spaces, with its name and description; names and descriptions are separated by two spaces. With `--json`, one object per kind: `{"name": "qa", "description": "…", "fields": [{"name": "Q", "description": "…"}, …]}`. It doesn't read the notes. If a kind program can't describe its kind, it fails at once with the reason, and prints nothing. |
 
 ### Items and cards
@@ -78,7 +78,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
 | `srl add ADDRESS --stdin` | Append new items to the collection at `ADDRESS`, such as a note's path (see "Adding items" below). Prints the new item IDs. |
-| `srl edit --stdin` | Replace items in their notes with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). The rest of each note is unchanged. Prints the IDs of the items. |
+| `srl edit --stdin` | Replace items, in any source, with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). The rest of each note is unchanged. Prints the IDs of the items. |
 | `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
 | `srl suspend SELECTOR` | Suspend matching active cards. |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
@@ -130,7 +130,7 @@ gone.
 - **Every line is checked before anything is written**: if any line is not
   a valid item object, names no item, names an item another line names
   too, or makes an item that is not valid (a `see` that doesn't name a
-  note of the store, an unknown kind, fields the kind doesn't accept),
+  collection of the store, an unknown kind, fields the kind doesn't accept),
   `srl edit` reports the first such line and changes nothing. The lines
   are checked together, so each kind program is asked once about all of
   them (see [cards.md](cards.md), "How srl calls them"); a kind program
@@ -204,8 +204,8 @@ JSONL
 
 - **The lowercase keys `id`, `kind`, `see` and `draft` are header
   entries** (see [notes.md](notes.md), "Header entries"). Each may be left
-  out: the item then gets a new ID, is `qa`, has its own note as context
-  (none in a JSONL note), and is not a draft. An `id` given is kept, and
+  out: the item then gets a new ID, is `qa`, has its own collection as
+  context (none in a JSONL note), and is not a draft. An `id` given is kept, and
   must not be used by an item of the store or another line.
 - **Uppercase keys are field names, and their values the fields' text**,
   in the order given. Which fields are accepted is up to the kind, so `srl
@@ -219,8 +219,10 @@ JSONL
   that start with `.` (see [notes.md](notes.md), "Which files are notes"),
   created with its folders. No source accepting it, or more than one, is
   an error.
-- The items are appended to the end of the note, in the note's syntax,
-  following the rules of [notes.md](notes.md), "How srl writes to notes":
+- A source program adds the items its own way (see
+  [sources.md](sources.md), "Calls"). In a note, they are appended to its
+  end, in the note's syntax, following the rules of [notes.md](notes.md),
+  "How srl writes to notes":
   - In srl blocks, each item is in a block of its own with its entries on
     the opening fence, after a blank line. Multi-line text is written with
     continuation lines. The fence is three backticks, or one more than the
@@ -230,7 +232,7 @@ JSONL
     object (see [notes.md](notes.md), "How srl writes to notes").
 - Every line is checked before anything is written: if any line is not a
   valid item (not a valid item object, an ID already used, an unknown
-  kind, a `see` that doesn't name a note of the store, fields the kind
+  kind, a `see` that doesn't name a collection of the store, fields the kind
   doesn't accept), `srl add` reports the first such line and adds nothing.
   Blank lines are ignored. The lines are checked together, so each kind
   program is asked once about all of its items (see [cards.md](cards.md),
@@ -238,7 +240,8 @@ JSONL
   as itself, not as a line.
 
 It prints the new item IDs, one per line. With `--dry-run` it prints the
-items it would write, as they would appear in the note, and writes nothing.
+items it would write, as they would appear in the note (for a source
+program, the preview it gives), and writes nothing.
 
 ### Studying
 
@@ -264,7 +267,7 @@ specified in [frontends.md](frontends.md), "What a frontend gets". `--context MO
 
 `srl next` picks one card and makes it. If the card can't be made, because
 its kind program fails (see [cards.md](cards.md), "Kind programs") or its
-note can't be read, `srl next` fails with the reason and exit 2, prints no
+context can't be read from its source, `srl next` fails with the reason and exit 2, prints no
 card, and tries no other card in its place. It writes nothing, so it fails
 the same way every time it picks that card, until what failed is fixed, the
 card is suspended (`srl suspend id:ID`), or the study day changes and
@@ -325,9 +328,10 @@ from. A `move` event belongs to the card it moved history to.
 
 ## Checking
 
-`srl check` reads every note, the configuration and the log, and reports:
+`srl check` reads every source, the configuration and the log, and reports:
 
-- every error in notes (see [notes.md](notes.md), "Errors");
+- every error in the store's sources, such as an error in a note or a
+  source program that fails (see [notes.md](notes.md), "Errors");
 - an invalid configuration;
 - log lines that are not valid events;
 - orphans, with the `srl move` command that would keep their history when
@@ -341,8 +345,8 @@ notices: the exit code is 2 if there is any other problem, and 0 otherwise.
 answers kept in the index cache, and keeps their new answers (see
 [cards.md](cards.md), "How srl calls them").
 
-The configuration is read first, because the notes and the log can't be
-read without it (it says which notes to exclude, and the study day). So an
+The configuration is read first, because the sources and the log can't be
+read without it (it names the sources, and the study day). So an
 invalid configuration is reported alone, and `srl check` stops there; run
 it again once the configuration is fixed to see the other problems.
 

@@ -97,6 +97,7 @@ entries"), fields, IDs and status. Everything after reading the items
 for every source. They differ in what else a note holds, and so in its
 context (see "Context"), and in how `srl` writes to it (see "How srl
 writes to notes").
+
 ## The srl block syntax
 
 An item is a **header** followed by **field** lines, inside an srl block.
@@ -196,7 +197,7 @@ doesn't close it (rule 12).
 The header entries of the srl block syntax (see "Header entries"):
 
 - An entry is `key:value`, or the flag `draft`: `id:x7k2m9`, `kind:qa`,
-  `see:PATH`, `draft`. A value runs to the next space, or is written in
+  `see:ADDRESS`, `draft`. A value runs to the next space, or is written in
   double quotes when it contains spaces:
   `see:"japanese/grammar/wo mono.md"`. A value can't be empty, and there
   are no escapes inside quotes.
@@ -220,7 +221,9 @@ A JSONL note holds one item per line, and nothing else:
 3. **Any other line is an error**: text that is not JSON, JSON that is not
    an object, or an object that is not a valid item object.
 
-An item's line, in `ADDRESS:LINE`, is the line it is on. Field text is anything JSON can write: line endings, code blocks, fences
+An item's line, in `ADDRESS:LINE`, is the line it is on.
+
+Field text is anything JSON can write: line endings, code blocks, fences
 of any length, quotes and backslashes need nothing but JSON's escapes.
 
 A JSONL note is data, not prose: it is never a context of its own items
@@ -235,7 +238,7 @@ want; `srl` reads it the same.
 |---|---|---|
 | `id` | The item's ID (see "Identity"). | none: an item without an ID is an error until `srl id` gives it one |
 | `kind` | How the fields become cards (see [cards.md](cards.md), "Kinds"). | `qa` |
-| `see` | The note shown as context instead of the one the item is in (see "Context"). | the item's own note |
+| `see` | The address of the collection shown as context instead of the one the item is in (see "Context"). | the item's own collection |
 | `draft` | The item is a draft (see "Status"). | not a draft |
 
 How they are written depends on the syntax: `id:x7k2m9` on a fence or an
@@ -292,9 +295,10 @@ about the note, so it is recorded in the log and never changes the note.
 
 ## Context
 
-An item's **context** is the note named by `see` if the item has one, and
-otherwise the note the item is in, **unless that is a JSONL note: an item
-of a JSONL note without `see` has no context.** Frontends show it after the
+An item's **context** is the collection named by `see` if the item has
+one, and otherwise the collection the item is in, as its source shows it,
+**unless that is a JSONL note: an item of a JSONL note without `see` has
+no context.** Frontends show it after the
 answer of each of the item's cards, taking it from `srl next --json`; `srl
 show` prints it too.
 
@@ -302,7 +306,7 @@ show` prints it too.
   a note of a source without a prefix, its path relative to the store's
   folder. A `see` that names anything else is an error. What a collection
   shows as context is up to its own source, whatever source the item
-  comes from (see [sources.md](sources.md), "Context").
+  comes from (see [sources.md](sources.md), "What a source does").
 - `see` is meant for items that ask about another note, such as items a
   script imported or generated into a file of their own. Every item of a
   JSONL note that asks about a note needs it.
@@ -318,6 +322,9 @@ store: each frontend chooses it with `--context MODE` on `srl next`, and
 | `full` | The note with its items: the field lines of srl blocks, as written, and the blank lines between them, without the fences of the blocks and their `@` lines; a JSONL note as it is. |
 | `none` | Nothing. |
 
+A collection of a source program shows, in modes `prose` and `full`, what
+the program gives for it (see [sources.md](sources.md), "Calls").
+
 For a note of srl blocks, in every mode, the YAML front-matter is removed,
 runs of blank lines become one, and blank lines at the start and the end
 are removed. A block with an error is removed in every mode.
@@ -332,9 +339,9 @@ from every note.
 in mode `none`: frontends show nothing, and `context` is `null` in JSON. So
 a note that holds only items has no context in `prose` mode.
 
-**A context comes with the address of its note**, given as `context_address`
-in JSON: the note named by `see`, or else the item's own note, relative to
-the store's folder. It is `null` when `context` is `null`. `srl` doesn't
+**A context comes with the address of its collection**, given as
+`context_address` in JSON: the collection named by `see`, or else the
+item's own collection. It is `null` when `context` is `null`. `srl` doesn't
 say how to read the text: whoever shows it decides that from the address, as
 it likes, with any fallbacks it wants (see [frontends.md](frontends.md),
 "Rendering").
@@ -408,8 +415,9 @@ Every other command only reads notes. The rules for writing:
 
 Every command that reads items reads every source, and **any error in any
 source stops it**: it reports every error it found, as `ADDRESS:LINE: message`
-on standard error, one per line, in the order of the addresses and their
-lines, and exits with status 2. The errors are:
+(`ADDRESS: message` where there is no line) on standard error, one per
+line, in the order of the addresses and their lines, and exits with
+status 2. The errors are:
 
 - an srl block that is never closed, or a fence of backticks with a
   backtick after `srl` (rule 2);
@@ -429,6 +437,10 @@ lines, and exits with status 2. The errors are:
   [cards.md](cards.md));
 - a kind program that fails as a whole, reported once, without a line
   (see [cards.md](cards.md), "How srl calls them");
+- a source program that fails as a whole or prints invalid output,
+  reported once, as a problem of the source (see [sources.md](sources.md),
+  "What srl checks");
+- an item in a collection its source doesn't list;
 - a `see` that doesn't name a collection of the store;
 - a collection that breaks a rule of addresses (see
   [sources.md](sources.md), "Addresses"), reported as `ADDRESS: message`.
@@ -471,7 +483,7 @@ Its keys:
 |---|---|
 | `id` | The item's ID, as text. |
 | `kind` | The kind's name, as text. `"qa"` is the same as leaving it out. |
-| `see` | The path of the note shown as context, as text. `null` is the same as leaving it out. |
+| `see` | The address of the collection shown as context, as text. `null` is the same as leaving it out. |
 | `draft` | `true` or `false`. `false` is the same as leaving it out. |
 | a field name: uppercase letters `A`–`Z`, digits and `_`, starting with a letter | The field's text. |
 | `address`, `source`, `file`, `line`, `cards`, `context`, `context_address` | Given by `srl` only (see below), and ignored wherever an item object is read. |
@@ -482,7 +494,7 @@ Its keys:
 - The fields are in the order of their keys. An item object has at least
   one field.
 - Text values can't be empty, except a field's. Values of the wrong type
-  are errors: an ID, a kind or a path written as a number, a draft
+  are errors: an ID, a kind or a `see` written as a number, a draft
   written as `"yes"`.
 
 `srl show --json` prints every entry, defaults included, its fields, then
@@ -499,5 +511,5 @@ the keys only `srl` gives:
 - `context` is the context in the mode chosen, or `null` when there is
   none (mode `none`, an item of a JSONL note without `see`, or nothing but
   blank space left).
-- `context_address` is the note the context comes from, or `null` when
-  `context` is (see "Context").
+- `context_address` is the address of the collection the context comes
+  from, or `null` when `context` is (see "Context").

@@ -70,9 +70,10 @@ character) and decomposed (NFD, `e` plus an accent). Most systems name files
 in NFC, but macOS often gives names in NFD, and a store copied between
 systems can hold both.
 
-- `srl` sorts note paths, and matches them against `path:`, `in:` and
-  `exclude`, in NFC, so the form of a file's name never changes which cards
-  a selector picks or their order. Globs and `in:` values are read in NFC
+- `srl` sorts addresses and matches them against `path:` and `in:`, and
+  matches note paths against `include` and `exclude`, in NFC, so the form
+  of a file's name never changes which cards a selector picks or their
+  order. Globs and `in:` values are read in NFC
   too.
 - Paths are printed as they are on disk (in `--json` output and errors), so
   that they always name the file.
@@ -107,8 +108,9 @@ card_timeout = 60            # seconds a kind program may take to make a card
 
 A key or table that is not listed here is an error, so a typo such as
 `new_per_dya = 3` fails instead of being ignored; the names of sources
-and the keys of `[kinds]`
-are the exceptions, since they are names you choose. So is a value of the
+and the keys of `[kinds]` are the exceptions, since they are names you
+choose, and so are the keys of a source program, which are the
+program's (see [sources.md](sources.md), "Source programs"). So is a value of the
 wrong type or out of range: `desired_retention` must be between 0 and 1
 (exclusive), `day_starts_at` an hour from 0 to 23, and `card_timeout` at
 least 1. Commands that need the configuration fail with a message
@@ -121,7 +123,8 @@ programs are run, and what `card_timeout` limits, is in
 [cards.md](cards.md), "Kind programs".
 
 `[sources]` names the sources of items, each with its driver, its
-globs of notes and its prefix; without it, the store has the one source
+globs of notes and its prefix, or with the command of a source program;
+without it, the store has the one source
 above. How sources are configured, and what each key means, is in
 [sources.md](sources.md), "Configuration":
 

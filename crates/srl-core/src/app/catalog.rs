@@ -392,7 +392,7 @@ pub fn collections(store: &Store, config: &Config) -> Result<Vec<CollectionInfo>
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourceDescription {
     pub name: String,
-    /// Its driver: `markdown` or `jsonl`.
+    /// Its driver: `markdown`, `jsonl`, or `program` for a source program.
     pub driver: String,
     pub prefix: String,
     pub description: String,

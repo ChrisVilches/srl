@@ -61,8 +61,8 @@ item ID is. A source's keys:
   ignored, and so is a glob that isn't valid, a name or prefix that isn't
   made as above, and a source without a `driver` or a `program`, or with
   both. A source program's keys are the exception: see "Source programs".
-- `[notes]`, which named the notes before there were sources, is an
-  error, saying how to write it as sources.
+- A table `[notes]` is an error, whose message says how to write it as
+  `[sources.NAME]` tables.
 
 ## Addresses
 
@@ -129,7 +129,10 @@ Every source does the same few things, each its own way:
   writes to notes").
 - **It looks for likely mistakes**, for `srl lint`.
 - **It describes itself**, for `srl sources`: what it is, and which
-  collections `srl add` may create in it.
+  collections `srl add` may create in it, as globs: a driver's `include`
+  and `exclude`, or the globs a source program's `describe` gives. `srl
+  sources` gives its driver as `markdown`, `jsonl`, or `program` for a
+  source program.
 
 **IDs are unique in the store**, across its sources, and not across
 stores: each store has its own log, which knows card IDs only.
@@ -171,7 +174,7 @@ holds `config`, the program's keys.
 
 | Call | Input | Output |
 |---|---|---|
-| `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "creates": ["*"]}`: what the source is, in a sentence, and the globs of the collections `srl add` may create in it (`[]` for none) |
+| `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "creates": ["*"]}`: what the source is, in a sentence, and the globs of the collections `srl add` may create in it (`[]` for none), which `srl sources` shows as its `include` |
 | `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words", "file": null}`, `file` being the file it is kept in, relative to the store's folder, or `null` |
 | `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "line": null, "written": null, "item": {…}}`; one line per problem: `{"collection": "words", "line": null, "error": "…"}` |
 | `context` | one line per request: `{"config": {…}, "collection": "words", "mode": "prose", "own": true}` | one line per input line: `{"context": "…"}` or `{"context": null}` |

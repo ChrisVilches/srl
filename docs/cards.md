@@ -381,17 +381,18 @@ asked about the item.
 
 When something goes wrong, the place it happens says whose fault it is:
 
-- **An error `validate` gives is an error in the note**, like a `qa` item
+- **An error `validate` gives is an error in the item**, like a `qa` item
   without `Q`, reported at the item's line, as `ADDRESS:LINE: FIELD:
-  message`, or `ADDRESS:LINE: message` when it is about no field.
+  message`, or `ADDRESS:LINE: message` when it is about no field
+  (without `:LINE` for an item without a line).
 - **An answer about one item that doesn't follow the rules above**, from
-  `validate` or `groups`, is an error in the note at that item, saying
+  `validate` or `groups`, is an error at that item, saying
   that the program printed invalid output.
 - **A call that fails as a whole** (a status other than 0, a program
   that can't be found or started, or a number of lines that isn't the
   number of input lines) **is a problem of the program**, not of its
   items: it is reported once, and no item of the kind is read until it is
-  fixed. Like an error in a note, it stops every command that reads
+  fixed. Like an error in an item, it stops every command that reads
   items (see [notes.md](notes.md), "Errors").
 - **A card that can't be made fails the command**, whether `make` gave
   `{"error": …}` for it, failed as a whole, took too long, or printed

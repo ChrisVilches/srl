@@ -54,8 +54,8 @@ end, counting the
 cards whose `state` was `new`.
 
 A frontend never computes schedules. That belongs to `srl`, so every
-frontend behaves the same. Since `srl next` reads the notes and the log
-every time, edits and reviews made elsewhere count at once.
+frontend behaves the same. Since `srl next` reads every source and the
+log every time, edits and reviews made elsewhere count at once.
 
 ## What a frontend gets
 
@@ -82,9 +82,9 @@ context:
 | `address` | The address of the collection the item is in, such as its note, as in `srl show --json` (see [notes.md](notes.md), "The item object"). |
 | `source` | The name of the item's source (see [sources.md](sources.md)). |
 | `file` | The file the item's collection is kept in, relative to the store's folder, or `null` when it is no file of its own. |
-| `see` | The note its `see` names, or `null`. |
+| `see` | The address its `see` names, or `null`. |
 | `context` | The context, in the mode the frontend chose, or `null` when there is none (see [notes.md](notes.md), "Context"). |
-| `context_address` | The note the context comes from: `see`, or else `address` (see "Rendering"). `null` when `context` is. |
+| `context_address` | The address of the collection the context comes from: `see`, or else `address` (see "Rendering"). `null` when `context` is. |
 
 **The frontend chooses the context's mode** with `--context`: `prose` (the
 default), `full` or `none`. How much of the note to show is a choice about

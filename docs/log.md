@@ -1,7 +1,7 @@
 # The review log
 
 The log is the record of everything that happened to the cards' memory.
-Together with the notes, it is the store's source of truth: every memory
+Together with the sources' items, it is the store's source of truth: every memory
 state and every suspension is computed from it.
 
 ## Files
