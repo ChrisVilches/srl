@@ -52,7 +52,9 @@ JSONL note:
 (`.srl/`, `.git/`, `.obsidian/`, …). Both are set in `.srl/config.toml`
 (see [store.md](store.md), "Configuration"). By default `include` is
 `["**/*.md"]` and `exclude` is empty: every Markdown file is a note.
-`srl notes` lists them (see [cli.md](cli.md)), including the notes that
+Each note is a **collection**, a group of items named by its address (its
+path, see below), and
+`srl collections` lists them (see [cli.md](cli.md)), including the notes that
 hold no items.
 
 So JSONL notes are read only when `include` matches them, for example with

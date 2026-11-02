@@ -6,7 +6,7 @@ import { useStartWhenShown } from './hooks';
 import { TopBar } from './TopBar';
 
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
-// note to append it to, picked from `srl notes`. srl checks the item, with
+// note to append it to, picked from `srl collections`. srl checks the item, with
 // `srl add --dry-run` (Check) and when it is added: the page knows no rule of
 // any kind, and shows what srl says.
 
@@ -20,7 +20,7 @@ type Result =
   | { kind: 'error'; message: string };
 
 // Where the note last added to is remembered, in this browser, for this
-// address. It is offered again only while srl notes still lists it.
+// address. It is offered again only while srl collections still lists it.
 const LAST_NOTE = 'srl-web:last-note';
 
 function rememberedNote(notes: string[]): string | null {
@@ -55,7 +55,7 @@ export function Add({ active }: { active: boolean }) {
   const load = useCallback(async () => {
     setStore({ kind: 'loading' });
     try {
-      const [kinds, notes] = await Promise.all([api.kinds(), api.notes()]);
+      const [kinds, notes] = await Promise.all([api.kinds(), api.collections()]);
       setStore({ kind: 'ready', kinds, notes });
       setNote((current) => (current !== null && notes.includes(current) ? current : rememberedNote(notes)));
       setSee((current) => (current !== null && notes.includes(current) ? current : null));

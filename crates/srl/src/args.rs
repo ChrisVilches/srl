@@ -82,8 +82,8 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// List the notes of the store, without reading them.
-    Notes {
+    /// List the collections of the store (its notes), without reading them.
+    Collections {
         #[command(flatten)]
         json: Json,
     },

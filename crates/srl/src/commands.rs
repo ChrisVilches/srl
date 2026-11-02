@@ -33,7 +33,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Check => check(&store()?),
         Command::Lint => lint(&store()?),
         Command::Id { dry_run } => id(&store()?, dry_run.dry_run),
-        Command::Notes { json } => notes(&store()?, json.json),
+        Command::Collections { json } => collections(&store()?, json.json),
         Command::Kinds { json } => kinds(&store()?, json.json),
         Command::Find {
             selector: terms,
@@ -219,19 +219,19 @@ fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
     Ok(found_anything(!written.is_empty()))
 }
 
-/// `srl notes`: lists every note's path, without reading the notes, so
-/// errors in them don't stop it. Exit 1 if the store has none.
-fn notes(store: &Store, json: bool) -> anyhow::Result<Outcome> {
+/// `srl collections`: lists the address of every note, without reading the
+/// notes, so errors in them don't stop it. Exit 1 if the store has none.
+fn collections(store: &Store, json: bool) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
     let paths = store.note_paths(&config.notes.include_set(), &config.notes.exclude_set())?;
     if json {
         let lines = paths
             .iter()
-            .map(|path| serde_json::json!({ "path": path }))
+            .map(|address| serde_json::json!({ "address": address }))
             .collect::<Vec<_>>();
         output::json_lines(&lines)?;
     } else {
-        output::note_paths(&paths);
+        output::addresses(&paths);
     }
     Ok(found_anything(!paths.is_empty()))
 }

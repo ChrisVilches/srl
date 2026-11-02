@@ -211,7 +211,7 @@ srl block of its own, with a fence long enough for the code blocks in its
 fields; in a JSONL note (a name ending in `.jsonl`), each item is one line,
 the object itself. `NOTE` is relative to the store's folder, must be a
 note (by default, end in `.md`; see `include` in `.srl/config.toml`), and
-is created with its folders if it doesn't exist. `srl notes` lists the
+is created with its folders if it doesn't exist. `srl collections` lists the
 notes, also those without items, for `NOTE` and `"see"`. Items are
 appended at the end, and their IDs are printed. Every line is checked
 first, by the same rules as reading notes, kind programs included: one
@@ -231,7 +231,7 @@ when it is about one of the person's notes. Items about different notes
 can go in one call. Use `--dry-run` to show the person the items before
 writing them. A Markdown note of your own may also hold prose: write the
 note with its explanation first, then add the items to it. If the store
-reads JSONL notes (`srl notes` lists some, or `include` names `*.jsonl`),
+reads JSONL notes (`srl collections` lists some, or `include` names `*.jsonl`),
 prefer one, such as `generated/rust.jsonl`, for items alone: there is no
 fence to get wrong. An item of a JSONL note has no context but its
 `"see"`, so give it one.

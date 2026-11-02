@@ -23,7 +23,7 @@
 // Adding items, one at a time:
 //
 //   GET  /api/kinds        srl kinds --json            → { kinds: [kind…] }
-//   GET  /api/notes        srl notes --json            → { notes: [path…] }
+//   GET  /api/collections  srl collections --json      → { collections: [address…] }
 //   POST /api/add          srl add NOTE --stdin [--dry-run], with ITEM as its
 //                          one line                    ← { note, item, dry_run }
 //                                                      → { ids } or, with
@@ -169,9 +169,9 @@ export function createSrlServer({ dir, selector, staticDir, onChange }) {
 
     'GET /api/kinds': async () => ({ kinds: jsonLines((await srl(['kinds', '--json'])).stdout) }),
 
-    'GET /api/notes': async () => {
-      const { found, stdout } = await srl(['notes', '--json']);
-      return { notes: found ? jsonLines(stdout).map((note) => note.path) : [] };
+    'GET /api/collections': async () => {
+      const { found, stdout } = await srl(['collections', '--json']);
+      return { collections: found ? jsonLines(stdout).map((collection) => collection.address) : [] };
     },
 
     // The item is passed to srl as it is: srl checks it, and the note. With

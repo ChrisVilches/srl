@@ -105,7 +105,7 @@ export const api = {
   card: async (id: string, signal: AbortSignal) =>
     (await call<{ card: ShownCard }>(`/api/card?${new URLSearchParams({ id })}`, undefined, signal)).card,
   kinds: async () => (await call<{ kinds: KindDescription[] }>('/api/kinds')).kinds,
-  notes: async () => (await call<{ notes: string[] }>('/api/notes')).notes,
+  collections: async () => (await call<{ collections: string[] }>('/api/collections')).collections,
   // The item as srl would write it to NOTE, writing nothing.
   check: async (note: string, item: NewItem) =>
     (await call<{ text: string }>('/api/add', { note, item, dry_run: true })).text,

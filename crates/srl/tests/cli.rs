@@ -918,7 +918,7 @@ fn excluded_notes_and_dot_folders_are_not_read() {
 }
 
 #[test]
-fn notes_lists_every_note_without_reading_it() {
+fn collections_lists_every_note_without_reading_it() {
     let tmp = japanese();
     let d = dir(&tmp);
     write(&tmp, "prose.md", "Only prose, no items.\n");
@@ -931,7 +931,7 @@ fn notes_lists_every_note_without_reading_it() {
         ".srl/config.toml",
         "[notes]\nexclude = [\"templates/**\"]\n",
     );
-    let output = srl(&["notes", "--dir", d]);
+    let output = srl(&["collections", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(
         lines(&output),
@@ -942,13 +942,16 @@ fn notes_lists_every_note_without_reading_it() {
             "prose.md"
         ]
     );
-    let output = srl(&["notes", "--json", "--dir", d]);
+    let output = srl(&["collections", "--json", "--dir", d]);
     assert_eq!(
         json_lines(&output)[1],
-        serde_json::json!({"path": "japanese/grammar/wo.md"})
+        serde_json::json!({"address": "japanese/grammar/wo.md"})
     );
     let empty = store(&[]);
-    assert_eq!(srl(&["notes", "--dir", dir(&empty)]).status.code(), Some(1));
+    assert_eq!(
+        srl(&["collections", "--dir", dir(&empty)]).status.code(),
+        Some(1)
+    );
 }
 
 #[test]

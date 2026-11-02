@@ -26,10 +26,10 @@ pub(crate) fn ids<T: Display>(ids: &[T]) {
     }
 }
 
-/// Prints one note path per line.
-pub(crate) fn note_paths(paths: &[String]) {
-    for path in paths {
-        println!("{path}");
+/// Prints one address per line.
+pub(crate) fn addresses(addresses: &[String]) {
+    for address in addresses {
+        println!("{address}");
     }
 }
 

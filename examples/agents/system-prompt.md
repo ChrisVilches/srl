@@ -48,7 +48,7 @@ be kept in git.
 2. **Items you write are drafts, in notes of their own.** Add them with
    `srl add NOTE --stdin`, with `"draft": true` on every line, into a new
    note such as `generated/ownership.md`, never into one of the person's
-   notes. If the store reads JSONL notes (`srl notes` lists one, or
+   notes. If the store reads JSONL notes (`srl collections` lists one, or
    `include` names `*.jsonl`), prefer one, such as
    `generated/ownership.jsonl`. When they ask about one of the person's
    notes, give each one `"see": "THAT_NOTE"` so it is shown as their
@@ -258,7 +258,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl init [DIR]` | create a store |
 | `srl id` | give IDs to new items |
 | `srl find [SEL]` | list cards |
-| `srl notes` | list the notes, also those without items (for `see:` and `srl add NOTE`) |
+| `srl collections` | list the notes, also those without items (for `see:` and `srl add NOTE`) |
 | `srl kinds` | describe each kind and its fields, before writing an item of it |
 | `srl show ID` | print an item and its context; with `--json`, as the item object `srl edit` takes back |
 | `srl cards ID` | print the cards of an item |

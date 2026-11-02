@@ -59,13 +59,13 @@ It also **adds items** (the Add tab, or `#add`), one at a time:
 - The kind is chosen among those `srl kinds` describes, and the form
   shows one box per field, with the kind's description of it. Changing
   the kind keeps the text of a field of the same name.
-- The note it is appended to is chosen among the notes `srl notes`
+- The note it is appended to is chosen among the notes `srl collections`
   lists, by typing any part of its path (the letters in order); nothing
   else can be chosen, so the page never creates a note. To add to a new
   note, such as an inbox, create it, then **Reload notes**.
 - The note last added to is chosen again on the next visit. It is kept
   in the browser's `localStorage`, so it is per browser and per address
-  (port), and forgotten when `srl notes` no longer lists it.
+  (port), and forgotten when `srl collections` no longer lists it.
 - An optional context note, chosen the same way, becomes the item's
   `see:`; **Draft** makes it a draft.
 - **Check** runs `srl add --dry-run` and shows the item as srl would
@@ -141,7 +141,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --context none` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind` and `excerpt`, the first line of its first field |
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json --context prose` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `path`, `see` and `context`, as `srl next --json` gives them |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
-| `GET /api/notes` | `srl notes --json` | `{"notes": [PATH…]}` |
+| `GET /api/collections` | `srl collections --json` | `{"collections": [ADDRESS…]}` |
 | `POST /api/add` | `srl add NOTE --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"note": NOTE, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, the item as it would be written, for a dry run |
 
 `/api/find` gives `srl show` at most 500 item IDs at a time, to keep its
