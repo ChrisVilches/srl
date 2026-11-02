@@ -71,6 +71,14 @@ integrity, but those are covered by a derived index and `srl check`. The
 reverse is not true: editing, diffing and plain-text access cannot be added to
 a database without export and import machinery.
 
+Text files are the default, and what the built-in sources, `markdown` and
+`jsonl`, read. A store may also name a source program that keeps items
+in a database or behind a service (see "Why source programs"). Its items
+then have whatever their storage gives: no plain-text history in git and
+no `grep` unless the program offers them. That is the store's choice,
+made in its configuration; the log, the configuration and the notes stay
+text files whatever the sources.
+
 Trade-off: validation happens on read rather than on write.
 
 ## Why items are fenced blocks
@@ -101,11 +109,10 @@ lint` does: the fence that closed the block is indented, as the end of a
 code block in a field is. It stays a guess, not an error, because an
 indented closing fence is valid CommonMark, and `srl` reads blocks as
 renderers do. Programs that write items are prone to this mistake, which
-is one reason for JSONL notes (see "Why JSONL notes, and why the extension
-decides"). The syntax is also Markdown's: it suits Markdown
-and the formats built on it, and every other file read as a note but a
-JSONL note has to use it too (see [notes.md](notes.md), "Item
-syntaxes").
+is one reason for JSONL notes (see "Why JSONL notes"). The syntax is also
+Markdown's: it suits Markdown and the formats built on it, and every file
+a `markdown` source reads has to use it too, whatever its name (see
+[notes.md](notes.md), "Item syntaxes").
 
 ## Why JSONL notes
 
@@ -172,6 +179,46 @@ does"), and nothing else in `srl` knows how any of them keeps its items.
   shown**, so that a source never needs another's rules: an item of one
   source can name a note of another, and only that note's source knows
   what to hide in it.
+
+## Why source programs
+
+A database, a web service or a file format `srl` doesn't know is each
+someone's particular choice, and none belongs in the core. A source
+program keeps items its own way, outside `srl`, and answers the same few
+things every source does (see [sources.md](sources.md), "Source
+programs").
+
+- **A program, not a library or a plugin API.** It can be written in any
+  language, with any library its storage needs, and `srl` stays one
+  binary with no plugins to load and no client of any database or
+  service.
+- **The same shape as kind programs**: a command in the configuration,
+  one process per call, and every call a batch of JSON lines over
+  standard input and output (see "Why calls are batches"). One way to
+  write a program for `srl`, not two, and a command calls a source
+  program a small, fixed number of times, never once per item.
+- **Its items are item objects**, the one JSON format of an item (see
+  "Why JSONL notes"), read as strictly as `srl add` reads one. A program
+  never makes IDs: `srl id` gives them, as for every source.
+- **`srl` verifies every write by reading the source again.** It can
+  check a note it parsed itself, line by line, but not a program's
+  storage. Reading the program before and after its `write`, and
+  comparing the items with what the changes should give, holds a
+  program to the same promise as the notes' sources: only the items
+  asked to change, changed, or nothing.
+- **`srl` keeps nothing a program answers.** It can't know when a
+  database or a service changed, so a kept answer could be stale without
+  a word. Caching is the program's business: one that is slow to answer
+  may keep a cache of its own, and knows when it is fresh. The built-in
+  sources aren't cached either, for another reason: parsing a note costs
+  about as much as hashing it to tell whether it changed (see
+  [store.md](store.md), "The index cache").
+
+Trade-off: a source program is a process started on every command that
+reads items, so a slow one slows every command, and one that fails stops
+them all, as an error in a note does. And `srl` can't keep the bytes of a
+program's storage as it keeps a note's: how carefully items are written
+there is up to the program.
 
 ## Why only srl blocks make items
 
@@ -518,9 +565,11 @@ that every frontend would have to share.
 The store should be like a notes folder: complete on its own, and open to any
 program. `srl` itself calls no server and needs no account, so it works
 offline, costs nothing to run, behaves the same every time, and is not tied
-to a provider. A program that needs a service, such as a kind program that
-looks words up online, brings it itself, and contributes the way a person
-does: by writing notes and running commands.
+to a provider. A program that needs a service brings it itself: a kind
+program that looks words up online, a source program that keeps items
+behind a web service, or a program outside `srl` that contributes the way
+a person does, by writing notes and running commands. A store that names
+such a program depends on its service; `srl` doesn't.
 
 ## Why generated questions are ordinary items
 
@@ -541,13 +590,13 @@ look right in every app, and `srl` assumes none.
 
 ## Why notes are chosen by globs
 
-Which files are notes is two lists of globs, `include` and `exclude`, and
-`exclude` always wins. Globs say more than a list of extensions (only the
-notes under one folder, say) with the same matching that `exclude` and
-`path:` already use. Every note is read with the srl block syntax whatever
-its name, except JSONL notes, so there is no list of file types to keep up
-to date, and one rule for the exception (see "Why JSONL notes, and why the
-extension decides").
+Which files are a source's notes is two lists of globs in its table of
+`[sources]`, `include` and `exclude`, and `exclude` always wins. Globs say
+more than a list of extensions (only the notes under one folder, say) with
+the same matching that `exclude` and `path:` already use. Every note of a
+source is read with its driver's syntax whatever its name, so there is no
+list of file types to keep up to date (see "Why JSONL notes" and "Why
+sources").
 
 Trade-off: a glob can make a file a note whose item syntax makes no sense
 for it, such as HTML or source code; `srl` reads it anyway.

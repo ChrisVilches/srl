@@ -52,8 +52,8 @@ and examples.
 The open findings cluster in three places:
 
 1. **Multi-device use.** The docs promise that a store "works well with git
-   or any file syncing tool". The log format and kind programs make that
-   untrue in common cases (H1, H3).
+   or any file syncing tool". The log format, kind programs and source
+   programs make that untrue in common cases (H1, H3).
 2. **Strictness at the wrong moment.** "One error stops everything" also
    stops `srl review`, so a half-typed note loses the rating of the card
    just studied (H2).
@@ -67,7 +67,7 @@ The open findings cluster in three places:
 |---|---|---|---|---|
 | H1 | The log does not survive syncing as the docs claim | Brittleness | High | Moderate |
 | H2 | A broken note anywhere makes `srl review` fail, losing the rating | Specification | High | Moderate |
-| H3 | Kind programs make a store machine-specific, and a cloned store runs code on any command | Brittleness | High | Moderate |
+| H3 | Kind programs and source programs make a store machine-specific, and a cloned store runs code on any command | Brittleness | High | Moderate |
 | H4 | Card IDs of kind programs can change silently, orphaning history | Brittleness | High | Easy |
 | M1 | Sources make every place of items equal, but the Goals put notes first | Vision | Medium | Hard |
 | M3 | Kind programs are the main extension mechanism, but the vision doesn't say so | Vision | Medium | Easy |
@@ -141,8 +141,12 @@ error in any note then stops it. So:
 This is likely, not exotic: the frontend contract encourages "opening its
 note … in an editor" ([frontends.md](frontends.md), "The loop"), and the whole point
 is that questions are written in notes while studying them. The same holds
-for `srl suspend`, and for a kind program that fails as a whole (for
-example a missing Python package) while you review a `qa` card.
+for `srl suspend`, for a kind program that fails as a whole (for
+example a missing Python package) while you review a `qa` card, and for a
+source program that fails, such as one whose web service is down: its
+failure "stops every command that reads items until it is fixed"
+([sources.md](sources.md), "What srl checks"), even a review of a card
+from another source.
 
 The rationale for strictness ("a question you think you are studying and
 aren't", [rationale.md](rationale.md), "Why one error stops everything") is about
@@ -158,36 +162,47 @@ loud: print it as a warning, but record the rating. This needs a decision,
 and fits the open question "Making strictness less annoying" in
 [overview.md](overview.md).
 
-### H3. Kind programs make a store machine-specific, and a cloned store runs code
+### H3. Kind programs and source programs make a store machine-specific, and a cloned store runs code
 
 **Severity High · Difficulty Moderate**
 
 `.srl/config.toml` is committed and shared ([store.md](store.md), "Version
-control and syncing"), and `[kinds]` holds commands. But:
+control and syncing"), and both `[kinds]` and `[sources]` hold commands:
+a kind program's, and a source program's `program`
+([sources.md](sources.md), "Source programs"). But:
 
 - **The command differs by platform.** [cards.md](cards.md) itself says Linux
   takes `["python3", "kinds/ja_words.py"]` and Windows
-  `["py", "kinds/ja_words.py"]`. One shared file can't hold both, so a
-  store with kind programs can't be synced between Linux and Windows,
-  against the rule that `srl` "behaves the same on Linux, macOS and
-  Windows".
+  `["py", "kinds/ja_words.py"]`, and a source program's `program` follows
+  the same rules. One shared file can't hold both, so a store with kind
+  or source programs can't be synced between Linux and Windows, against
+  the rule that `srl` "behaves the same on Linux, macOS and Windows"
+  ([cli.md](cli.md)).
 - **A missing dependency stops everything.** A kind program that fails as a
   whole stops every command that reads items ([cards.md](cards.md), "How srl
-  calls them"). Clone a store with `kind:ja-words` on a laptop without
-  MeCab and you can't study even your `qa` cards, or record a review (H2).
+  calls them"), and so does a source program that fails
+  ([sources.md](sources.md), "What srl checks"). Clone a store with
+  `kind:ja-words` on a laptop without MeCab, or with a source program
+  whose Python package or database isn't there, and you can't study even
+  your `qa` cards of other notes, or record a review (H2).
 - **Any read command runs the store's programs.** `srl find`, `srl next`,
   `srl stats` all run `validate` and `groups` for items without kept
-  answers, and a fresh clone has none. The docs say "read its `[kinds]`
-  first", but unlike git hooks, nothing stops a copied store from running
-  code the moment you list it. For stores shared between people, that is
-  a real exposure.
+  answers, and a fresh clone has none. Source programs are worse: `srl`
+  keeps nothing they answer, so every command that reads items runs
+  `collections` and `read` of every one ([sources.md](sources.md), "How
+  many calls"). The docs say "A store you copy from someone else runs
+  their programs: read its `[kinds]` first" ([cards.md](cards.md)) and
+  "read the `[sources]` of a store you copy from someone else"
+  ([sources.md](sources.md)), but unlike git hooks, nothing stops a
+  copied store from running code the moment you list it. For stores
+  shared between people, that is a real exposure.
 
 **Possible fixes:** a per-machine overlay, such as an uncommitted
-`.srl/config.local.toml` (or a user-level config) that can override
-`[kinds]` commands; and a per-machine trust list kept outside the store
-(`srl trust`, non-interactive), without which kind programs of a store are
-not run and their items are reported as untrusted. Both change
-configuration contracts.
+`.srl/config.local.toml` (or a user-level config) that can override the
+commands of `[kinds]` and `[sources]`; and a per-machine trust list kept
+outside the store (`srl trust`, non-interactive), without which the
+programs of a store are not run and their items are reported as
+untrusted. Both change configuration contracts.
 
 ### H4. Card IDs of kind programs can change silently, orphaning history
 
@@ -256,8 +271,8 @@ about it.
 
 The documents undersell this. [overview.md](overview.md) says `srl` is "two
 things, and nothing else", a data layer and one mapping to frontends, and
-lists kind programs as the one exception to "does not launch other
-programs for you". So the mechanism that carries much of the
+lists kind programs, beside source programs, as the exceptions to "does
+not launch other programs for you". So the mechanism that carries much of the
 specification reads as an exception, not as a part of the design:
 
 - a four-call protocol with batching, ordering and error-attribution rules;
@@ -307,10 +322,10 @@ skip silently only a last line without its final newline, which is the
 sentence" ([overview.md](overview.md)). The srl block syntax has 14 numbered rules;
 kind programs have four calls, a batch protocol, cache keys and error
 attribution; the cache's incremental replay is a paragraph of conditions;
-`srl lint` has a page of heuristics. About 4,200 lines of documents
-describe about 14,000 lines of Rust, much of it cross-references and
-designs for hypothetical formats ([rust.md](rust.md), "What still assumes
-lines"; [ideas.md](ideas.md), "Items without a line").
+`srl lint` has a page of heuristics. About 4,700 lines of documents of the
+specification describe about 17,000 lines of Rust, tests included, much of
+it cross-references and designs for hypothetical formats ([rust.md](rust.md),
+"What still assumes lines").
 
 This matters because the docs are declared the source of truth and must be
 updated with every change ([AGENTS.md](../AGENTS.md)). Their size and redundancy make
@@ -372,7 +387,7 @@ fixed, and drop the paragraph about changing it.
 
 The docs say frontends "understand this and nothing else"
 ([frontends.md](frontends.md)). The same page then lets them suspend cards and open
-`address` in an editor, and `srl-web` also browses cards and adds items, using
+`file` in an editor, and `srl-web` also browses cards and adds items, using
 `find`, `cards`, `show` and `add`. That is fine, but the contract a real
 frontend depends on is several commands' JSON, not one. **Fix:** say that
 `srl next --json` is the one mapping needed to study, and that every
@@ -382,8 +397,9 @@ frontend depends on is several commands' JSON, not one. **Fix:** say that
 
 **Severity Low · Difficulty Easy**
 
-"The CLI is the API. There is no separate interface for scripts or agents."
-`srl-core` is published on crates.io with about 130 public items. Its
+"The CLI is the API. … There is no separate interface for scripts or other
+programs." `srl-core` is published on crates.io with about 150 public
+types and functions, besides their public fields. Its
 README rightly says it is not stable, but anyone can depend on it, and each
 release then breaks them. **Fix:** mark the API `#[doc(hidden)]` or say in
 the crate description that it exists only for the `srl` binary; keep the

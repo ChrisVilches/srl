@@ -97,10 +97,11 @@ in Clean Architecture or hexagonal architecture:
   change things; the rules that cross sources (unique IDs, `see`,
   checking every change before writing) are here.
 - **The ports and their adapters**, around them: sources (`source.rs`,
-  with the notes' sources under `source/`), kinds (`kind.rs`, with kind
-  programs in `kind/program.rs`), the log (`log.rs`) and the index cache
-  (`index.rs`), with the configuration and the store (`config.rs`,
-  `store.rs`).
+  with the notes' sources and source programs under `source/`), kinds
+  (`kind.rs`, with kind programs in `kind/program.rs`), the log
+  (`log.rs`) and the index cache (`index.rs`), with the configuration and
+  the store (`config.rs`, `store.rs`) and the running of programs
+  (`process.rs`).
 
 Within a layer, each area of the specification has its module
 (`selectors.md` in `domain/selector.rs`, `store.md`, "The index cache" in
@@ -269,9 +270,10 @@ types, so that the compiler checks them:
 depend on the platform, and flag every place that does.
 
 - **Paths:** build them with `Path::join`, never by gluing strings with `/`
-  or `\`. Note paths are `String`s with `/` between folders, because they are
-  part of the formats (JSON output, `path:` selectors, `see`); turn them
-  into file paths only with `Store::note_file`.
+  or `\`. Addresses and the paths of notes are `String`s with `/` between
+  folders, because they are part of the formats (JSON output, `path:`
+  selectors, `see`); turn a note's path into a file path only with
+  `Store::note_file`.
 - **Platform locations** come from a crate, never from hard-coded paths such
   as `~/.local/share`: the default store uses `dirs::data_dir()`.
 - **Finding programs** uses `which`, which follows `PATHEXT` on Windows.
@@ -404,7 +406,7 @@ Current dependencies:
 | `anyhow` | `srl` | Error type with context in the CLI |
 | `getrandom` | `srl` | The random seeds for new item IDs and for `srl next`'s pick (the core derives both from them), unless `SRL_SEED` gives one |
 | `dirs` | `srl` | The platform's data directory, for the default store |
-| `which` | `srl-core` | Finding kind programs on `PATH`, with `PATHEXT` on Windows |
+| `which` | `srl-core` | Finding kind programs and source programs on `PATH`, with `PATHEXT` on Windows |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
 | `toml` | `srl-core` | Parsing `.srl/config.toml` |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |
@@ -473,6 +475,7 @@ knows how it keeps its items.
 | `refuses(collection)` | Why `srl add` can't create a collection, or nothing. |
 | `write(changes, dry_run)` | Makes a list of changes: `Add` an item to a collection, or `Replace` the item of a handle, read as `before`, with `after`. Every change is made and checked before anything is written; a change refused is named by its place. |
 | `lint()` | The likely mistakes in the source. |
+| `describe()` | What the source is, in a sentence, and the globs of the collections `srl add` may create in it, for `srl sources`. |
 
 - **The catalog holds every item in memory** (`app/catalog.rs`, the type
   `Catalog`). It reads every source, turns what they read into `Item`s,
@@ -482,8 +485,9 @@ knows how it keeps its items.
   of the store, collections and items in the order of their addresses.
   Everything else works on the catalog, never on a source.
 - **Addresses name collections everywhere outside their source**: the
-  source's prefix, then the collection. The notes' sources have no
-  prefix, so a note's address is its path.
+  source's prefix, then the collection. A note's address is its source's
+  prefix followed by its path; with the default prefix, `""`, it is its
+  path.
 - **The context of an item is asked of the source that owns the
   collection shown**: the one `see` names, found by its address, or the
   item's own. Each source is asked once about all of the items that need
@@ -665,5 +669,5 @@ answers stay in use until `srl check` or until the cache is deleted:
   line goes through the same parsing as a fresh one, so it gives the same
   items and the same messages. Whether a call runs at all is decided by
   `kind::Cache`: `Catalog::load` uses the kept answers, `Catalog::load_asking`
-  (`srl check`) asks again, and `note::check_new` (checking items about to be
+  (`srl check`) asks again, and `catalog::check_new` (checking items about to be
   written) keeps nothing.

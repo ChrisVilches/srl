@@ -62,8 +62,10 @@ any particular note-taking app.
   offline, and contains nothing that judges answers.
 - `srl` is not a sync service or a multi-user system.
 - `srl` is not a frontend or an editor, and does not launch other programs
-  for you. The exception is the kind programs you name in
-  `.srl/config.toml`, which `srl` runs to turn items into cards.
+  for you. The exceptions are the programs you name in
+  `.srl/config.toml`: kind programs, which `srl` runs to turn items into
+  cards, and source programs, which it runs to read and write items kept
+  their own way.
 
 ## Principles
 
@@ -92,6 +94,7 @@ any particular note-taking app.
  ┌──────────────────────────────────────────────────────────────────────┐
  │   **/*.md            your notes (by default); items inside them      │
  │   *.jsonl            notes of items only, if a source reads them     │
+ │   (a program's)      items kept by a source program, wherever it is  │
  │   .srl/config.toml   configuration                                   │
  │   .srl/log/*.jsonl   append-only review events                       │
  └──────────────────────────────────────────────────────────────────────┘
@@ -111,13 +114,13 @@ any particular note-taking app.
 | Term | Meaning |
 |---|---|
 | **Store** | A folder of notes (Markdown files by default) with a `.srl/` folder in it, which holds the configuration, the log and caches. |
-| **Source** | A place items come from and are written back to, named in `.srl/config.toml`: by default, `notes`, every Markdown file of the store. Each has a driver, `markdown` or `jsonl`, and is mounted at a prefix in the store's one tree of addresses. |
+| **Source** | A place items come from and are written back to, named in `.srl/config.toml`: by default, `notes`, every Markdown file of the store. Each has a driver, `markdown` or `jsonl`, or is a source program that keeps items its own way, and is mounted at a prefix in the store's one tree of addresses. |
 | **Note** | A file in the store that a source reads for items: by default, any Markdown file. A note may hold items; the rest of it is yours. A note is a collection of its source, and its address is its path, after the source's prefix. |
-| **Item** | A question written in a note: header entries (`id`, `kind`, `see`, `draft`) and fields such as `Q` and `A`. In a note of srl blocks it is in an srl block (a fenced code block whose language is `srl`): a header such as the fence ```` ```srl id:x7k2m9 ```` followed by fields such as `Q:` and `A:`; in a JSONL note it is a line, as a JSON object. It has an ID, and gives one or more cards. |
+| **Item** | A question written in a note, or kept by a source program: header entries (`id`, `kind`, `see`, `draft`) and fields such as `Q` and `A`. In a note of srl blocks it is in an srl block (a fenced code block whose language is `srl`): a header such as the fence ```` ```srl id:x7k2m9 ```` followed by fields such as `Q:` and `A:`; in a JSONL note it is a line, as a JSON object; a source program gives it as a JSON object too. It has an ID, and gives one or more cards. |
 | **Item syntax** | How items are written in a note: srl blocks in the notes of a `markdown` source, or JSONL in the notes of a `jsonl` source. |
 | **Kind** | How an item's fields become cards. `qa`, a question and an answer with optional cloze deletions, is built in and the default; any other kind is a program named in `.srl/config.toml`. A kind also decides which of an item's cards are siblings, and describes its fields (`srl kinds`). |
 | **Card** | One question, ready to show: an ID, a prompt, and, when the kind gives them, the prompt as revealed with the answer and an answer. It is the unit that gets scheduled: every card has its own memory state. Cards are produced on demand and are not stored. |
-| **Context** | The note an item belongs to, or the note its `see` names, which frontends show after the answer of its cards. A JSONL note is never the context of its own items. |
+| **Context** | The collection an item belongs to, such as its note, or the collection its `see` names, which frontends show after the answer of its cards. A JSONL note is never the context of its own items. |
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by whoever records the review, a person or a program acting for them, never computed by `srl`. |
 | **Frontend** | A program outside `srl` that shows cards to a person and records the ratings: it reads cards through the frontend contract and records ratings with `srl review`. `srl` has none built in. |
 | **Review event** | One line in the log: this card was rated this way, at this time. |
@@ -143,7 +146,7 @@ moved. A card's identity is its ID, so edits never affect its schedule.
 
 ## The contracts
 
-These five formats are fixed, because everything else depends on them:
+These six formats are fixed, because everything else depends on them:
 
 | Contract | Joins | Document |
 |---|---|---|
@@ -152,6 +155,7 @@ These five formats are fixed, because everything else depends on them:
 | **Frontend contract** | `srl` and frontends: `srl next --json` | [frontends.md](frontends.md) |
 | **Review event** | `srl review` and the scheduler or any analysis | [log.md](log.md) |
 | **Selector** | People, scripts and other programs, and every command that picks cards | [selectors.md](selectors.md) |
+| **Source program calls** | `srl` and source programs: `describe`, `collections`, `read`, `context`, `write` | [sources.md](sources.md), "Source programs" |
 
 When something new needs more than a contract offers, the contract is extended
 for everyone, deliberately. Individual programs never invent private
@@ -167,6 +171,7 @@ extensions.
 | Selector language | Writing notes and items: by hand or by program |
 | CLI commands and their JSON output | Scripts and tools that run the CLI |
 | How kind programs are called | Kind programs: every kind but `qa` |
+| How source programs are called | Source programs: every source that isn't a `markdown` or `jsonl` driver |
 
 ## Where other programs fit
 
@@ -217,11 +222,6 @@ it what `srl` is and does, or something done with it?**
 
 A guide says how to use or build something; an example is the thing itself.
 
-Besides the three, a large change to the specification that is proposed
-or under way may have a **plan**, in `docs/plans/`, that splits it into
-steps. A plan is not the specification: each step updates the
-specification, guides and examples as it lands, and the plan is deleted
-when its last step does.
 The details of an example (its options, keys, internals) are in its own
 README, not in `docs/`.
 

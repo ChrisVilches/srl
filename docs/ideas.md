@@ -234,3 +234,11 @@ questions", once it is planned.
   to start from, none analyzed: keeping parsed items per note, keyed on
   its content; reading notes in parallel; trusting modification times or
   watching files, which `srl` doesn't do today.
+
+  A store with source programs pays more: every command that reads items
+  starts each of them at least twice, `collections` and `read` (see
+  [sources.md](sources.md), "How many calls"), and that is usually more
+  than reading its notes. A program can keep a cache of its own, but not
+  avoid starting. Directions, none analyzed: one process per program for
+  a whole command, or programs kept running, as for kind programs (see
+  "Kind programs").
