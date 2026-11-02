@@ -264,7 +264,7 @@ function Preview({
             </button>
           ))}
         </div>
-        <span className="text-xs text-stone-400">
+        <span className="inline-flex items-center gap-1 text-xs text-stone-400">
           <Key>space</Key> turns
         </span>
         <button

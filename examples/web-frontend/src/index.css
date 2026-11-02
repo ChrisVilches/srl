@@ -22,4 +22,16 @@
     @apply rounded bg-amber-200/80 px-1 font-semibold text-amber-950;
     @apply dark:bg-amber-400/20 dark:text-amber-300;
   }
+
+  /* A wide table scrolls in its box (src/Markdown.tsx), not the page; the
+     box takes the table's margins. A long word or link wraps. */
+  .prose {
+    overflow-wrap: break-word;
+  }
+  .prose .table-scroll {
+    @apply my-[2em] overflow-x-auto;
+  }
+  .prose .table-scroll > table {
+    @apply my-0;
+  }
 }

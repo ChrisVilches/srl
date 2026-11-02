@@ -24,6 +24,11 @@ md.renderer.rules.link_open = (tokens, i, options, env, self) => {
   return defaultLinkOpen(tokens, i, options, env, self);
 };
 
+// Each table in a box of its own that scrolls sideways (src/index.css), so
+// that a wide table doesn't widen the page and scroll the text around it.
+md.renderer.rules.table_open = () => '<div class="table-scroll"><table>\n';
+md.renderer.rules.table_close = () => '</table></div>\n';
+
 // Code blocks in the theme's colors: the typography plugin makes them dark in
 // the light theme too.
 const PRE =
