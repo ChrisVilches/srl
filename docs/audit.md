@@ -69,7 +69,7 @@ The open findings cluster in three places:
 | H2 | A broken note anywhere makes `srl review` fail, losing the rating | Specification | High | Moderate |
 | H3 | Kind programs make a store machine-specific, and a cloned store runs code on any command | Brittleness | High | Moderate |
 | H4 | Card IDs of kind programs can change silently, orphaning history | Brittleness | High | Easy |
-| M1 | Two item syntaxes are two models of where a question lives | Vision | Medium | Hard |
+| M1 | Sources make every place of items equal, but the Goals put notes first | Vision | Medium | Hard |
 | M3 | Kind programs are the main extension mechanism, but the vision doesn't say so | Vision | Medium | Easy |
 | M4 | Invalid log lines are skipped, against "fail loudly" | Specification | Medium | Easy |
 | M5 | "Every rule in one sentence" no longer describes the specification | Vision | Medium | Moderate |
@@ -219,31 +219,30 @@ orphans created by such a change an error rather than a notice.
 
 ## Medium
 
-### M1. Two item syntaxes are two models of where a question lives
+### M1. Sources make every place of items equal, but the Goals put notes first
 
 **Severity Medium · Difficulty Hard**
 
 The first goals in [overview.md](overview.md) are "Questions live in your notes …
-in a few keystrokes" and "Notes stay notes". JSONL notes serve another
-model: questions written by importers and generators, kept as data in
-files of their own, linked to the knowledge by `see`.
+in a few keystrokes" and "Notes stay notes". Sources serve another model
+beside it: questions kept as data, in JSONL notes or any other source,
+written by importers and generators, and linked to the knowledge by
+`see`.
 
 Both are legitimate, and neither needs an LLM: an Anki importer or a
-script that turns a vocabulary list into items wants JSONL as much as any
-agent does. But they pull in different directions. The second has added a
-whole item syntax, `see`, an item object shared by four
-places, and context rules of its own, which
-are a symptom: the two syntaxes give their notes as context by different
-rules because they hold questions in different places.
+script that turns a vocabulary list into items wants a source of data as
+much as any agent does. Sources settled how the two live side by side:
+each driver is a source of its own, with its own context rules, and an
+item of one names a collection of another by its address (see
+[sources.md](sources.md)). What is still unsaid is which model is
+primary: the rationale keeps the Goals' order ("Not every question is
+typed next to the knowledge by hand"), but nothing else says so, and
+"Plain text" and "Notes stay notes" read as if every item were in a note.
 
-The rationale keeps the Goals' order ("Not every question is typed next
-to the knowledge by hand"), but nothing else in the specification says
-which model is primary.
-
-**Possible fix:** keep notes primary, as the Goals say, and treat JSONL
-notes as the format for items that programs write: say so in "Item
-syntaxes", and let their context rules follow from it. This is a
-vision decision, hence Hard, though the doc edit is small once made.
+**Possible fix:** keep notes primary, as the Goals say, and say in the
+Goals that other sources are for items that programs write and keep: the
+default source is notes, and a store needs no other. This is a vision
+decision, hence Hard, though the doc edit is small once made.
 
 ### M3. Kind programs are the main extension mechanism, but the vision doesn't say so
 
