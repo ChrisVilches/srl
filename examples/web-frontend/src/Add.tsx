@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { api, type KindDescription, type NewItem, type SourceDescription } from './api';
-import { ErrorView, Key, KindBadge, Label, MAIN_BUTTON, Notice, OUTLINE_BUTTON, QUIET_BUTTON } from './CardParts';
+import { ErrorView, Key, KindBadge, Label, MAIN_BUTTON, Notice, OUTLINE_BUTTON, QUIET_BUTTON, WITH_KEY } from './CardParts';
 import { useStartWhenShown } from './hooks';
 import { TopBar } from './TopBar';
 
@@ -195,7 +195,7 @@ export function Add({ active }: { active: boolean }) {
               <button
                 onClick={add}
                 disabled={note === null || busy}
-                className={`px-5 py-2.5 ${MAIN_BUTTON}`}
+                className={`px-5 py-2.5 ${WITH_KEY} ${MAIN_BUTTON}`}
               >
                 Add <Key>ctrl+enter</Key>
               </button>

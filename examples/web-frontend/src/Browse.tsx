@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type FoundCard, type ShownCard } from './api';
-import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, StateBadges, Waiting } from './CardParts';
+import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, StateBadges, Waiting, WITH_KEY } from './CardParts';
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
 import { useKeys, useStartWhenShown } from './hooks';
@@ -122,7 +122,7 @@ export function Browse({ active }: { active: boolean }) {
       <TopBar view="browse">
         <SelectorInput
           selector={selector}
-          placeholder="selector, as for srl find (empty: every card)"
+          placeholder="selector, as for srl find"
           onSelector={(sel) => {
             setSelector(sel);
             find(sel);
@@ -269,7 +269,7 @@ function Preview({
           onClick={onMake}
           disabled={made?.kind === 'making'}
           title="Make the card again: its kind program runs again"
-          className={`py-1 ${QUIET_BUTTON}`}
+          className={`py-1 ${WITH_KEY} ${QUIET_BUTTON}`}
         >
           Make again <Key>r</Key>
         </button>

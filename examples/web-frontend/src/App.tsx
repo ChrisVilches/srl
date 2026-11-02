@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import { Add } from './Add';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
-import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges, Waiting } from './CardParts';
+import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges, Waiting, WITH_KEY } from './CardParts';
 import { useKeys, useStartWhenShown } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
@@ -182,7 +182,7 @@ function Study({ active }: { active: boolean }) {
       <TopBar view="study">
         <SelectorInput
           selector={selector}
-          placeholder="selector, e.g. in:grammar (empty: every card)"
+          placeholder="selector, e.g. in:grammar"
           onSelector={(sel) => {
             setSelector(sel);
             loadNext(sel);
@@ -245,7 +245,7 @@ function CardView({
             <button
               onClick={onReveal}
               disabled={busy}
-              className={`flex-1 px-4 py-3 ${MAIN_BUTTON}`}
+              className={`flex-1 px-4 py-3 ${WITH_KEY} ${MAIN_BUTTON}`}
             >
               Show answer <Key>space</Key>
             </button>
@@ -255,7 +255,7 @@ function CardView({
                 key={rating}
                 onClick={() => onRate(rating)}
                 disabled={busy}
-                className={`min-w-20 flex-1 rounded-lg px-3 py-3 font-medium text-white disabled:opacity-50 ${style}`}
+                className={`min-w-20 flex-1 rounded-lg px-3 py-3 ${WITH_KEY} font-medium text-white disabled:opacity-50 ${style}`}
               >
                 {name} <Key>{rating}</Key>
               </button>
@@ -265,7 +265,7 @@ function CardView({
             onClick={onSuspend}
             disabled={busy}
             title="Suspend this card without recording a review"
-            className={`py-3 text-sm ${QUIET_BUTTON}`}
+            className={`py-3 text-sm ${WITH_KEY} ${QUIET_BUTTON}`}
           >
             Suspend <Key>s</Key>
           </button>

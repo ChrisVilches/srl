@@ -11,6 +11,9 @@ export const MAIN_BUTTON =
 export const OUTLINE_BUTTON =
   'rounded-lg border border-stone-300 px-4 py-2 text-sm hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-900';
 export const QUIET_BUTTON = 'rounded-lg px-3 text-stone-500 hover:bg-stone-200 disabled:opacity-50 dark:hover:bg-stone-800';
+// The layout of a button with a Key after its name, which centers the key
+// on the name's line: inline, the smaller key sits on the baseline, low.
+export const WITH_KEY = 'inline-flex items-center justify-center gap-1';
 
 // A card as studying shows it: its ID and kind, and the prompt, or, once
 // revealed, the revealed prompt, the answer and the context. BADGES go after
@@ -138,7 +141,11 @@ export function Label({ children }: { children: ReactNode }) {
 }
 
 export function Key({ children }: { children: ReactNode }) {
-  return <kbd className="ml-1 rounded bg-black/15 px-1.5 dark:bg-white/15 py-0.5 font-mono text-xs opacity-80">{children}</kbd>;
+  return (
+    <kbd className="ml-1 inline-block rounded bg-black/15 px-1.5 py-1 align-middle font-mono text-xs leading-none opacity-80 dark:bg-white/15">
+      {children}
+    </kbd>
+  );
 }
 
 // Waiting for srl, with a spinner and the seconds since SINCE, a
