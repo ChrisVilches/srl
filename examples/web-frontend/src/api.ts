@@ -42,6 +42,17 @@ export type KindDescription = {
   fields: { name: string; description: string }[];
 };
 
+// A source of the store, as `srl sources --json` describes it
+// (docs/sources.md): where `srl add` may create a collection is its prefix,
+// then a path that a glob of `include` matches and none of `exclude` does.
+export type SourceDescription = {
+  name: string;
+  driver: string;
+  prefix: string;
+  description: string;
+  creates: { include: string[]; exclude: string[] };
+};
+
 // An item object for `srl add --stdin` (docs/notes.md, "The item object"): its header
 // entries kind, see and draft, and its fields.
 export type NewItem = Record<string, string | boolean>;
@@ -105,6 +116,7 @@ export const api = {
   card: async (id: string, signal: AbortSignal) =>
     (await call<{ card: ShownCard }>(`/api/card?${new URLSearchParams({ id })}`, undefined, signal)).card,
   kinds: async () => (await call<{ kinds: KindDescription[] }>('/api/kinds')).kinds,
+  sources: async () => (await call<{ sources: SourceDescription[] }>('/api/sources')).sources,
   collections: async () => (await call<{ collections: string[] }>('/api/collections')).collections,
   // The item as srl would write it to NOTE, writing nothing.
   check: async (note: string, item: NewItem) =>

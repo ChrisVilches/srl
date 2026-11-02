@@ -24,6 +24,7 @@
 //
 //   GET  /api/kinds        srl kinds --json            → { kinds: [kind…] }
 //   GET  /api/collections  srl collections --json      → { collections: [address…] }
+//   GET  /api/sources      srl sources --json          → { sources: [source…] }
 //   POST /api/add          srl add ADDRESS --stdin [--dry-run], with ITEM as its
 //                          one line                    ← { note, item, dry_run }
 //                                                      → { ids } or, with
@@ -168,6 +169,8 @@ export function createSrlServer({ dir, selector, staticDir, onChange }) {
     },
 
     'GET /api/kinds': async () => ({ kinds: jsonLines((await srl(['kinds', '--json'])).stdout) }),
+
+    'GET /api/sources': async () => ({ sources: jsonLines((await srl(['sources', '--json'])).stdout) }),
 
     'GET /api/collections': async () => {
       const { found, stdout } = await srl(['collections', '--json']);

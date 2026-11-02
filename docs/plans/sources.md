@@ -1,6 +1,6 @@
 # Plan: sources, data access as adapters
 
-**Status: approved, under way.** Steps done: phases 1 and 2, 3.1 to 3.5. Every
+**Status: approved, under way.** Steps done: phases 1 to 3 (in 3.6, neither example frontend opens notes in an editor, so there was nothing to change there; the screenshots' demo store keeps notes alone, so that its screenshots stay current). Every
 decision is taken; "Decisions" near the end lists them, and the sections
 before it give the alternatives that were considered where they explain
 the choice. The steps at the end are in the order to carry them out. Each

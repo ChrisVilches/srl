@@ -24,6 +24,19 @@ exits with 1, because nothing is left, or with 2 on an error, such as a
 card its kind couldn't make; `srl` prints the reason on standard error. `--context` is this frontend's
 choice; `full` would show the items of the note too, and `none` nothing.
 
+## Where items come from
+
+A frontend needs to know nothing of the store's sources (see
+[sources.md](../sources.md)): every card comes the same way, whatever
+source its item is in. What it may use is in the JSON it gets: `address`
+names the item's collection, such as its note, for people and for `srl
+add`; `file` is the file it is kept in, relative to the store's folder,
+for a frontend that opens it in an editor, and `null` when the collection
+is no file of its own, in which case `srl show ID --json` and `srl edit
+--stdin` change the item instead. A form that adds items picks an address
+from `srl collections`, or offers a new one where `srl sources` says a
+source can create it.
+
 ## The examples
 
 The repository's `examples/` has two fuller frontends (see
@@ -38,7 +51,8 @@ them, what they need and what may differ elsewhere.
   Markdown. Its card browser lists cards with `srl find` and makes any of
   them with `srl cards`, to see how a kind's cards look without studying.
   Its Add tab writes items: the fields of a kind from `srl kinds`, a note
-  from `srl collections`, checked with `srl add --dry-run` and added with
+  from `srl collections`, or a new one where `srl sources` says a source
+  can create it, checked with `srl add --dry-run` and added with
   `srl add`, so it knows no rule of any kind.
 - **`srl-tui`**, in `examples/python-frontend/`: a terminal frontend in
   Python with Rich, with keys that act without Enter, and the card, the
