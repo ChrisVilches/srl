@@ -33,7 +33,9 @@ macOS and Windows (it is tried on Linux only).
   cards reviewed, the new ones among them, and the Again ratings. The
   selector submitted is kept in the address (`?study=`, and `?browse=` for
   the card browser's), so reloading the page keeps it; without one, a
-  view starts with the selector srl-web was started with.
+  view starts with the selector srl-web was started with. The name srl at
+  the left of the top bar links to the root, the study view with the
+  selectors cleared.
 - Dark, or light with the button at the right of the top bar. The choice
   is kept in the browser's localStorage, not taken from the system's
   setting, and is applied before the page is drawn, so it doesn't flash

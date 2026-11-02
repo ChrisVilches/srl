@@ -9,7 +9,8 @@ export type View = 'study' | 'browse' | 'add';
 
 // The bar at the top of each view: the switch between views, then the
 // view's own controls. It spans the whole window in every view, however
-// wide the view's content is, so it doesn't change width between tabs.
+// wide the view's content is, so it doesn't change width between tabs. The
+// name links to the root, the study view with no selector in the address.
 export function TopBar({ view, children }: { view: View; children: ReactNode }) {
   const tab = (target: View, href: string, name: string) => (
     <a
@@ -26,7 +27,9 @@ export function TopBar({ view, children }: { view: View; children: ReactNode }) 
   return (
     <header className="border-b border-stone-200 bg-white/70 backdrop-blur dark:border-stone-800 dark:bg-stone-900/70">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
-        <span className="font-mono text-lg font-bold tracking-tight">srl</span>
+        <a href="/" className="font-mono text-lg font-bold tracking-tight">
+          srl
+        </a>
         <nav className="flex gap-1 text-sm">
           {tab('study', '#', 'Study')}
           {tab('browse', '#browse', 'Browse')}
