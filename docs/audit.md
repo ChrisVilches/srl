@@ -406,7 +406,7 @@ fixed, and drop the paragraph about changing it.
 
 The docs say frontends "understand this and nothing else"
 ([frontends.md](frontends.md)). The same page then lets them suspend cards and open
-`path` in an editor, and `srl-web` also browses cards and adds items, using
+`address` in an editor, and `srl-web` also browses cards and adds items, using
 `find`, `cards`, `show` and `add`. That is fine, but the contract a real
 frontend depends on is several commands' JSON, not one. **Fix:** say that
 `srl next --json` is the one mapping needed to study, and that every

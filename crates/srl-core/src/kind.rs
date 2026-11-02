@@ -183,8 +183,8 @@ pub(crate) fn make(
                     Value::from(wanted.context.map(|context| context.text.as_str())),
                 );
                 input.insert(
-                    "context_path".to_owned(),
-                    Value::from(wanted.context.map(|context| context.path.as_str())),
+                    "context_address".to_owned(),
+                    Value::from(wanted.context.map(|context| context.address.as_str())),
                 );
                 input.insert("day".to_owned(), Value::from(day.to_string()));
                 Value::Object(input)

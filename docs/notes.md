@@ -61,7 +61,9 @@ in one folder. Every file that `include` matches must be a valid note, so a
 glob that matches JSON files meant for other programs makes them errors.
 
 A note's **path** is relative to the store's folder, with `/` between
-folders. Files are UTF-8. Both `\n` and `\r\n` line endings are read, and a
+folders. It is also the note's **address**: the name JSON outputs give
+the note an item is in (`address`) and the note its context comes from
+(`context_address`). Files are UTF-8. Both `\n` and `\r\n` line endings are read, and a
 UTF-8 byte order mark is ignored.
 
 ## Item syntaxes
@@ -319,10 +321,10 @@ from every note.
 in mode `none`: frontends show nothing, and `context` is `null` in JSON. So
 a note that holds only items has no context in `prose` mode.
 
-**A context comes with the path of its note**, given as `context_path`
+**A context comes with the address of its note**, given as `context_address`
 in JSON: the note named by `see`, or else the item's own note, relative to
 the store's folder. It is `null` when `context` is `null`. `srl` doesn't
-say how to read the text: whoever shows it decides that from the path, as
+say how to read the text: whoever shows it decides that from the address, as
 it likes, with any fallbacks it wants (see [frontends.md](frontends.md),
 "Rendering").
 
@@ -443,10 +445,10 @@ edit --stdin` as it is.
 ```json
 {"id": "p4n8d2", "kind": "qa", "see": null, "draft": false,
  "Q": "嵐を{{c1::ものともせず}}、漁師たちは海へ出た。",
- "path": "japanese/grammar/wo-mono-tomo-sezu.md", "line": 11,
+ "address": "japanese/grammar/wo-mono-tomo-sezu.md", "line": 11,
  "cards": ["p4n8d2.1"],
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
- "context_path": "japanese/grammar/wo-mono-tomo-sezu.md"}
+ "context_address": "japanese/grammar/wo-mono-tomo-sezu.md"}
 ```
 
 Its keys:
@@ -458,7 +460,7 @@ Its keys:
 | `see` | The path of the note shown as context, as text. `null` is the same as leaving it out. |
 | `draft` | `true` or `false`. `false` is the same as leaving it out. |
 | a field name: uppercase letters `A`–`Z`, digits and `_`, starting with a letter | The field's text. |
-| `path`, `line`, `cards`, `context`, `context_path` | Given by `srl` only (see below), and ignored wherever an item object is read. |
+| `address`, `line`, `cards`, `context`, `context_address` | Given by `srl` only (see below), and ignored wherever an item object is read. |
 
 - Header entries are lowercase and field names uppercase, so they never
   clash. Any other key is an error, so a typo such as `drfat` fails
@@ -472,12 +474,12 @@ Its keys:
 `srl show --json` prints every entry, defaults included, its fields, then
 the keys only `srl` gives:
 
-- `path` is the note the item is in, and `line` the line of its header,
+- `address` is the note the item is in, and `line` the line of its header,
   counting from 1: the opening fence of a block that holds one item, the
   item's `@` line, or its line in a JSONL note.
 - `cards` lists the IDs of the item's cards, in order.
 - `context` is the context in the mode chosen, or `null` when there is
   none (mode `none`, an item of a JSONL note without `see`, or nothing but
   blank space left).
-- `context_path` is the note the context comes from, or `null` when
+- `context_address` is the note the context comes from, or `null` when
   `context` is (see "Context").

@@ -875,7 +875,7 @@ mod tests {
         let lines = "{\"id\": \"bbb1\", \"Q\": \"old\", \"A\": \"old\"}\n";
         let (_tmp, store) = store(&[("a.md", text), ("b.jsonl", lines)]);
         let notes = Notes::load(&store, &config, &mut Index::open(&store)).unwrap();
-        let input = "{\"id\": \"aaa2\", \"Q\": \"new\\n```\\ncode\\n```\", \"A\": \"a\", \"path\": \"x\", \"cards\": []}\n{\"id\": \"aaa1\", \"draft\": true, \"Q\": \"new\", \"A\": \"new\\n\\nmore\"}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\", \"see\": \"a.md\"}\n";
+        let input = "{\"id\": \"aaa2\", \"Q\": \"new\\n```\\ncode\\n```\", \"A\": \"a\", \"address\": \"x\", \"cards\": []}\n{\"id\": \"aaa1\", \"draft\": true, \"Q\": \"new\", \"A\": \"new\\n\\nmore\"}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\", \"see\": \"a.md\"}\n";
         let ids = edit(&store, &notes, input, false).unwrap();
         let ids = ids.iter().map(ItemId::as_str).collect::<Vec<_>>();
         assert_eq!(ids, ["aaa2", "aaa1", "bbb1"]);

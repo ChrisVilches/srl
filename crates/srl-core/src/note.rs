@@ -255,7 +255,7 @@ impl Item {
         for field in &self.fields {
             object.insert(field.key.clone(), Value::from(field.text.as_str()));
         }
-        object.insert("path".to_owned(), Value::from(self.path.as_str()));
+        object.insert("address".to_owned(), Value::from(self.path.as_str()));
         object.insert("line".to_owned(), Value::from(self.line));
         object.insert("cards".to_owned(), serde_json::json!(self.cards));
         object.insert(
@@ -263,8 +263,8 @@ impl Item {
             Value::from(context.map(|context| context.text.as_str())),
         );
         object.insert(
-            "context_path".to_owned(),
-            Value::from(context.map(|context| context.path.as_str())),
+            "context_address".to_owned(),
+            Value::from(context.map(|context| context.address.as_str())),
         );
         Value::Object(object)
     }
@@ -698,7 +698,7 @@ mod tests {
         assert_eq!(items[1].text(), text.lines().nth(1).unwrap());
         assert_eq!(
             items[0].json(None).to_string(),
-            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","path":"n.jsonl","line":1,"cards":["abc"],"context":null,"context_path":null}"#
+            r#"{"id":"abc","kind":"qa","see":null,"draft":false,"Q":"q","A":"a","address":"n.jsonl","line":1,"cards":["abc"],"context":null,"context_address":null}"#
         );
         // The same text in any other note is prose, with no item.
         let (md, problems) = read_items("n.md", text, &Programs::default());

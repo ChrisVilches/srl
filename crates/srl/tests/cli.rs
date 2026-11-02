@@ -275,9 +275,9 @@ fn find_json_prints_one_card_per_line() {
     assert_eq!(
         json_lines(&output),
         [
-            serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "path": "japanese/grammar/wo.md",
+            serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo.md",
                 "line": 10, "status": "active", "state": "new", "due": null}),
-            serde_json::json!({"id": "saba01", "item": "saba01", "path": "kanji/fish.md",
+            serde_json::json!({"id": "saba01", "item": "saba01", "address": "kanji/fish.md",
                 "line": 6, "status": "draft", "state": "new", "due": null}),
         ]
     );
@@ -572,7 +572,7 @@ fn a_jsonl_note_is_a_context_as_it_is_in_every_mode_but_none() {
         let output = srl(&["show", id, "--json", "--context", mode, "--dir", d]);
         assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
         let shown = &json_lines(&output)[0];
-        (shown["context"].clone(), shown["context_path"].clone())
+        (shown["context"].clone(), shown["context_address"].clone())
     };
     let nothing = (serde_json::Value::Null, serde_json::Value::Null);
     for mode in ["prose", "full"] {
@@ -587,17 +587,17 @@ fn a_jsonl_note_is_a_context_as_it_is_in_every_mode_but_none() {
     assert_eq!(context("see001", "none"), nothing);
     // The frontend contract gives the same.
     let next = next_card(d, &["id:own001"]);
-    assert_eq!(next["path"], "items.jsonl");
+    assert_eq!(next["address"], "items.jsonl");
     assert_eq!(next["see"], serde_json::Value::Null);
     assert_eq!(next["context"], serde_json::Value::Null);
-    assert_eq!(next["context_path"], serde_json::Value::Null);
+    assert_eq!(next["context_address"], serde_json::Value::Null);
     let seen = next_card(d, &["id:see001", "--context", "full"]);
     assert_eq!(seen["context"], items);
-    assert_eq!(seen["context_path"], "items.jsonl");
+    assert_eq!(seen["context_address"], "items.jsonl");
 }
 
 #[test]
-fn a_markdown_note_named_by_see_from_a_jsonl_note_is_the_context_path() {
+fn a_markdown_note_named_by_see_from_a_jsonl_note_is_the_context_address() {
     let tmp = store_with_jsonl(&[
         (
             "items.jsonl",
@@ -610,7 +610,7 @@ fn a_markdown_note_named_by_see_from_a_jsonl_note_is_the_context_path() {
     assert_eq!(shown.status.code(), Some(0), "{}", stderr(&shown));
     let shown = &json_lines(&shown)[0];
     assert_eq!(shown["context"], "# A\n\nProse.\n");
-    assert_eq!(shown["context_path"], "a.md");
+    assert_eq!(shown["context_address"], "a.md");
 }
 
 #[test]
@@ -713,15 +713,15 @@ fn next_json_gives_the_card_with_its_state_note_and_context() {
             "answer": "Undeterred by (adversity), braving.",
             "state": "new",
             "kind": "qa",
-            "path": "japanese/grammar/wo.md",
+            "address": "japanese/grammar/wo.md",
             "see": null,
             "context": "# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n",
-            "context_path": "japanese/grammar/wo.md",
+            "context_address": "japanese/grammar/wo.md",
         })
     );
     let none = next_card(d, &["--context", "none"]);
     assert_eq!(none["context"], serde_json::Value::Null);
-    assert_eq!(none["context_path"], serde_json::Value::Null);
+    assert_eq!(none["context_address"], serde_json::Value::Null);
     assert!(
         next_card(d, &["--context", "full"])["context"]
             .as_str()
@@ -997,7 +997,7 @@ fn include_makes_other_files_notes() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let paths: Vec<_> = json_lines(&output)
         .iter()
-        .map(|card| card["path"].as_str().unwrap_or_default().to_owned())
+        .map(|card| card["address"].as_str().unwrap_or_default().to_owned())
         .collect();
     assert!(paths.contains(&"kanji/extra.txt".to_owned()), "{paths:?}");
     assert!(
@@ -1020,7 +1020,7 @@ fn include_replaces_the_default_rather_than_adding_to_it() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let cards = json_lines(&output);
     assert_eq!(cards.len(), 1);
-    assert_eq!(cards[0]["path"], "extra.txt");
+    assert_eq!(cards[0]["address"], "extra.txt");
 }
 
 #[test]

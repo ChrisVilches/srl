@@ -455,7 +455,7 @@ input of `srl add` and `srl edit`. `Item::json` writes it for `srl show
   syntax's `context`, or the item's own, through its syntax's
   `own_context`. So an item of one syntax can name a note of another,
   and each note is shown by its own rules. `Context` gives the text with
-  the path of the note it comes from (`context_path`), and nothing about
+  the address of the note it comes from (`context_address`), and nothing about
   how to render it: that is left to the frontend. Mode `none` shows
   nothing whatever the syntax, and reads nothing.
 - **An `Edit` is lines replaced by other lines**, numbered from 1 as

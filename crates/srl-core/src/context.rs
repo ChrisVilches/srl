@@ -21,12 +21,12 @@ pub enum ContextMode {
     None,
 }
 
-/// An item's context: the text shown, and the path of the note it comes
-/// from, relative to the store's folder.
+/// An item's context: the text shown, and the address of the note it comes
+/// from: its path, relative to the store's folder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Context {
     pub text: String,
-    pub path: String,
+    pub address: String,
 }
 
 /// The context of `item` in `mode`: what the note named by `see:` shows to
@@ -48,6 +48,6 @@ pub fn context(store: &Store, item: &Item, mode: ContextMode) -> Result<Option<C
     };
     Ok(text.map(|text| Context {
         text,
-        path: note.to_owned(),
+        address: note.to_owned(),
     }))
 }

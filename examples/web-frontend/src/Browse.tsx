@@ -174,9 +174,9 @@ function CardList({
     <ul>
       {cards.map((card, i) => (
         <li key={card.id}>
-          {(i === 0 || cards[i - 1].path !== card.path) && (
+          {(i === 0 || cards[i - 1].address !== card.address) && (
             <div className="sticky top-0 border-b border-stone-200 bg-stone-100/95 px-4 py-1.5 font-mono text-xs text-stone-500 backdrop-blur dark:border-stone-800 dark:bg-stone-900/95">
-              {card.path}
+              {card.address}
             </div>
           )}
           <button
@@ -257,7 +257,7 @@ function Preview({
           Make again <Key>r</Key>
         </button>
         <span className="ml-auto font-mono text-xs text-stone-400">
-          {found.path}:{found.line} · due {found.due ?? '—'}
+          {found.address}:{found.line} · due {found.due ?? '—'}
         </span>
       </div>
 

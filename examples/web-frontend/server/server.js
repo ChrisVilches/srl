@@ -159,10 +159,10 @@ export function createSrlServer({ dir, selector, staticDir, onChange }) {
         card: {
           ...card,
           kind: item.kind,
-          path: item.path,
+          address: item.address,
           see: item.see,
           context: item.context,
-          context_path: item.context_path,
+          context_address: item.context_address,
         },
       };
     },

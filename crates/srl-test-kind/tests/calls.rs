@@ -61,7 +61,7 @@ fn each_input_line_gets_one_line_in_order() {
 
 #[test]
 fn a_card_tells_what_the_program_got() {
-    let input = "{\"id\": \"abc\", \"fields\": {}, \"suffix\": \"a\", \"context\": \"c\", \"context_path\": \"n.md\", \"day\": \"2026-10-27\"}\n";
+    let input = "{\"id\": \"abc\", \"fields\": {}, \"suffix\": \"a\", \"context\": \"c\", \"context_address\": \"n.md\", \"day\": \"2026-10-27\"}\n";
     let (ok, output) = run("make", input);
     assert!(ok);
     assert!(output[0].starts_with(

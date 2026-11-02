@@ -60,8 +60,8 @@ All of these use the wrapper, not the bare `srl`.
 srl find in:grammar state:due
 
 # How many cards each note has, largest first
-srl find | group-by path --to-table
-  | each {|g| {path: $g.path, cards: ($g.items | length)} }
+srl find | group-by address --to-table
+  | each {|g| {address: $g.address, cards: ($g.items | length)} }
   | sort-by cards --reverse
 
 # How many cards are in each state

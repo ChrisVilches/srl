@@ -53,7 +53,7 @@ the context mode they ask for. Each pairs highlights in order, each `==`
 with the next one: Markdown plugins that treat `==` like `*` nest the marks
 in text without spaces, such as `==[...]==を==[...]==`.
 
-Both render a context by the extension of its `context_path` (see
+Both render a context by the extension of its `context_address` (see
 [frontends.md](../frontends.md), "Rendering"): `.md`, `.markdown`, `.mdx`
 and `.qmd` as Markdown, and every other note as a code block of plain
 text, so that a JSONL note's lines don't run together into one paragraph

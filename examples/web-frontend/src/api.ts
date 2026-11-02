@@ -8,10 +8,10 @@ export type ShownCard = {
   prompt_revealed: string | null;
   answer: string | null;
   kind: string;
-  path: string;
+  address: string;
   see: string | null;
   context: string | null;
-  context_path: string | null;
+  context_address: string | null;
 };
 
 // What `srl next --json` prints (docs/frontends.md, "What a frontend gets"):
@@ -23,7 +23,7 @@ export type Card = ShownCard & { state: 'new' | 'due' };
 export type FoundCard = {
   id: string;
   item: string;
-  path: string;
+  address: string;
   line: number;
   status: 'active' | 'draft' | 'suspended';
   state: string;

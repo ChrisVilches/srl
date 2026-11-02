@@ -118,14 +118,14 @@ MARKDOWN_EXTENSIONS = (".md", ".markdown", ".mdx", ".qmd")
 
 def context_markdown(card):
     """The card's context, as Markdown to render, by the extension of its note
-    (context_path). A context from any note but a Markdown one goes in a code
+    (context_address). A context from any note but a Markdown one goes in a code
     block as plain text, json for a JSONL note, with a fence longer than any
     run of backticks in it."""
     context = card["context"]
-    path = (card.get("context_path") or "").lower()
-    if path.endswith(MARKDOWN_EXTENSIONS):
+    address = (card.get("context_address") or "").lower()
+    if address.endswith(MARKDOWN_EXTENSIONS):
         return context
-    language = "json" if path.endswith(".jsonl") else ""
+    language = "json" if address.endswith(".jsonl") else ""
     longest = max((len(run) for run in re.findall("`+", context)), default=0)
     fence = "`" * max(3, longest + 1)
     return f"{fence}{language}\n{context.rstrip(chr(10))}\n{fence}\n"
@@ -288,7 +288,7 @@ class Session:
         if with_context:
             context, scroll["context"], shown["context"] = scrolled(
                 context_lines, context_height, scroll["context"], focus == "context",
-                title=Text(card["see"] or card["path"], "dim"), title_align="left",
+                title=Text(card["see"] or card["address"], "dim"), title_align="left",
                 border_style="white" if focus == "context" else "dim", padding=(0, 2))
             screen.append(context)
         elif answered:

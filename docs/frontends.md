@@ -33,7 +33,7 @@ Every frontend runs the same loop, around the contract:
 3. **Show the answer:** `prompt_revealed` in place of `prompt`, or
    `prompt` again when `prompt_revealed` is `null`; then `answer` and the
    context, each if it is not `null`. The note the context
-   comes from is `see`, or `path` when `see` is `null`; a frontend may name
+   comes from is `context_address`; a frontend may name
    it.
 4. **Get a rating** from 1 to 4.
 5. **Record it:** the card ID and the rating to `srl review --stdin` (see
@@ -48,7 +48,7 @@ knows where the card came from, such as a kind whose program draws a new
 question each time, like an arithmetic drill.
 
 A frontend may offer more, with the other commands everyone has: suspending the
-card (`srl suspend id:ID`), opening its note (the file at `path`, relative
+card (`srl suspend id:ID`), opening its note (the file at `address`, relative
 to the store's folder, in an editor of its choice), or a summary at the
 end, counting the
 cards whose `state` was `new`.
@@ -68,9 +68,9 @@ context:
  "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
  "answer": "Despite everyone's opposition, she started a company.",
  "state": "due", "kind": "qa",
- "path": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
+ "address": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
- "context_path": "japanese/grammar/wo-mono-tomo-sezu.md"}
+ "context_address": "japanese/grammar/wo-mono-tomo-sezu.md"}
 ```
 
 | Field | Meaning |
@@ -78,10 +78,10 @@ context:
 | `id`, `prompt`, `prompt_revealed`, `answer` | The card (see [cards.md](cards.md)). `prompt_revealed` and `answer` may be `null`. |
 | `state` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Choosing the next card"). |
 | `kind` | The item's kind: `qa`, or the name of a kind program in `.srl/config.toml`, as in `srl show --json` (see [cards.md](cards.md), "Kinds"). |
-| `path` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "The item object"). |
+| `address` | The note the item is in, as in `srl show --json` (see [notes.md](notes.md), "The item object"). |
 | `see` | The note its `see` names, or `null`. |
 | `context` | The context, in the mode the frontend chose, or `null` when there is none (see [notes.md](notes.md), "Context"). |
-| `context_path` | The note the context comes from: `see`, or else `path` (see "Rendering"). `null` when `context` is. |
+| `context_address` | The note the context comes from: `see`, or else `address` (see "Rendering"). `null` when `context` is. |
 
 **The frontend chooses the context's mode** with `--context`: `prose` (the
 default), `full` or `none`. How much of the note to show is a choice about
@@ -92,7 +92,7 @@ presentation, so it belongs to the frontend, not to the store.
 Card text is Markdown, and may also hold `==highlight==` (see
 [cards.md](cards.md), "Text formatting"). **`srl` doesn't say what the
 context's text is: the frontend decides how to render it from
-`context_path`**, the note it comes from (see [notes.md](notes.md),
+`context_address`**, the note it comes from (see [notes.md](notes.md),
 "Context"), for example by its extension: Markdown for `.md`, Quarto for
 `.qmd`, JSON lines for `.jsonl`. What the text holds is the note's, as
 `notes.md` describes for each mode: a note of srl blocks without its front

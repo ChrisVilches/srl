@@ -394,7 +394,7 @@ fn an_agents_questions_in_a_jsonl_note_are_studied_like_any_other() {
     let mut contexts = Vec::new();
     while let Some(card) = store.next(&now, &[]) {
         let id = text(&card, "id");
-        assert_eq!(text(&card, "path"), "generated/capitals.jsonl");
+        assert_eq!(text(&card, "address"), "generated/capitals.jsonl");
         contexts.push((id.clone(), card["context"].clone()));
         // Peru is forgotten.
         let rating = if id == ids[0] { 1 } else { 3 };
