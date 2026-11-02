@@ -12,7 +12,7 @@ agents/
   system-prompt.md              what the agent always knows: the ideas, the
                                 common commands, the rules it follows
   skills/
-    setting-up-a-store/         stores, configuration, kind programs,
+    setting-up-a-store/         stores, configuration, sources, kind programs,
                                 git and syncing
     writing-items/              the item syntaxes (srl blocks, JSONL notes),
                                 kinds, cloze, srl add and edit

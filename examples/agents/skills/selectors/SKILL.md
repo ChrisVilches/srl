@@ -12,8 +12,8 @@ A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | Cards whose note has a folder named `NAME` anywhere in its path, or is itself named `NAME` plus an extension (`NAME.md`, `NAME.txt`, …). Ignores case. `in:grammar` matches `japanese/Grammar/wo.md` and `grammar.md`, not `grammar-notes.md`. |
-| `path:GLOB` | The note's path, relative to the store. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is notes directly in `japanese/`, `path:japanese/**` everything below it, `path:rust/ownership.md` one note. |
+| `in:NAME` | Cards whose item's address (its note's path, for a source without a prefix) has a folder named `NAME` anywhere, or is itself named `NAME` plus an extension (`NAME.md`, `NAME.txt`, …). Ignores case. `in:grammar` matches `japanese/Grammar/wo.md` and `grammar.md`, not `grammar-notes.md`. |
+| `path:GLOB` | The item's address: the note's path, relative to the store, for a source without a prefix; `vocab/words` for the table `words` of a source program mounted at `vocab/`. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is notes directly in `japanese/`, `path:japanese/**` everything below it, `path:rust/ownership.md` one note. |
 | `source:NAME` | Cards whose item comes from the source `NAME`: `source:notes` for the notes of a store without `[sources]` (`srl sources` lists them). |
 | `id:ID` | A card (`id:k3m9q1.2`), or every card of an item (`id:k3m9q1`). |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind:` in their header, or a kind named in `[kinds]` of `.srl/config.toml`. An unknown kind is an error. Without `kind:`, items of every kind match. |

@@ -107,7 +107,7 @@ as yours. Only run one when the person asks for it. Each round:
 1. `srl next [SELECTOR] --json` prints the card, with its state, kind and
    context: `{"id": "k3m9q1.2", "prompt": "...", "prompt_revealed": "...",
    "answer": "...", "state": "due", "kind": "qa", "address": "...",
-   "see": null, "context": "...", "context_address": "..."}`. Mention the kind when it isn't `qa`:
+   "source": "notes", "file": "...", "see": null, "context": "...", "context_address": "..."}`. Mention the kind when it isn't `qa`:
    it says which program made the card. Exit
    code 1 means nothing is left: say so and stop. Exit code 2 is an
    error: tell the person what it says, and stop. `--context MODE` chooses

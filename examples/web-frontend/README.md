@@ -66,12 +66,13 @@ It also **adds items** (the Add tab, or `#add`), one at a time:
 - The kind is chosen among those `srl kinds` describes, and the form
   shows one box per field, with the kind's description of it. Changing
   the kind keeps the text of a field of the same name.
-- The note it is appended to is chosen among the notes `srl collections`
-  lists, by typing any part of its path (the letters in order), or is a
-  new one: a path typed in full, offered as **New note** when a source of
-  the store could create it there, as `srl sources` describes (its prefix,
+- The note it is appended to (any collection: a note, or a table of a
+  source program) is chosen among those `srl collections` lists, by typing
+  any part of its address (the letters in order), or is a new one: an
+  address typed in full, offered as **New note** when a source of the
+  store could create it there, as `srl sources` describes (its prefix,
   then a path its `include` globs match and its `exclude` globs don't).
-  `srl add` creates the note, and has the last word on whether it may.
+  `srl add` creates it, and has the last word on whether it may.
 - The note last added to is chosen again on the next visit. It is kept
   in the browser's `localStorage`, so it is per browser and per address
   (port), and forgotten when `srl collections` no longer lists it.
@@ -148,7 +149,7 @@ scheduling here; that belongs to `srl`.
 | `POST /api/review` | `srl review --stdin`, with the request body | `{}` |
 | `POST /api/suspend` | `srl suspend id:CARD`, for `{"card": CARD}` | `{}` |
 | `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --context none` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind` and `excerpt`, the first line of its first field |
-| `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json --context prose` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `address`, `see` and `context`, as `srl next --json` gives them |
+| `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json --context prose` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `address`, `see`, `context` and `context_address`, as `srl next --json` gives them (not its `source` and `file`) |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
 | `GET /api/sources` | `srl sources --json` | `{"sources": […]}`, each source as `srl sources` printed it |
 | `GET /api/collections` | `srl collections --json` | `{"collections": [ADDRESS…]}` |

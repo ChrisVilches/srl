@@ -157,7 +157,8 @@ A: Its answer.
 - An item ends at the next `@` line or the closing fence. Any other line
   in a block outside the items is an error.
 - Header entries: `id:ID` (added by `srl id` or `srl add`), `draft`,
-  `see:PATH` (the note to show as context), `kind:NAME` (`qa` by
+  `see:ADDRESS` (the note to show as context, by its address: its path,
+  for a source without a prefix), `kind:NAME` (`qa` by
   default, or a kind program named in `[kinds]` of `.srl/config.toml`).
 - Everything else in the note is ordinary Markdown, and is shown as the
   **context** after the answer.
@@ -239,7 +240,7 @@ Terms separated by spaces must all match; a comma means or; `-` means not.
 | Term | Matches |
 |---|---|
 | `in:NAME` | notes in a folder `NAME`, or a note named `NAME` plus an extension (`NAME.md`, …) |
-| `path:GLOB` | note paths: `'path:rust/*'`, `'path:japanese/**'` (quote globs in the shell) |
+| `path:GLOB` | addresses (a note's path, for a source without a prefix): `'path:rust/*'`, `'path:japanese/**'` (quote globs in the shell) |
 | `source:NAME` | items of one source of the store (`srl sources` lists them) |
 | `id:ID` | a card, or every card of an item |
 | `kind:K` | items of a kind: `qa` (also items with no `kind:`) or a kind in `[kinds]` |
@@ -259,7 +260,8 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl init [DIR]` | create a store |
 | `srl id` | give IDs to new items |
 | `srl find [SEL]` | list cards |
-| `srl collections` | list the notes, also those without items (for `see:` and `srl add ADDRESS`) |
+| `srl collections` | list the collections (notes, or a source program's tables) by address, also those without items (for `see:` and `srl add ADDRESS`) |
+| `srl sources` | describe the store's sources, and where `srl add` may create a new collection |
 | `srl kinds` | describe each kind and its fields, before writing an item of it |
 | `srl show ID` | print an item and its context; with `--json`, as the item object `srl edit` takes back |
 | `srl cards ID` | print the cards of an item |
@@ -293,7 +295,7 @@ Load a skill when the person needs more than the above:
 
 | Skill | When |
 |---|---|
-| `setting-up-a-store` | Creating stores, several stores, configuration, kind programs, git and syncing. |
+| `setting-up-a-store` | Creating stores, several stores, configuration, sources, kind programs, git and syncing. |
 | `writing-items` | The full item syntax, cloze rules, code in cards, writing good questions, `srl add` and `srl edit --stdin`. |
 | `studying` | Study sessions with a frontend or in the chat, ratings, how the next card is chosen. |
 | `selectors` | Every selector term, combining them, quoting in each shell. |

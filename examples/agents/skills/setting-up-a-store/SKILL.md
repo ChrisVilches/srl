@@ -1,6 +1,6 @@
 ---
 name: setting-up-a-store
-description: Create an srl store, choose between several stores, change the configuration (.srl/config.toml), add kind programs, and keep a store in git or a sync tool. Load when the person sets srl up, has more than one study folder, wants to change how many new cards a day or when a study day starts, asks about backups, or wants a kind of item other than qa.
+description: Create an srl store, choose between several stores, change the configuration (.srl/config.toml), its sources (JSONL notes, source programs), add kind programs, and keep a store in git or a sync tool. Load when the person sets srl up, has more than one study folder, wants to change how many new cards a day or when a study day starts, asks about backups, wants a kind of item other than qa, or wants items kept somewhere other than notes.
 ---
 
 # Setting up a store
@@ -56,7 +56,23 @@ names both: `[sources.notes]` with `driver = "markdown"`, and
 `[sources.generated]` with `driver = "jsonl"`. Every file a source's
 `include` matches must be a valid note, so don't let a glob catch JSON
 files meant for other programs. `srl sources` describes the sources, and
-`srl collections` lists every note.
+`srl collections` lists every collection, such as a note, by its address.
+
+A source can also be a **source program**, which keeps items its own way,
+such as in a database: `program` instead of `driver`, a command as in
+`[kinds]`. Its `prefix` mounts its collections among the store's
+addresses, and every other key of its table is the program's own setting.
+Its items are studied, shown and changed like any other, with `srl edit
+--stdin` since they are in no file. The `srl` repository's `examples/`
+has one, `source-tinydb` (items in a TinyDB database, one table per
+collection); its README says how to add it:
+
+```toml
+[sources.vocab]
+program = ["uv", "run", "--quiet", "--script", "sources/tinydb_source.py"]
+prefix = "vocab/"                # the table words is the collection vocab/words
+database = "vocab/vocab.json"    # the program's own setting
+```
 
 ## Configuration
 
@@ -109,8 +125,9 @@ marked word of a Japanese sentence) and `kind-llm-generated` (an LLM
 writes a new question each time the card is shown); their READMEs say how
 to add them.
 
-- `srl` runs whatever `[kinds]` names, with the person's rights. Before
-  using a store copied from someone else, read its `[kinds]` with them.
+- `srl` runs whatever `[kinds]` and `[sources]` name, with the person's
+  rights. Before using a store copied from someone else, read its `[kinds]`
+  and `[sources]` with them.
 - `srl kinds` describes every kind and its fields; it is the quickest
   check that a program runs.
 - After a program is changed in place, run `srl check`: `srl` keeps the

@@ -70,7 +70,7 @@ Header entries, in any order, each at most once:
 |---|---|
 | `id:ID` | The item's ID. `srl id` adds it; lowercase letters and digits, words joined by single `-` (`jp-grammar-desu`), 1 to 32 characters, never `.`. |
 | `draft` | Not studied until `srl accept`. |
-| `see:PATH` | The note shown as context, instead of the item's own note. Must be a note of the store. Quote paths with spaces: `see:"my notes/a b.md"`. |
+| `see:ADDRESS` | The note shown as context, instead of the item's own note: the address of a collection of the store (a note's path, for a source without a prefix; `srl collections` lists them). Quote addresses with spaces: `see:"my notes/a b.md"`. |
 | `kind:NAME` | The kind. `qa` is the default; any other is a kind program named in `[kinds]` of `.srl/config.toml`, whose fields are its own. `srl kinds` describes every kind and its fields. |
 
 An item without an ID is an error for every command except `srl id`, which
@@ -96,8 +96,8 @@ one per line, as **item objects**:
 - **Lowercase keys are header entries**: `id`, `kind`, `see` (text) and
   `draft` (`true` or `false`). `"kind": "qa"`, `"see": null` and
   `"draft": false` are the same as leaving them out. **Uppercase keys are
-  fields.** Any other key is an error, except `address`, `line`, `cards`,
-  `context` and `context_address`, which `srl show --json` adds and every
+  fields.** Any other key is an error, except `address`, `source`, `file`,
+  `line`, `cards`, `context` and `context_address`, which `srl show --json` adds and every
   reader ignores. A key written twice is an error.
 - **Code needs no special fence**: field text is anything JSON can hold.
 - **A JSONL note is no item's context but by `see`**: an item without
@@ -247,8 +247,8 @@ The person accepts drafts with `srl accept SELECTOR`, for example
 Only when the person asks you to change their items. Standard input holds
 item objects, one per line, as for `srl add`, each with the `"id"` of the
 item it replaces, in any note; the rest of each note is untouched. `srl
-show --json ID` prints the item in that form, with `address`, `line`, `cards`,
-`context` and `context_address`, which `srl edit` ignores: change what you
+show --json ID` prints the item in that form, with `address`, `source`, `file`,
+`line`, `cards`, `context` and `context_address`, which `srl edit` ignores: change what you
 need and give the line back. Each object is the whole new item: a field or
 entry left out is gone, not kept.
 
@@ -271,5 +271,8 @@ is written, and the IDs are printed.
 
 `--dry-run` checks the input and prints the IDs, and writes nothing.
 Editing never changes the card's schedule. To change it themselves instead, the person opens the note in
-their editor: `srl show x7k2m9` prints its `PATH:LINE`, relative to the
-store's folder.
+their editor. `srl show x7k2m9` prints its `ADDRESS:LINE`, which is not
+always a file's path; `file` and `line` in `srl show --json x7k2m9` give
+the file to open, relative to the store's folder. When `file` is `null`
+(an item kept by a source program, such as in a database), there is no
+file: change the item with `srl edit --stdin`.

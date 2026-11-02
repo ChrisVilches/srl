@@ -46,7 +46,7 @@ use. For example:
 
 | Tool | Runs |
 |---|---|
-| `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_notes`, `srs_kinds`, `srs_check`, `srs_lint` | Reading (`srs_notes` and `srs_kinds` tell which notes and which fields an item can have; `srs_check` and `srs_lint` find mistakes in what was written) |
+| `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_collections`, `srs_sources`, `srs_kinds`, `srs_check`, `srs_lint` | Reading (`srs_collections` and `srs_sources` tell which collections exist and where `srl add` may create new ones, `srs_kinds` which fields an item can have; `srs_check` and `srs_lint` find mistakes in what was written) |
 | `srs_add` | `srl add ADDRESS --stdin` (always draft: the tool sets `"draft": true` on every line, for example with `jq -c '.draft = true'`) |
 | `srs_edit` | `srl edit --stdin` (only if you want agents to edit items) |
 | `srs_next`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |

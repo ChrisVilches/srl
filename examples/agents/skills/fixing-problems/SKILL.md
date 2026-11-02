@@ -1,6 +1,6 @@
 ---
 name: fixing-problems
-description: Diagnose and fix srl problems - errors in notes that stop every command, a card a kind program can't make that stops srl next, srl check and srl lint, items that silently aren't items, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, and locking or cache messages. Load whenever an srl command fails, or when cards are missing or behave unexpectedly.
+description: Diagnose and fix srl problems - errors in notes or sources that stop every command, a card a kind program can't make that stops srl next, srl check and srl lint, items that silently aren't items, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, and locking or cache messages. Load whenever an srl command fails, or when cards are missing or behave unexpectedly.
 ---
 
 # Fixing problems
@@ -9,7 +9,8 @@ description: Diagnose and fix srl problems - errors in notes that stop every com
 
 Any error in any note stops every command that reads items (`srl find`,
 `srl next`, ...). Each error is printed on standard error as
-`PATH:LINE: message`, and the exit code is 2. Fix them all, then run the
+`ADDRESS:LINE: message` (the address being a note's path, for a source
+without a prefix), and the exit code is 2. Fix them all, then run the
 command again. `srl check` lists every problem in the store at once,
 except after an invalid configuration: it reports that alone and stops,
 since the notes and the log can't be read without it. Fix it and run
@@ -28,11 +29,16 @@ since the notes and the log can't be read without it. Fix it and run
 | a line of a JSONL note that is not a valid item object | text that isn't JSON, an object over several lines, an unknown or misspelled key, a key written twice, a value of the wrong type (`"draft": "yes"`, a number for text) | Make the line one JSON object with the keys `id`, `kind`, `see`, `draft` and uppercase field names (see the `writing-items` skill). |
 | unknown field, missing `Q` or `A` | `B:`, or a `qa` item without `A` and without cloze | Use `Q` and `A` only; `A` is optional only with cloze. |
 | bad cloze | `{{c1::` without `}}`, empty text, `c0`, `c01`, nested, or cloze in `A` | Fix the deletion. |
-| `PATH:LINE: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind:` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind:`. |
+| `ADDRESS:LINE: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind:` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind:`. |
 | a reason such as `cannot find the program …` or `the program of kind X failed …`, ending `; no item of kind X can be read until the program works` | the program itself is broken: not installed, a missing dependency, a bug; not your notes | Fix or reinstall the program, or its command in `[kinds]`; run `srl check` again. |
 | `the program of kind X printed invalid output …` | a bug in the program | Report it to its author; the item is fine as written. |
-| `see:` doesn't name a note | the note was moved or renamed | Update the path, relative to the store. |
+| `see:` doesn't name a note | the note was moved or renamed | Update the address (`srl collections` lists them). |
 | invalid configuration | a typo or out-of-range value in `.srl/config.toml` | Fix the named setting. |
+| ``[notes]` is not read: notes are a source of items now; …`` | a configuration written before sources | Write `[sources.notes]` with `driver = "markdown"` and the same `include` and `exclude`, and a `jsonl` source for JSONL notes, as the message says (see the `setting-up-a-store` skill). |
+| `ADDRESS: the source X gives it, but it is under the prefix P of the source Y …` | a note of one source lies under the prefix another source is mounted at | Leave it out of X with `exclude`, or give Y another prefix. |
+| `ADDRESS: the sources X and Y both give it …`, or `… it is the file F, which … is too …` | two sources' globs match the same file | Leave it out of one of them with `exclude`, or give one of them a prefix. |
+| `the source X failed: …; no item can be read or written until it works` | a source program is broken: not installed, a missing dependency, a bug, a wrong setting of its own in `[sources.X]`, or a service it needs is down; not your notes | Fix what the reason says, or the program's command and settings in `[sources.X]`; run `srl check` again. |
+| `cannot add to ADDRESS: …; nothing was added`, from `srl add` | no source can create a collection at that address (its `include` doesn't match it, or the prefix is wrong), or more than one would | Pick an address a source can create (`srl sources` says where), or an existing one (`srl collections`). |
 
 `srl show ID` prints an item exactly as written (in a JSONL note, its
 line), which helps spot the problem.
@@ -60,7 +66,7 @@ Only srl blocks make items, so `Q:` lines outside one are ordinary text,
 and no error is reported. `srl lint` finds such likely mistakes: `Q:` or
 `A:` lines outside blocks (also in lists and quotes), indented or
 misspelled block fences (```` ```SRL ````, ```` ```srl{…} ````), cloze
-deletions outside items, and srl blocks closed too early (see below). It prints `PATH:LINE: message` and never
+deletions outside items, and srl blocks closed too early (see below). It prints `ADDRESS:LINE: message` and never
 fails; exit 0 means it found something.
 
 ## An item cut short, or gone
