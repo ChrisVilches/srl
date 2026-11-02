@@ -12,7 +12,7 @@ program of your own: in a database, behind a web service, in any format.
 
 `srl` has no study screen of its own. Instead, it is the one place where
 your study data comes together and stays correct, and everything else is
-built on top: web and terminal frontends, shell scripts, importers, kind
+built on top: web and terminal frontends, shell scripts, importers,
 programs that make new types of cards, source programs that keep items
 their own way, and any other tool you write.
 
@@ -50,8 +50,8 @@ so either can be replaced, rewritten or built by you.
   programs around them can vary freely.
 - **Items can live anywhere.** A store reads its items from its sources:
   Markdown notes by default, JSONL files, or programs you write.
-  Scheduling, selectors, kinds and frontends work the same whatever the
-  source, so a card from a database is studied like a card from a note.
+  Scheduling, selectors, card types and frontends work the same whatever
+  the source, so a card from a database is studied like a card from a note.
 - **One schedule for everyone.** Frontends never compute schedules. Study
   in the browser in the morning and in a terminal at night, and it's the
   same queue.
@@ -60,7 +60,7 @@ so either can be replaced, rewritten or built by you.
   and any program that reads files can work with them. The SQLite index
   is only a cache.
 - **New types of cards are programs.** Beside questions and answers with
-  cloze deletions, a kind of card can be a program you write in any
+  cloze deletions, a type of card can be a program you write in any
   language: conjugation drills, words of a sentence, problems drawn at
   random. `srl` schedules their cards like any other.
 
@@ -151,8 +151,9 @@ context. `srl sources` and `srl collections` describe what a store reads.
 ### Frontends
 
 A frontend is any program that calls `srl next --json` and records ratings
-with `srl review`. It knows nothing about sources, notes, kinds or cloze
-syntax, so any frontend can show any card. This shell loop is a complete
+with `srl review`. It knows nothing about where items are kept, how they
+are written or what type of card it shows, so any frontend can show any
+card. This shell loop is a complete
 one:
 
 ```sh
@@ -179,20 +180,24 @@ of any source, and `srl-tui`, a terminal frontend in Python.
 
 ![srl-tui showing the answer of a card about Ohm's law, with its note as context and the rating keys](examples/screenshots/images/tui-6-electrical.png)
 
-### Kinds: cards made by your own programs
+### Card types: cards made by your own programs
 
-An item's kind decides how its fields become cards. `qa`, questions and
-answers with cloze deletions, is built in. Any other kind is a program you
-name in `.srl/config.toml`, written in any language:
+An item's type decides how its fields become cards. The built-in type,
+`qa`, gives questions and answers with cloze deletions, and is what an
+item is unless it says otherwise. Any other type is a program you write,
+in any language, and name in `.srl/config.toml`. `srl` calls a type of
+card a *kind*, so that is the word you'll see in the configuration, in
+an item's `kind:` and in `srl kinds`:
 
 ```toml
 [kinds]
 ja-words = ["python3", "kinds/ja_words.py"]
 ```
 
-A kind checks its items, says which cards each gives and which of them
-give each other away, and makes each card's content when it is shown, so
-it can do anything a program can: conjugate a verb, look a word up in a
+Such a program checks the items of its type, says which cards each item
+gives and which of them would give each other's answers away (`srl` then
+shows at most one of those a day), and makes each card's content when it
+is shown, so it can do anything a program can: conjugate a verb, look a word up in a
 dictionary, draw a new arithmetic problem each time. The repository has
 two examples: `ja-words` makes one card per marked word of a Japanese
 sentence, and `llm-generated` asks an LLM to write a new question about a
@@ -201,8 +206,8 @@ card.
 
 ### Sources: items from anywhere
 
-Kinds decide what an item's cards are; sources decide where items are
-kept. A source program connects `srl` to wherever your items already are,
+Card types decide what an item's cards are; sources decide where items
+are kept. A source program connects `srl` to wherever your items already are,
 or would be better kept: a database, a web service, another app's files.
 It never schedules anything and never sees the log: it only reads and
 writes items, and `srl` does the rest. The repository's
@@ -286,7 +291,7 @@ echo '{"see": "rust/ownership.md", "Q": "Can a moved value be used again?", "A":
 
 Cloze deletions use Anki's syntax (`{{c1::text}}` and `{{c1::text::hint}}`).
 Multi-line fields, code blocks and drafts are supported too. `srl kinds`
-describes every kind and its fields.
+describes every type of card and its fields.
 
 ## Examples
 
@@ -298,8 +303,8 @@ of it: copy them and change them.
 | [`web-frontend/`](examples/web-frontend/) | `srl-web`: a local web viewer that renders cards and context as Markdown (a JSONL note as a code block), with a card browser and a form that adds items. |
 | [`python-frontend/`](examples/python-frontend/) | `srl-tui`: a terminal study frontend in Python with Rich. |
 | [`agents/`](examples/agents/) | A system prompt and skills that turn an LLM agent into a guide to `srl`. |
-| [`kind-ja-words/`](examples/kind-ja-words/) | A kind program: one card per marked word of a Japanese sentence. |
-| [`kind-llm-generated/`](examples/kind-llm-generated/) | A kind program: an LLM writes a new question each time the card is shown. |
+| [`kind-ja-words/`](examples/kind-ja-words/) | A card type made by a program: one card per marked word of a Japanese sentence. |
+| [`kind-llm-generated/`](examples/kind-llm-generated/) | A card type made by a program: an LLM writes a new question each time the card is shown. |
 | [`source-tinydb/`](examples/source-tinydb/) | A source program that keeps items in a TinyDB database instead of in notes. |
 | [`nushell/`](examples/nushell/) | A Nushell wrapper that gives `srl`'s data as tables and records. |
 | [`screenshots/`](examples/screenshots/) | Screenshots of `srl-web` and `srl-tui`, and instructions for an agent to take new ones. |
