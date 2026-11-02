@@ -78,7 +78,7 @@ words of lowercase letters `a`–`z` and digits, joined by single `-`, 1 to
 No ID or suffix ever contains `.`, so the part before the `.` is always
 the item, and no two items can produce the same card ID. `srl` keeps the
 separator in one constant, `SUFFIX_SEPARATOR` in
-`crates/srl-core/src/card.rs`. Changing it changes every card ID: the
+`crates/srl-core/src/domain/card.rs`. Changing it changes every card ID: the
 cards of existing stores get new IDs, so all their history in the log,
 which is kept under the old IDs, becomes orphaned (see
 [log.md](log.md)), and IDs written with the old separator elsewhere, in

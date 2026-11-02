@@ -5,9 +5,9 @@
 //! The parser reports every problem it finds, with its line, and carries
 //! on, so that one run lists all of them.
 
-use crate::context::ContextMode;
+use crate::domain::context::ContextMode;
+use crate::domain::note::{Entries, Field, ItemId, is_field_key};
 use crate::kind::has_deletion;
-use crate::note::{Entries, Field, ItemId, is_field_key};
 use crate::source::files::{Edit, Lines, Parsed, ParsedItem, lines, unless_blank};
 
 /// The items of a note of srl blocks, and its problems.

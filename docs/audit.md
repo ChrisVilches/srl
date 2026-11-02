@@ -78,7 +78,7 @@ The open findings cluster in three places:
 | L4 | The card ID separator is described as changeable | Specification | Low | Trivial |
 | L5 | The frontend contract is larger in practice than "one mapping" | Vision | Low | Trivial |
 | L6 | `srl-core` is a second, public interface | Structure | Low | Easy |
-| L7 | `srl-core` mixes pure rules with process, SQLite and file I/O | Structure | Low | Moderate |
+| L7 | The domain layer still leans on modules with I/O | Structure | Low | Moderate |
 | L9 | What a card with varying content means is unspecified | Specification | Low | Easy |
 
 ---
@@ -390,32 +390,28 @@ release then breaks them. **Fix:** mark the API `#[doc(hidden)]` or say in
 the crate description that it exists only for the `srl` binary; keep the
 public surface to what `commands.rs` uses.
 
-### L7. `srl-core` mixes pure rules with process, SQLite and file I/O
+### L7. The domain layer still leans on modules with I/O
 
 **Severity Low · Difficulty Moderate**
 
-The workspace split is sound: `srl` is a thin CLI, `srl-core` holds the
-rules and never prints or reads the environment. Module boundaries follow
-the documents, and the `Source` trait cleanly isolates where items come
-from.
+`srl-core` is in layers (see [rust.md](rust.md), "Layers"): a domain of
+values, an application, and ports with their adapters, among them the
+`Source` trait that isolates where items come from. Two boundaries are
+still weaker than the layers suggest:
 
-Two boundaries are weaker:
+- The domain names types of modules that do I/O: `Kind` lives in
+  `kind.rs`, which also runs kind programs, and replaying the log in
+  `domain/schedule.rs` takes `Log`, from `log.rs`, which also reads and
+  locks the files. `kind.rs` both defines `qa` and orchestrates the
+  programs. Moving `Kind`, `qa` and the log's events into the domain
+  would make the layers true by construction, and a crate of its own for
+  the domain would let the compiler keep them so (see
+  [plans/sources.md](plans/sources.md), step 5.1).
+- The largest files (`source/markdown/blocks.rs`, `kind/program.rs`,
+  `index.rs`), each over 1,000 lines with tests, are where a split would
+  pay first.
 
-- `srl-core` holds both pure logic (parsing, cloze, selectors, FSRS
-  replay, the sibling rule) and side effects (spawning kind programs in
-  `kind/program.rs`, SQLite in `index.rs`, OS locks in `log.rs`, atomic
-  writes in `write.rs`). `kind.rs` both defines `qa` and orchestrates the
-  programs. A clearer internal layer (a pure model and scheduling layer,
-  with I/O adapters around it) would make the pure parts testable without
-  a store, and keep kind-program growth (M3) from spreading.
-- The "one module per document" rule is already bent: `check.rs` holds
-  lint and orphans, `review.rs` spans `log.md` and `scheduling.md`. That is
-  fine, but the rule in [rust.md](rust.md) should say it maps areas, not
-  documents.
-
-None of this is urgent; the largest files (`blocks.rs`, `program.rs`,
-`index.rs`, `write.rs`, each over 1,000 lines with tests) are where a split
-would pay first.
+None of this is urgent.
 
 ### L9. What a card with varying content means is unspecified
 

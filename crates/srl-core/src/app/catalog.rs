@@ -10,11 +10,11 @@ use std::collections::{HashMap, HashSet};
 
 use jiff::civil::Date;
 
-use crate::card::{Card, CardId};
-use crate::context::{Context, ContextMode};
+use crate::domain::card::{Card, CardId};
+use crate::domain::context::{Context, ContextMode};
+use crate::domain::note::object::Object;
+use crate::domain::note::{Field, Item, ItemId, Origin};
 use crate::kind::{Answer, Asked, Cache, Kind, Programs, ToMake, check};
-use crate::note::object::Object;
-use crate::note::{Field, Item, ItemId, Origin};
 use crate::source::{ContextRequest, Sources};
 use crate::store::nfc;
 use crate::{Config, Error, Index, Result, Store};

@@ -10,11 +10,12 @@
 
 use std::collections::HashSet;
 
-use crate::catalog::check_new;
-use crate::note::object::{self, Object};
-use crate::note::{Entries, Origin};
+use crate::app::catalog::check_new;
+use crate::domain::note::object::{self, Object};
+use crate::domain::note::{Entries, Origin};
+use crate::domain::random;
 use crate::source::{Change, Refusal};
-use crate::{Catalog, Error, Item, ItemId, Result, random};
+use crate::{Catalog, Error, Item, ItemId, Result};
 
 /// One change to an item: which item, where.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -404,7 +405,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::note::is_id_text as is_id;
+    use crate::domain::note::is_id_text as is_id;
     use crate::{Config, Index, Lookup, Store};
 
     fn store(files: &[(&str, &str)]) -> (TempDir, Store) {

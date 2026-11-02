@@ -10,9 +10,9 @@ use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::card::{Card, CardId};
-use crate::context::Context;
-use crate::note::{Field, ItemId};
+use crate::domain::card::{Card, CardId};
+use crate::domain::context::Context;
+use crate::domain::note::{Field, ItemId};
 use crate::{Config, Error, Index, Store};
 
 use cloze::Piece;

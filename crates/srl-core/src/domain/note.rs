@@ -12,8 +12,8 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::card::CardId;
-use crate::context::Context;
+use crate::domain::card::CardId;
+use crate::domain::context::Context;
 use crate::kind::Kind;
 use crate::{Error, Result};
 use object::Object;
@@ -115,7 +115,7 @@ impl ItemId {
 /// Whether `text` is an item ID, or a card ID's suffix: 1 to 32
 /// characters, words of `[a-z0-9]` joined by single `-`, so `-` is never
 /// first, last or doubled. It never contains
-/// [`SUFFIX_SEPARATOR`](crate::card::SUFFIX_SEPARATOR).
+/// [`SUFFIX_SEPARATOR`](crate::domain::card::SUFFIX_SEPARATOR).
 pub(crate) fn is_id_text(text: &str) -> bool {
     text.len() <= ID_MAX
         && text

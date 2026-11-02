@@ -14,8 +14,8 @@ mod markdown;
 use std::fmt;
 
 use crate::config::globs;
-use crate::context::ContextMode;
-use crate::note::object::Object;
+use crate::domain::context::ContextMode;
+use crate::domain::note::object::Object;
 use crate::{Config, Error, Result, Store};
 use files::NoteFiles;
 use jsonl::Jsonl;

@@ -19,7 +19,7 @@ use std::time::Duration;
 use jiff::civil::Date;
 use rusqlite::{Connection, ErrorCode, OptionalExtension, Transaction, TransactionBehavior};
 
-use crate::schedule::{Replayer, Seen};
+use crate::domain::schedule::{Replayer, Seen};
 use crate::{CardId, Config, Error, History, Log, Memory, Result, Reviewed, Store, log};
 
 /// The version of the tables below. Change it whenever they, or what they

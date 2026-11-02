@@ -13,9 +13,9 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::config::Schedule;
+use crate::domain::note::Entries;
+use crate::domain::note::object::written;
 use crate::kind::Kind;
-use crate::note::Entries;
-use crate::note::object::written;
 use crate::{CardId, Error, Item, Result, Store};
 
 /// The lock file that every append holds (see `docs/log.md`, "Files").
@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn the_hash_is_the_start_of_the_sha256_of_the_kind_and_fields() {
         let programs = crate::kind::Programs::default();
-        let (items, _) = crate::catalog::read_items(
+        let (items, _) = crate::app::catalog::read_items(
             "a.md",
             "Prose.\n````srl id:abc draft see:b.md\nQ: q\nA: a\n````\n\nMore.\n",
             &programs,
@@ -385,7 +385,7 @@ mod tests {
         // `printf '%s' '{"Q":"q","A":"a"}' | sha256sum | cut -c1-12`
         assert_eq!(hash(&items[0]), "23531498e859");
         // However the item is written, and whatever its ID, `see` and draft.
-        let (items, _) = crate::catalog::read_items(
+        let (items, _) = crate::app::catalog::read_items(
             "a.jsonl",
             "\n{\"id\": \"xyz\", \"Q\": \"q\",\"kind\":\"qa\", \"A\": \"a\"}\r\n",
             &programs,

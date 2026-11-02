@@ -5,8 +5,9 @@ use std::collections::HashMap;
 
 use jiff::civil::Date;
 
+use crate::domain::random;
 use crate::{
-    Card, CardId, Catalog, Config, Item, ItemId, Memories, Result, Selector, State, Status, random,
+    Card, CardId, Catalog, Config, Item, ItemId, Memories, Result, Selector, State, Status,
 };
 
 /// The next card among those that match `selector`, made by its kind to

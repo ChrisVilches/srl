@@ -5,10 +5,10 @@
 
 use serde_json::Value;
 
-use crate::check::question_suspicions;
-use crate::context::ContextMode;
-use crate::note::object::{self, Object};
-use crate::note::{Entries, Field};
+use crate::app::check::question_suspicions;
+use crate::domain::context::ContextMode;
+use crate::domain::note::object::{self, Object};
+use crate::domain::note::{Entries, Field};
 use crate::source::files::{
     Edit, Lines, NoteFiles, Parsed, ParsedItem, add_read, append, apply, by_collection,
     changed_meanwhile, keyed, lines, position_of, unless_blank, verified,
@@ -253,7 +253,7 @@ fn written(entries: &Entries, fields: &[Field]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::note::ItemId;
+    use crate::domain::note::ItemId;
 
     #[test]
     fn every_line_that_is_not_blank_is_an_item() {

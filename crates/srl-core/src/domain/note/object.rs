@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde::de::{Deserializer, MapAccess, Visitor};
 use serde_json::{Map, Value};
 
-use crate::note::{Entries, Field, ItemId, is_field_key};
+use crate::domain::note::{Entries, Field, ItemId, is_field_key};
 
 /// The keys that `srl show --json` prints and nothing reads: they are
 /// ignored wherever an item object is read.

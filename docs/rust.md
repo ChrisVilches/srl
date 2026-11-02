@@ -16,35 +16,36 @@ README.md               the repository's and the srl crate's page; srl-core has 
 scripts/check-windows.sh  lints the Windows build from Linux or macOS (see "Platform independence")
 examples/               not part of srl, and not built with it (see overview.md, "Specification, guides and examples")
 crates/
-  srl-core/             the core, as a library
+  srl-core/             the core, as a library, in layers (see "Layers" below)
     src/lib.rs          the public API: re-exports only
     src/error.rs        the core's Error type
-    src/store.rs        one module per area of the specification:
-                          store.md: finding, creating and listing a store and its notes
-    src/note.rs           notes.md: the item model (entries, fields, IDs, status), where an item comes from (`Origin`)
-    src/note/object.rs    notes.md, "The item object": reading and writing items as JSON objects
-    src/source.rs         the `Source` port: what every source of items answers, and the store's sources (see "Sources" below)
-    src/source/markdown.rs  notes.md, "The srl block syntax": the source of notes of srl blocks
+    src/config.rs       store.md, "Configuration"; the study day
+    src/store.rs        store.md: finding, creating and listing a store and its files
+    src/domain.rs       the domain: items, cards, selectors, scheduling, as values
+    src/domain/note.rs       notes.md: the item model (entries, fields, IDs, status), where an item comes from (`Origin`)
+    src/domain/note/object.rs  notes.md, "The item object": reading and writing items as JSON objects
+    src/domain/card.rs       cards.md: the card format and card IDs
+    src/domain/context.rs    notes.md, "Context": the context's modes, and the `Context` given
+    src/domain/selector.rs   selectors.md
+    src/domain/schedule.rs   scheduling.md: replaying the log through FSRS, states
+    src/domain/stats.rs      cli.md, "Analysis": `srl stats`
+    src/domain/random.rs     reproducible random numbers for new IDs and `srl next`
+    src/app.rs          the application: what the commands do with the domain and the ports
+    src/app/catalog.rs       every item of the store, read from its sources and checked by their kinds; which collection is an item's context
+    src/app/write.rs         notes.md, "How srl writes to notes": what `srl id`, `srl accept`, `srl add` and `srl edit` change, checked before any source writes it
+    src/app/check.rs         cli.md, "Checking": `srl check`, and `srl lint` through the sources
+    src/app/review.rs        log.md and scheduling.md: recording reviews, resets, moves, suspensions
+    src/app/next.rs          scheduling.md, "Choosing the next card" and "Siblings"
+    src/source.rs       the `Source` port: what every source of items answers, and the store's sources (see "Sources" below)
+    src/source/markdown.rs   notes.md, "The srl block syntax": the source of notes of srl blocks
     src/source/markdown/blocks.rs  the srl block syntax itself: parsing, context, formatting, edits, lint
-    src/source/jsonl.rs   notes.md, "The JSONL syntax": the source of JSONL notes
-    src/source/files.rs   what the notes' sources share: which files, lines, and "How srl writes to notes" (see "Note editing" below)
-    src/catalog.rs        every item of the store, read from its sources and checked by their kinds; which collection is an item's context
-    src/context.rs        notes.md, "Context": the context's modes, and the `Context` given
-    src/write.rs          notes.md, "How srl writes to notes": what `srl id`, `srl accept`, `srl add` and `srl edit` change, checked before any source writes it
-    src/check.rs          cli.md, "Checking": `srl check`, and `srl lint` through the sources
-    src/stats.rs          cli.md, "Analysis": `srl stats`
-    src/config.rs         store.md, "Configuration"; the study day
-    src/card.rs           cards.md: the card format and card IDs
-    src/kind.rs           cards.md, "Kinds": the `qa` kind, asking kinds about items and making cards, describing kinds
-    src/kind/program.rs   cards.md, "Kind programs": running the calls in batches, keeping their answers, checking what they print
-    src/kind/cloze.rs     cards.md, "Cloze deletions"
-    src/log.rs            log.md: reading and appending events
-    src/review.rs         log.md and scheduling.md: recording reviews, resets, moves, suspensions
-    src/schedule.rs       scheduling.md: replaying the log through FSRS, states
-    src/next.rs           scheduling.md, "Choosing the next card" and "Siblings"
-    src/selector.rs       selectors.md
-    src/index.rs          store.md, "The index cache": `.srl/cache/index.sqlite`
-    src/random.rs         reproducible random numbers for new IDs and `srl next`
+    src/source/jsonl.rs      notes.md, "The JSONL syntax": the source of JSONL notes
+    src/source/files.rs      what the notes' sources share: which files, lines, and "How srl writes to notes" (see "Note editing" below)
+    src/kind.rs         cards.md, "Kinds": the `qa` kind, asking kinds about items and making cards, describing kinds
+    src/kind/program.rs      cards.md, "Kind programs": running the calls in batches, keeping their answers, checking what they print
+    src/kind/cloze.rs        cards.md, "Cloze deletions"
+    src/log.rs          log.md: reading and appending events
+    src/index.rs        store.md, "The index cache": `.srl/cache/index.sqlite`
   srl/                  the `srl` binary
     src/main.rs         parse, run, map the result to an exit code
     src/args.rs         clap definitions, no logic
@@ -68,7 +69,7 @@ command-line arguments into calls to `srl-core` and prints the results.
 - **`srl-core` takes its inputs explicitly.** It does not read environment
   variables, the current directory, the clock or standard input on its own.
   The CLI gathers them and passes them in (see `Lookup` in `store.rs`, the
-  study day, and the current time `now` that `review.rs` stamps events
+  study day, and the current time `now` that `app/review.rs` stamps events
   with). That keeps every rule testable without a real process environment.
   The one exception is the wait for the log's lock in `log.rs`, measured
   with the monotonic clock (`Instant`); it decides nothing the
@@ -79,10 +80,31 @@ command-line arguments into calls to `srl-core` and prints the results.
   items, cards or schedules, that decision belongs in `srl-core`, with tests
   there.
 
-Each specification document maps to one module of `srl-core` (`store.md` to
-`store.rs`, `selectors.md` to `selector.rs`, and so on). A module that grows
-too big gets submodules in a folder of the same name (`selector.rs` plus
-`selector/parse.rs`), never a `mod.rs`.
+### Layers
+
+`srl-core` is in layers, so that the rules of spaced repetition aren't
+mixed with where data comes from, as a database sits behind a repository
+in Clean Architecture or hexagonal architecture:
+
+- **The domain** (`domain/`): items, cards, the item object, selectors,
+  scheduling and statistics, as values. It reads no file, starts no
+  process and doesn't know the clock: it is given what it needs.
+- **The application** (`app/`): what each command does. It reads the
+  sources into the catalog, calls the domain, and asks the ports to
+  change things; the rules that cross sources (unique IDs, `see`,
+  checking every change before writing) are here.
+- **The ports and their adapters**, around them: sources (`source.rs`,
+  with the notes' sources under `source/`), kinds (`kind.rs`, with kind
+  programs in `kind/program.rs`), the log (`log.rs`) and the index cache
+  (`index.rs`), with the configuration and the store (`config.rs`,
+  `store.rs`).
+
+Within a layer, each area of the specification has its module
+(`selectors.md` in `domain/selector.rs`, `store.md`, "The index cache" in
+`index.rs`, and so on); one document may be spread over several layers,
+as `notes.md` is. A module that grows too big gets submodules in a folder
+of the same name (`selector.rs` plus `selector/parse.rs`), never a
+`mod.rs`.
 
 ## After every change
 
@@ -439,7 +461,7 @@ knows how it keeps its items.
 | `write(changes, dry_run)` | Makes a list of changes: `Add` an item to a collection, or `Replace` the item of a handle, read as `before`, with `after`. Every change is made and checked before anything is written; a change refused is named by its place. |
 | `lint()` | The likely mistakes in the source. |
 
-- **The catalog holds every item in memory** (`catalog.rs`, the type
+- **The catalog holds every item in memory** (`app/catalog.rs`, the type
   `Catalog`). It reads every source, turns what they read into `Item`s,
   each with its `Origin` (source, collection, address, handle, line, and
   the item as read), checks them with their kinds, and keeps the rules
@@ -455,7 +477,7 @@ knows how it keeps its items.
   it, and mode `none` asks none. So an item of one source can name a
   collection of another, and each is shown by its own source's rules; no
   source knows another's.
-- **Changes give back the item as it was read.** `write.rs` decides what
+- **Changes give back the item as it was read.** `app/write.rs` decides what
   changes and checks it (item objects, IDs, kinds, `see`), then gives
   each source its changes; a `Replace` carries the item as read, and the
   source refuses it when the item is no longer that.
@@ -484,7 +506,7 @@ other note. `Sources::new` in `source.rs` builds them from `[notes]`.
   item a change is about, and writing a file safely (see "Note
   editing").
 - **The item object** (see [notes.md](notes.md), "The item object") is
-  read and written by `note/object.rs`, for the JSONL source and for the
+  read and written by `domain/note/object.rs`, for the JSONL source and for the
   standard input of `srl add` and `srl edit`. `Item::json` writes it for
   `srl show --json`.
 - **The `qa` kind's lint** looks at the lines of `Q` that each source
@@ -569,7 +591,7 @@ helpers of `source/files.rs`:
    than three backticks, `@` lines, quoted values, non-ASCII text around
    the edited line, and a note changed between reading and writing. The
    edits themselves (which lines, what they become) are tested with each
-   format, and the commands that change notes in `write.rs`.
+   format, and the commands that change notes in `app/write.rs`.
 
 ## The command line
 
