@@ -57,6 +57,19 @@ function ThemeButton() {
   );
 }
 
+// The selector last submitted in VIEW, kept in the address as ?study= or
+// ?browse=, so that reloading the page keeps it; null if none was. The views
+// are chosen by the hash, so switching keeps both.
+export function urlSelector(view: View): string | null {
+  return new URLSearchParams(window.location.search).get(view);
+}
+
+export function setUrlSelector(view: View, selector: string) {
+  const url = new URL(window.location.href);
+  url.searchParams.set(view, selector);
+  window.history.replaceState(null, '', url);
+}
+
 // The selector box of a view. Submitting it calls ON_SELECTOR.
 export function SelectorInput({
   selector,

@@ -7,7 +7,7 @@ import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BU
 import { useKeys, useStartWhenShown } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
-import { SelectorInput, TopBar, type View } from './TopBar';
+import { SelectorInput, setUrlSelector, TopBar, urlSelector, type View } from './TopBar';
 
 const VIEWS: Record<View, ComponentType<{ active: boolean }>> = {
   study: Study,
@@ -103,12 +103,13 @@ function Study({ active }: { active: boolean }) {
     }
   }, []);
 
-  // Asks for the selector srl-web was started with, then for the first card.
+  // Takes the selector in the address, or else asks for the one srl-web was
+  // started with, then asks for the first card.
   const start = useCallback(
     () =>
       step(async () => {
         setPhase({ kind: 'loading', since: performance.now() });
-        const sel = await api.selector();
+        const sel = urlSelector('study') ?? (await api.selector());
         setSelector(sel);
         await toNext(sel);
       }),
@@ -185,6 +186,7 @@ function Study({ active }: { active: boolean }) {
           placeholder="selector, e.g. in:grammar"
           onSelector={(sel) => {
             setSelector(sel);
+            setUrlSelector('study', sel);
             loadNext(sel);
           }}
         />

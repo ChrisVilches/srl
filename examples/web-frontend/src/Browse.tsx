@@ -5,7 +5,7 @@ import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, Stat
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
 import { useKeys, useStartWhenShown } from './hooks';
-import { SelectorInput, TopBar } from './TopBar';
+import { SelectorInput, setUrlSelector, TopBar, urlSelector } from './TopBar';
 
 // The card browser: the cards of a selector as `srl find` lists them, and any
 // one of them made and shown as studying shows it, without studying it. For
@@ -51,10 +51,11 @@ export function Browse({ active }: { active: boolean }) {
     }
   }, []);
 
-  // Starts when first shown, with the selector srl-web was started with.
+  // Starts when first shown, with the selector in the address, or else the
+  // one srl-web was started with.
   const start = useCallback(
     () =>
-      api.selector().then(
+      Promise.resolve(urlSelector('browse') ?? api.selector()).then(
         (sel) => {
           setSelector(sel);
           find(sel);
@@ -125,6 +126,7 @@ export function Browse({ active }: { active: boolean }) {
           placeholder="selector, as for srl find"
           onSelector={(sel) => {
             setSelector(sel);
+            setUrlSelector('browse', sel);
             find(sel);
           }}
         />
