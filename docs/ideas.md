@@ -196,7 +196,7 @@ questions", once it is planned.
   likely mistakes for `srl lint`. Everything after reading the items
   (kinds, scheduling, the log) would stay the same. In `srl`, these are
   already the functions that each of the two built-in syntaxes provides
-  (see [rust.md](rust.md), "The item syntax"), so a program would be a
+  (see [rust.md](rust.md), "Sources"), so a program would be a
   third implementation of them. Since those functions only say which lines
   change, `srl` would still check and write every change itself, keeping
   the guarantees of [notes.md](notes.md), "How srl writes to notes". It

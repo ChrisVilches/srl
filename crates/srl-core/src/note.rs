@@ -1,12 +1,11 @@
-//! Items: their entries, fields and IDs (see `docs/notes.md`), and how
-//! they are written in notes.
+//! Items: their entries, fields and IDs (see `docs/notes.md`), and the item
+//! object, the one JSON form of an item.
 //!
-//! How items are written in a note is the business of [`syntax`] alone;
-//! the catalog turns what every source reads into [`Item`]s, which the rest
-//! of `srl` works with.
+//! How items are written is the business of their sources (see
+//! [`crate::source`]); the catalog turns what every source reads into
+//! [`Item`]s, which the rest of `srl` works with.
 
 pub(crate) mod object;
-pub(crate) mod syntax;
 
 use std::fmt;
 
@@ -45,20 +44,6 @@ pub(crate) fn is_field_key(key: &str) -> bool {
     let mut characters = key.chars();
     characters.next().is_some_and(|c| c.is_ascii_uppercase())
         && characters.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
-}
-
-/// The lines of `text`, without their line endings (`\n` or `\r\n`) and
-/// without a UTF-8 byte order mark. A final line ending doesn't start an
-/// empty line. Lines are numbered from 1 in this order everywhere.
-pub(crate) fn lines(text: &str) -> Vec<&str> {
-    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let text = text.strip_suffix('\n').unwrap_or(text);
-    if text.is_empty() {
-        return Vec::new();
-    }
-    text.split('\n')
-        .map(|line| line.strip_suffix('\r').unwrap_or(line))
-        .collect()
 }
 
 /// The most characters an item ID may have.

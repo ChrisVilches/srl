@@ -396,7 +396,8 @@ public surface to what `commands.rs` uses.
 
 The workspace split is sound: `srl` is a thin CLI, `srl-core` holds the
 rules and never prints or reads the environment. Module boundaries follow
-the documents, and the `Syntax` trait cleanly isolates item syntaxes.
+the documents, and the `Source` trait cleanly isolates where items come
+from.
 
 Two boundaries are weaker:
 

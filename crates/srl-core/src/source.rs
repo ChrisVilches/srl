@@ -7,14 +7,23 @@
 //! own module knows how it keeps its items: a source names its collections
 //! and its items, and `srl` names them back to it.
 
-mod files;
+pub(crate) mod files;
+mod jsonl;
+mod markdown;
 
 use std::fmt;
 
+use crate::config::globs;
 use crate::context::ContextMode;
 use crate::note::object::Object;
 use crate::{Config, Error, Result, Store};
-use files::Files;
+use files::NoteFiles;
+use jsonl::Jsonl;
+use markdown::Markdown;
+
+/// The glob of the files of the `jsonl` source: those whose name ends with
+/// `.jsonl` (see `docs/notes.md`, "Item syntaxes").
+const JSONL: &str = "**/*.jsonl";
 
 /// The operations every source answers.
 pub(crate) trait Source: fmt::Debug {
@@ -149,13 +158,39 @@ impl Mounted {
 }
 
 impl Sources {
-    /// The sources of `store`, as `config` sets them.
+    /// The sources of `store`, as `config` sets them: the notes of
+    /// `[notes]`, those whose name ends with `.jsonl` in a `jsonl` source,
+    /// and the others in a `markdown` source.
     pub(crate) fn new(store: &Store, config: &Config) -> Self {
+        let notes = &config.notes;
+        let jsonl = || globs(&[JSONL]).expect("the glob of JSONL notes should be valid");
+        let not_jsonl = globs(
+            &notes
+                .exclude
+                .iter()
+                .map(String::as_str)
+                .chain([JSONL])
+                .collect::<Vec<_>>(),
+        )
+        .expect("the exclude globs should have been checked when read");
+        let markdown = NoteFiles::new(store, notes.include_set(), not_jsonl, None);
+        let jsonl = NoteFiles::new(
+            store,
+            notes.include_set(),
+            notes.exclude_set(),
+            Some(jsonl()),
+        );
         Self {
-            mounted: vec![Mounted {
-                prefix: String::new(),
-                source: Box::new(Files::new(store, &config.notes)),
-            }],
+            mounted: vec![
+                Mounted {
+                    prefix: String::new(),
+                    source: Box::new(Markdown::new(markdown)),
+                },
+                Mounted {
+                    prefix: String::new(),
+                    source: Box::new(Jsonl::new(jsonl)),
+                },
+            ],
         }
     }
 
@@ -166,22 +201,53 @@ impl Sources {
 
     /// The source that `address`, of a collection that doesn't exist yet,
     /// would be created in, with the collection's name in it; or why it
-    /// can't be created.
+    /// can't be created. Of the sources mounted deepest above the address,
+    /// exactly one must accept it (see `docs/plans/sources.md`,
+    /// "Addresses").
     pub(crate) fn for_new(&self, address: &str) -> std::result::Result<(usize, String), String> {
-        let (index, mounted) = self
+        let deepest = self
+            .mounted
+            .iter()
+            .filter(|mounted| address.starts_with(&mounted.prefix))
+            .map(|mounted| mounted.prefix.len())
+            .max()
+            .ok_or_else(|| "no source of the store holds it".to_owned())?;
+        let collection = address.get(deepest..).unwrap_or_default();
+        let answers = self
             .mounted
             .iter()
             .enumerate()
-            .filter(|(_, mounted)| address.starts_with(&mounted.prefix))
-            .max_by_key(|(_, mounted)| mounted.prefix.len())
-            .ok_or_else(|| "no source of the store holds it".to_owned())?;
-        let collection = address
-            .get(mounted.prefix.len()..)
-            .unwrap_or_default()
-            .to_owned();
-        match mounted.source.refuses(&collection) {
-            Some(reason) => Err(reason),
-            None => Ok((index, collection)),
+            .filter(|(_, mounted)| {
+                mounted.prefix.len() == deepest && address.starts_with(&mounted.prefix)
+            })
+            .map(|(index, mounted)| (index, mounted.source.refuses(collection)))
+            .collect::<Vec<_>>();
+        let accepting = answers
+            .iter()
+            .filter(|(_, refusal)| refusal.is_none())
+            .map(|(index, _)| *index)
+            .collect::<Vec<_>>();
+        match accepting.as_slice() {
+            [index] => Ok((*index, collection.to_owned())),
+            [] => Err(answers
+                .into_iter()
+                .find_map(|(_, refusal)| refusal)
+                .expect("a source that accepts nothing should say why")),
+            _ => Err("more than one source of the store would hold it".to_owned()),
         }
+    }
+}
+
+/// The items of a note at `path` whose text is `text`, read by the source
+/// its extension chooses: for tests that need items without a store.
+#[cfg(test)]
+pub(crate) fn parse(path: &str, text: &str) -> files::Parsed {
+    if std::path::Path::new(path)
+        .extension()
+        .is_some_and(|ext| ext == "jsonl")
+    {
+        jsonl::parse(text)
+    } else {
+        markdown::parse(text)
     }
 }

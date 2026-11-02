@@ -100,6 +100,11 @@ impl Catalog {
                 }
             }
         }
+        // Collections, and so items, in the order of their addresses, whatever
+        // their sources; items of one collection in the order read.
+        collections.sort_by_cached_key(|located| by_address(&located.address));
+        written.sort_by_cached_key(|item: &Item| by_address(&item.origin.address));
+        unidentified.sort_by_cached_key(|origin| by_address(&origin.address));
         let (items, checked) = check_items(written, &programs, cache);
         problems.extend(checked);
         let (items, duplicates) = unique(items);
@@ -340,6 +345,7 @@ pub fn collections(store: &Store, config: &Config) -> Result<Vec<String>> {
                 .map(|collection| mounted.address(&collection.name)),
         );
     }
+    addresses.sort_by_cached_key(|address| by_address(address));
     Ok(addresses)
 }
 
@@ -347,7 +353,7 @@ pub fn collections(store: &Store, config: &Config) -> Result<Vec<String>> {
 /// kinds, and its problems in the order of their lines.
 #[cfg(test)]
 pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<Item>, Vec<Error>) {
-    let parsed = crate::note::syntax::of(path).parse(text);
+    let parsed = crate::source::parse(path, text);
     let mut problems = parsed
         .errors
         .into_iter()
@@ -423,6 +429,13 @@ fn check_items(
         }
     }
     (items, problems)
+}
+
+/// The key collections are sorted by: their address in NFC, so that the
+/// Unicode form of a file's name never changes the order (see
+/// `docs/store.md`, "File names"), then as written.
+fn by_address(address: &str) -> (String, String) {
+    (nfc(address), address.to_owned())
 }
 
 /// Sorts `problems` by the collection and line they are about, collections

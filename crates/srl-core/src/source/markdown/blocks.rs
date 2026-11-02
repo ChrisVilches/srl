@@ -5,130 +5,105 @@
 //! The parser reports every problem it finds, with its line, and carries
 //! on, so that one run lists all of them.
 
-use super::{Edit, Lines, Parsed, ParsedItem, Syntax, unless_blank};
 use crate::context::ContextMode;
 use crate::kind::has_deletion;
-use crate::note::{Entries, Field, ItemId, is_field_key, lines};
+use crate::note::{Entries, Field, ItemId, is_field_key};
+use crate::source::files::{Edit, Lines, Parsed, ParsedItem, lines, unless_blank};
 
-/// The srl block syntax.
-pub(super) struct Blocks;
-
-impl Syntax for Blocks {
-    fn parse(&self, text: &str) -> Parsed {
-        let reading = read(text);
-        Parsed {
-            items: reading.found.into_iter().map(|found| found.item).collect(),
-            errors: reading.errors,
-        }
+/// The items of a note of srl blocks, and its problems.
+pub(super) fn parse(text: &str) -> Parsed {
+    let reading = read(text);
+    Parsed {
+        items: reading.found.into_iter().map(|found| found.item).collect(),
+        errors: reading.errors,
     }
+}
 
-    /// The note, without its srl blocks in mode `prose` (see [`context`]).
-    fn own_context(&self, text: &str, mode: ContextMode) -> Option<String> {
-        context(text, mode)
-    }
+/// Adds `id:ID` right after the `srl` of the item's opening fence or
+/// the `@` of its `@` line.
+pub(super) fn with_id(text: &str, item: usize, id: &ItemId) -> Option<Edit> {
+    let line = read(text).found.get(item)?.item.line;
+    let content = *lines(text).get(line - 1)?;
+    let header = header(content)?.ok()?;
+    let (before, after) = content.split_at(header.mark_end);
+    Some(Edit::one(line, format!("{before} id:{id}{after}")))
+}
 
-    /// The same as for its own items: the note, without its srl blocks in
-    /// mode `prose` (see [`context`]).
-    fn context(&self, text: &str, mode: ContextMode) -> Option<String> {
-        context(text, mode)
-    }
+/// Removes `draft` from the item's header, with the spaces before it.
+pub(super) fn without_draft(text: &str, item: usize) -> Option<Edit> {
+    let line = read(text).found.get(item)?.item.line;
+    let content = *lines(text).get(line - 1)?;
+    let draft = header(content)?.ok()?.draft?;
+    let before = content.get(..draft.start).unwrap_or_default();
+    let after = content.get(draft.end..).unwrap_or_default();
+    Some(Edit::one(
+        line,
+        format!("{}{after}", before.trim_end_matches(' ')),
+    ))
+}
 
-    /// Adds `id:ID` right after the `srl` of the item's opening fence or
-    /// the `@` of its `@` line.
-    fn with_id(&self, text: &str, item: usize, id: &ItemId) -> Option<Edit> {
-        let line = read(text).found.get(item)?.item.line;
-        let content = *lines(text).get(line - 1)?;
-        let header = header(content)?.ok()?;
-        let (before, after) = content.split_at(header.mark_end);
-        Some(Edit::one(line, format!("{before} id:{id}{after}")))
+/// An item that has its block to itself becomes a block of its own, as
+/// [`format()`] writes it; an item that starts with an `@` line keeps its
+/// place in its block, as an `@` line and its field lines.
+pub(super) fn replace(
+    text: &str,
+    item: usize,
+    entries: &Entries,
+    fields: &[Field],
+) -> Result<Edit, String> {
+    let reading = read(text);
+    let target = reading
+        .found
+        .get(item)
+        .ok_or_else(|| format!("the note has no item {item}"))?;
+    if target.is_alone() {
+        return Ok(Edit {
+            first: target.block.open,
+            last: target.block.close,
+            lines: format(entries, fields)?
+                .split('\n')
+                .map(str::to_owned)
+                .collect(),
+        });
     }
+    let field_lines = field_lines(fields);
+    if field_lines.iter().any(|line| target.block.closed_by(line)) {
+        return Err(format!(
+            "a line of it would close the block the item is in; open and close that block \
+             with a longer fence than {}",
+            target.block.fence
+        ));
+    }
+    let written = header_entries(entries)?;
+    let header = if written.is_empty() {
+        "@".to_owned()
+    } else {
+        format!("@ {written}")
+    };
+    Ok(Edit {
+        first: target.item.line,
+        last: target.end,
+        lines: std::iter::once(header).chain(field_lines).collect(),
+    })
+}
 
-    /// Removes `draft` from the item's header, with the spaces before it.
-    fn without_draft(&self, text: &str, item: usize) -> Option<Edit> {
-        let line = read(text).found.get(item)?.item.line;
-        let content = *lines(text).get(line - 1)?;
-        let draft = header(content)?.ok()?.draft?;
-        let before = content.get(..draft.start).unwrap_or_default();
-        let after = content.get(draft.end..).unwrap_or_default();
-        Some(Edit::one(
-            line,
-            format!("{}{after}", before.trim_end_matches(' ')),
-        ))
-    }
+/// What `srl add` puts between two items: a blank line, since each item is
+/// a block of its own.
+pub(super) const GAP: &str = "\n\n";
 
-    /// An item that has its block to itself becomes a block of its own, as
-    /// [`format()`] writes it; an item that starts with an `@` line keeps its
-    /// place in its block, as an `@` line and its field lines.
-    fn replace(
-        &self,
-        text: &str,
-        item: usize,
-        entries: &Entries,
-        fields: &[Field],
-    ) -> Result<Edit, String> {
-        let reading = read(text);
-        let target = reading
-            .found
-            .get(item)
-            .ok_or_else(|| format!("the note has no item {item}"))?;
-        if target.is_alone() {
-            return Ok(Edit {
-                first: target.block.open,
-                last: target.block.close,
-                lines: format(entries, fields)?
-                    .split('\n')
-                    .map(str::to_owned)
-                    .collect(),
-            });
-        }
-        let field_lines = field_lines(fields);
-        if field_lines.iter().any(|line| target.block.closed_by(line)) {
-            return Err(format!(
-                "a line of it would close the block the item is in; open and close that block \
-                 with a longer fence than {}",
-                target.block.fence
-            ));
-        }
-        let written = header_entries(entries)?;
-        let header = if written.is_empty() {
-            "@".to_owned()
-        } else {
-            format!("@ {written}")
-        };
-        Ok(Edit {
-            first: target.item.line,
-            last: target.end,
-            lines: std::iter::once(header).chain(field_lines).collect(),
-        })
-    }
-
-    fn format(&self, entries: &Entries, fields: &[Field]) -> Result<String, String> {
-        format(entries, fields)
-    }
-
-    /// A blank line: each item is a block of its own.
-    fn gap(&self) -> &'static str {
-        "\n\n"
-    }
-
-    fn lint(&self, text: &str) -> Vec<(usize, String)> {
-        lint(text)
-    }
-
-    /// The lines of the note the field is written on, as they are, each
-    /// named by its own line.
-    fn field_lines(&self, text: &str, item: &ParsedItem, field: usize) -> Vec<(usize, String)> {
-        let Some(span) = item.spans.get(field) else {
-            return Vec::new();
-        };
-        lines(text)
-            .into_iter()
-            .enumerate()
-            .take(span.last)
-            .skip(span.first - 1)
-            .map(|(index, line)| (index + 1, line.to_owned()))
-            .collect()
-    }
+/// The lines of the note field `field` of `item` is written on, as they
+/// are, each named by its own line, as `srl lint` looks at them.
+pub(super) fn lines_of_field(text: &str, item: &ParsedItem, field: usize) -> Vec<(usize, String)> {
+    let Some(span) = item.spans.get(field) else {
+        return Vec::new();
+    };
+    lines(text)
+        .into_iter()
+        .enumerate()
+        .take(span.last)
+        .skip(span.first - 1)
+        .map(|(index, line)| (index + 1, line.to_owned()))
+        .collect()
 }
 
 /// What a line of a note is for its context (see `docs/notes.md`,
@@ -146,7 +121,7 @@ enum Role {
 /// A note of srl blocks as a context, in `mode`: its prose, and in mode
 /// `full` the field lines of its items, without front-matter, with runs of
 /// blank lines made one and no blank lines at the start or the end.
-fn context(text: &str, mode: ContextMode) -> Option<String> {
+pub(super) fn context(text: &str, mode: ContextMode) -> Option<String> {
     let reading = read(text);
     let kept = lines(text)
         .into_iter()
@@ -177,7 +152,7 @@ fn context(text: &str, mode: ContextMode) -> Option<String> {
 /// multi-line text. The fence is three backticks, or one more than the
 /// longest run of backticks a line of the text starts with. Errors are
 /// plain reasons.
-fn format(entries: &Entries, fields: &[Field]) -> Result<String, String> {
+pub(super) fn format(entries: &Entries, fields: &[Field]) -> Result<String, String> {
     let written = header_entries(entries)?;
     let longest = fields
         .iter()
@@ -254,8 +229,8 @@ fn field_lines(fields: &[Field]) -> Vec<String> {
     lines
 }
 
-/// The likely mistakes of the syntax in one note (see [`Syntax::lint`]).
-fn lint(text: &str) -> Vec<(usize, String)> {
+/// The likely mistakes of the syntax in one note (see `docs/cli.md`, "Checking").
+pub(super) fn lint(text: &str) -> Vec<(usize, String)> {
     let reading = read(text);
     let lines = lines(text);
     let mut found = Vec::new();
@@ -1055,10 +1030,6 @@ fn without_markers(line: &str) -> &str {
 mod tests {
     use super::*;
 
-    fn parse(text: &str) -> Parsed {
-        Blocks.parse(text)
-    }
-
     /// The role in the context of each line of `text`.
     fn roles(text: &str) -> Vec<Role> {
         read(text)
@@ -1344,17 +1315,17 @@ mod tests {
         let text = "```srl\n@  draft\nQ: q\n@ id:abc draft see:a.md\nQ: r\n@ id:abd\nQ: s\n```\n";
         let id = ItemId::parse("xyz").unwrap();
         assert_eq!(
-            Blocks.with_id(text, 0, &id),
+            with_id(text, 0, &id),
             Some(Edit::one(2, "@ id:xyz  draft".to_owned()))
         );
         assert_eq!(
-            Blocks.without_draft(text, 1),
+            without_draft(text, 1),
             Some(Edit::one(4, "@ id:abc see:a.md".to_owned()))
         );
-        assert_eq!(Blocks.with_id(text, 3, &id), None);
-        assert_eq!(Blocks.without_draft(text, 2), None);
+        assert_eq!(with_id(text, 3, &id), None);
+        assert_eq!(without_draft(text, 2), None);
         assert_eq!(
-            Blocks.with_id("Prose.\n```srl\nQ: q\n```\n", 0, &id),
+            with_id("Prose.\n```srl\nQ: q\n```\n", 0, &id),
             Some(Edit::one(2, "```srl id:xyz".to_owned()))
         );
     }
@@ -1362,18 +1333,13 @@ mod tests {
     #[test]
     fn a_notes_context_leaves_out_its_items_unless_full() {
         let text = "---\ntags: [x]\n---\n\n# Title\n\nProse.\n\n\n```srl id:abc\nQ: q\n\nA: a\n```\n\nMore.\n```srl\n@ id:abd\nQ: {{c1::x}}\n\n@ id:abe\nQ: y\n```\n\n";
-        for context in [
-            Blocks.context(text, ContextMode::Prose),
-            Blocks.own_context(text, ContextMode::Prose),
-        ] {
-            assert_eq!(context.as_deref(), Some("# Title\n\nProse.\n\nMore.\n"));
-        }
-        for context in [
-            Blocks.context(text, ContextMode::Full),
-            Blocks.own_context(text, ContextMode::Full),
-        ] {
+        assert_eq!(
+            context(text, ContextMode::Prose).as_deref(),
+            Some("# Title\n\nProse.\n\nMore.\n")
+        );
+        {
             assert_eq!(
-                context.as_deref(),
+                context(text, ContextMode::Full).as_deref(),
                 Some("# Title\n\nProse.\n\nQ: q\n\nA: a\n\nMore.\nQ: {{c1::x}}\n\nQ: y\n")
             );
         }
@@ -1382,9 +1348,9 @@ mod tests {
     #[test]
     fn nothing_but_blank_space_is_no_context() {
         let only_items = "\n```srl id:abc\nQ: q\nA: a\n```\n\n  \n```srl id:abd\nQ: r\nA: b\n```\n";
-        assert_eq!(Blocks.context(only_items, ContextMode::Prose), None);
-        assert!(Blocks.context(only_items, ContextMode::Full).is_some());
-        assert_eq!(Blocks.context("", ContextMode::Full), None);
+        assert_eq!(context(only_items, ContextMode::Prose), None);
+        assert!(context(only_items, ContextMode::Full).is_some());
+        assert_eq!(context("", ContextMode::Full), None);
     }
 
     #[test]
@@ -1392,10 +1358,10 @@ mod tests {
         let text = "Prose.\n```srl\nQ: a\n  b\n\nA: c\n```\n";
         let item = &parse(text).items[0];
         assert_eq!(
-            Blocks.field_lines(text, item, 0),
+            lines_of_field(text, item, 0),
             [(3, "Q: a".to_owned()), (4, "  b".to_owned())]
         );
-        assert_eq!(Blocks.field_lines(text, item, 1), [(6, "A: c".to_owned())]);
+        assert_eq!(lines_of_field(text, item, 1), [(6, "A: c".to_owned())]);
     }
 
     #[test]
@@ -1413,8 +1379,7 @@ mod tests {
                 text: text.to_owned(),
             })
         };
-        let replace =
-            |item, entries, fields: &[Field]| Blocks.replace(text, item, &entries, fields);
+        let replace = |item, entries, fields: &[Field]| replace(text, item, &entries, fields);
         let alone = replace(0, entries("aaa", true), &fields("new")).unwrap();
         assert_eq!((alone.first, alone.last), (1, 4));
         assert_eq!(
