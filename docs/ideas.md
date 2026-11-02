@@ -201,7 +201,9 @@ questions", once it is planned.
   change, `srl` would still check and write every change itself, keeping
   the guarantees of [notes.md](notes.md), "How srl writes to notes". It
   needs a plugin protocol of its own, much like the one of kind programs,
-  so it is postponed.
+  so it is postponed. [plans/sources.md](plans/sources.md) proposes a
+  broader version: sources, not syntaxes, as plugins, so that items can
+  also live outside files.
 
 - **Items without a line.** An item's line is only shown to people
   (`PATH:LINE`, `line` in JSON), and nothing finds an item by it (see
@@ -222,7 +224,7 @@ questions", once it is planned.
   line it starts on, which keeps everything as it is and rules some
   formats out; or changes as byte ranges, and lines made optional, which
   lets any format in and takes the line out of `PATH:LINE` for some
-  notes.
+  notes. [plans/sources.md](plans/sources.md) takes the second way.
 
 - **Blank space before added items** (low priority). In a note of srl
   blocks, `srl add` puts a blank line between the note and the items it

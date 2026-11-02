@@ -212,6 +212,12 @@ it what `srl` is and does, or something done with it?**
     agent how to take new ones.
 
 A guide says how to use or build something; an example is the thing itself.
+
+Besides the three, a large change to the specification that is proposed
+or under way may have a **plan**, in `docs/plans/`, that splits it into
+steps. A plan is not the specification: each step updates the
+specification, guides and examples as it lands, and the plan is deleted
+when its last step does.
 The details of an example (its options, keys, internals) are in its own
 README, not in `docs/`.
 
@@ -247,6 +253,12 @@ The specification:
 | [ideas.md](ideas.md) | Changes to `srl` not specified yet |
 | [audit.md](audit.md) | Known problems with the specification, structure and scope, not fixed yet |
 | [rust.md](rust.md) | How the Rust implementation is organized and written |
+
+Plans, not part of the specification:
+
+| Document | Contents |
+|---|---|
+| [plans/sources.md](plans/sources.md) | Sources: items read and written through one port, with Markdown, JSONL and programs as adapters |
 
 Guides, not part of the specification:
 
