@@ -201,7 +201,7 @@ questions", once it is planned.
   change, `srl` would still check and write every change itself, keeping
   the guarantees of [notes.md](notes.md), "How srl writes to notes". It
   needs a plugin protocol of its own, much like the one of kind programs,
-  so it is postponed. [plans/sources.md](plans/sources.md) proposes a
+  so it is postponed. [plans/sources.md](plans/sources.md) plans a
   broader version: sources, not syntaxes, as plugins, so that items can
   also live outside files.
 

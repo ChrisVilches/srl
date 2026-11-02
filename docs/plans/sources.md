@@ -1,8 +1,9 @@
 # Plan: sources, data access as adapters
 
-**Status: decided, not started.** Nothing here is implemented. Every
-decision is taken; "Decisions" near the end lists them, with the
-alternatives that were considered where they explain the choice. The
+**Status: approved, not started.** Nothing here is implemented. Every
+decision is taken; "Decisions" near the end lists them, and the sections
+before it give the alternatives that were considered where they explain
+the choice. The
 steps at the end are in the order to carry them out. Each one is a commit,
 and updates the specification, the guides and the examples as it lands
 (see [../../AGENTS.md](../../AGENTS.md)). When the last step lands, this
@@ -84,8 +85,9 @@ Not goals:
 | **Driver** | What a source is: one of the built-in drivers, `markdown` or `jsonl`, or a **source program**, named by its command, as a kind program is. The driver is the adapter; a source is a driver with its settings. Two sources may use the same driver with different settings. |
 | **Collection** | A group of items inside a source, named by a string the driver chooses: a note's path for the built-in drivers, a table in a database, a resource in a web API. Collections are written like paths, with `/` between parts (`japanese/grammar/wo.md`, `words`, `decks/n5`). |
 | **Prefix** | Where a source is mounted in the store's one tree of addresses: set in its configuration, `""` by default, or a path ending in `/`, such as `"vocab/"`. |
-| **Address** | The name of a collection everywhere outside its driver: **the source's prefix followed by the collection**. `japanese/grammar/wo.md` (the `notes` source, prefix `""`), `vocab/words` (the `vocab` source, prefix `"vocab/"`, collection `words`). Addresses are unique in the store. |
-| **Handle** | An opaque string a driver gives with each item it reads, and gets back when it is asked to change that item: a database's own key, a URL, a position in a note. The core never reads it. |
+| **Address** | The name of a collection everywhere outside its driver: **the source's prefix followed by the collection**. `japanese/grammar/wo.md` (the `notes` source, prefix `""`), `vocab/words` (the `vocab` source, prefix `"vocab/"`, collection `words`). Addresses are unique in the store. An address names a whole collection, never a place inside it: it holds no line. |
+| **File** | The file a collection is kept in, relative to the store's folder, when there is one: a note is its own file; a database table has none. A driver gives it with each collection, for editors only. |
+| **Handle** | An opaque string a driver gives with each item it reads, and gets back when it is asked to change that item: a database's own key, a URL, a position in a note. Unique within its source. The core never reads it. |
 
 The current term **note** stays for what the built-in drivers read: a
 note is a file that a `markdown` or `jsonl` source reads, and it is one
@@ -130,8 +132,7 @@ The rules, the same for every source:
    `""`; they share that part of the tree, and **no address may be given
    by two sources**. Two built-in sources whose globs match the same file
    break this rule, so a file of the store belongs to one source at most.
-4. **No two collections may give the same `file`** (see "Where an item
-   comes from"). It catches two file sources reading one file under
+4. **No two collections may give the same file.** It catches two file sources reading one file under
    different prefixes. It is a rule about a value drivers give, not about
    drivers: the core checks it without knowing what a file source is.
 5. **A prefix needs no folder on disk.** Unix needs a folder to mount
@@ -141,6 +142,11 @@ The rules, the same for every source:
    holding the source's own files there is natural (the database file at
    `vocab/vocab.json`); it only matters when a file source reads files in
    it, which rule 2 reports.
+6. **An address never holds a line.** Every item of a collection has the
+   same address, and items are told apart by their IDs. Where `srl`
+   prints `ADDRESS:LINE` for people (see "Output and messages"), the
+   `:LINE` is added for display and is never read back; `see`, `srl add`
+   and `path:` take addresses alone.
 
 **How an address is resolved** to a source:
 
@@ -171,9 +177,9 @@ rewrites every JSONL `see` that names a note.
 ### Where an item comes from
 
 Every item the core holds carries its **origin**: its source, its
-collection (and so its address), its handle, and, when the driver can
-give them, the file it is in and the line it starts on. File and line are
-for people and for editors only, as `line` is today (see
+collection (and so its address and its file, if the collection has one),
+its handle, and, when the driver can give it, the line it starts on. File
+and line are for people and for editors only, as `line` is today (see
 [../rust.md](../rust.md), "Lines are for people"): nothing finds an item
 by them.
 
@@ -253,13 +259,14 @@ guarantees it does no I/O, is a possible last step (step 5.1).
 
 Six operations. The Rust trait and the program protocol are the same
 operations with the same meaning, so a built-in driver is exactly what a
-program could be.
+program could be; the protocol only leaves out `lint` at first (see
+"Calls").
 
 | Operation | Gives |
 |---|---|
 | `describe` | What the source is, for `srl sources`: a description, what its collections are ("Markdown files matched by `**/*.md`", "tables of vocab.json"), and the globs of the new collections `srl add` may create in it (see "Addresses"). |
 | `collections` | Every collection of the source, including those without items, each with its file when it has one. |
-| `read` | Every item of the source, each with its collection, handle, entries and fields, and optionally its file, line and text as written; and every problem found, each with its collection and optionally a line. |
+| `read` | Every item of the source, each with its collection, handle, entries and fields, and optionally its line and its text as written (for `srl show`); and every problem found, each with its collection and optionally a line. |
 | `context` | For a list of (collection, mode, own or named by `see`), the text to show as context, or nothing. |
 | `write` | Applies a list of changes, or, with `dry_run`, says what it would write. |
 | `lint` | Likely mistakes in the source, each with its collection and optionally a line. Built-in drivers only at first (see "Source programs"). |
@@ -269,7 +276,8 @@ program could be.
 There are two changes, and every command that writes is made of them:
 
 - **`add`**: append an item object to a collection, creating the
-  collection if it doesn't exist.
+  collection if it doesn't exist (only ever one the source accepts, see
+  "Addresses").
 - **`replace`**: replace the item with this handle, which was read as
   item object `before`, with item object `after`.
 
@@ -324,8 +332,10 @@ today; the `jsonl` driver gives nothing for a JSONL note named by `see`
 (today it gives the note whole, items included, in `prose` too; `full`
 keeps that), which fixes [../audit.md](../audit.md), M2, and answers the
 open question "one context rule for both item syntaxes"; a program
-removes its own items in its own way. Mode `full` shows items as each
-driver writes them. Frontends stay unaware of formats, as
+removes its own items in its own way. Mode `full` shows the items too,
+as each driver decides (the `markdown` driver as today: field lines
+without fences). Mode `none` asks no source. Frontends stay unaware of
+formats, as
 [../frontends.md](../frontends.md) promises, and every frontend, script
 and kind program (whose `make` gets the context) gets the same text
 without other items' answers.
@@ -357,7 +367,9 @@ include = ["generated/**/*.jsonl"]
 - `include` and `exclude` become settings of the two file drivers, with
   the same meaning as today in `[notes]`. Their collections are the paths
   of the files they match, relative to the store's folder, and each
-  collection is the file of the same path.
+  collection's file is the file of that path. The globs of new
+  collections they accept (see "Addresses") are `include` minus
+  `exclude`.
 - A file two sources match is an error, by the rules of "Addresses"
   (the same address from two sources, or the same `file` from two
   collections), so a file belongs to one source.
@@ -390,7 +402,7 @@ A source can be a program, configured like a kind program:
 [sources.vocab]
 program = ["python3", "sources/tinydb_source.py"]
 prefix = "vocab/"
-database = "vocab.json"          # every key but program and prefix is the program's
+database = "vocab/vocab.json"    # every key but program and prefix is the program's
 ```
 
 - `program` is a command, as in `[kinds]`: same rules for paths, `PATH`
@@ -418,13 +430,16 @@ failure of the whole call, with standard error as the reason.
 |---|---|---|
 | `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "collections": "…", "creates": ["*"]}` (`creates`: globs of the new collections `add` may create; `[]` for none) |
 | `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words", "file": null}` |
-| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "line": null, "file": null, "item": {item object}}`; one line per problem: `{"collection": "words", "line": null, "error": "…"}` |
+| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "line": null, "written": null, "item": {item object}}`; one line per problem: `{"collection": "words", "line": null, "error": "…"}` |
 | `context` | one line per request: `{"config": {…}, "collection": "words", "mode": "prose", "own": true}` | one line per input line: `{"context": "…"}` or `{"context": null}` |
 | `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}` or `{…, "op": "replace", "collection": "words", "handle": "17", "before": {…}, "after": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` with `dry_run`, or `{"error": "…"}` (the item changed since it was read, the collection can't be created, …) |
 
 `read` and `collections` answer one input with any number of lines, so
 the rule "one output line per input line" holds only for `context` and
-`write`. `item` is the item object of [../notes.md](../notes.md), "The
+`write`. Every collection an item or problem names must be one that
+`collections` lists. `handle` is required, and may simply be the item's
+ID when every item has one; `line` and `written` (the item as written,
+for `srl show`) may be `null`. `item` is the item object of [../notes.md](../notes.md), "The
 item object", as `srl add` takes it, and is checked as strictly. An item
 may come without an `id`, for `srl id` to give it one; the program never
 makes IDs itself, so the rules for IDs stay in one place. `see` in an
@@ -442,18 +457,21 @@ per card.
 
 | Command | Calls per source program |
 |---|---|
-| any command that reads items (`find`, `show`, `cards`, `next`, `review`, `stats`, `log`, `accept`, `suspend`, `unsuspend`, `reset`, `check`, `id`, `add`, `edit`) | 1 `read` |
+| any command that reads items (`find`, `show`, `cards`, `next`, `review`, `stats`, `log`, `accept`, `suspend`, `unsuspend`, `reset`, `check`, `lint`, `id`, `add`, `edit`) | 1 `read`, and 1 `collections` to resolve addresses |
 | `next`, `show`, `cards`, when a context is shown | + 1 `context`, for every item at once; `srl next` asks one |
 | `add`, `edit`, `accept`, `id` | + 1 `write` for the changes to this source, + 1 `read` to verify them |
 | `add` to a new collection | + 1 `describe`, for the globs of new collections |
 | `collections` | 1 `collections` |
 | `sources` | 1 `describe` |
 
-A study loop is `srl next` and `srl review`: 2 `read`s and 1 `context`
-per card, so 3 process starts. With Python (about 20 ms each) that is
-about 60 ms per card; with a web API behind it, 3 round trips, a few
-hundred milliseconds unless the program keeps a cache. That is usable, and
-the price is visible to whoever chooses the program.
+A study loop is `srl next` and `srl review`: 2 `read`s, 2 `collections`
+and 1 `context` per card, so 5 process starts. With Python (about 20 ms
+each) that is about 100 ms per card; with a web API behind it, 5 round
+trips, a few hundred milliseconds unless the program keeps a cache. That
+is usable, and the price is visible to whoever chooses the program.
+Folding `collections` into `read` would save two of them, at the cost of
+a call that does two things; that is left for when it is measured to
+matter.
 
 ### Caching
 
@@ -479,7 +497,8 @@ item's input line, which doesn't depend on where the item came from.
 
 - Every output line is parsed strictly: unknown keys, wrong types, item
   objects that aren't valid, a collection that isn't a valid collection
-  name, a line below 1, a handle given twice in one `read`, and a wrong
+  name or isn't listed by `collections`, a line below 1, a handle given
+  twice in one `read`, and a wrong
   number of lines for `context` and `write` are failures of the program,
   reported once as problems of the source. Like an error in a note, they
   stop every command that reads items.
@@ -509,22 +528,25 @@ item's input line, which doesn't depend on where the item came from.
 
 | Today | After |
 |---|---|
-| `srl notes [--json]` | `srl collections [--json]`: one address per line, sorted; with `--json`, `{"address": "japanese/grammar/wo.md", "source": "notes", "file": "japanese/grammar/wo.md"}`. |
+| `srl notes [--json]` | `srl collections [--json]`: one address per line, sorted as `srl find` sorts them; with `--json`, `{"address": "japanese/grammar/wo.md", "source": "notes", "file": "japanese/grammar/wo.md"}`. |
 | | `srl sources [--json]`: each source, its driver or program, its prefix and its description, as `srl kinds` describes kinds. |
 | `srl add NOTE --stdin` | `srl add ADDRESS --stdin` (see "Addresses"). `srl add japanese/new.md` keeps working. |
 | `srl edit --stdin` | Unchanged: items are named by `id`, and the core finds their source. |
 | `srl id`, `srl accept` | Unchanged for people; `srl id` gives IDs to items of any source, through `replace` and the handle. |
 | `srl show` | The first line is the item's address and line (`japanese/grammar/wo.md:12`, or `vocab/words` without a line). The item as written is the text its driver gives, or, when a source program gives none, its item object on one line. |
-| `srl lint` | Asks every source that lints; programs don't, at first. The `qa` lints that look at `Q` move to the core and are reported at the item's address. |
+| `srl lint` | Asks every source that lints; programs don't, at first. The `qa` lints that look at `Q` move to the core, so they cover items of every source, and are reported at the item's address and line rather than at the line of `Q` it is found on. |
 
 ### Output and messages
 
 - **An item's place is written as its address, with `:LINE` when the
   driver gives a line**, for every source: `japanese/grammar/wo.md:12`
   exactly as today for notes, `vocab/words` for a database. This one rule
-  is used in `srl find`, `srl show`, `srl id` and every error, so editors
-  that read `FILE:LINE:` messages, such as Neovim's quickfix list, keep
-  working for notes.
+  is used in `srl find`, `srl show`, `srl id`, `srl lint` and every
+  error, so editors that read `FILE:LINE:` messages, such as Neovim's
+  quickfix list, keep working for notes.
+- **`srl find` lists cards by address**, compared in Unicode NFC as note
+  paths are today, then in the order the source read the items, then by
+  card ID: today's order for a store of notes.
 - JSON outputs (`srl find`, `srl show`, `srl next`, the item object's
   keys only `srl` gives, `make`'s input):
 
@@ -534,17 +556,20 @@ item's input line, which doesn't depend on where the item came from.
   | `line` | `line`, which may be `null` |
   | `context_path` | `context_address` |
 
-  Every value is usable as input: an address works in `srl add`, `see`
-  and `path:`; a source name in `source:`. A frontend decides how to
+  Like `path` today, these keys are ignored where an item object is read
+  (`srl edit --stdin`, `srl add --stdin`). Every value is usable as
+  input: an address works in `srl add`, `see` and `path:`; a source name
+  in `source:`. A frontend decides how to
   render a context from `context_address`, as it does from
   `context_path` today (an extension, or nothing, then plain text).
 
 ### `see`
 
-**`see` is an address.** Every `see` written today is a path of a note,
-which is its address while the `notes` source has no prefix, so it keeps
-working unchanged. A `see` that names no collection of the store is an
-error, as today.
+**`see` is an address**, and names a whole collection: there is no
+`see` of a line. Every `see` written today is a path of a note, which is
+its address while the `notes` source has no prefix, so it keeps working
+unchanged. A `see` that names no collection of the store is an error, as
+today.
 
 `see` naming files that no source reads, or URLs, is left out: both
 would need the core to read things itself (a plain file, the network),
@@ -557,7 +582,7 @@ still be written in a field.
 |---|---|
 | `source:NAME` | New: cards whose item comes from source `NAME`. |
 | `path:GLOB` | Matches the item's address, for every source: `path:japanese/**`, `path:vocab/*`. |
-| `in:NAME` | A part of the address between `/`, or its last part without its extension: as today for notes, and `in:n5` matches `vocab/decks/n5`. |
+| `in:NAME` | A part of the address between `/`, or its last part without its extension: as today for notes, and `in:n5` matches `vocab/decks/n5` (the collection `decks/n5` of a source at `"vocab/"`). |
 
 Addresses are written like paths precisely so that `path:` and `in:` keep
 meaning one thing for every source. There are no selectors of a driver's
@@ -580,8 +605,8 @@ What a frontend needs, and how it gets it after the change:
 
 - **Studying**: unchanged, but for the keys renamed above.
 - **Adding an item**: `srl-web`'s form picks a kind from `srl kinds` and a
-  note from `srl notes`. It picks an address from `srl collections`
-  instead, and gives it to `srl add`. `srl sources --json` gives each
+  note from `srl notes` today. It will pick an address from `srl
+  collections` instead, and give it to `srl add`. `srl sources --json` gives each
   source's prefix and the globs of the new collections it accepts, so a
   form can offer a "new collection" box, and check a name against them,
   without knowing any driver. No other metadata is needed: a source
@@ -604,7 +629,8 @@ still being a file a person can back up.
 
 - **Collections are TinyDB tables**, and it accepts any new one
   (`creates: ["*"]`): with `prefix = "vocab/"`, `srl add vocab/words`
-  creates the table `words`.
+  creates the table `words`. Its collections have no file: the database
+  file holds them all, and editing it by hand is not the way in.
 - **The handle is TinyDB's document ID.** `before` is compared with the
   stored document before each `replace`.
 - **Items are documents** holding the item object, plus the database's
@@ -636,7 +662,7 @@ coverage that runs on every `cargo test`:
   with the standard library, so the test needs no network and no service
   on the internet. `srl` itself still calls no service: the program does.
 - The test checks what this plan promises: the number of requests per
-  command (one `read` for a `find`, three calls for a study step), a
+  command (as in "How many calls"), a
   `replace` refused because the server's copy changed, the configuration
   checked by the program against the server, and a cache, in a folder
   set in the program's configuration, that saves requests when nothing
@@ -647,15 +673,16 @@ coverage that runs on every `cargo test`:
 | Decision | Taken |
 |---|---|
 | Names | source, driver, collection, prefix, address, handle |
-| Address | one tree: sources mounted at prefixes, an address is prefix + collection; a source owns what is under its prefix but deeper mounts; no address from two sources, no file from two collections; no folder needed (see "Addresses") |
+| Address | one tree: sources mounted at prefixes, an address is prefix + collection; a source owns what is under its prefix but deeper mounts; no address from two sources, no file from two collections; no folder needed; no line in an address (see "Addresses") |
 | Context | each driver hides its own items in `prose`, `jsonl` included; the core finds the owner of `see` by its address |
 | ID uniqueness | in the store, across sources; not across stores |
-| JSON keys | `address`, `source`, `file`, nullable `line`, `context_address` |
+| JSON keys | `address`, `source`, `file` and `line` (both may be `null`), `context_address` |
 | `line` | kept, optional, for people |
 | `see` | an address; no plain files, no URLs |
 | Selectors | `source:` added; `path:` and `in:` on addresses; none of a driver's own |
 | Configuration | `[sources.NAME]`, `driver` or `program`, `prefix`; `[notes]` removed |
-| Order of `srl find` | by address, then items as read, then card ID |
+| Order of `srl find` | by address (NFC), then items as read, then card ID |
+| Lint | each built-in driver lints its format; the `qa` lints run in the core on every item, at the item's line; not in the program protocol at first |
 | Caching | none in `srl`, built-in drivers included, as today; programs decide for themselves; not in the TinyDB example, shown in the web API test |
 | Plugins | processes, batch calls, as kind programs |
 | Verifying writes | `srl` reads a program's source again after `write` |
@@ -665,9 +692,11 @@ coverage that runs on every `cargo test`:
 
 Each step is a commit that builds, passes the four checks of
 [../rust.md](../rust.md), "After every change", and leaves the
-specification, guides and examples describing what it does. The first
-phase changes names and one small context rule; the second only the code's structure; the
-specification changes for real from the third on.
+specification, guides and examples describing what it does: an example
+or guide that a step affects is updated in that step, not later. The
+first phase changes names and one small context rule; the second only
+the code's structure; the specification changes for real from the third
+on.
 
 ### Phase 1: names, and one small rule
 
@@ -707,7 +736,8 @@ that move with their code.
 - **2.2 Domain and application layout**: move the pure modules under
   `domain/`, and the command functions that orchestrate under `app/`;
   no logic changes. [../rust.md](../rust.md)'s layout and the rule "one
-  module per document" are rewritten to name layers and areas.
+  module per document" are rewritten to name layers and areas, and
+  [../audit.md](../audit.md), L7, is rewritten to what is left of it.
 - **2.3 The catalog**: `Notes` becomes `Catalog`, built from what
   sources read, and holding the rules that cross sources (unique IDs,
   order, lookups). Still one source inside.
@@ -719,8 +749,9 @@ that move with their code.
   application's part (check everything, choose IDs, build `add` and
   `replace` changes) and `Files`'s part (find the item, apply, verify,
   write atomically).
-- **2.7 Lint through the port.** The `qa` lints move to the core, looking
-  at items rather than lines.
+- **2.7 Lint through the port**: `Files` gives its syntaxes' findings,
+  and the `qa` lints still look at the lines of `Q` as today, so the
+  findings and their lines don't change yet (see step 3.5).
 - **2.8 Two adapters, `markdown` and `jsonl`**, each implementing the
   whole port; `Files` and the `Syntax` trait are deleted, and the shared
   file helpers stay in `source/files.rs`. Inside, still chosen by
@@ -734,8 +765,10 @@ guides and the examples together.
 
 - **3.1 `[sources]`**: the configuration, the default `notes` source,
   drivers chosen by configuration instead of by extension, prefixes and
-  unique addresses, `[notes]` refused with a migration message, `srl
-  sources`. New spec document `docs/sources.md` (sources, drivers,
+  the rules of addresses, `[notes]` refused with a migration message,
+  `srl sources`, and, since outputs must say where an item is once
+  addresses and files can differ, the keys `source` and `file`, and `srl
+  collections` across sources. New spec document `docs/sources.md` (sources, drivers,
   collections, prefixes, addresses, the port's meaning);
   [../notes.md](../notes.md) narrows to the two built-in drivers;
   [../store.md](../store.md)'s configuration and layout;
@@ -745,24 +778,28 @@ guides and the examples together.
   text files" becomes: the log and configuration are, and items are
   wherever their sources keep them, text files by default), glossary,
   pieces and contracts.
-- **3.2 Sources in outputs**: `source` and `file` keys, `line` may be
-  `null`, the `source:` selector, `srl collections` across sources.
+- **3.2 The `source:` selector.**
 - **3.3 `see` resolves through sources**: the core looks the address up
   among every source's collections, and asks the owner for the context.
   [../audit.md](../audit.md), M1, is rewritten or removed: two drivers
   are two sources, not two models inside one.
 - **3.4 `srl add ADDRESS`**, with new collections resolved by prefix and
   the globs each source accepts.
-- **3.5 Examples and guides**: `srl-web` (add form from `srl
-  collections` and `srl sources`, open `file` only when there is one),
-  `srl-tui`, Nushell, the agent skills, the screenshots' demo store,
+- **3.5 The `qa` lints in the core**, on every item, reported at the
+  item's address and line (see "Commands").
+- **3.6 What the examples gain**, beyond following each step: `srl-web`'s
+  add form offers a new collection from `srl sources`, and it and
+  `srl-tui` open `file` only when there is one; the screenshots' demo
+  store gets a JSONL source of its own;
   [../guides/frontends.md](../guides/frontends.md) and
-  [../guides/agents.md](../guides/agents.md).
+  [../guides/agents.md](../guides/agents.md) explain sources.
 
 ### Phase 4: source programs
 
 - **4.1 The protocol and the `program` driver**: the five calls, strict
-  parsing, verifying writes by reading again. Specified in
+  parsing, verifying writes by reading again, and `line` and `file` that
+  may be `null`, in JSON and as an address without `:LINE`, since a
+  program is the first driver that can't always give them. Specified in
   `docs/sources.md`; [../ideas.md](../ideas.md), "Item syntaxes for
   other file formats, as plugins" and "Items without a line", are
   replaced by what was built, keeping what is still only an idea.
