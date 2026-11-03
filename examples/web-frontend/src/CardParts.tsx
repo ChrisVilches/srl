@@ -121,17 +121,34 @@ function contextMarkdown(context: string, address: string | null): string {
 }
 
 export function ErrorView({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const term = trailingCommaTerm(message);
   return (
     <div className="m-auto flex w-full flex-col gap-4">
       <h1 className="font-semibold text-rose-600 dark:text-rose-400">srl reported an error</h1>
       <pre className="overflow-x-auto rounded-lg bg-rose-50 p-4 text-sm whitespace-pre-wrap text-rose-950 dark:bg-rose-950/40 dark:text-rose-200">
         {message}
       </pre>
+      {term !== null && (
+        <p className="text-sm text-stone-600 dark:text-stone-300">
+          In a selector, a comma means <i>or</i> between the values of one key, as in{' '}
+          <code className="font-mono">in:grammar,kanji</code>, and terms are separated by spaces. If{' '}
+          <code className="font-mono">{term}</code> and the term after it are meant as two terms, remove the comma
+          after <code className="font-mono">{term}</code>. If the next value is meant as another value of the same
+          key, write it right after the comma, without a space.
+        </p>
+      )}
       <button onClick={onRetry} className={`self-start ${OUTLINE_BUTTON}`}>
         Try again
       </button>
     </div>
   );
+}
+
+// The term before the comma when srl rejected a selector term for ending in
+// one, as in `state:young, in:japanese`, or null. A guess from srl's message,
+// only to explain the error: the selector is never changed.
+function trailingCommaTerm(message: string): string | null {
+  return /invalid selector term `([^`]+),`: it has an empty value/.exec(message)?.[1] ?? null;
 }
 
 // Numbers for the top bar, each with its name and, optionally, its color.
