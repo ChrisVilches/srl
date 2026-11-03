@@ -24,14 +24,14 @@ reviews.** Everything else must justify itself.
 
 ## Why a data layer and one mapping, and nothing else
 
-`srl` is a CLI over its data (notes with items, the log, the
+`srl` is a CLI over its data (items, from notes or other sources, the log, the
 configuration) plus one fixed mapping from that data to frontends:
 `srl next --json` (see [overview.md](overview.md), "The idea").
 Everything around it, such as showing cards, launching programs, choosing
 how things look, or generating questions, is left to programs built on
 top.
 
-What only `srl` can do well is keep the data correct: parse notes
+What only `srl` can do well is keep the data correct: read every source
 strictly, never damage them, replay the log the same way every time, and
 apply one schedule for every frontend. What people want to vary is
 everything else. Keeping the two apart means a frontend, a script or any
@@ -384,10 +384,10 @@ Trade-off: a program has four calls to write, and `validate` and
 calls can't contradict each other in a way that matters: `groups` never
 has to check, and when it fails on an item `validate` accepted, the
 fault is the program's, not the item's. Each failure then points at whoever
-can fix it: an error `validate` gives is your note's, a call that fails as
+can fix it: an error `validate` gives is your item's, a call that fails as
 a whole is the program's, and a card `make` can't make is a problem when
 studying, such as an API that is down. If one call did both, a program
-that crashed would look exactly like a mistake in your note.
+that crashed would look exactly like a mistake in your item.
 
 This is still "parse, don't validate" (see [rust.md](rust.md)): the
 check and the structure don't drift apart, because `srl`, not the
@@ -451,7 +451,7 @@ too, unused.
 
 ## Why `groups` sees only the fields
 
-`groups` gets an item's ID and fields, and nothing else: not its note,
+`groups` gets an item's ID and fields, and nothing else: not its collection,
 not its context, not the day. Card IDs have to stay the same for as long
 as the item's fields do, because a card's history is kept under its ID.
 If `groups` could read the prose around an item, editing that prose
@@ -459,7 +459,7 @@ could change or drop card IDs, and history would be lost without the item
 changing at all.
 
 `make` may differ every time anyway, so it gets the context and the day:
-a program can use the note as background, for example to pick a sentence
+a program can use the context as background, for example to pick a sentence
 of it to ask about. The context is always in mode
 `prose`, whatever mode a frontend asks for, so a card doesn't depend on
 the frontend that shows it.
@@ -508,7 +508,7 @@ possible later.
 ## Why a fixed card format
 
 Frontends understand cards and nothing else, so they never change when the
-note syntax or a kind does. Any frontend can show any card.
+format of a source or a kind does. Any frontend can show any card.
 
 Trade-off: a kind of question that deserves a special interaction (drag to
 reorder, drawing) is shown plainly unless a specialized frontend is
@@ -542,7 +542,7 @@ So `srl` has no interactive study command. It stays a CLI that other
 programs drive, the same on every platform, and frontends live outside it:
 `examples/` has a web viewer and a terminal frontend to copy (see
 [guides/frontends.md](guides/frontends.md)). `srl next --json` gives
-everything a frontend shows (the card, its state, its kind, note and context),
+everything a frontend shows (the card, its state, its kind, collection and context),
 so a frontend needs no other command to read (see
 [frontends.md](frontends.md)).
 
@@ -554,7 +554,7 @@ official than yours.
 
 ## Why the frontend chooses the context mode
 
-Whether to show the whole note after the answer, the note without its
+Whether to show the whole collection after the answer, the collection without its
 items, or nothing, depends on the screen and on the person: a terminal
 frontend may want less than a browser. That is presentation, so it is a
 flag of `srl next` that each frontend sets, not a setting of the store

@@ -1,7 +1,8 @@
 # The store
 
-A **store** is a folder of notes, Markdown files by default, that `srl`
-studies from: usually your study folder. What makes it a store is a `.srl/`
+A **store** is a folder that `srl` studies from, usually your study
+folder, with the sources of its items: by default, its notes, Markdown
+files (see [sources.md](sources.md)). What makes it a store is a `.srl/`
 folder in it, which holds everything that belongs to `srl`. Everything outside `.srl/` is yours.
 
 You can have several stores, for example one per language or one for work.

@@ -7,9 +7,9 @@ meet `srl` at one fixed contract, described here.
 
 The contract is `srl next --json`, the one mapping from `srl`'s data to
 what a frontend shows: it turns the store into one card ready to show.
-Frontends understand this and nothing else. They don't know about notes,
+Frontends understand this and nothing else. They don't know about sources,
 kinds or cloze syntax, so any frontend can show any card, and a change to
-the notes or to a kind never changes a frontend. A kind reaches a frontend
+how items are kept or to a kind never changes a frontend. A kind reaches a frontend
 only as its name, a label to show.
 
 Recording the rating is not part of the contract. `srl review` takes only
@@ -32,7 +32,7 @@ Every frontend runs the same loop, around the contract:
 2. **Show the prompt**, and wait until the person wants to see the answer.
 3. **Show the answer:** `prompt_revealed` in place of `prompt`, or
    `prompt` again when `prompt_revealed` is `null`; then `answer` and the
-   context, each if it is not `null`. The note the context
+   context, each if it is not `null`. The collection the context
    comes from is `context_address`; a frontend may name
    it.
 4. **Get a rating** from 1 to 4.
@@ -49,7 +49,7 @@ question each time, like an arithmetic drill.
 
 A frontend may offer more, with the other commands everyone has: suspending the
 card (`srl suspend id:ID`, with `--reason TEXT` if the person says why,
-so that they can fix the card later), opening its note (the file at `file`, relative
+so that they can fix the card later), opening the file its item is kept in, when there is one (`file`, relative
 to the store's folder, in an editor of its choice), or a summary at the
 end, counting the
 cards whose `state` was `new`.
@@ -61,7 +61,7 @@ log every time, edits and reviews made elsewhere count at once.
 ## What a frontend gets
 
 `srl next --json` prints one object: the card's fields (see
-[cards.md](cards.md)), then the card's state and its item's kind, note and
+[cards.md](cards.md)), then the card's state and its item's kind, collection and
 context:
 
 ```json
@@ -104,12 +104,12 @@ the built-in drivers, a note of srl blocks without its front matter and,
 in mode `prose`, without its blocks, and a JSONL note as it is (see
 [notes.md](notes.md), "Context"); for a source program, what it gives.
 
-A frontend renders the notes it supports as it likes, and **shows any
-other note as plain text**, with whatever fallbacks it wants, such as for
+A frontend renders the contexts it supports as it likes, and **shows any
+other context as plain text**, with whatever fallbacks it wants, such as for
 a file whose content doesn't match its extension. Rendering only Markdown,
 or nothing at all, is fine.
 
-- The context is the note as written, so it may use syntax beyond
+- The context is the collection as its source shows it, so it may use syntax beyond
   CommonMark that notes commonly have, such as GFM tables. A frontend may
   render it.
 - How highlighted text looks is a frontend setting, never card content.

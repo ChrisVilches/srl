@@ -3,8 +3,8 @@
 The CLI is the only interface to a store. People, scripts, frontends and
 every other program use the same commands. There is no separate API.
 
-Every command reads or changes the store's data: its notes and their
-items, the log and the configuration. One of them, `srl next --json`, is
+Every command reads or changes the store's data: the items of its
+sources, the log and the configuration. One of them, `srl next --json`, is
 also the frontend contract: the mapping from that data to what a frontend
 shows (see [frontends.md](frontends.md)). `srl cards --json` prints cards
 in the same format, the one a frontend requires (see [cards.md](cards.md)),
@@ -24,7 +24,8 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
   `ADDRESS:LINE: message`; they have no `--json`.
 - **Never interactive.** No command asks questions or waits for a person.
   Studying is up to frontends (see [frontends.md](frontends.md)), and
-  editing notes is up to your editor.
+  writing items by hand is up to your editor, or to whatever keeps the
+  items of a source.
 - **Standard output carries results only.** Errors and warnings go to standard
   error, as one plain message each, saying what to do about it.
 - **Exit codes:** 0 success (or something found), 1 nothing found or nothing
@@ -77,8 +78,8 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by address, the order of items in the collection, then card ID): one line each with the card ID, `ADDRESS:LINE` and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
 | `srl show ID… [--context MODE] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
-| `srl add ADDRESS --stdin` | Append new items to the collection at `ADDRESS`, such as a note's path (see "Adding items" below). Prints the new item IDs. |
-| `srl edit --stdin` | Replace items, in any source, with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). The rest of each note is unchanged. Prints the IDs of the items. |
+| `srl add ADDRESS --stdin` | Add new items to the collection at `ADDRESS`, such as a note's path (see "Adding items" below). Prints the new item IDs. |
+| `srl edit --stdin` | Replace items, in any source, with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). Nothing else of their collections changes. Prints the IDs of the items. |
 | `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
 | `srl suspend SELECTOR [--reason TEXT]` | Suspend matching active cards, saying why if `--reason` is given (see below). |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
@@ -139,8 +140,11 @@ gone.
   are checked together, so each kind program is asked once about all of
   them (see [cards.md](cards.md), "How srl calls them"); a kind program
   that fails as a whole is reported as itself, not as a line.
-- **Each item is written in the syntax of its note** (see
-  [notes.md](notes.md), "How srl writes to notes"):
+- **Each item is written by its source** (see [items.md](items.md), "How
+  srl changes items"): a source program its own way (see
+  [sources.md](sources.md), "Calls"), and the built-in drivers in the
+  syntax of the item's note (see [notes.md](notes.md), "How srl writes to
+  notes"):
   - An item given unchanged is left as it is.
   - In a JSONL note, its line is written again.
   - In srl blocks, an item whose only change is `id` added or `draft`
@@ -198,7 +202,7 @@ srl add ADDRESS --stdin
 
 The items come from standard input, one item object per line (see
 [items.md](items.md), "The item object"): its header entries and its
-fields. Each item has its own, so items about different notes, of
+fields. Each item has its own, so items about different collections, of
 different kinds, or drafts and not, can be added at once.
 
 ```sh
@@ -247,8 +251,8 @@ JSONL
   as itself, not as a line.
 
 It prints the new item IDs, one per line. With `--dry-run` it prints the
-items it would write, as they would appear in the note (for a source
-program, the preview it gives), and writes nothing.
+items as their source would add them, and writes nothing: in a note, as
+they would be written in it; for a source program, the preview it gives.
 
 ### Studying
 
@@ -267,7 +271,7 @@ review wants to keep it, such as an answer typed into a frontend (see
 was decided.
 
 `srl next --json` is the frontend contract: what it prints, one object
-with the card, its state, and its item's kind, note and context, is
+with the card, its state, and its item's kind, collection and context, is
 specified in [frontends.md](frontends.md), "What a frontend gets". `--context MODE` chooses the context's mode,
 `prose` without it. Only the JSON output has a context, so without
 `--json` the flag changes nothing.
@@ -359,14 +363,18 @@ invalid configuration is reported alone, and `srl check` stops there; run
 it again once the configuration is fixed to see the other problems.
 
 `srl check` checks only what `srl` needs. Whether other programs can open
-the notes, for example paths too long for some programs on Windows, is not
+the store's files, for example paths too long for some programs on Windows, is not
 its concern.
 
-`srl lint` looks for mistakes `srl check` can't call errors, because only
-srl blocks make items (see [notes.md](notes.md), "The srl block syntax"), and
-because an item can be valid and still not be what you meant. It reports,
-as `ADDRESS:LINE: message` on standard output, in the order of the addresses and
-their lines:
+`srl lint` looks for mistakes `srl check` can't call errors: text a source
+doesn't read as an item but was probably meant to be one, and items that
+are valid but probably not what you meant. Each source finds the mistakes
+of its own format (see [sources.md](sources.md), "What a source does"),
+and `srl` those of the `qa` kind, the same in every source. It reports
+them as `ADDRESS:LINE: message` on standard output, in the order of the
+addresses and their lines. In the notes of a `markdown` source, where
+only srl blocks make items (see [notes.md](notes.md), "The srl block
+syntax"), and in the `qa` items of every source, they are:
 
 - outside srl blocks, lines that look like part of one. Each may come at
   the start of a line, or after spaces, a list marker (`-`, `*`, `+`,
@@ -404,9 +412,9 @@ The mistakes of a format are its source's to find; those in the `Q` of
 `qa` items, `srl`'s, the same in every source (see
 [sources.md](sources.md), "What a source does").
 
-Only the item syntaxes and the `qa` kind are known to `srl lint`: it
-doesn't look at the fields of items of kind programs, nor for their fields
-outside items.
+Besides what each source finds in its own format, `srl lint` knows only
+the `qa` kind: it doesn't look at the fields of items of kind programs,
+nor for their fields outside items.
 
 These are guesses, so `srl lint` never fails because of what it finds: it
 exits with 0 if it found something, and 1 if not.

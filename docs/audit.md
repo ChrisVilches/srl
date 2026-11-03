@@ -66,7 +66,7 @@ The open findings cluster in three places:
 | ID | Finding | Area | Severity | Difficulty |
 |---|---|---|---|---|
 | H1 | The log does not survive syncing as the docs claim | Brittleness | High | Moderate |
-| H2 | A broken note anywhere makes `srl review` fail, losing the rating | Specification | High | Moderate |
+| H2 | A broken item anywhere makes `srl review` fail, losing the rating | Specification | High | Moderate |
 | H3 | Kind programs and source programs make a store machine-specific, and a cloned store runs code on any command | Brittleness | High | Moderate |
 | H4 | Card IDs of kind programs can change silently, orphaning history | Brittleness | High | Easy |
 | M1 | Sources make every place of items equal, but the Goals put notes first | Vision | Medium | Hard |
@@ -125,21 +125,21 @@ and it fails silently.
    line. Appends never touch another device's file, so neither git nor sync
    tools ever conflict. Exact duplicate events could also be dropped.
 
-### H2. A broken note anywhere makes `srl review` fail, losing the rating
+### H2. A broken item anywhere makes `srl review` fail, losing the rating
 
 **Severity High · Difficulty Moderate**
 
-`srl review` loads every note before it writes (`crates/srl/src/commands.rs`,
+`srl review` reads every source before it writes (`crates/srl/src/commands.rs`,
 `fn review`, which calls `Catalog::load`). By [items.md](items.md), "Errors", any
-error in any note then stops it. So:
+error in any source then stops it. So:
 
 1. A frontend shows a card and the person rates it.
 2. Meanwhile the person has a note open in an editor, with an srl block
    half typed (an unclosed fence), and the editor autosaves.
 3. `srl review` fails with exit 2. The rating is not recorded.
 
-This is likely, not exotic: the frontend contract encourages "opening its
-note … in an editor" ([frontends.md](frontends.md), "The loop"), and the whole point
+This is likely, not exotic: the frontend contract encourages "opening the
+file its item is kept in … in an editor" ([frontends.md](frontends.md), "The loop"), and the whole point
 is that questions are written in notes while studying them. The same holds
 for `srl suspend`, for a kind program that fails as a whole (for
 example a missing Python package) while you review a `qa` card, and for a
@@ -155,7 +155,7 @@ that was valid a moment ago. The log only needs a valid card ID; the
 `hash` is the only thing that needs the item.
 
 **Possible fixes:** let the log-writing commands (`review`, `suspend`,
-`unsuspend`, `reset`, `move`) read only the notes that hold the cards they
+`unsuspend`, `reset`, `move`) read only the collections that hold the cards they
 name, or accept any well-formed card ID that the store knew at its last
 successful read (the index cache could keep that set). Keep the error
 loud: print it as a warning, but record the rating. This needs a decision,
@@ -475,8 +475,8 @@ Worth keeping as they are:
 1. **H4** and **L4**: cheap, and H4 protects history today.
 2. **H1** fixes 1 and 2 (read only `YYYY-MM.jsonl`; union merge), then
    decide on per-device logs.
-3. **H2**: let commands that write the log record despite unrelated note
-   errors.
+3. **H2**: let commands that write the log record despite unrelated
+   errors in any source.
 4. **M4**, **L2**, **L9**: small rule changes, best made
    before more programs depend on current behaviour.
 5. **M3**: state kinds as the extension mechanism, and settle their

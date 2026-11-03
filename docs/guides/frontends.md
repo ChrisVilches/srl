@@ -50,7 +50,7 @@ them, what they need and what may differ elsewhere.
   `srl suspend` for a React page, which renders card text and context as
   Markdown. Its card browser lists cards with `srl find` and makes any of
   them with `srl cards`, to see how a kind's cards look without studying.
-  Its Add tab writes items: the fields of a kind from `srl kinds`, a note
+  Its Add tab writes items: the fields of a kind from `srl kinds`, a collection of any source
   from `srl collections`, or a new one where `srl sources` says a source
   can create it, checked with `srl add --dry-run` and added with
   `srl add`, so it knows no rule of any kind.
@@ -69,7 +69,7 @@ in text without spaces, such as `==[...]==を==[...]==`.
 
 Both render a context by the extension of its `context_address` (see
 [frontends.md](../frontends.md), "Rendering"): `.md`, `.markdown`, `.mdx`
-and `.qmd` as Markdown, and every other note as a code block of plain
+and `.qmd` as Markdown, and every other context as a code block of plain
 text, so that a JSONL note's lines don't run together into one paragraph
 and the backticks in its fields aren't taken as code spans. The fence is
 longer than any run of backticks in the context, and a `.jsonl` context is

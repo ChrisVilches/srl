@@ -84,7 +84,7 @@ any particular note-taking app.
 6. **Fail loudly.** No error is swallowed. Every failure is reported on
    standard error, saying what to do about it. `srl` never quietly
    substitutes a guess or a default for something that went wrong, and a
-   note with an error stops every command that reads items until it is
+   an error in any source stops every command that reads items until it is
    fixed.
 
 ## The pieces
@@ -113,7 +113,7 @@ any particular note-taking app.
 
 | Term | Meaning |
 |---|---|
-| **Store** | A folder of notes (Markdown files by default) with a `.srl/` folder in it, which holds the configuration, the log and caches. |
+| **Store** | A folder with a `.srl/` folder in it, which holds the configuration, the log and caches, and, by default, your notes (Markdown files) as its one source of items. |
 | **Source** | A place items come from and are written back to, named in `.srl/config.toml`: by default, `notes`, every Markdown file of the store. Each has a driver, `markdown` or `jsonl`, or is a source program that keeps items its own way, and is mounted at a prefix in the store's one tree of addresses. |
 | **Note** | A file in the store that a source reads for items: by default, any Markdown file. A note may hold items; the rest of it is yours. A note is a collection of its source, and its address is its path, after the source's prefix. |
 | **Item** | A question written in a note, or kept by a source program: header entries (`id`, `kind`, `see`, `draft`) and fields such as `Q` and `A`. In a note of srl blocks it is in an srl block (a fenced code block whose language is `srl`): a header such as the fence ```` ```srl id:x7k2m9 ```` followed by fields such as `Q:` and `A:`; in a JSONL note it is a line, as a JSON object; a source program gives it as a JSON object too. It has an ID, and gives one or more cards. |
@@ -302,7 +302,7 @@ Main design decisions still to take:
 - **Media in cards (audio, images) and furigana markup.** Today card text is
   Markdown with `==highlight==` only ([cards.md](cards.md), "Text
   formatting").
-- **Making strictness less annoying.** Today every error in a note stops
+- **Making strictness less annoying.** Today every error in a source stops
   every command that reads items ([items.md](items.md), "Errors"), and a
   card its kind program can't make stops `srl next`
   ([cli.md](cli.md), "Studying"). That stays the rule: `srl` never works

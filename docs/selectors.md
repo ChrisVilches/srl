@@ -31,7 +31,8 @@ selector it didn't write puts it after `--`.
 | `word` or `"some words"` | Cards whose item contains the text, case-insensitively, in any field |
 
 `in:` is a quick way to name a topic, taken from how you already arrange
-your notes: there are no tags to write.
+your collections, such as the folders of your notes: there are no tags
+to write.
 
 Keys and text are told apart by one rule: a term that starts with lowercase
 letters `a`–`z` and a colon is a `key:value` term, and anything else is text.
