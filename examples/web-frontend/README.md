@@ -8,7 +8,7 @@ needs `srl` on `PATH` and Node.js 20 or later, and should work on Linux,
 macOS and Windows (it is tried on Linux only).
 
 - Card text and context are rendered as CommonMark plus GFM tables, with
-  `==highlights==` marked. Raw HTML in notes is shown as text.
+  `==highlights==` marked. Raw HTML in them is shown as text.
 - Showing the answer turns the question into its revealed prompt, with a
   cloze's blanks filled in (or leaves it as it is when the card has none,
   `prompt_revealed` being `null`), and adds the answer below it when there
@@ -20,14 +20,14 @@ macOS and Windows (it is tried on Linux only).
   lists them in `BUILT_IN_KINDS` in `src/CardParts.tsx`, and a new one
   must be added there. A card that isn't new is always due, so it gets
   no label for that.
-- After the answer it shows the context in `prose` mode, under the name of
-  its note; `CONTEXT` in `server/server.js` chooses the mode. A context
-  from a note that isn't Markdown (by the extension of `context_address`),
-  such as a JSONL note, is shown as a code block, a JSONL one in colors.
-  A table wider than the page scrolls sideways in its own box, leaving
-  the text around it in place. A long ID or kind is cut short in the
-  card's header, and a long note name over the context, whole in its
-  tooltip.
+- After the answer it shows the context in `prose` mode, under the
+  address of its collection; `CONTEXT` in `server/server.js` chooses the
+  mode. A context from anything but a Markdown note (by the extension of
+  `context_address`), such as a JSONL note or a table of a source
+  program, is shown as a code block, a JSONL one in colors. A table
+  wider than the page scrolls sideways in its own box, leaving the text
+  around it in place. A long ID or kind is cut short in the card's
+  header, and a long address over the context, whole in its tooltip.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
   card without recording a review, after asking why in a dialog: what to
   fix before studying it again. The reason may be left empty; Enter
@@ -60,7 +60,7 @@ address), for seeing what a store holds and how a kind's cards look, such
 as how `ja_word` marks words, without studying:
 
 - It lists the cards of a selector as `srl find` does, in the order they
-  are written and under the name of each note: each card's ID, line,
+  are written and under the address of each collection: each card's ID, line,
   kind (unless built in), status (when not active) and state, and the
   first line of its item's first field.
 - Choosing a card makes it with `srl cards`, running its kind program, and
@@ -86,8 +86,8 @@ as how `ja_word` marks words, without studying:
 
 In the card browser, the **Edit** side, next to Prompt, Revealed and
 JSON, edits the item of the chosen card, whatever its source: a note, or
-a database or service behind a source program. It shows the item's fields and whether it is a draft, as `srl show
---json` gives them, and **Save** gives the whole item to `srl edit
+a database or service behind a source program. It shows the item's
+fields and whether it is a draft, as `srl show --json` gives them, and **Save** gives the whole item to `srl edit
 --stdin`; `srl` finds the item by its ID, and its source writes it. The
 cards are then found again in place: the list stays where it is scrolled,
 its rows change where the item's cards changed, and only the item's
@@ -105,16 +105,17 @@ It also **adds items** (the Add tab, or `#add`), one at a time:
   box's placeholder: shown while the box is empty, gone once something
   is typed, since a kind is soon learned. Changing
   the kind keeps the text of a field of the same name.
-- The note it is appended to (any collection: a note, or a table of a
-  source program) is chosen among those `srl collections` lists, by typing
-  any part of its address (the letters in order), or is a new one: an
-  address typed in full, offered as **New note** when a source of the
-  store could create it there, as `srl sources` describes (its prefix,
-  then a path its `include` globs match and its `exclude` globs don't).
-  `srl add` creates it, and has the last word on whether it may. The
-  notes are read once, when the tab is first shown; reloading the page
-  reads them again.
-- The note last added to is chosen again on the next visit. It is kept
+- The **Collection** it is added to, of any source (a note, or a table
+  of a source program), is chosen among those `srl collections` lists,
+  by typing any part of its address (the letters in order), or is a new
+  one: an address typed in full, offered as **New collection** when a
+  source of the store could create it there, as `srl sources` describes
+  (its prefix, then an address its `include` globs match and its
+  `exclude` globs don't). `srl add` creates it, and has the last word on
+  whether it may; the source writes the item its own way. The
+  collections are read once, when the tab is first shown; reloading the
+  page reads them again.
+- The collection last added to is chosen again on the next visit. It is kept
   in the browser's `localStorage`, so it is per browser and per address
   (port), and forgotten when `srl collections` no longer lists it.
 - An optional context collection, chosen the same way, becomes the
@@ -122,7 +123,8 @@ It also **adds items** (the Add tab, or `#add`), one at a time:
   the collection the item is added to, which is its context without
   one. **Draft** makes the item a draft.
 - **Check** runs `srl add --dry-run` and shows the item as srl would
-  write it; **Add** (Ctrl+Enter) adds it and shows its ID, then empties
+  add it: as it would be written in a note, or the preview a source
+  program gives; **Add** (Ctrl+Enter) adds it and shows its ID, then empties
   the fields. The page knows no rule of any kind: srl checks the item, and
   the page shows what srl says, such as a field the kind needs. Fields
   left blank are left out of the item, and `kind` is left out for `qa`.
@@ -202,7 +204,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
 | `GET /api/sources` | `srl sources --json` | `{"sources": […]}`, each source as `srl sources` printed it |
 | `GET /api/collections` | `srl collections --json` | `{"collections": [ADDRESS…]}` |
-| `POST /api/add` | `srl add ADDRESS --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"note": ADDRESS, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, the item as it would be written, for a dry run |
+| `POST /api/add` | `srl add ADDRESS --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"note": ADDRESS, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as it would be written in a note, or a source program's preview |
 | `GET /api/item?id=…` | `srl show ID --json --context none` | `{"item": …}`, the item object `srl show` printed |
 | `POST /api/edit` | `srl edit --stdin`, for `{"item": ITEM}`; `ITEM` is its one line | `{"ids": […]}` |
 
@@ -237,8 +239,8 @@ an inline script) and keeps other pages from framing it.
 To reach it from elsewhere, put it behind a reverse proxy that adds HTTPS
 and authentication, such as basic auth, and run `srl-web --no-open` on
 the server. Anyone who gets through can do what the page does: read every
-note, add items, and run kind programs, some of which may ask an LLM, at
-your cost. The proxy must send `Host: localhost` (or `127.0.0.1`), or
+item of the store, add items, and run kind programs, some of which may
+ask an LLM, at your cost. The proxy must send `Host: localhost` (or `127.0.0.1`), or
 srl-web refuses every request: nginx's `proxy_pass http://127.0.0.1:4317;`
 does so by default, Caddy's `reverse_proxy` needs `header_up Host
 localhost`. A card made by a slow kind program can take longer than a

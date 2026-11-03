@@ -15,10 +15,10 @@ const RULES: [string, string][] = [
 ];
 
 const EXAMPLES: [string, string][] = [
-  ['in:grammar', 'Cards in a folder or note named grammar, whatever its extension'],
+  ['in:grammar', 'Cards whose address has a part named grammar, its extension aside, such as japanese/grammar/ or grammar.md'],
   ['in:grammar,kanji', 'Cards in grammar or in kanji'],
   ['in:japanese -in:kanji', 'Cards in japanese, but not in kanji'],
-  ['path:japanese/*', 'Cards of the notes directly in japanese/; path:japanese/** for everything below it'],
+  ['path:japanese/*', 'Cards of the collections directly in japanese/; path:japanese/** for everything below it'],
   ['state:due', 'Cards due today; the states are new, due, young, mature and leech'],
   ['state:new in:grammar', 'New cards in grammar'],
   ['status:draft', 'Draft cards; the statuses are active, draft and suspended'],

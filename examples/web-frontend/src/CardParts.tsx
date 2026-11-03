@@ -88,8 +88,8 @@ export function StateBadges({ status, state }: { status?: FoundCard['status']; s
   );
 }
 
-// The item's context: the note it belongs to, or the note its see: names.
-// Nothing when the item has none.
+// The item's context: from the collection it belongs to, or the one its
+// see: names, under its address. Nothing when the item has none.
 function ContextView({ card }: { card: ShownCard }) {
   if (card.context === null) {
     return null;
@@ -106,10 +106,11 @@ function ContextView({ card }: { card: ShownCard }) {
 
 const MARKDOWN_EXTENSIONS =['.md', '.markdown', '.mdx', '.qmd'];
 
-// The context as Markdown to render, by the extension of its note
-// (context_address). A context from any note but a Markdown one goes in a code
-// block as plain text, json for a JSONL note, with a fence longer than any
-// run of backticks in it.
+// The context as Markdown to render, by the extension of its collection's
+// address (context_address). A context from anything but a Markdown note,
+// such as a JSONL note or a database's table, goes in a code block as plain
+// text, json for a JSONL note, with a fence longer than any run of
+// backticks in it.
 function contextMarkdown(context: string, address: string | null): string {
   const lower = (address ?? '').toLowerCase();
   if (MARKDOWN_EXTENSIONS.some((extension) => lower.endsWith(extension))) {

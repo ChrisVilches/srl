@@ -7,8 +7,9 @@ import { Modal } from './Modal';
 import { TopBar } from './TopBar';
 
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
-// note to append it to, picked from `srl collections`, or a new one where
-// `srl sources` says one may be created. srl checks the item, with
+// collection to add it to, of any source (`note` here), picked from
+// `srl collections`, or a new one where `srl sources` says one may be
+// created; its source writes the item its own way. srl checks the item, with
 // `srl add --dry-run` (Check) and when it is added: the page knows no rule of
 // any kind, and shows what srl says.
 
@@ -166,14 +167,14 @@ export function Add({ active }: { active: boolean }) {
             ))}
 
             <Section
-              label="Note"
-              hint="Where the item is added: an existing collection, such as a note or a table of a database, or a new one, typed as its address, where a source of the store can create it (srl sources)."
+              label="Collection"
+              hint="Where the item is added: an existing collection of any source, such as a note or a database table, or a new one, typed as its address, where a source of the store can create it (srl sources)."
             >
               <NotePicker
                 notes={notes}
                 value={note}
                 onChange={setNote}
-                placeholder={notes.length === 0 ? 'Type the path of a new note…' : 'Find a note, or type a new one…'}
+                placeholder={notes.length === 0 ? 'Type the address of a new collection…' : 'Find a collection, or type a new one…'}
                 creatable={(path) => creatable(sources, path)}
               />
             </Section>
@@ -244,7 +245,7 @@ const ERROR_BOX = 'rounded-lg bg-rose-50 p-3 text-rose-950 dark:bg-rose-950/40 d
 function ResultModal({ result, kind, onClose }: { result: Result; kind: string; onClose: () => void }) {
   const title = {
     none: '',
-    checked: 'Valid. srl would append:',
+    checked: 'Valid. srl would add:',
     added: result.kind === 'added' ? `Added to ${result.note}` : '',
     error: 'srl refused the item',
   }[result.kind];
@@ -270,12 +271,12 @@ function ResultModal({ result, kind, onClose }: { result: Result; kind: string; 
   );
 }
 
-// How many matching notes the picker shows.
+// How many matching collections the picker shows.
 const SHOWN = 50;
 
-// The notes whose path has the letters of QUERY in order, ignoring case,
+// The addresses that have the letters of QUERY in order, ignoring case,
 // best first: the fewer letters between the matched ones, the better, then
-// the shorter path. Every note matches an empty query, in order.
+// the shorter address. Every address matches an empty query, in order.
 function fuzzy(notes: string[], query: string): string[] {
   const q = query.toLowerCase().replace(/\s+/g, '');
   if (q === '') return notes;
@@ -298,8 +299,8 @@ function fuzzy(notes: string[], query: string): string[] {
   return scored.sort((a, b) => a[0] - b[0] || a[1].length - b[1].length).map(([, note]) => note);
 }
 
-// A note chosen from NOTES by typing part of its path. Only a listed note
-// can be chosen. With CLEARABLE, the choice can be taken back.
+// A collection chosen from NOTES, the addresses `srl collections` lists, by
+// typing part of its address. Only a listed one can be chosen. With CLEARABLE, the choice can be taken back.
 function NotePicker({
   notes,
   value,
@@ -313,8 +314,8 @@ function NotePicker({
   onChange: (note: string | null) => void;
   placeholder: string;
   clearable?: boolean;
-  // Whether a new note may be at a path that is typed: then it is offered
-  // too, after the notes that match.
+  // Whether a new collection may be at an address that is typed: then it
+  // is offered too, after the collections that match.
   creatable?: (path: string) => boolean;
 }) {
   const [query, setQuery] = useState('');
@@ -363,7 +364,7 @@ function NotePicker({
           }}
           onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
-          placeholder={open ? 'Type part of a path' : placeholder}
+          placeholder={open ? 'Type part of an address' : placeholder}
           spellCheck={false}
           className={`${INPUT} font-mono`}
         />
@@ -375,7 +376,7 @@ function NotePicker({
       </div>
       {open && (
         <ul className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-900">
-          {options.length === 0 && <li className="px-3 py-1.5 text-sm text-stone-400">No note matches.</li>}
+          {options.length === 0 && <li className="px-3 py-1.5 text-sm text-stone-400">No collection matches.</li>}
           {options.map((note, i) => (
             <li
               key={note}
@@ -389,7 +390,7 @@ function NotePicker({
             >
               {note === fresh ? (
                 <>
-                  <span className="font-sans text-stone-500">New note: </span>
+                  <span className="font-sans text-stone-500">New collection: </span>
                   {note}
                 </>
               ) : (
@@ -403,9 +404,10 @@ function NotePicker({
   );
 }
 
-// Whether a source of the store can create a note at `path`, as `srl add`
-// decides it (docs/sources.md, "Addresses"): one mounted deepest above it,
-// whose `include` matches the rest of the path and whose `exclude` doesn't.
+// Whether a source of the store can create a collection at the address
+// `path`, as `srl add` decides it (docs/sources.md, "Addresses"): one
+// mounted deepest above it, whose `creates.include` globs (`srl sources
+// --json`) match the rest of the address and whose `creates.exclude` don't.
 // srl checks it again when the item is checked or added.
 function creatable(sources: SourceDescription[], path: string): boolean {
   if (path.split('/').some((part) => part === '' || part.startsWith('.'))) return false;

@@ -189,17 +189,19 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       return { collections: found ? jsonLines(stdout).map((collection) => collection.address) : [] };
     },
 
-    // The item is passed to srl as it is: srl checks it, and the note. With
-    // dry_run, srl prints the item as it would write it, and writes nothing.
+    // The item is passed to srl as it is: srl checks it, and the address of
+    // the collection, given as `note`. With dry_run, srl prints the item as
+    // it would be written in a note, or a source program's preview of it,
+    // and writes nothing.
     'POST /api/add': async (_url, body) => {
       if (typeof body.note !== 'string' || body.note === '') {
-        throw new BadRequest('note must be the path of a note');
+        throw new BadRequest('note must be the address of a collection');
       }
       if (body.item === null || typeof body.item !== 'object' || Array.isArray(body.item)) {
         throw new BadRequest('item must be a JSON object');
       }
       const dryRun = body.dry_run === true;
-      // The note goes after `--`, so that a path starting with `-` is never
+      // The address goes after `--`, so that one starting with `-` is never
       // read as an option.
       const args = ['add', '--stdin', ...(dryRun ? ['--dry-run'] : []), '--', body.note];
       const { stdout } = await srl(args, JSON.stringify(body.item) + '\n');
