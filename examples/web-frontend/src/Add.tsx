@@ -187,7 +187,7 @@ export function Add({ active }: { active: boolean }) {
 
             <Section
               label="Context"
-              hint="Optional: the collection shown for context along with the answer (see:). Without one, it is the one the item is added to, shown here until another is chosen."
+              hint={'Optional: the collection shown for context along with the answer (the item\'s "see" entry). Default: same as collection.'}
             >
               {/* The input is controlled, so its placeholder follows the
                   collection chosen above like any other prop. */}
@@ -216,7 +216,6 @@ export function Add({ active }: { active: boolean }) {
               <button onClick={check} disabled={collection === null || busy} className={`${OUTLINE_BUTTON} disabled:opacity-50`}>
                 Check
               </button>
-              {busy && <span className="text-sm text-stone-400">Asking srl…</span>}
             </div>
 
             <ResultModal result={result} kind={kind.name} onClose={() => setResult({ kind: 'none' })} />
