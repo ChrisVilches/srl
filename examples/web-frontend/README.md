@@ -14,7 +14,8 @@ macOS and Windows (it is tried on Linux only).
   `prompt_revealed` being `null`), and adds the answer below it when there
   is one.
 - Each card is labelled with its ID and kind, the kind in violet when it
-  isn't `qa`, such as a kind that asks an LLM.
+  isn't `qa`, such as a kind that asks an LLM, and `new` when it is new.
+  A card that isn't new is always due, so it gets no label for that.
 - After the answer it shows the context in `prose` mode, under the name of
   its note; `CONTEXT` in `server/server.js` chooses the mode. A context
   from a note that isn't Markdown (by the extension of `context_address`),

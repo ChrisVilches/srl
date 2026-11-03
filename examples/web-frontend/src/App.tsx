@@ -238,7 +238,12 @@ function CardView({
   const { card } = phase;
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <CardFace card={card} revealed={phase.kind === 'answer'} badges={<StateBadges state={card.state} />} />
+      {/* A studied card is always new or due, so only new gets a label. */}
+      <CardFace
+        card={card}
+        revealed={phase.kind === 'answer'}
+        badges={card.state === 'new' && <StateBadges state={card.state} />}
+      />
 
       <div className="sticky bottom-0 -mx-4 mt-auto border-t border-stone-200 bg-stone-50/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 dark:border-stone-800 dark:bg-stone-950/90">
         <div className="flex flex-wrap items-center gap-2">
