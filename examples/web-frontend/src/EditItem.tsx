@@ -124,7 +124,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
 
 // The form while srl reads the item: the item's line, two fields, Draft
 // and the buttons.
-function ItemSkeleton() {
+export function ItemSkeleton() {
   return (
     <Loading label="Reading the item" className="flex flex-col gap-4">
       <Skeleton className="h-4 w-80 max-w-full" />

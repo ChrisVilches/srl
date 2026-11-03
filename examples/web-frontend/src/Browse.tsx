@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type FoundCard, type ShownCard } from './api';
 import { CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, StateBadges, Waiting, WITH_KEY } from './CardParts';
-import { EditItem } from './EditItem';
+import { EditItem, ItemSkeleton } from './EditItem';
 import { JsonView } from './JsonView';
 import type { ViewProps } from './App';
 import { useKeys, useSubmitted } from './hooks';
@@ -169,11 +169,12 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
         </div>
         <div className="overflow-y-auto px-4 py-6 [scrollbar-gutter:stable] sm:px-6">
           {/* Until the cards are found, a card the address names may or may
-              not be among them: the preview waits, in the shape of a card. */}
-          {selected !== null && list.kind === 'loading' && <PreviewSkeleton />}
-          {(selected === null || list.kind === 'ready') && (
+              not be among them: the preview waits, with its sides but not
+              the card's details. */}
+          {(selected === null || list.kind !== 'error') && (
             <Preview
-              missing={selected !== null && !listed ? selected : null}
+              loading={selected !== null && list.kind === 'loading'}
+              missing={selected !== null && list.kind === 'ready' && !listed ? selected : null}
               found={cards.find((c) => c.id === selected) ?? null}
               made={selected === null ? undefined : made[selected]}
               side={side}
@@ -206,22 +207,6 @@ function ListSkeleton() {
           <Skeleton className={`mt-2 h-4 ${width}`} />
         </div>
       ))}
-    </Loading>
-  );
-}
-
-// The card the address names, while srl finds the cards: the sides, then a
-// card with its ID and a question.
-function PreviewSkeleton() {
-  return (
-    <Loading label="Finding the card" className="flex flex-col gap-6">
-      <Skeleton className="h-8 w-72 max-w-full" />
-      <div className="rounded-2xl border border-stone-200 bg-white px-6 pt-4 pb-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="mt-4 h-3 w-20" />
-        <Skeleton className="mt-3 h-6 w-3/4" />
-        <Skeleton className="mt-2 h-6 w-1/2" />
-      </div>
     </Loading>
   );
 }
@@ -281,7 +266,12 @@ function CardList({
   );
 }
 
+// The chosen card, on the chosen side. While LOADING, the cards being found,
+// the sides are shown, with a skeleton for the card's collection and due
+// date, and for the form on Edit; the other sides show nothing until the
+// card is made, which Making shows.
 function Preview({
+  loading,
   found,
   made,
   side,
@@ -290,6 +280,7 @@ function Preview({
   onSaved,
   missing,
 }: {
+  loading: boolean;
   found: FoundCard | null;
   // The card the address names when the selector's cards don't include it.
   missing: string | null;
@@ -309,7 +300,7 @@ function Preview({
       </Notice>
     );
   }
-  if (found === null) {
+  if (found === null && !loading) {
     return (
       <Notice>
         Choose a card to make it and see it as studying shows it. <Key>↑</Key>
@@ -344,29 +335,38 @@ function Preview({
         {!editing && (
           <button
             onClick={onMake}
-            disabled={made?.kind === 'making'}
+            disabled={found === null || made?.kind === 'making'}
             title="Make the card again: its kind program runs again"
             className={`py-1 ${WITH_KEY} ${QUIET_BUTTON}`}
           >
             Make again <Key>r</Key>
           </button>
         )}
-        <span className="ml-auto min-w-0 truncate font-mono text-xs text-stone-400" title={found.address}>
-          {found.address}
-          {found.line === null ? '' : `:${found.line}`} · due {found.due ?? '—'}
-        </span>
+        {found === null ? (
+          <Loading label="Finding the card" className="ml-auto flex items-center gap-2">
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-3 w-20" />
+          </Loading>
+        ) : (
+          <span className="ml-auto min-w-0 truncate font-mono text-xs text-stone-400" title={found.address}>
+            {found.address}
+            {found.line === null ? '' : `:${found.line}`} · due {found.due ?? '—'}
+          </span>
+        )}
       </div>
 
-      {found.suspend_reason !== null && (
+      {found === null && editing && <ItemSkeleton />}
+      {found !== null && found.suspend_reason !== null && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-500/40 dark:bg-amber-400/10">
           <div className="font-medium text-amber-800 dark:text-amber-300">Suspended because</div>
           <p className="mt-1 whitespace-pre-wrap">{found.suspend_reason}</p>
         </div>
       )}
-      {editing && <EditItem id={found.item} onSaved={() => onSaved(found.item)} />}
-      {!editing && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
+      {found !== null && editing && <EditItem id={found.item} onSaved={() => onSaved(found.item)} />}
+      {found !== null && !editing && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
       {!editing && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
-      {!editing &&
+      {found !== null &&
+        !editing &&
         made?.kind === 'ready' &&
         (side === 'json' ? (
           <JsonView
