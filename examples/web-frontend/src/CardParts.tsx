@@ -82,9 +82,10 @@ export function StateBadges({ status, state }: { status?: FoundCard['status']; s
 }
 
 // The item's context: the note it belongs to, or the note its see: names.
+// Nothing when the item has none.
 function ContextView({ card }: { card: ShownCard }) {
   if (card.context === null) {
-    return <p className="text-center text-sm text-stone-400">No context.</p>;
+    return null;
   }
   return (
     <section className="rounded-2xl bg-stone-100 px-6 py-5 dark:bg-stone-900/50">
