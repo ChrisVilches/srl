@@ -368,10 +368,17 @@ function Preview({
       </div>
 
       {found === null && editing && <ItemSkeleton />}
-      {found !== null && found.suspend_reason !== null && (
+      {/* A card suspended without a reason says so, with no reason. */}
+      {found !== null && found.status === 'suspended' && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-500/40 dark:bg-amber-400/10">
-          <div className="font-medium text-amber-800 dark:text-amber-300">Suspended because</div>
-          <p className="mt-1 whitespace-pre-wrap">{found.suspend_reason}</p>
+          {found.suspend_reason === null ? (
+            <div className="font-medium text-amber-800 dark:text-amber-300">Suspended, with no reason given</div>
+          ) : (
+            <>
+              <div className="font-medium text-amber-800 dark:text-amber-300">Suspended because</div>
+              <p className="mt-1 whitespace-pre-wrap">{found.suspend_reason}</p>
+            </>
+          )}
         </div>
       )}
       {found !== null && editing && <EditItem id={found.item} onSaved={() => onSaved(found.item)} />}

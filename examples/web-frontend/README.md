@@ -70,8 +70,9 @@ as how `ja_word` marks words, without studying:
 - Choosing a card makes it with `srl cards`, running its kind program, and
   shows it as studying does: the prompt, or, turned, the revealed prompt,
   the answer and the context. The JSON side shows the card as `srl cards
-  --json` prints it, in colors. A card suspended with a reason shows the reason above
-  it, so `status:suspended` lists the cards to fix, and what to fix.
+  --json` prints it, in colors. A suspended card says so above it, with
+  the reason if it was given one, so `status:suspended` lists the cards to
+  fix, and what to fix.
 - A kind program can take a while: the page counts the seconds while it
   runs. A card is made once it has stayed chosen
   for a moment, so moving through the list makes no card on the way, and
