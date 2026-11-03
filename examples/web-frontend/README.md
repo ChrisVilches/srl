@@ -114,7 +114,9 @@ as how `ja_word` marks words, without studying:
 In the card browser, the **Edit** side, next to Prompt, Revealed and
 JSON, edits the item of the chosen card, whatever its source: a note, or
 a database or service behind a source program. It shows the item's
-fields and whether it is a draft, as `srl show --json` gives them, and **Save** gives the whole item to `srl edit
+fields and whether it is a draft, as `srl show --json` gives them, each
+field under its label from `srl kinds` (`Question` for `Q`), or its name
+if its kind gives none or `srl kinds` fails, and **Save** gives the whole item to `srl edit
 --stdin`; `srl` finds the item by its ID, and its source writes it. The
 cards are then found again in place: the list stays where it is scrolled,
 its rows change where the item's cards changed, and only the item's
@@ -128,7 +130,9 @@ Edit.
 It also **adds items** (the Add tab, or `/add`), one at a time:
 
 - The kind is chosen among those `srl kinds` describes, and the form
-  shows one box per field, with the kind's description of it as the
+  shows one box per field, under the field's label (`Question` and
+  `Answer` for `qa`), or its name if its kind gives none, with the
+  kind's description of it as the
   box's placeholder: shown while the box is empty, gone once something
   is typed, since a kind is soon learned. Changing
   the kind keeps the text of a field of the same name.

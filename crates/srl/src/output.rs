@@ -148,13 +148,16 @@ pub(crate) fn stats(report: &Stats) {
 
 /// Prints kinds for people: for each, a line with its name and
 /// description, then a line per field, indented by two spaces, with its
-/// name and description. Names and descriptions are separated by two
-/// spaces.
+/// name, its label in parentheses if it has one, and its description. Names
+/// and descriptions are separated by two spaces.
 pub(crate) fn kinds(kinds: &[KindDescription]) {
     for kind in kinds {
         println!("{}  {}", kind.name, kind.description);
         for field in &kind.fields {
-            println!("  {}  {}", field.name, field.description);
+            match &field.label {
+                Some(label) => println!("  {} ({label})  {}", field.name, field.description),
+                None => println!("  {}  {}", field.name, field.description),
+            }
         }
     }
 }

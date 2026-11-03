@@ -1009,13 +1009,15 @@ fn kinds_describes_qa_without_reading_any_item() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let lines = lines(&output);
     assert!(lines[0].starts_with("qa  "), "{lines:?}");
-    assert!(lines[1].starts_with("  Q  "), "{lines:?}");
-    assert!(lines[2].starts_with("  A  "), "{lines:?}");
+    assert!(lines[1].starts_with("  Q (Question)  "), "{lines:?}");
+    assert!(lines[2].starts_with("  A (Answer)  "), "{lines:?}");
     let output = srl(&["kinds", "--json", "--dir", d]);
     let kinds = json_lines(&output);
     assert_eq!(kinds.len(), 1);
     assert_eq!(kinds[0]["name"], "qa");
     assert_eq!(kinds[0]["fields"][0]["name"], "Q");
+    assert_eq!(kinds[0]["fields"][0]["label"], "Question");
+    assert_eq!(kinds[0]["fields"][1]["label"], "Answer");
 }
 
 const TEXT_NOTE: &str = "```srl id:txt001\nQ: From a text file?\nA: Yes.\n```\n";

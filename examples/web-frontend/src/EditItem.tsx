@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { api } from './api';
+import { api, fieldLabel, type KindDescription } from './api';
 import { DraftCheckbox, ErrorView, Label, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
 import { Modal, ResultBox } from './Modal';
 
@@ -35,6 +35,10 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
   const [texts, setTexts] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState(false);
   const [saving, setSaving] = useState<Saving>({ kind: 'idle' });
+  // What each field of the item's kind is shown as (see fieldLabel). A field
+  // not among them, or any field if srl couldn't describe the kinds, is shown
+  // by its name: labels only inform, so they never stop the form.
+  const [labels, setLabels] = useState<Record<string, string>>({});
 
   // Shows the fields of ITEM, as srl has it.
   const fill = (item: Record<string, unknown>) => {
@@ -46,8 +50,10 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
     if (id === null) return;
     setLoaded({ kind: 'loading' });
     setSaving({ kind: 'idle' });
-    api.item(id).then(
-      (item) => {
+    Promise.all([api.item(id), api.kinds().catch((): KindDescription[] => [])]).then(
+      ([item, kinds]) => {
+        const fields = kinds.find((k) => k.name === item.kind)?.fields ?? [];
+        setLabels(Object.fromEntries(fields.map((field) => [field.name, fieldLabel(field)])));
         setLoaded({ kind: 'ready', item });
         fill(item);
       },
@@ -85,7 +91,7 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
       </p>
       {Object.entries(texts).map(([key, text]) => (
         <label key={key} className="flex flex-col gap-1">
-          <Label>{key}</Label>
+          <Label>{labels[key] ?? key}</Label>
           <textarea
             value={text}
             onChange={(event) => setTexts((t) => ({ ...t, [key]: event.target.value }))}

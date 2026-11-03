@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
-import { api, type KindDescription, type NewItem, type SourceDescription } from './api';
+import { api, fieldLabel, type KindDescription, type NewItem, type SourceDescription } from './api';
 import { DraftCheckbox, ErrorView, Key, KindBadge, Label, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
 import { useStartWhenShown } from './hooks';
 import { Modal, ResultBox } from './Modal';
@@ -161,7 +161,7 @@ export function Add({ active }: { active: boolean }) {
             {kind.fields.map((field) => (
               // The kind's description of the field is its placeholder: there
               // while the box is empty, out of the way once it is written in.
-              <Section key={field.name} label={field.name}>
+              <Section key={field.name} label={fieldLabel(field)}>
                 <textarea
                   value={texts[field.name] ?? ''}
                   placeholder={field.description}

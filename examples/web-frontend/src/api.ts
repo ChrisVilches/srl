@@ -38,12 +38,18 @@ export type FoundCard = {
 export type Rating = 1 | 2 | 3 | 4;
 
 // A kind as `srl kinds --json` describes it (docs/cards.md, "Describing a
-// kind"): what it is for, and its fields.
+// kind"): what it is for, and its fields, each with its label for people
+// if the kind gives one.
 export type KindDescription = {
   name: string;
   description: string;
-  fields: { name: string; description: string }[];
+  fields: FieldDescription[];
 };
+
+export type FieldDescription = { name: string; label: string | null; description: string };
+
+// What a field is shown as: its label, or its name when it has none.
+export const fieldLabel = (field: FieldDescription) => field.label ?? field.name;
 
 // A source of the store, as `srl sources --json` describes it
 // (docs/sources.md): where `srl add` may create a collection is its prefix,

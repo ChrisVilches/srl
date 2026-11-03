@@ -364,6 +364,13 @@ fn description(output: &str) -> Result<(String, Vec<FieldDescription>), String> 
                 field.name
             ));
         }
+        if field
+            .label
+            .as_ref()
+            .is_some_and(|label| label.trim().is_empty())
+        {
+            return Err(format!("the label of the field {} is empty", field.name));
+        }
     }
     Ok((output.description, output.fields))
 }
@@ -851,6 +858,8 @@ mod tests {
             r#"{"description": "d", "fields": [{"name": "X", "description": "x"}, {"name": "X", "description": "y"}]}"#,
             r#"{"description": "d", "fields": [{"name": "X", "description": "x", "required": true}]}"#,
             r#"{"description": "d", "fields": [{"name": "X", "description": "x"}], "more": 1}"#,
+            r#"{"description": "d", "fields": [{"name": "X", "label": " ", "description": "x"}]}"#,
+            r#"{"description": "d", "fields": [{"name": "X", "label": 1, "description": "x"}]}"#,
             "",
         ] {
             assert!(description(bad).is_err(), "accepted {bad}");
@@ -861,6 +870,13 @@ mod tests {
         .unwrap();
         assert_eq!(text, "d");
         assert_eq!(fields[0].name, "VERB_1");
+        assert_eq!(fields[0].label, None);
+        let (_, fields) = description(
+            r#"{"description": "d", "fields": [{"name": "X", "label": "The X", "description": "x"}, {"name": "Y", "label": null, "description": "y"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(fields[0].label.as_deref(), Some("The X"));
+        assert_eq!(fields[1].label, None);
     }
 
     #[test]
@@ -881,6 +897,8 @@ mod tests {
         assert_eq!(described[0].fields[1].name, "A");
         assert_eq!(described[1].description, "A kind for srl's tests.");
         assert_eq!(described[1].fields[0].name, "GROUPS");
+        assert_eq!(described[1].fields[0].label.as_deref(), Some("Groups"));
+        assert_eq!(described[1].fields[1].label, None);
     }
 
     #[test]

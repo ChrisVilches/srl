@@ -111,7 +111,7 @@ fn answer(call: &str, inputs: &[Value], describe: Option<&str>) -> Result<Vec<St
             None => json!({
                 "description": "A kind for srl's tests.",
                 "fields": [
-                    {"name": "GROUPS", "description": "The cards, groups separated by |."},
+                    {"name": "GROUPS", "label": "Groups", "description": "The cards, groups separated by |."},
                     {"name": "FAIL_MAKE", "description": "The suffixes whose card fails."},
                 ],
             })

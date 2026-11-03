@@ -252,11 +252,14 @@ pub struct KindDescription {
     pub fields: Vec<FieldDescription>,
 }
 
-/// One field of a [`KindDescription`].
+/// One field of a [`KindDescription`]. `label` is the name to show people,
+/// if the kind gives one; frontends show `name` otherwise.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FieldDescription {
     pub name: String,
+    #[serde(default)]
+    pub label: Option<String>,
     pub description: String,
 }
 
@@ -284,8 +287,9 @@ pub fn kinds(store: &Store, config: &Config) -> crate::Result<Vec<KindDescriptio
 
 /// The description of `qa` (see `docs/cards.md`, "`qa`").
 fn qa_description() -> KindDescription {
-    let field = |name: &str, description: &str| FieldDescription {
+    let field = |name: &str, label: &str, description: &str| FieldDescription {
         name: name.to_owned(),
+        label: Some(label.to_owned()),
         description: description.to_owned(),
     };
     KindDescription {
@@ -294,11 +298,13 @@ fn qa_description() -> KindDescription {
         fields: vec![
             field(
                 "Q",
+                "Question",
                 "The question. May contain cloze deletions, {{c1::text}} or \
                  {{c1::text::hint}}: one card per number.",
             ),
             field(
                 "A",
+                "Answer",
                 "The answer. Optional when Q has cloze deletions, and never contains any.",
             ),
         ],

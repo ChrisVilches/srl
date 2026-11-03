@@ -257,7 +257,7 @@ standard error is free for messages.
 
 | Call | Each input line | Each output line |
 |---|---|---|
-| `describe` | `{}`, which the program may ignore | `{"description": "…", "fields": [{"name": "VERB", "description": "…"}]}` (see "Describing a kind") |
+| `describe` | `{}`, which the program may ignore | `{"description": "…", "fields": [{"name": "VERB", "label": "Verb", "description": "…"}]}`, `label` optional (see "Describing a kind") |
 | `validate` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | `{"errors": []}` for a valid item; otherwise its errors, each with a `message` and the `field` it is about, or `null` (or no `field`) when it is about the whole item: `{"errors": [{"field": "FORMS", "message": "\`tense\` is not a form; the forms are te, past, negative"}]}` |
 | `groups` | the item, as for `validate` | its cards, in groups: `{"groups": [["te", "past"], ["negative"]]}` |
 | `make` | the item, plus `"suffix"` (`null` for a card with the item's ID), `"context"` and `"context_address"` (the item's context in mode `prose` and the collection it comes from, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | the card's fields of "Format" above, without `id`: `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`, where only `prompt` must be present, and `prompt_revealed` and `answer` may be left out, which is the same as `null`; or, when this card can't be made, `{"error": "…"}` |
@@ -434,18 +434,25 @@ description only informs"). `srl kinds` prints the descriptions (see
 
 ```json
 {"description": "Conjugation questions about a verb, one card per form.",
- "fields": [{"name": "VERB", "description": "The verb, in its dictionary form."},
+ "fields": [{"name": "VERB", "label": "Verb", "description": "The verb, in its dictionary form."},
             {"name": "FORMS", "description": "The forms to ask, separated by spaces: te, past, negative."}]}
 ```
 
 - `description` says what the kind is for, in a sentence.
 - `fields` lists the fields the kind takes, in the order an item usually
-  writes them, each with its `name` and a `description`. Whatever an item
-  needs to know about a field goes in its description, such as when it
-  may be left out: "The answer. Optional when Q has cloze deletions."
+  writes them, each with its `name`, an optional `label` and a
+  `description`. Whatever an item needs to know about a field goes in its
+  description, such as when it may be left out: "The answer. Optional
+  when Q has cloze deletions."
+- `label` is the field's name for people, such as `Question` for `Q`,
+  which a frontend shows in place of the name where it labels the field
+  (a form's box, say). A field without one is shown by its name. Items
+  are still written with the name: the label is never a key of an item.
+  `qa` gives `Question` and `Answer`.
 - The output holds a description that isn't blank, at least one field,
   each field once with a name made as in [notes.md](notes.md), "The item
-  object", and descriptions that aren't blank. Any other key is invalid.
+  object", descriptions that aren't blank, and labels that aren't blank,
+  where given (a `label` of `null` is none). Any other key is invalid.
 
 **A description only informs.** It doesn't say which fields are required
 or how they depend on each other, and `srl` never checks an item against
