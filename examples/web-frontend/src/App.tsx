@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
 
 import { Add } from './Add';
+import { setUrlSelector, urlSelector, viewOfPath, type View } from './address';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
 import { CardBadges, CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
-import { SelectorInput, setUrlSelector, TopBar, urlSelector, type View } from './TopBar';
+import { SelectorInput, TopBar } from './TopBar';
 
 // What every view is given: whether it is shown, and the page's selector,
 // one for every view, with how to submit another.
@@ -17,13 +18,6 @@ const VIEWS: Record<View, ComponentType<ViewProps>> = {
   study: Study,
   browse: Browse,
   add: Add,
-};
-
-// The view is the hash's first part: #browse, or #browse/CARD/SIDE, whose
-// other parts are Browse's own (src/Browse.tsx).
-const viewOfHash = (): View => {
-  const view = window.location.hash.slice(1).split('/')[0];
-  return view === 'browse' || view === 'add' ? view : 'study';
 };
 
 // Where the session is. It runs the frontend loop of docs/frontends.md:
@@ -58,20 +52,27 @@ async function nextPhase(selector: string): Promise<Phase> {
 // browser and the item being written where they were; only the one shown
 // takes keys.
 export default function App() {
-  const [view, setView] = useState<View>(viewOfHash);
-  useEffect(() => {
-    const onHash = () => setView(viewOfHash());
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
-  }, []);
+  const [view, setView] = useState<View>(viewOfPath);
 
   // The selector in the address, or else none, which is every card. It is
   // read before the first render, so the selector box is drawn with it.
-  const [submitted, setSubmitted] = useState<Submitted>(() => ({ selector: urlSelector() ?? '', n: 0 }));
+  const [submitted, setSubmitted] = useState<Submitted>(() => ({ selector: urlSelector(), n: 0 }));
   const onSelector = useCallback((selector: string) => {
     setUrlSelector(selector);
     setSubmitted((s) => ({ selector, n: s.n + 1 }));
   }, []);
+
+  // The view follows the address: the tabs, and back and forward. The
+  // selector isn't kept in the browser's history: going back to an address
+  // with another selector writes the page's own in it again.
+  useEffect(() => {
+    const onPop = () => {
+      setView(viewOfPath());
+      setUrlSelector(submitted.selector);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [submitted.selector]);
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">

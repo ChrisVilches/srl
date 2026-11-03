@@ -47,20 +47,28 @@ macOS and Windows (it is tried on Linux only).
   page has one selector, the same in Study and Browse: submitting it in
   either changes it in both, and a view hidden at the time applies it
   when shown again, so a hidden Study runs no `srl next`. The selector
-  submitted is kept in the address (`?selector=`), so reloading the page
-  keeps it, whichever view the address shows, and an address with a
-  selector can be bookmarked; without one, the page starts with no
-  selector, every card. The address is the only place a selector comes
-  from: `srl-web` takes none. The name srl at the
-  left of the top bar links to the root, the study view with the selector
-  cleared.
+  submitted is kept in the address's query, one parameter per term:
+  `key:value` is `key=value`, text (quoted or not) is `text=…`, and a
+  negated term puts its `-` before the name, so `in:a,b -kind:qa "two
+  words"` is `?in=a,b&-kind=qa&text=two%20words`, and `in:a in:b` is
+  `?in=a&in=b`. Reloading the page rebuilds the selector from the
+  parameters, in their order, whichever view the address shows, and an
+  address with a selector can be bookmarked or written by hand; without
+  one, the page starts with no selector, every card. The address is the
+  only place a selector comes from: `srl-web` takes none.
+- Each view has its own path: `/` for Study, `/browse` and `/add`. The
+  tabs switch views in the page, keeping the selector, and add to the
+  browser's history, so back and forward switch views too; the selector
+  isn't part of that history, and stays the one last submitted. The name
+  srl at the left of the top bar links to the root, loading the page
+  anew on the study view with the selector cleared.
 - Dark, or light with the button at the right of the top bar, which
   shows the theme it switches to: a sun in dark, a moon in light. The choice
   is kept in the browser's localStorage, not taken from the system's
   setting, and is applied before the page is drawn, so it doesn't flash
   the other theme.
 
-It also has a **card browser** (the Browse tab, or `#browse` in the
+It also has a **card browser** (the Browse tab, or `/browse` in the
 address), for seeing what a store holds and how a kind's cards look, such
 as how `ja_word` marks words, without studying:
 
@@ -88,8 +96,8 @@ as how `ja_word` marks words, without studying:
 - Keys: ↑/↓ (or `k`/`j`) choose a card. Turning it is done with the
   mouse only, so that space and Enter stay free for typing.
 - The chosen card and side are kept in the address, as
-  `#browse/CARD/SIDE`, the side left out for Prompt: `#browse/x7k2m9`,
-  `#browse/x7k2m9/edit`, after `?selector=…` if there is one. Reloading
+  `/browse/CARD/SIDE`, the side left out for Prompt: `/browse/x7k2m9`,
+  `/browse/x7k2m9/edit`, before the selector's query if there is one. Reloading
   the page opens the same card on the same side, and scrolls the list to
   it once the cards are found. The address is read when the page opens,
   and rewritten (without adding to the browser's history) whenever the
@@ -98,7 +106,7 @@ as how `ja_word` marks words, without studying:
   such as one whose item was deleted, is said so in place of the card,
   and an unknown side is Prompt.
 - It records nothing: no review, no suspension. Studying starts only when
-  the Study tab is first shown, so a page opened on `#browse` runs no
+  the Study tab is first shown, so a page opened on `/browse` runs no
   `srl next`.
 
 In the card browser, the **Edit** side, next to Prompt, Revealed and
@@ -115,7 +123,7 @@ saved it but couldn't find the cards again. Reset puts back the fields
 and Draft as srl has the item, as read or as last saved, and stays on
 Edit.
 
-It also **adds items** (the Add tab, or `#add`), one at a time:
+It also **adds items** (the Add tab, or `/add`), one at a time:
 
 - The kind is chosen among those `srl kinds` describes, and the form
   shows one box per field, with the kind's description of it as the
@@ -167,7 +175,7 @@ srl-web
 `srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open]`
 serves on `http://localhost:4317/` and opens the browser. To start on a
 selector, open its address, such as
-`http://localhost:4317/?selector=in:grammar`, or bookmark it. `--dir` is given
+`http://localhost:4317/?in=grammar`, or bookmark it. `--dir` is given
 to every `srl` command it runs; without it, `srl` finds the store as
 always (see [docs/store.md](../../docs/store.md), "Finding the store"),
 starting from the directory `srl-web` was started in.

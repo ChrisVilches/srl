@@ -26,22 +26,22 @@ type Made =
 type Side = 'prompt' | 'revealed' | 'json' | 'edit';
 const SIDES: Side[] = ['prompt', 'revealed', 'json', 'edit'];
 
-// The chosen card and side are kept in the address, as #browse/CARD/SIDE,
-// with the side left out when it is the prompt: #browse, #browse/x7k2m9,
-// #browse/x7k2m9/edit. They are read when the page opens, and written
-// whenever they change while Browse is shown, so reloading the page comes
-// back to them. An unknown side is the prompt.
-function browseHash(): { card: string | null; side: Side } {
-  const [, card, side] = window.location.hash.slice(1).split('/').map(decodeURIComponent);
+// The chosen card and side are kept in the address's path, as
+// /browse/CARD/SIDE, with the side left out when it is the prompt: /browse,
+// /browse/x7k2m9, /browse/x7k2m9/edit (see src/address.ts). They are read
+// when the page opens, and written whenever they change while Browse is
+// shown, so reloading the page comes back to them. An unknown side is the
+// prompt.
+function browsePath(): { card: string | null; side: Side } {
+  const [, , card, side] = window.location.pathname.split('/').map(decodeURIComponent);
   return { card: card || null, side: SIDES.find((s) => s === side) ?? 'prompt' };
 }
 
-function setBrowseHash(card: string | null, side: Side) {
+function setBrowsePath(card: string | null, side: Side) {
   const parts = ['browse', ...(card === null ? [] : [card, ...(side === 'prompt' ? [] : [side])])];
   const url = new URL(window.location.href);
-  url.hash = parts.map(encodeURIComponent).join('/');
-  // replaceState fires no hashchange, and keeps moving through the list
-  // out of the browser's history.
+  url.pathname = '/' + parts.map(encodeURIComponent).join('/');
+  // replaceState keeps moving through the list out of the browser's history.
   window.history.replaceState(null, '', url);
 }
 
@@ -53,13 +53,13 @@ const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }
 export function Browse({ active, submitted, onSelector }: ViewProps) {
   const { selector } = submitted;
   const [list, setList] = useState<List>({ kind: 'loading' });
-  const [selected, setSelected] = useState<string | null>(() => browseHash().card);
+  const [selected, setSelected] = useState<string | null>(() => browsePath().card);
   const [made, setMade] = useState<Record<string, Made>>({});
-  const [side, setSide] = useState<Side>(() => browseHash().side);
+  const [side, setSide] = useState<Side>(() => browsePath().side);
   // Written again when Browse is shown, since switching to it by its tab
-  // sets the address to #browse alone.
+  // sets the address to /browse alone.
   useEffect(() => {
-    if (active) setBrowseHash(selected, side);
+    if (active) setBrowsePath(selected, side);
   }, [active, selected, side]);
   // The card being made, to stop when another is chosen.
   const making = useRef<{ id: string; abort: AbortController } | null>(null);

@@ -1,21 +1,28 @@
 import { MoonIcon, SunIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { go, type View } from './address';
 import { QUIET_BUTTON } from './CardParts';
 import { currentTheme, setTheme } from './theme';
-
-// The views: studying (the page's start), the card browser (#browse), and
-// adding items (#add).
-export type View = 'study' | 'browse' | 'add';
 
 // The bar at the top of each view: the switch between views, then the
 // view's own controls. It spans the whole window in every view, however
 // wide the view's content is, so it doesn't change width between tabs. The
-// name links to the root, the study view with no selector in the address.
+// name links to the root, the study view with no selector in the address,
+// and loads the page anew.
+//
+// A tab switches views in the page, keeping the selector, and opens the
+// view in a new tab when clicked with a modifier or the middle button. The
+// tab of the view shown does nothing, so Browse keeps its card in the address.
 export function TopBar({ view, children }: { view: View; children: ReactNode }) {
-  const tab = (target: View, href: string, name: string) => (
+  const tab = (target: View, path: string, name: string) => (
     <a
-      href={href}
+      href={path + window.location.search}
+      onClick={(event) => {
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (target !== view) go(path);
+      }}
       className={
         view === target
           ? 'rounded-md bg-stone-200 px-2.5 py-1 font-medium dark:bg-stone-800'
@@ -32,9 +39,9 @@ export function TopBar({ view, children }: { view: View; children: ReactNode }) 
           srl
         </a>
         <nav className="flex gap-1 text-sm">
-          {tab('study', '#', 'Study')}
-          {tab('browse', '#browse', 'Browse')}
-          {tab('add', '#add', 'Add')}
+          {tab('study', '/', 'Study')}
+          {tab('browse', '/browse', 'Browse')}
+          {tab('add', '/add', 'Add')}
         </nav>
         {children}
         <ThemeButton />
@@ -62,19 +69,6 @@ function ThemeButton() {
       <Icon className="size-5" aria-hidden />
     </button>
   );
-}
-
-// The selector last submitted, in any view, kept in the address as
-// ?selector=, so that reloading the page keeps it; null if none was. The
-// views are chosen by the hash, so switching keeps it.
-export function urlSelector(): string | null {
-  return new URLSearchParams(window.location.search).get('selector');
-}
-
-export function setUrlSelector(selector: string) {
-  const url = new URL(window.location.href);
-  url.searchParams.set('selector', selector);
-  window.history.replaceState(null, '', url);
 }
 
 // The selector box of a view. Submitting it calls ON_SELECTOR. Its

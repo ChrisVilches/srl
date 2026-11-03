@@ -117,7 +117,7 @@ async function web(out) {
     }
 
     await size(BROWSE_WIDTH);
-    await page.goto(url + '#browse');
+    await page.goto(url + 'browse');
     await sleep(1200);
     const card = await page.waitForSelector('::-p-text(道頓堀で)');
     await card.click();
@@ -129,7 +129,7 @@ async function web(out) {
     await shot('7-browse');
 
     await size(WIDTH);
-    await page.goto(url + '#add');
+    await page.goto(url + 'add');
     await sleep(1200);
     await shot('8-add');
 
