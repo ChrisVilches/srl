@@ -102,7 +102,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
         />
         Draft
       </label>
-      {saving.kind === 'saved' && <Panel tone="ok" title="Saved. The cards of the item were found again." />}
+      {saving.kind === 'saved' && <Panel tone="ok" title="Saved" />}
       {saving.kind === 'failed' && (
         <Panel tone="error" title={saving.title}>
           <pre className="overflow-x-auto text-sm whitespace-pre-wrap">{saving.message}</pre>
