@@ -67,6 +67,9 @@ as how `ja_word` marks words, without studying:
   runs. A card is made once it has stayed chosen
   for a moment, so moving through the list makes no card on the way, and
   choosing another card stops the one being made (see "How it works").
+  It is made only on a side that shows it, Prompt, Revealed or JSON:
+  on Edit, choosing a card or saving its item makes nothing until
+  another side is shown.
 - Each card is made once and kept; **Make again** (`r`) runs its kind
   program again, on every side but Edit, which shows the item and not
   the card made from it, and submitting the selector forgets every card made.
@@ -83,7 +86,7 @@ a database or service behind a source program. It shows the item's fields and wh
 --stdin`; `srl` finds the item by its ID, and its source writes it. The
 cards are then found again in place: the list stays where it is scrolled,
 its rows change where the item's cards changed, and only the item's
-cards are forgotten, to be made anew. The page stays on Edit, and says
+cards are forgotten, to be made anew when shown. The page stays on Edit, and says
 under the form whether it worked: saved, srl's error if it didn't save
 the item, or srl's error if it saved it but couldn't find the cards
 again. Any change to the form clears that. Reset puts back the fields

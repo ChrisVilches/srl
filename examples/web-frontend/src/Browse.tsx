@@ -96,13 +96,15 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
 
   // Choosing another card stops the one being made. The chosen card is made
   // once it has stayed chosen for MAKE_DELAY, so that moving through the
-  // list with the keys runs no kind program for the cards passed by.
+  // list with the keys runs no kind program for the cards passed by. It is
+  // made only on a side that shows it: Edit shows the item, so choosing a
+  // card or saving its item there makes nothing until another side is shown.
   useEffect(() => {
     if (making.current && making.current.id !== selected) making.current.abort.abort();
-    if (selected === null || made[selected] !== undefined) return;
+    if (side === 'edit' || selected === null || made[selected] !== undefined) return;
     const timer = setTimeout(() => make(selected), MAKE_DELAY);
     return () => clearTimeout(timer);
-  }, [selected, made, make]);
+  }, [side, selected, made, make]);
 
   const cards = list.kind === 'ready' ? list.cards : [];
 
