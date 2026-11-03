@@ -169,9 +169,11 @@ export function Label({ children }: { children: ReactNode }) {
   return <div className="mb-2 text-xs font-semibold tracking-widest text-stone-400 uppercase">{children}</div>;
 }
 
+// The key that does what a button does. Hidden on a touch screen (a coarse
+// primary pointer), which has no keys to press.
 export function Key({ children }: { children: ReactNode }) {
   return (
-    <kbd className="ml-1 inline-block rounded bg-black/15 px-1.5 py-1 align-middle font-mono text-xs leading-none opacity-80 dark:bg-white/15">
+    <kbd className="ml-1 inline-block rounded pointer-coarse:hidden bg-black/15 px-1.5 py-1 align-middle font-mono text-xs leading-none opacity-80 dark:bg-white/15">
       {children}
     </kbd>
   );

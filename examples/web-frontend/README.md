@@ -31,7 +31,10 @@ macOS and Windows (it is tried on Linux only).
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
   card without recording a review, after asking why in a dialog: what to
   fix before studying it again. The reason may be left empty; Enter
-  suspends, Shift+Enter starts a new line, Escape cancels.
+  suspends, Shift+Enter starts a new line, Escape cancels. Buttons name
+  their key, as **Make again** `r` does, everywhere on the page, but not
+  on a touch screen (a coarse primary pointer, as on a phone), which has
+  no keys to press.
 - When the next card takes a while to make, as when its kind program asks
   an LLM, a spinner says so, with the seconds it has taken. Cards that
   come in under 300 ms replace the last one without it.
