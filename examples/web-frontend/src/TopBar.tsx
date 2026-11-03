@@ -79,12 +79,12 @@ export function SelectorInput({
   selector,
   onSelector,
 }: {
-  selector: string | null;
+  selector: string;
   onSelector: (selector: string) => void;
 }) {
-  const [draft, setDraft] = useState(selector ?? '');
+  const [draft, setDraft] = useState(selector);
   const input = useRef<HTMLInputElement>(null);
-  useEffect(() => setDraft(selector ?? ''), [selector]);
+  useEffect(() => setDraft(selector), [selector]);
 
   return (
     <form

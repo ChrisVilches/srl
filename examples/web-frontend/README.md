@@ -44,8 +44,10 @@ macOS and Windows (it is tried on Linux only).
   either changes it in both, and a view hidden at the time applies it
   when shown again, so a hidden Study runs no `srl next`. The selector
   submitted is kept in the address (`?selector=`), so reloading the page
-  keeps it, whichever view the address shows; without one, the page
-  starts with the selector srl-web was started with. The name srl at the
+  keeps it, whichever view the address shows, and an address with a
+  selector can be bookmarked; without one, the page starts with no
+  selector, every card. The address is the only place a selector comes
+  from: `srl-web` takes none. The name srl at the
   left of the top bar links to the root, the study view with the selector
   cleared.
 - Dark, or light with the button at the right of the top bar. The choice
@@ -128,11 +130,13 @@ examples: everything it needs is in this folder.
 npm install
 npm run build
 npm link          # puts srl-web on PATH
-srl-web in:grammar
+srl-web
 ```
 
-`srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open] [SELECTOR]`
-serves on `http://localhost:4317/` and opens the browser. `--dir` is given
+`srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open]`
+serves on `http://localhost:4317/` and opens the browser. To start on a
+selector, open its address, such as
+`http://localhost:4317/?selector=in:grammar`, or bookmark it. `--dir` is given
 to every `srl` command it runs; without it, `srl` finds the store as
 always (see [docs/store.md](../../docs/store.md), "Finding the store"),
 starting from the directory `srl-web` was started in.
@@ -178,7 +182,7 @@ scheduling here; that belongs to `srl`.
 
 | Route | Runs | Answers |
 |---|---|---|
-| `GET /api/config` | nothing | `{"selector": …, "on_change": …}`, the selector given to `srl-web`, and whether it has `--on-change` |
+| `GET /api/config` | nothing | `{"on_change": …}`, whether `srl-web` has `--on-change` |
 | `GET /api/on-change` | nothing | `{"busy": …, "last": …}`: whether a change is still waiting for its run, and the last run, `{"seq": N, "error": …}` with `error` `null` on success, or `null` before any |
 | `GET /api/next?sel=…` | `srl next SEL --json --context prose` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
 | `POST /api/review` | `srl review --stdin`, with the request body | `{}` |
@@ -241,7 +245,6 @@ they nest the marks.
 npm run dev       # Vite with hot reload on :5173, the API on :4318
 ```
 
-In development the selector is the arguments (`npm run dev -- in:grammar`).
 npm runs it in this folder, so choose the store with `SRL_DIR`, or `srl`
 uses the default store. `npm run build` checks the types and builds
 `dist/`.

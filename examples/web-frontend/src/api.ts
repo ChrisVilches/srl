@@ -103,8 +103,6 @@ async function call<T>(path: string, body?: object, signal?: AbortSignal): Promi
 }
 
 export const api = {
-  // The selector srl-web was started with.
-  selector: async () => (await call<{ selector: string }>('/api/config')).selector,
   // Whether srl-web was started with --on-change.
   hasOnChange: async () => (await call<{ on_change: boolean }>('/api/config')).on_change,
   onChangeStatus: () => call<OnChangeStatus>('/api/on-change'),

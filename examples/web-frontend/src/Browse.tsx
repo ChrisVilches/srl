@@ -31,7 +31,7 @@ const MAKE_DELAY = 300; // ms
 const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 };
 
 export function Browse({ active, submitted, onSelector }: ViewProps) {
-  const selector = submitted?.selector ?? null;
+  const { selector } = submitted;
   const [list, setList] = useState<List>({ kind: 'loading' });
   const [selected, setSelected] = useState<string | null>(null);
   const [made, setMade] = useState<Record<string, Made>>({});
@@ -64,7 +64,7 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
       const ofItem = (id: string) => id === item || id.startsWith(`${item}.`);
       if (making.current && ofItem(making.current.id)) making.current.abort.abort();
       setMade((m) => Object.fromEntries(Object.entries(m).filter(([id]) => !ofItem(id))));
-      setList({ kind: 'ready', cards: await api.find(selector ?? '') });
+      setList({ kind: 'ready', cards: await api.find(selector) });
     },
     [selector],
   );
@@ -131,7 +131,7 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
           {list.kind === 'loading' && <p className="p-6 text-stone-400">Finding cards…</p>}
           {list.kind === 'error' && (
             <div className="p-6">
-              <ErrorView message={list.message} onRetry={() => find(selector ?? '')} />
+              <ErrorView message={list.message} onRetry={() => find(selector)} />
             </div>
           )}
           {list.kind === 'ready' && cards.length === 0 && <p className="p-6 text-stone-400">No card matches.</p>}

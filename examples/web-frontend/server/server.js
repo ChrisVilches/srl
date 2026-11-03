@@ -3,7 +3,7 @@
 // Every API route but /api/config and /api/on-change runs srl commands. There is no SRS logic
 // here: scheduling belongs to srl (see docs/frontends.md).
 //
-//   GET  /api/config       nothing                     → { selector, on_change }
+//   GET  /api/config       nothing                     → { on_change }
 //   GET  /api/next?sel=…   srl next SEL --json --context CONTEXT
 //                                                      → { card } or { card: null }
 //   POST /api/review       srl review --stdin          ← { card, rating, response? }
@@ -94,18 +94,18 @@ const SECURITY_HEADERS = {
 class BadRequest extends Error {}
 
 // Creates the server. DIR is the store passed to srl as --dir (or
-// undefined, to let srl find it), SELECTOR the selector the page starts
-// with, STATIC_DIR the built frontend, or undefined to serve the API only
-// (as in development, where Vite serves the frontend), and ON_CHANGE the
-// program to run after each change, or undefined.
-export function createSrlServer({ dir, selector, staticDir, onChange }) {
+// undefined, to let srl find it), STATIC_DIR the built frontend, or
+// undefined to serve the API only (as in development, where Vite serves the
+// frontend), and ON_CHANGE the program to run after each change, or
+// undefined. The selector is the page's own, kept in its address.
+export function createSrlServer({ dir, staticDir, onChange }) {
   const srl = (args, input, signal) => runSrl(args, { dir, input, signal });
   const hook = onChange ? createOnChange(onChange, dir) : null;
   // Called once srl has made a change.
   const changed = () => hook?.changed();
 
   const routes = {
-    'GET /api/config': async () => ({ selector, on_change: hook !== null }),
+    'GET /api/config': async () => ({ on_change: hook !== null }),
 
     'GET /api/on-change': async () => hook?.status() ?? { busy: false, last: null },
 

@@ -11,7 +11,7 @@ import { SelectorInput, setUrlSelector, TopBar, urlSelector, type View } from '.
 
 // What every view is given: whether it is shown, and the page's selector,
 // one for every view, with how to submit another.
-export type ViewProps = { active: boolean; submitted: Submitted | null; onSelector: (selector: string) => void };
+export type ViewProps = { active: boolean; submitted: Submitted; onSelector: (selector: string) => void };
 
 const VIEWS: Record<View, ComponentType<ViewProps>> = {
   study: Study,
@@ -63,37 +63,16 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  // The selector in the address, or else the one srl-web was started with.
-  // The address is read before the first render, so the selector box is
-  // drawn with it rather than empty; only the one srl-web was started with
-  // has to be asked for.
-  const [submitted, setSubmitted] = useState<Submitted | null>(() => {
-    const selector = urlSelector();
-    return selector === null ? null : { selector, n: 0 };
-  });
-  const [configError, setConfigError] = useState<string | null>(null);
-  const loadSelector = useCallback(() => {
-    setConfigError(null);
-    api.selector().then(
-      (selector) => setSubmitted({ selector, n: 0 }),
-      (error: Error) => setConfigError(error.message),
-    );
-  }, []);
-  useEffect(() => {
-    if (urlSelector() === null) loadSelector();
-  }, [loadSelector]);
+  // The selector in the address, or else none, which is every card. It is
+  // read before the first render, so the selector box is drawn with it.
+  const [submitted, setSubmitted] = useState<Submitted>(() => ({ selector: urlSelector() ?? '', n: 0 }));
   const onSelector = useCallback((selector: string) => {
     setUrlSelector(selector);
-    setSubmitted((s) => ({ selector, n: (s?.n ?? 0) + 1 }));
+    setSubmitted((s) => ({ selector, n: s.n + 1 }));
   }, []);
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      {configError !== null && (
-        <div className="mx-auto max-w-3xl px-4 py-8">
-          <ErrorView message={configError} onRetry={loadSelector} />
-        </div>
-      )}
       {(Object.keys(VIEWS) as View[]).map((v) => {
         const Pane = VIEWS[v];
         return (
@@ -108,7 +87,7 @@ export default function App() {
 }
 
 function Study({ active, submitted, onSelector }: ViewProps) {
-  const selector = submitted?.selector ?? null;
+  const { selector } = submitted;
   const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: performance.now() }));
   const [stats, setStats] = useState<Stats>({ reviewed: 0, new: 0, again: 0 });
   const [busy, setBusy] = useState(false);
@@ -149,7 +128,7 @@ function Study({ active, submitted, onSelector }: ViewProps) {
 
   const rate = useCallback(
     (rating: Rating) => {
-      if (phase.kind !== 'answer' || selector === null) return;
+      if (phase.kind !== 'answer') return;
       const { card } = phase;
       step(async () => {
         await api.review(card.id, rating);
@@ -174,7 +153,7 @@ function Study({ active, submitted, onSelector }: ViewProps) {
   const suspend = useCallback(
     (reason: string) => {
       setAskingWhy(false);
-      if ((phase.kind !== 'prompt' && phase.kind !== 'answer') || selector === null) return;
+      if (phase.kind !== 'prompt' && phase.kind !== 'answer') return;
       const { card } = phase;
       step(async () => {
         await api.suspend(card.id, reason.trim());
@@ -210,10 +189,10 @@ function Study({ active, submitted, onSelector }: ViewProps) {
           <Waiting title="Loading…" since={phase.since} />
         )}
         {phase.kind === 'error' && (
-          <ErrorView message={phase.message} onRetry={() => selector !== null && loadNext(selector)} />
+          <ErrorView message={phase.message} onRetry={() => loadNext(selector)} />
         )}
         {phase.kind === 'done' && (
-          <DoneView selector={selector ?? ''} stats={stats} onCheck={() => loadNext(selector ?? '')} />
+          <DoneView selector={selector} stats={stats} onCheck={() => loadNext(selector)} />
         )}
         {(phase.kind === 'prompt' || phase.kind === 'answer') && (
           <CardView phase={phase} busy={busy} onReveal={reveal} onRate={rate} onSuspend={askWhy} />

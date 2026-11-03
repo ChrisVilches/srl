@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// srl-web: a web viewer for srl: `srl-web [SELECTOR]`.
+// srl-web: a web viewer for srl.
 //
 // Starts a server on localhost that runs srl commands for a frontend in the
-// browser, and opens the browser on it.
+// browser, and opens the browser on it. It takes no selector: the page has
+// its own, kept in its address (?selector=).
 
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -12,23 +13,23 @@ import { parseArgs } from 'node:util';
 
 import { createSrlServer } from '../server/server.js';
 
-const USAGE = `usage: srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open] [SELECTOR]
+const USAGE = `usage: srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open]
 
-Starts a web viewer for srl on http://localhost:PORT and opens it.
+Starts a web viewer for srl on http://localhost:PORT and opens it. The
+selector is chosen in the page and kept in its address, as
+http://localhost:PORT/?selector=in:grammar, which can be bookmarked.
 
   --port N              the port to listen on (default 4317; 0 picks a free one)
   --dir DIR             the store, passed to srl as --dir (default: srl finds it)
   --on-change PROGRAM   run PROGRAM, with no arguments, after the page changes
                         the store; the page shows its stderr when it fails
-  --no-open             don't open the browser
-  SELECTOR              the cards to study, as in srl next (can be changed in the page)`;
+  --no-open             don't open the browser`;
 
 const staticDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
 let options;
 try {
   options = parseArgs({
-    allowPositionals: true,
     options: {
       port: { type: 'string', default: '4317' },
       dir: { type: 'string' },
@@ -40,7 +41,7 @@ try {
 } catch (error) {
   fail(`${error.message}\n\n${USAGE}`);
 }
-const { values, positionals } = options;
+const { values } = options;
 if (values.help) {
   console.log(USAGE);
   process.exit(0);
@@ -55,7 +56,6 @@ if (!existsSync(path.join(staticDir, 'index.html'))) {
 
 const server = createSrlServer({
   dir: values.dir && path.resolve(values.dir),
-  selector: positionals.join(' '),
   staticDir,
   onChange: values['on-change'],
 });
