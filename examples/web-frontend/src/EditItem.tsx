@@ -11,7 +11,8 @@ import { Modal, ResultBox } from './Modal';
 
 type Loaded = { kind: 'loading' } | { kind: 'ready'; item: Record<string, unknown> } | { kind: 'error'; message: string };
 
-// What became of the last save: shown in a modal until it is closed.
+// What became of the last save: shown in a modal until it is closed. Save
+// and Reset wait until then, so they stay dimmed under it.
 type Saving =
   | { kind: 'idle' }
   | { kind: 'busy' }
@@ -102,7 +103,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
         {saving.kind === 'failed' && <ResultBox tone="error">{saving.message}</ResultBox>}
       </Modal>
       <div className="flex gap-2">
-        <button onClick={save} disabled={saving.kind === 'busy'} className={`px-3 py-2 text-sm ${MAIN_BUTTON}`}>
+        <button onClick={save} disabled={saving.kind !== 'idle'} className={`px-3 py-2 text-sm ${MAIN_BUTTON}`}>
           Save
         </button>
         <button
@@ -110,7 +111,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
             fill(loaded.item);
             setSaving({ kind: 'idle' });
           }}
-          disabled={saving.kind === 'busy'}
+          disabled={saving.kind !== 'idle'}
           title="Put back the item as srl has it"
           className={`text-sm ${QUIET_BUTTON}`}
         >

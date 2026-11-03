@@ -128,7 +128,8 @@ It also **adds items** (the Add tab, or `#add`), one at a time:
   the fields. The page knows no rule of any kind: srl checks the item, and
   the page shows what srl says, such as a field the kind needs. Fields
   left blank are left out of the item, and `kind` is left out for `qa`.
-  While srl works, both buttons are disabled, with no other sign.
+  While srl works, and while its answer is shown, both buttons are
+  disabled, with no other sign; Save and Reset in Edit too.
 - What Check and Add give, the item, its ID or srl's error, is shown in
   a modal, `src/Modal.tsx` as every dialog of the page. It opens with its
   Close button focused, so Enter, space or Escape closes it and gives the

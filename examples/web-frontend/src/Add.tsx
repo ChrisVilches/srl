@@ -59,6 +59,9 @@ export function Add({ active }: { active: boolean }) {
   const [draft, setDraft] = useState(false);
   const [result, setResult] = useState<Result>({ kind: 'none' });
   const [busy, setBusy] = useState(false);
+  // The buttons wait while srl works and while its answer is shown, so they
+  // stay dimmed under the answer's modal instead of flashing back between.
+  const waiting = busy || result.kind !== 'none';
 
   const load = useCallback(async () => {
     setStore({ kind: 'loading' });
@@ -106,14 +109,14 @@ export function Add({ active }: { active: boolean }) {
   };
 
   const check = () => {
-    if (collection === null || busy) return;
+    if (collection === null || waiting) return;
     run(async () => ({ kind: 'checked', text: await api.check(collection, item()) }));
   };
 
   // Once added, the fields are emptied for the next item; the kind, the
   // collections and draft stay.
   const add = () => {
-    if (collection === null || busy) return;
+    if (collection === null || waiting) return;
     run(async () => {
       const ids = await api.add(collection, item());
       rememberCollection(collection);
@@ -205,12 +208,12 @@ export function Add({ active }: { active: boolean }) {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={add}
-                disabled={collection === null || busy}
+                disabled={collection === null || waiting}
                 className={`px-5 py-2.5 ${WITH_KEY} ${MAIN_BUTTON}`}
               >
                 Add <Key>ctrl+enter</Key>
               </button>
-              <button onClick={check} disabled={collection === null || busy} className={OUTLINE_BUTTON}>
+              <button onClick={check} disabled={collection === null || waiting} className={OUTLINE_BUTTON}>
                 Check
               </button>
             </div>
