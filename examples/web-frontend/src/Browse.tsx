@@ -355,7 +355,7 @@ function Making({ kind, since }: { kind: string; since: number }) {
     <Waiting title="Making the card…" since={since}>
       {kind !== 'qa' && (
         <>
-          srl cards is running the kind program <code className="font-mono">{kind}</code>.
+          Being made by the program <code className="font-mono">{kind}</code>.
         </>
       )}
     </Waiting>
