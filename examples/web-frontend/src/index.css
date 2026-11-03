@@ -35,3 +35,38 @@
     @apply my-0;
   }
 }
+
+/* Every modal (src/Modal.tsx, the only one with this class) fades in while
+   growing to its size when it opens, and fades out while shrinking when it
+   closes. @starting-style gives the state it opens from; display and
+   overlay, discrete, keep it on screen until it has faded out. A browser
+   without them shows and hides it at once, as before. */
+.modal,
+.modal::backdrop {
+  transition-property: opacity, scale, display, overlay;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+  transition-behavior: allow-discrete;
+}
+.modal:not([open]) {
+  opacity: 0;
+  scale: 0.95;
+}
+.modal:not([open])::backdrop {
+  opacity: 0;
+}
+@starting-style {
+  .modal[open] {
+    opacity: 0;
+    scale: 0.95;
+  }
+  .modal[open]::backdrop {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal,
+  .modal::backdrop {
+    transition: none;
+  }
+}

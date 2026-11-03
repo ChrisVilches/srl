@@ -7,7 +7,9 @@ import { OUTLINE_BUTTON } from './CardParts';
 // with Escape, its button or a click outside it. Every modal of the page is
 // this one, so that a dialog library could replace it in one place (Radix's
 // injects <style> elements, which the page's Content-Security-Policy
-// refuses).
+// refuses). It fades and grows in, and out, by the class `modal`
+// (src/index.css); while it fades out, it keeps showing what it showed
+// when it was open, though its parent has moved on.
 export function Modal({
   open,
   title,
@@ -25,6 +27,8 @@ export function Modal({
     if (open && !d.open) d.showModal();
     if (!open && d.open) d.close();
   }, [open]);
+  const shown = useRef({ title, children });
+  if (open) shown.current = { title, children };
 
   return (
     <dialog
@@ -32,11 +36,11 @@ export function Modal({
       onClose={onClose}
       // A click on the backdrop is a click on the dialog itself.
       onClick={(event) => event.target === dialog.current && onClose()}
-      className="m-auto w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-stone-200 bg-white p-0 text-stone-900 shadow-xl backdrop:bg-stone-950/50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-100"
+      className="modal m-auto w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-stone-200 bg-white p-0 text-stone-900 shadow-xl backdrop:bg-stone-950/50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-100"
     >
       <div className="flex flex-col gap-4 p-6">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {children}
+        <h2 className="text-lg font-semibold">{shown.current.title}</h2>
+        {shown.current.children}
         <button onClick={onClose} className={`self-end ${OUTLINE_BUTTON}`}>
           Close
         </button>

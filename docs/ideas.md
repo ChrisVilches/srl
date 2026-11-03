@@ -266,7 +266,10 @@ questions", once it is planned.
 
   **In `srl-web`**, the example web frontend: a button in a view of its
   own, away from studying, always there and always enabled, not tied to
-  what was done last on the page. It runs `srl undo --dry-run` and shows
+  what was done last on the page. The view's name is still to be
+  decided: "Settings", which could later hold settings of the page, or
+  "Store", which could later hold other operations on the whole store,
+  such as `srl check`. Neither has a use besides undoing yet. It runs `srl undo --dry-run` and shows
   the line in a dialog of a "danger" look, as indented JSON in the colors
   of the card browser's JSON side, without describing the event in
   words, since each type has its own fields. Confirming runs
