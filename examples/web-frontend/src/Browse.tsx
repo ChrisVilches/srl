@@ -19,9 +19,10 @@ type Made =
   | { kind: 'ready'; card: ShownCard; ms: number }
   | { kind: 'error'; message: string };
 
-// How a made card is shown: as studying shows its prompt, as it shows it
-// once revealed (with the context), or as srl cards --json prints it.
-type Side = 'prompt' | 'revealed' | 'json';
+// How the chosen card is shown: as studying shows its prompt, as it shows it
+// once revealed (with the context), as srl cards --json prints it, or its
+// item in a form to edit it.
+type Side = 'prompt' | 'revealed' | 'json' | 'edit';
 
 const MAKE_DELAY = 300; // ms
 
@@ -34,8 +35,6 @@ export function Browse({ active }: { active: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [made, setMade] = useState<Record<string, Made>>({});
   const [side, setSide] = useState<Side>('prompt');
-  // The card whose item is being edited, if any.
-  const [editing, setEditing] = useState<string | null>(null);
   // The card being made, to stop when another is chosen.
   const making = useRef<{ id: string; abort: AbortController } | null>(null);
 
@@ -148,10 +147,8 @@ export function Browse({ active }: { active: boolean }) {
             side={side}
             onSide={setSide}
             onMake={() => selected !== null && make(selected)}
-            editing={editing !== null && editing === selected}
-            onEdit={() => setEditing(selected)}
             onEdited={(saved) => {
-              setEditing(null);
+              setSide('prompt');
               if (saved) find(selector ?? '');
             }}
           />
@@ -217,8 +214,6 @@ function Preview({
   side,
   onSide,
   onMake,
-  editing,
-  onEdit,
   onEdited,
 }: {
   found: FoundCard | null;
@@ -226,9 +221,7 @@ function Preview({
   side: Side;
   onSide: (side: Side) => void;
   onMake: () => void;
-  editing: boolean;
-  onEdit: () => void;
-  // Called with whether the item was saved.
+  // Called with whether the item was saved, when leaving the edit side.
   onEdited: (saved: boolean) => void;
 }) {
   if (found === null) {
@@ -243,7 +236,9 @@ function Preview({
     { side: 'prompt', name: 'Prompt' },
     { side: 'revealed', name: 'Revealed' },
     { side: 'json', name: 'JSON' },
+    { side: 'edit', name: 'Edit' },
   ];
+  const editing = side === 'edit';
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
@@ -267,9 +262,6 @@ function Preview({
           className={`py-1 ${WITH_KEY} ${QUIET_BUTTON}`}
         >
           Make again <Key>r</Key>
-        </button>
-        <button onClick={onEdit} disabled={editing} title="Edit the item of this card, whatever its source" className={`py-1 ${QUIET_BUTTON}`}>
-          Edit item
         </button>
         <span className="ml-auto min-w-0 truncate font-mono text-xs text-stone-400" title={found.address}>
           {found.address}

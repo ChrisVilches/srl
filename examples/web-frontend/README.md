@@ -72,12 +72,13 @@ as how `ja_word` marks words, without studying:
   the Study tab is first shown, so a page opened on `#browse` runs no
   `srl next`.
 
-In the card browser, **Edit item** edits the item of the chosen card,
-whatever its source: a note, or a database or service behind a source
-program. It shows the item's fields and whether it is a draft, as `srl show
+In the card browser, the **Edit** side, next to Prompt, Revealed and
+JSON, edits the item of the chosen card, whatever its source: a note, or
+a database or service behind a source program. It shows the item's fields and whether it is a draft, as `srl show
 --json` gives them, and **Save** gives the whole item to `srl edit
 --stdin`; `srl` finds the item by its ID, and its source writes it. The
-cards are then found again.
+cards are then found again. Save and Cancel both go back to the Prompt
+side.
 
 It also **adds items** (the Add tab, or `#add`), one at a time:
 
