@@ -194,14 +194,12 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
 // like a list.
 const EXCERPT_WIDTHS = ['w-3/4', 'w-1/2', 'w-2/3', 'w-5/6', 'w-2/5', 'w-3/5', 'w-3/4', 'w-1/2'];
 
-// The list while srl finds the cards: a collection's address, then rows of
-// an ID and an excerpt.
+// The list while srl finds the cards: rows of an ID and an excerpt. No bar
+// for a collection's address, whose background would stop short of the
+// gutter kept for the scrollbar, leaving a gap.
 function ListSkeleton() {
   return (
     <Loading label="Finding cards">
-      <div className="border-b border-stone-200 bg-stone-100/95 px-4 py-2 dark:border-stone-800 dark:bg-stone-900/95">
-        <Skeleton className="h-3 w-40" />
-      </div>
       {EXCERPT_WIDTHS.map((width, i) => (
         <div key={i} className="border-b border-stone-100 px-4 py-2.5 dark:border-stone-900">
           <Skeleton className="h-3 w-14" />
