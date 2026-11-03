@@ -22,11 +22,15 @@ type Saving =
 // Field names are uppercase (docs/items.md, "The item object").
 const isField = (key: string) => /^[A-Z][A-Z0-9_]*$/.test(key);
 
-// ON_SAVED is called once srl has written the item, to show its cards anew;
-// the form stays, and what became of the save is shown in a modal, as Add
-// shows what it gave. Reset puts back the item as
+// ON_SAVED is called with the item's ID once srl has written it, to show its
+// cards anew; the form stays, and what became of the save is shown in a
+// modal, as Add shows what it gave. Reset puts back the item as
 // srl last had it: as read, or as last saved.
-export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<void> }) {
+//
+// While ID is null, the item isn't known yet, as while Browse finds the
+// cards: the form waits, and reads the item once given its ID. The skeleton
+// stays the same one throughout, so that its pulse doesn't start over.
+export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: string) => Promise<void> }) {
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [texts, setTexts] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState(false);
@@ -39,6 +43,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
   };
 
   const load = () => {
+    if (id === null) return;
     setLoaded({ kind: 'loading' });
     setSaving({ kind: 'idle' });
     api.item(id).then(
@@ -51,7 +56,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
   };
   useEffect(load, [id]);
 
-  if (loaded.kind === 'loading') return <ItemSkeleton />;
+  if (id === null || loaded.kind === 'loading') return <ItemSkeleton />;
   if (loaded.kind === 'error') return <ErrorView message={loaded.message} onRetry={load} />;
 
   const save = () => {
@@ -62,7 +67,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
     api.edit(item).then(
       () => {
         setLoaded({ kind: 'ready', item });
-        return onSaved().then(
+        return onSaved(id).then(
           () => setSaving({ kind: 'saved' }),
           (error: Error) =>
             setSaving({ kind: 'failed', title: 'Saved, but srl could not find the cards again', message: error.message }),
@@ -124,7 +129,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
 
 // The form while srl reads the item: the item's line, two fields, Draft
 // and the buttons.
-export function ItemSkeleton() {
+function ItemSkeleton() {
   return (
     <Loading label="Reading the item" className="flex flex-col gap-4">
       <Skeleton className="h-4 w-80 max-w-full" />

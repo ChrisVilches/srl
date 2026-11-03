@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type FoundCard, type ShownCard } from './api';
 import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, Waiting, WITH_KEY } from './CardParts';
-import { EditItem, ItemSkeleton } from './EditItem';
+import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
 import type { ViewProps } from './App';
 import { useKeys, useSubmitted } from './hooks';
@@ -365,7 +365,6 @@ function Preview({
         )}
       </div>
 
-      {found === null && editing && <ItemSkeleton />}
       {/* A card suspended without a reason says so, with no reason. */}
       {found !== null && found.status === 'suspended' && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-500/40 dark:bg-amber-400/10">
@@ -379,7 +378,9 @@ function Preview({
           )}
         </div>
       )}
-      {found !== null && editing && <EditItem id={found.item} onSaved={() => onSaved(found.item)} />}
+      {/* Until the cards are found, the form waits for the card's item, as
+          one skeleton from the page's opening to the form. */}
+      {editing && <EditItem id={found === null ? null : found.item} onSaved={onSaved} />}
       {found !== null && !editing && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
       {!editing && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
       {found !== null &&
