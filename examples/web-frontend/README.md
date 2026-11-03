@@ -184,12 +184,11 @@ killed with it, and runs until it ends on its own (an LLM's answer, say,
 is still paid for).
 
 When `srl` fails, the route answers with `{"error": MESSAGE}`, `MESSAGE`
-being what `srl` printed, and the page shows it. When the message says a
-selector term ending in a comma has an empty value, as for
-`state:young, in:japanese`, the page also explains, under it, that a
-comma means *or* between the values of one key and that terms are
-separated by spaces, and how to write either. It only explains: the
-selector is never changed, since the page can't tell which was meant.
+being what `srl` printed, and the page shows it. Under every error about
+the selector (a message with `invalid selector term`, which starts every
+such error of `srl`), whatever the error, it shows the same guide to
+writing a selector, `src/SelectorHelp.tsx`: the rules, and examples of
+common selectors. The selector is never changed.
 
 Every dialog of the page is `src/Modal.tsx`, the browser's own `<dialog>`.
 Radix UI's dialog, say, would need the `Content-Security-Policy` below to
