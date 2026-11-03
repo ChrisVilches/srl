@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { api, type KindDescription, type NewItem, type SourceDescription } from './api';
-import { ErrorView, Key, KindBadge, Label, MAIN_BUTTON, Notice, OUTLINE_BUTTON, QUIET_BUTTON, WITH_KEY } from './CardParts';
+import { ErrorView, Key, KindBadge, Label, MAIN_BUTTON, Notice, OUTLINE_BUTTON, Panel, QUIET_BUTTON, WITH_KEY } from './CardParts';
 import { useStartWhenShown } from './hooks';
 import { TopBar } from './TopBar';
 
@@ -269,19 +269,6 @@ function ResultView({ result, kind }: { result: Result; kind: string }) {
         </Panel>
       );
   }
-}
-
-function Panel({ tone, title, children }: { tone: 'ok' | 'error'; title: string; children: ReactNode }) {
-  const style =
-    tone === 'ok'
-      ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
-      : 'bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-200';
-  return (
-    <div className={`rounded-lg p-4 ${style}`}>
-      <div className="mb-2 text-sm font-semibold">{title}</div>
-      {children}
-    </div>
-  );
 }
 
 // How many matching notes the picker shows.

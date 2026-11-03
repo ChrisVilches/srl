@@ -81,8 +81,13 @@ JSON, edits the item of the chosen card, whatever its source: a note, or
 a database or service behind a source program. It shows the item's fields and whether it is a draft, as `srl show
 --json` gives them, and **Save** gives the whole item to `srl edit
 --stdin`; `srl` finds the item by its ID, and its source writes it. The
-cards are then found again. Save and Cancel both go back to the Prompt
-side.
+cards are then found again in place: the list stays where it is scrolled,
+its rows change where the item's cards changed, and only the item's
+cards are forgotten, to be made anew. The page stays on Edit, and says
+under the form whether it worked: saved, srl's error if it didn't save
+the item, or srl's error if it saved it but couldn't find the cards
+again. Any change to the form clears that. Cancel goes back to the
+Prompt side.
 
 It also **adds items** (the Add tab, or `#add`), one at a time:
 

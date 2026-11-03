@@ -39,7 +39,8 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
   // The card being made, to stop when another is chosen.
   const making = useRef<{ id: string; abort: AbortController } | null>(null);
 
-  // Finding again forgets the cards made, so that edited items are made anew.
+  // Finding forgets every card made, so that a selector submitted again
+  // makes its cards anew.
   const find = useCallback(async (sel: string) => {
     making.current?.abort.abort();
     setMade({});
@@ -53,6 +54,20 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
 
   // Finds the cards of each selector submitted, once shown.
   useSubmitted(active, submitted, find);
+
+  // After the item ITEM was saved, finds the cards again in place: the list
+  // stays as it is until the new one replaces it, rows kept by card ID, so
+  // its scroll stays; only the cards of ITEM (its ID, or its ID and a
+  // suffix) are forgotten, to be made anew. Throws srl's error, if any.
+  const refresh = useCallback(
+    async (item: string) => {
+      const ofItem = (id: string) => id === item || id.startsWith(`${item}.`);
+      if (making.current && ofItem(making.current.id)) making.current.abort.abort();
+      setMade((m) => Object.fromEntries(Object.entries(m).filter(([id]) => !ofItem(id))));
+      setList({ kind: 'ready', cards: await api.find(selector ?? '') });
+    },
+    [selector],
+  );
 
   // Makes card ID with srl cards, stopping the card being made, if any.
   // Each card is made once, when first chosen, and again only when asked.
@@ -129,10 +144,8 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
             side={side}
             onSide={setSide}
             onMake={() => selected !== null && make(selected)}
-            onEdited={(saved) => {
-              setSide('prompt');
-              if (saved) find(selector ?? '');
-            }}
+            onSaved={refresh}
+            onCancel={() => setSide('prompt')}
           />
         </div>
       </main>
@@ -196,15 +209,17 @@ function Preview({
   side,
   onSide,
   onMake,
-  onEdited,
+  onSaved,
+  onCancel,
 }: {
   found: FoundCard | null;
   made: Made | undefined;
   side: Side;
   onSide: (side: Side) => void;
   onMake: () => void;
-  // Called with whether the item was saved, when leaving the edit side.
-  onEdited: (saved: boolean) => void;
+  // Called with the item's ID once it is saved, staying on the edit side.
+  onSaved: (item: string) => Promise<void>;
+  onCancel: () => void;
 }) {
   if (found === null) {
     return (
@@ -260,7 +275,7 @@ function Preview({
           <p className="mt-1 whitespace-pre-wrap">{found.suspend_reason}</p>
         </div>
       )}
-      {editing && <EditItem id={found.item} onSaved={() => onEdited(true)} onCancel={() => onEdited(false)} />}
+      {editing && <EditItem id={found.item} onSaved={() => onSaved(found.item)} onCancel={onCancel} />}
       {!editing && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
       {!editing && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
       {!editing && made?.kind === 'ready' && (
