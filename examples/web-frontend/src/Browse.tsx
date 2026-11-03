@@ -211,14 +211,20 @@ function ListSkeleton() {
   );
 }
 
-// Scrolls the list to the chosen card's row, as the callback ref of that row
-// only. React calls it when the row's element appears: when the cards come,
-// as after the page opened on a card of the address, and when the choice
-// moves to another row. A refresh that keeps the rows (by card ID) calls it
-// no more, so the list stays where it was. A function outside the
-// component, so that it is the same one at every render.
+// Centers the chosen card's row in the list when it is out of sight, as the
+// callback ref of that row only. React calls it when the row's element
+// appears: when the cards come, as after the page opened on a card of the
+// address, and when the choice moves to another row. A row clicked is in
+// sight, so clicking never scrolls; a key choosing a row past the edge
+// does. A refresh that keeps the rows (by card ID) calls it no more, so the
+// list stays where it was. A function outside the component, so that it is
+// the same one at every render.
 function scrollToRow(row: HTMLButtonElement | null) {
-  row?.scrollIntoView({ block: 'center' });
+  const list = row?.closest('.overflow-y-auto');
+  if (!row || !list) return;
+  const r = row.getBoundingClientRect();
+  const l = list.getBoundingClientRect();
+  if (r.bottom <= l.top || r.top >= l.bottom) row.scrollIntoView({ block: 'center' });
 }
 
 // The cards in the order srl find gives them, under the address of each collection.
