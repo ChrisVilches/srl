@@ -64,16 +64,24 @@ export default function App() {
   }, []);
 
   // The selector in the address, or else the one srl-web was started with.
-  const [submitted, setSubmitted] = useState<Submitted | null>(null);
+  // The address is read before the first render, so the selector box is
+  // drawn with it rather than empty; only the one srl-web was started with
+  // has to be asked for.
+  const [submitted, setSubmitted] = useState<Submitted | null>(() => {
+    const selector = urlSelector();
+    return selector === null ? null : { selector, n: 0 };
+  });
   const [configError, setConfigError] = useState<string | null>(null);
   const loadSelector = useCallback(() => {
     setConfigError(null);
-    Promise.resolve(urlSelector() ?? api.selector()).then(
+    api.selector().then(
       (selector) => setSubmitted({ selector, n: 0 }),
       (error: Error) => setConfigError(error.message),
     );
   }, []);
-  useEffect(loadSelector, [loadSelector]);
+  useEffect(() => {
+    if (urlSelector() === null) loadSelector();
+  }, [loadSelector]);
   const onSelector = useCallback((selector: string) => {
     setUrlSelector(selector);
     setSubmitted((s) => ({ selector, n: (s?.n ?? 0) + 1 }));
