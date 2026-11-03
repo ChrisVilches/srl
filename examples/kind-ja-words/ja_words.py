@@ -105,7 +105,9 @@ def suffix(word):
 
 
 def describe(_input):
-    """The output of `describe`: what the kind is for, and its field."""
+    """The output of `describe`: what the kind is for, and its field. The
+    field has no label, so frontends show its name, TEXT: an example of a
+    kind without labels, as kind-llm-generated is one with a label."""
     return {
         "description": "One card per {word} of a Japanese sentence, the word highlighted.",
         "fields": [

@@ -96,6 +96,7 @@ def describe(_input):
         "fields": [
             {
                 "name": FIELD,
+                "label": "Prompt",
                 "description": "What the question should be about, as you would tell a "
                 "tutor. The item's context is sent too, as background.",
             }

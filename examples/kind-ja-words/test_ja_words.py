@@ -26,6 +26,9 @@ class Describe(unittest.TestCase):
     def test_it_names_the_field_that_validate_checks(self):
         self.assertEqual([field["name"] for field in describe({})["fields"]], ["TEXT"])
 
+    def test_its_field_has_no_label(self):
+        self.assertTrue(all("label" not in field for field in describe({})["fields"]))
+
 
 class Validate(unittest.TestCase):
     def test_a_sentence_with_words_is_valid(self):

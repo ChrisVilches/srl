@@ -78,7 +78,11 @@ Tried on Arch Linux and Ubuntu.
   pair, braces inside braces, and a `TEXT` without any `{word}` are
   errors about `TEXT`, which `validate` gives; there is no way to write a
   literal brace. `TEXT` is the only field: any other is an error about
-  that field. `describe` says so, for `srl kinds` and editors.
+  that field. `describe` says so, for `srl kinds` and editors. It gives
+  the field no label, so frontends show its name, `TEXT` (see
+  [docs/cards.md](../../docs/cards.md), "Describing a kind"); the kind
+  is the example of a field without one, as `kind-llm-generated` is of
+  one with a label.
 
 MeCab's IPA dictionary is Japanese only, and it reads a word in context
 as best it can: 都 at the end of the sentence above comes out as と, not
