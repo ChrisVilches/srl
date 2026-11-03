@@ -1,3 +1,4 @@
+import { MoonIcon, SunIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { QUIET_BUTTON } from './CardParts';
@@ -42,20 +43,23 @@ export function TopBar({ view, children }: { view: View; children: ReactNode }) 
   );
 }
 
-// Switches between the dark and light themes, naming the one it switches to.
+// Switches between the dark and light themes, showing the icon of the one
+// it switches to: the sun in dark, the moon in light.
 function ThemeButton() {
   const [theme, setThemeState] = useState(currentTheme);
   const other = theme === 'dark' ? 'light' : 'dark';
+  const Icon = other === 'light' ? SunIcon : MoonIcon;
   return (
     <button
       onClick={() => {
         setTheme(other);
         setThemeState(other);
       }}
-      title="Switch the theme, kept in this browser"
-      className={`ml-auto py-1 text-sm ${QUIET_BUTTON}`}
+      aria-label={`Switch to the ${other} theme`}
+      title={`Switch to the ${other} theme, kept in this browser`}
+      className={`ml-auto py-1.5 ${QUIET_BUTTON}`}
     >
-      {other === 'light' ? 'Light' : 'Dark'}
+      <Icon className="size-5" aria-hidden />
     </button>
   );
 }

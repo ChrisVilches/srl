@@ -50,7 +50,8 @@ macOS and Windows (it is tried on Linux only).
   from: `srl-web` takes none. The name srl at the
   left of the top bar links to the root, the study view with the selector
   cleared.
-- Dark, or light with the button at the right of the top bar. The choice
+- Dark, or light with the button at the right of the top bar, which
+  shows the theme it switches to: a sun in dark, a moon in light. The choice
   is kept in the browser's localStorage, not taken from the system's
   setting, and is applied before the page is drawn, so it doesn't flash
   the other theme.
@@ -198,8 +199,15 @@ bin/srl-web.js      the command: options, starting the server, opening the brows
 server/server.js    the server: the API below, and the built frontend from dist/
 server/srl.js       running srl and reading its exit codes
 server/on-change.js running the --on-change program
-src/                the frontend: React, Tailwind CSS, markdown-it
+src/                the frontend: React, Tailwind CSS, markdown-it, Heroicons
 ```
+
+Icons come from Heroicons (`@heroicons/react`): a small set of general UI
+icons, with no brand icons, made for Tailwind. Each icon is a module of
+its own, so the build keeps only those imported. Import from
+`@heroicons/react/24/outline`, and give the icon `aria-hidden` and its
+button an `aria-label`, since the icon alone names nothing to a screen
+reader.
 
 Each API route but `/api/config` and `/api/on-change` runs `srl` commands. There is no
 scheduling here; that belongs to `srl`.
