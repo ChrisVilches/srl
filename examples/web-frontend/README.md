@@ -225,7 +225,11 @@ common selectors. The selector is never changed.
 Every dialog of the page is `src/Modal.tsx`, the browser's own `<dialog>`.
 Radix UI's dialog, say, would need the `Content-Security-Policy` below to
 allow inline styles, since it adds `<style>` elements to the page. While a
-dialog is open, the views take no keys.
+dialog is open, the views take no keys. Every dialog fades in while
+growing to its size, and out while shrinking, in 150 ms, by its class
+`modal` in `src/index.css`, and not at all with reduced motion. The
+fade-out needs a browser that can keep `display` during a transition,
+such as Chrome; in Firefox the dialog still goes at once when closed.
 
 The server listens on `127.0.0.1` only. So that other web pages open in
 the browser can't use it, it refuses requests whose `Host` is not
