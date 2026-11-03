@@ -13,9 +13,13 @@ macOS and Windows (it is tried on Linux only).
   cloze's blanks filled in (or leaves it as it is when the card has none,
   `prompt_revealed` being `null`), and adds the answer below it when there
   is one.
-- Each card is labelled with its ID and kind, the kind in violet when it
-  isn't `qa`, such as a kind that asks an LLM, and `new` when it is new.
-  A card that isn't new is always due, so it gets no label for that.
+- Each card is labelled with its ID, its kind in violet when the kind is
+  a program, such as one that asks an LLM, and `new` when it is new. A
+  built-in kind (only `qa` for now) is never shown, here or anywhere else
+  on the page: srl doesn't say which kinds are built in, so the page
+  lists them in `BUILT_IN_KINDS` in `src/CardParts.tsx`, and a new one
+  must be added there. A card that isn't new is always due, so it gets
+  no label for that.
 - After the answer it shows the context in `prose` mode, under the name of
   its note; `CONTEXT` in `server/server.js` chooses the mode. A context
   from a note that isn't Markdown (by the extension of `context_address`),
@@ -49,8 +53,8 @@ as how `ja_word` marks words, without studying:
 
 - It lists the cards of a selector as `srl find` does, in the order they
   are written and under the name of each note: each card's ID, line,
-  kind, status (when not active) and state, and the first line of its
-  item's first field.
+  kind (unless built in), status (when not active) and state, and the
+  first line of its item's first field.
 - Choosing a card makes it with `srl cards`, running its kind program, and
   shows it as studying does: the prompt, or, turned, the revealed prompt,
   the answer and the context. The JSON side shows the card as `srl cards

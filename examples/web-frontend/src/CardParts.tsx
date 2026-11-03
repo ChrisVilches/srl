@@ -49,13 +49,19 @@ export function CardFace({ card, revealed, badges }: { card: ShownCard; revealed
 
 const PILL = 'rounded-full px-2 py-0.5';
 
-// The kind that made a card, in violet when it isn't qa. A long name is cut
-// short, whole in the tooltip.
+// The kinds built into srl (docs/cards.md, "Kinds"). srl doesn't say which
+// kinds are built in, so a new one must be added here.
+const BUILT_IN_KINDS = ['qa'];
+
+// The kind that made a card, in violet, or nothing for a built-in kind: only
+// a kind program is worth pointing out. A long name is cut short, whole in
+// the tooltip.
 export function KindBadge({ kind }: { kind: string }) {
+  if (BUILT_IN_KINDS.includes(kind)) return null;
   return (
     <span
       title={`The kind that made this card: ${kind}`}
-      className={`${PILL} max-w-48 truncate font-mono ${kind === 'qa' ? '' : 'bg-violet-100 font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300'}`}
+      className={`${PILL} max-w-48 truncate bg-violet-100 font-mono font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300`}
     >
       {kind}
     </span>
