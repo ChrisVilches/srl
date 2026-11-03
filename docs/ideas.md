@@ -215,6 +215,67 @@ questions", once it is planned.
   shows and nothing else, as the notes' sources do. It waits for a
   program that needs it.
 
+## The log
+
+- **Undoing the last event: `srl undo`.** A review rated by mistake (a
+  slip of the key, a rating recorded twice) can't be taken back today:
+  the log is append-only, and never edited by hand (see
+  [log.md](log.md), "Files"). `srl undo` would remove the last event of
+  the log, and nothing else.
+
+  - **The last line of the log.** It removes the last line of the log
+    file whose name sorts last, which is the last event replayed (see
+    [scheduling.md](scheduling.md), "Replay"), whatever its type:
+    `review`, `reset`, `move`, `suspend` or `unsuspend`. A file left empty
+    is deleted, so that the next `srl undo` reaches the month before. Run
+    again, it removes the event before, and so on; there is no limit.
+  - **It prints the line it removes**, exactly as it was in the file,
+    with or without `--dry-run`, which prints the same line and removes
+    nothing. Events are JSON already, so it has no `--json`, like
+    `srl move --dry-run`, which prints the event it would write. A line
+    that is not a valid event is removed and printed like any other, so
+    a damaged last line never blocks it. Exit 1 when the log is empty.
+  - **`--expect LINE`** removes the last line only if it is exactly
+    `LINE`, and otherwise fails (exit 2) and removes nothing. Between
+    `srl undo --dry-run` and `srl undo`, another frontend or a script may
+    record an event, which would then be removed instead of the one shown;
+    a program that shows the event before removing it passes it back with
+    `--expect`. It takes the log's lock, for the check and the removal
+    together, like every append.
+  - **The log only.** It doesn't undo changes to items (`srl add`,
+    `srl edit`, `srl accept`, `srl id`), which are made in notes and
+    sources, where your editor, git or the source program undo them.
+    No other command writes the log, so nothing else is left that can't
+    be taken back.
+  - **Removing, not a new event.** An `undo` event would keep the log
+    append-only, but every reader would have to skip the event it undoes:
+    `srl`'s replay, and every `jq` or DuckDB query of the log (see
+    [log.md](log.md), "Reading the log"), which would otherwise count a
+    review that was taken back. Removing the line keeps the log a plain
+    list of what counts.
+
+  It changes [log.md](log.md) ("Append-only" becomes "only appended to,
+  except by `srl undo`, which removes the last line"), the list of
+  commands that write the log in [log.md](log.md) and
+  [store.md](store.md), and [cli.md](cli.md). The index cache needs no
+  change: a log file that got shorter already replays the whole log (see
+  [store.md](store.md), "The index cache"). With git, a removed event
+  that was already committed shows as a deleted line, like any edit; on
+  another device that already has it, it comes back on the next merge
+  unless that device pulls first (see [audit.md](audit.md), H1).
+
+  **In `srl-web`**, the example web frontend: a button in a view of its
+  own, away from studying, always there and always enabled, not tied to
+  what was done last on the page. It runs `srl undo --dry-run` and shows
+  the line in a dialog of a "danger" look, as indented JSON in the colors
+  of the card browser's JSON side, without describing the event in
+  words, since each type has its own fields. Confirming runs
+  `srl undo --expect` with that line; a different last line is shown as
+  an error in the dialog, and the button can be pressed again. After the
+  undo, nothing on the page changes but the dialog closing: no view is
+  reloaded, no card changes, and the counts of the study session stay as
+  they were. `srl-tui` gets nothing.
+
 ## Stores
 
 - **Export and import between stores.** Move or copy notes from one store to
