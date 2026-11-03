@@ -86,7 +86,8 @@ as how `ja_word` marks words, without studying:
   the page opens the same card on the same side, and scrolls the list to
   it once the cards are found. The address is read when the page opens,
   and rewritten (without adding to the browser's history) whenever the
-  card or side changes. A card that isn't among the selector's cards,
+  card or side changes. The list always scrolls the chosen card to its
+  middle, whether after a reload or when choosing another with the keys. A card that isn't among the selector's cards,
   such as one whose item was deleted, is said so in place of the card,
   and an unknown side is Prompt.
 - It records nothing: no review, no suspension. Studying starts only when

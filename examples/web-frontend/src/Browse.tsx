@@ -193,7 +193,7 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
 // no more, so the list stays where it was. A function outside the
 // component, so that it is the same one at every render.
 function scrollToRow(row: HTMLButtonElement | null) {
-  row?.scrollIntoView({ block: 'nearest' });
+  row?.scrollIntoView({ block: 'center' });
 }
 
 // The cards in the order srl find gives them, under the address of each collection.
