@@ -49,7 +49,7 @@ Meant for Linux, macOS and Windows; tried on Linux only.
   instructions tell the model not to write cloze deletions or `==…==`.
 - **The instructions are fixed**, in `INSTRUCTIONS` at the top of the
   program: write one question on the topic and its answer, a different angle
-  each time. The model gets `PROMPT`, then the item's context (its note,
+  each time. The model gets `PROMPT`, then the item's context (its collection,
   or the one `see` names, in mode `prose`) as background, when it has one.
 
 ## Writing a good PROMPT
@@ -77,10 +77,10 @@ differently each time.
 - **Say which angles you want**, if the default ones don't fit: "contrast
   it with にもかかわらず", "a new example sentence each time", "a
   calculation with different numbers".
-- **Put what many items share in their note.** The note is sent as
-  background, so a note can say the language the question and answer are
-  in, the level and the style, and each `PROMPT` in it only names its
-  topic.
+- **Put what many items share in their collection.** Its context is sent
+  as background, so a Markdown note, for one, can say around its items the
+  language the question and answer are in, the level and the style, and
+  each `PROMPT` in it only names its topic.
 - **Keep a broad topic only for random review**, knowing it leans
   towards the topic's best-known points.
 
@@ -125,7 +125,7 @@ Each line is one JSON object:
 | `item` | The item's ID. |
 | `day` | The study day srl gave. |
 | `model` | The model asked. |
-| `input` | What was sent: `PROMPT`, then the note. The fixed instructions are not repeated. |
+| `input` | What was sent: `PROMPT`, then the context. The fixed instructions are not repeated. |
 | `question`, `answer` | The card the model wrote, or `null` if the call failed. |
 | `usage` | The token counts the API returned, as it returned them, or `null` if it returned none. |
 | `response_id` | The API's ID of the response, or `null`. |
@@ -204,7 +204,7 @@ They are in `test_llm_generated.py`:
 - `Validate`: a prompt alone is valid, and every invalid item gives errors
   about its fields.
 - `Groups`: one card with the item's ID.
-- `MakeCard`: the card is what the model wrote, the note is sent after
+- `MakeCard`: the card is what the model wrote, the context is sent after
   `PROMPT`, a card that can't be made is an `{"error": …}` answer, and
   what each call, failed or not, writes to the log. A function stands in
   for the API, and the log is written to a temporary folder of each test.

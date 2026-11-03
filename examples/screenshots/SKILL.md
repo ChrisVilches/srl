@@ -47,7 +47,7 @@ byte for byte.
 ## Rules
 
 - **Never touch the user's own store.** `SRL_DIR` is often set in the
-  user's shell and points at their real notes. Pass the demo store
+  user's shell and points at their real store. Pass the demo store
   explicitly to every `srl` command, script and server, as `SRL_DIR=…` or
   `--dir …`.
 - **Take the shots from a copy of the store**, in a new folder in `/tmp`,
@@ -182,6 +182,6 @@ for something else, and update this section when they change.
   timed out`).
 - Playwright's own browsers are a large download that may stall; that is
   why the system's Firefox is used.
-- In `srl-web`, inline code in notes shows its backticks, from the
+- In `srl-web`, inline code in cards and contexts shows its backticks, from the
   Tailwind typography plugin's default style. It is how `srl-web` looks,
   not a fault of the shots.

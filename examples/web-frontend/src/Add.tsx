@@ -7,7 +7,7 @@ import { Modal } from './Modal';
 import { TopBar } from './TopBar';
 
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
-// collection to add it to, of any source (`note` here), picked from
+// collection to add it to, of any source, picked from
 // `srl collections`, or a new one where `srl sources` says one may be
 // created; its source writes the item its own way. srl checks the item, with
 // `srl add --dry-run` (Check) and when it is added: the page knows no rule of
@@ -15,34 +15,36 @@ import { TopBar } from './TopBar';
 
 type Store =
   | { kind: 'loading' }
-  | { kind: 'ready'; kinds: KindDescription[]; notes: string[]; sources: SourceDescription[] }
+  | { kind: 'ready'; kinds: KindDescription[]; collections: string[]; sources: SourceDescription[] }
   | { kind: 'error'; message: string };
 
 // What the last Check or Add gave.
 type Result =
   | { kind: 'none' }
   | { kind: 'checked'; text: string }
-  | { kind: 'added'; ids: string[]; note: string }
+  | { kind: 'added'; ids: string[]; collection: string }
   | { kind: 'error'; message: string };
 
-// Where the note last added to is remembered, in this browser, for this
-// address. It is offered again only while srl collections still lists it.
-const LAST_NOTE = 'srl-web:last-note';
+// Where the collection last added to is remembered, in this browser, for
+// this address. It is offered again only while srl collections still lists
+// it. The key keeps its old name, from when srl added to notes only, so that
+// a choice remembered before is still found.
+const LAST_COLLECTION = 'srl-web:last-note';
 
-function rememberedNote(notes: string[]): string | null {
+function rememberedCollection(collections: string[]): string | null {
   try {
-    const note = localStorage.getItem(LAST_NOTE);
-    return note !== null && notes.includes(note) ? note : null;
+    const address = localStorage.getItem(LAST_COLLECTION);
+    return address !== null && collections.includes(address) ? address : null;
   } catch {
     return null;
   }
 }
 
-function rememberNote(note: string) {
+function rememberCollection(address: string) {
   try {
-    localStorage.setItem(LAST_NOTE, note);
+    localStorage.setItem(LAST_COLLECTION, address);
   } catch {
-    // Not remembered: the next visit starts without a note.
+    // Not remembered: the next visit starts without a collection.
   }
 }
 
@@ -52,7 +54,7 @@ export function Add({ active }: { active: boolean }) {
   // Field texts by name, kept when the kind changes, so that a field of the
   // same name keeps its text.
   const [texts, setTexts] = useState<Record<string, string>>({});
-  const [note, setNote] = useState<string | null>(null);
+  const [collection, setCollection] = useState<string | null>(null);
   const [see, setSee] = useState<string | null>(null);
   const [draft, setDraft] = useState(false);
   const [result, setResult] = useState<Result>({ kind: 'none' });
@@ -61,10 +63,12 @@ export function Add({ active }: { active: boolean }) {
   const load = useCallback(async () => {
     setStore({ kind: 'loading' });
     try {
-      const [kinds, notes, sources] = await Promise.all([api.kinds(), api.collections(), api.sources()]);
-      setStore({ kind: 'ready', kinds, notes, sources });
-      setNote((current) => (current !== null && notes.includes(current) ? current : rememberedNote(notes)));
-      setSee((current) => (current !== null && notes.includes(current) ? current : null));
+      const [kinds, collections, sources] = await Promise.all([api.kinds(), api.collections(), api.sources()]);
+      setStore({ kind: 'ready', kinds, collections, sources });
+      setCollection((current) =>
+        current !== null && collections.includes(current) ? current : rememberedCollection(collections),
+      );
+      setSee((current) => (current !== null && collections.includes(current) ? current : null));
     } catch (error) {
       setStore({ kind: 'error', message: (error as Error).message });
     }
@@ -72,7 +76,7 @@ export function Add({ active }: { active: boolean }) {
   useStartWhenShown(active, load);
 
   const kinds = store.kind === 'ready' ? store.kinds : [];
-  const notes = store.kind === 'ready' ? store.notes : [];
+  const collections = store.kind === 'ready' ? store.collections : [];
   const sources = store.kind === 'ready' ? store.sources : [];
   const kind = kinds.find((k) => k.name === kindName) ?? kinds[0];
 
@@ -102,19 +106,19 @@ export function Add({ active }: { active: boolean }) {
   };
 
   const check = () => {
-    if (note === null || busy) return;
-    run(async () => ({ kind: 'checked', text: await api.check(note, item()) }));
+    if (collection === null || busy) return;
+    run(async () => ({ kind: 'checked', text: await api.check(collection, item()) }));
   };
 
   // Once added, the fields are emptied for the next item; the kind, the
-  // notes and draft stay.
+  // collections and draft stay.
   const add = () => {
-    if (note === null || busy) return;
+    if (collection === null || busy) return;
     run(async () => {
-      const ids = await api.add(note, item());
-      rememberNote(note);
+      const ids = await api.add(collection, item());
+      rememberCollection(collection);
       setTexts((t) => Object.fromEntries(Object.entries(t).filter(([name]) => !kind.fields.some((f) => f.name === name))));
-      return { kind: 'added', ids, note };
+      return { kind: 'added', ids, collection };
     });
   };
 
@@ -170,12 +174,14 @@ export function Add({ active }: { active: boolean }) {
               label="Collection"
               hint="Where the item is added: an existing collection of any source, such as a note or a database table, or a new one, typed as its address, where a source of the store can create it (srl sources)."
             >
-              <NotePicker
-                notes={notes}
-                value={note}
-                onChange={setNote}
-                placeholder={notes.length === 0 ? 'Type the address of a new collection…' : 'Find a collection, or type a new one…'}
-                creatable={(path) => creatable(sources, path)}
+              <CollectionPicker
+                collections={collections}
+                value={collection}
+                onChange={setCollection}
+                placeholder={
+                  collections.length === 0 ? 'Type the address of a new collection…' : 'Find a collection, or type a new one…'
+                }
+                creatable={(address) => creatable(sources, address)}
               />
             </Section>
 
@@ -185,7 +191,13 @@ export function Add({ active }: { active: boolean }) {
             >
               {/* The input is controlled, so its placeholder follows the
                   collection chosen above like any other prop. */}
-              <NotePicker notes={notes} value={see} onChange={setSee} placeholder={note ?? ''} clearable />
+              <CollectionPicker
+                collections={collections}
+                value={see}
+                onChange={setSee}
+                placeholder={collection ?? ''}
+                clearable
+              />
             </Section>
 
             <label className="flex items-center gap-2 text-sm">
@@ -196,12 +208,12 @@ export function Add({ active }: { active: boolean }) {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={add}
-                disabled={note === null || busy}
+                disabled={collection === null || busy}
                 className={`px-5 py-2.5 ${WITH_KEY} ${MAIN_BUTTON}`}
               >
                 Add <Key>ctrl+enter</Key>
               </button>
-              <button onClick={check} disabled={note === null || busy} className={`${OUTLINE_BUTTON} disabled:opacity-50`}>
+              <button onClick={check} disabled={collection === null || busy} className={`${OUTLINE_BUTTON} disabled:opacity-50`}>
                 Check
               </button>
               {busy && <span className="text-sm text-stone-400">Asking srl…</span>}
@@ -246,7 +258,7 @@ function ResultModal({ result, kind, onClose }: { result: Result; kind: string; 
   const title = {
     none: '',
     checked: 'Valid. srl would add:',
-    added: result.kind === 'added' ? `Added to ${result.note}` : '',
+    added: result.kind === 'added' ? `Added to ${result.collection}` : '',
     error: 'srl refused the item',
   }[result.kind];
   return (
@@ -277,16 +289,16 @@ const SHOWN = 50;
 // The addresses that have the letters of QUERY in order, ignoring case,
 // best first: the fewer letters between the matched ones, the better, then
 // the shorter address. Every address matches an empty query, in order.
-function fuzzy(notes: string[], query: string): string[] {
+function fuzzy(addresses: string[], query: string): string[] {
   const q = query.toLowerCase().replace(/\s+/g, '');
-  if (q === '') return notes;
+  if (q === '') return addresses;
   const scored: [number, string][] = [];
-  for (const note of notes) {
-    const path = note.toLowerCase();
+  for (const address of addresses) {
+    const lower = address.toLowerCase();
     let at = -1;
     let gaps = 0;
     for (const char of q) {
-      const next = path.indexOf(char, at + 1);
+      const next = lower.indexOf(char, at + 1);
       if (next === -1) {
         at = -2;
         break;
@@ -294,41 +306,43 @@ function fuzzy(notes: string[], query: string): string[] {
       if (at >= 0) gaps += next - at - 1;
       at = next;
     }
-    if (at !== -2) scored.push([gaps, note]);
+    if (at !== -2) scored.push([gaps, address]);
   }
-  return scored.sort((a, b) => a[0] - b[0] || a[1].length - b[1].length).map(([, note]) => note);
+  return scored.sort((a, b) => a[0] - b[0] || a[1].length - b[1].length).map(([, address]) => address);
 }
 
-// A collection chosen from NOTES, the addresses `srl collections` lists, by
-// typing part of its address. Only a listed one can be chosen. With CLEARABLE, the choice can be taken back.
-function NotePicker({
-  notes,
+// A collection chosen from COLLECTIONS, the addresses `srl collections`
+// lists, by typing part of its address. Only a listed one can be chosen,
+// and, with CREATABLE, a new one. With CLEARABLE, the choice can be taken
+// back.
+function CollectionPicker({
+  collections,
   value,
   onChange,
   placeholder,
   clearable,
   creatable,
 }: {
-  notes: string[];
+  collections: string[];
   value: string | null;
-  onChange: (note: string | null) => void;
+  onChange: (address: string | null) => void;
   placeholder: string;
   clearable?: boolean;
   // Whether a new collection may be at an address that is typed: then it
   // is offered too, after the collections that match.
-  creatable?: (path: string) => boolean;
+  creatable?: (address: string) => boolean;
 }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState(0);
   const input = useRef<HTMLInputElement>(null);
-  const matches = useMemo(() => fuzzy(notes, query).slice(0, SHOWN), [notes, query]);
+  const matches = useMemo(() => fuzzy(collections, query).slice(0, SHOWN), [collections, query]);
   const typed = query.trim();
-  const fresh = typed !== '' && !notes.includes(typed) && creatable?.(typed) === true ? typed : null;
+  const fresh = typed !== '' && !collections.includes(typed) && creatable?.(typed) === true ? typed : null;
   const options = fresh === null ? matches : [...matches, fresh];
 
-  const choose = (note: string) => {
-    onChange(note);
+  const choose = (address: string) => {
+    onChange(address);
     setOpen(false);
     input.current?.blur();
   };
@@ -377,24 +391,24 @@ function NotePicker({
       {open && (
         <ul className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-900">
           {options.length === 0 && <li className="px-3 py-1.5 text-sm text-stone-400">No collection matches.</li>}
-          {options.map((note, i) => (
+          {options.map((address, i) => (
             <li
-              key={note}
+              key={address}
               // Before the input's blur, which closes the list.
               onMouseDown={(event) => {
                 event.preventDefault();
-                choose(note);
+                choose(address);
               }}
               onMouseEnter={() => setAt(i)}
               className={`cursor-pointer px-3 py-1.5 font-mono text-sm ${i === at ? 'bg-stone-100 dark:bg-stone-800' : ''}`}
             >
-              {note === fresh ? (
+              {address === fresh ? (
                 <>
                   <span className="font-sans text-stone-500">New collection: </span>
-                  {note}
+                  {address}
                 </>
               ) : (
-                note
+                address
               )}
             </li>
           ))}
@@ -404,19 +418,19 @@ function NotePicker({
   );
 }
 
-// Whether a source of the store can create a collection at the address
-// `path`, as `srl add` decides it (docs/sources.md, "Addresses"): one
+// Whether a source of the store can create a collection at ADDRESS, as
+// `srl add` decides it (docs/sources.md, "Addresses"): one
 // mounted deepest above it, whose `creates.include` globs (`srl sources
 // --json`) match the rest of the address and whose `creates.exclude` don't.
 // srl checks it again when the item is checked or added.
-function creatable(sources: SourceDescription[], path: string): boolean {
-  if (path.split('/').some((part) => part === '' || part.startsWith('.'))) return false;
-  const above = sources.filter((source) => path.startsWith(source.prefix));
+function creatable(sources: SourceDescription[], address: string): boolean {
+  if (address.split('/').some((part) => part === '' || part.startsWith('.'))) return false;
+  const above = sources.filter((source) => address.startsWith(source.prefix));
   const deepest = Math.max(-1, ...above.map((source) => source.prefix.length));
   return above
     .filter((source) => source.prefix.length === deepest)
     .some((source) => {
-      const rest = path.slice(source.prefix.length);
+      const rest = address.slice(source.prefix.length);
       const { include, exclude } = source.creates;
       return include.some((glob) => globMatches(glob, rest)) && !exclude.some((glob) => globMatches(glob, rest));
     });

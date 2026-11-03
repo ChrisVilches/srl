@@ -154,7 +154,7 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
   );
 }
 
-// The cards in the order srl find gives them, under the name of each note.
+// The cards in the order srl find gives them, under the address of each collection.
 function CardList({
   cards,
   selected,

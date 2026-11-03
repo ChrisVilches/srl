@@ -18,11 +18,12 @@ so you can't run it for them. The `srl` repository's `examples/` has two:
 
 ```sh
 srl-web                     # every active card
-srl-web in:grammar          # only notes in a folder named grammar
+srl-web in:grammar          # only collections in a folder named grammar
 ```
 
 For each card, space or Enter shows the answer, then the context (the
-note around the item, or the one its `see` names; none for an item of a
+collection the item is in, such as the note around it, or the one its
+`see` names; none for an item of a
 JSONL note without `see`, and in mode `full` a JSONL note named by `see`, shown as a code
 block); `1`–`4` records the
 rating; `s` suspends the card without rating it, after asking why (what
@@ -36,7 +37,7 @@ as it is given.
 `srl-web` also has a Browse tab, which lists the cards of a selector and
 shows any of them as studying would, recording nothing: for seeing how a
 card looks, such as one of a kind program, without waiting for it to be
-due. Its Add tab writes items one at a time into a note the person picks,
+due. Its Add tab adds items one at a time to a collection the person picks,
 for a person who prefers a form to editing notes (see the writing-items
 skill for what an item holds).
 
@@ -65,7 +66,8 @@ tomorrow, which is the point. Good is the normal answer, not a compromise.
 `srl next [SELECTOR]` (and so every frontend) picks, among active cards:
 
 1. **Due cards** first, the most overdue first.
-2. **Then new cards**, in the order they are written in the notes, until
+2. **Then new cards**, in the order they are written (by address, then
+   the order of items in each collection), until
    `new_per_day` (default 10) new cards were started today. The limit is
    for the whole store, not per selector.
 
@@ -87,8 +89,8 @@ Things that explain "why didn't my card show up?":
 - **Drafts and suspended cards are never studied.** `srl find
   status:draft` lists drafts; `srl find status:suspended` lists suspended
   cards.
-- **Errors stop everything.** A broken note makes `srl next` fail with the
-  file and line; see the `fixing-problems` skill.
+- **Errors stop everything.** An error in any source makes `srl next` fail
+  with the address and line; see the `fixing-problems` skill.
 - `srl next` exits with 1 and prints nothing when nothing is left today.
 - **A card that can't be made stops `srl next`.** If the card it picks
   comes from a kind program that fails (an LLM API that is down, a
@@ -112,7 +114,7 @@ as yours. Only run one when the person asks for it. Each round:
    it says which program made the card. Exit
    code 1 means nothing is left: say so and stop. Exit code 2 is an
    error: tell the person what it says, and stop. `--context MODE` chooses
-   how much of the note comes along: `prose` (the default) without its
+   how much of the collection comes along: `prose` (the default) without its
    items, `full` with them, `none` nothing. An item of a JSONL note
    without `see` has no context (`null`), and a JSONL note named by `see`
    comes whole, as it is, in `full` only: `prose` never shows items.
@@ -121,10 +123,10 @@ as yours. Only run one when the person asks for it. Each round:
 3. Show the answer: `prompt_revealed` (the prompt with a cloze's blanks
    filled in), or `prompt` again when it is `null`; then `answer`, unless
    it is `null` (there is none: show nothing for it); then the context,
-   unless it is `null`. Say which note it comes from: `context_address`. Its
-   extension says what the context is: a `.md` note is Markdown; a
-   `.jsonl` note is data rather than prose, so show it as a code block or
-   say what in it matters. Treat anything else as plain text, unless you
+   unless it is `null`. Say which collection it comes from:
+   `context_address`. Its extension says what the context is: a `.md`
+   note is Markdown; a `.jsonl` note is data rather than prose, so show it
+   as a code block or say what in it matters. Treat anything else as plain text, unless you
    can tell what it is.
 4. Get the rating. Either the person gives it, or, if they asked you to
    judge, you compare their answer with the card's and decide, telling them
@@ -159,7 +161,7 @@ read cards with `srl cards ID` or `srl find`, and ask.
 | Command | Does |
 |---|---|
 | `srl review ID --rating N` | Rate a card outside a session, even if not due (treated as an early review). |
-| `srl suspend SEL [--reason TEXT]` / `srl unsuspend SEL` | Stop / resume studying cards; the note doesn't change. The reason says what to fix; see the `fixing-problems` skill. |
+| `srl suspend SEL [--reason TEXT]` / `srl unsuspend SEL` | Stop / resume studying cards; the item doesn't change. The reason says what to fix; see the `fixing-problems` skill. |
 | `srl reset SEL` | Make cards new again. Their history stays in the log. |
 
 `--dry-run` shows what `srl review` or `srl reset` would write.

@@ -27,7 +27,7 @@
 //   GET  /api/collections  srl collections --json      → { collections: [address…] }
 //   GET  /api/sources      srl sources --json          → { sources: [source…] }
 //   POST /api/add          srl add ADDRESS --stdin [--dry-run], with ITEM as its
-//                          one line                    ← { note, item, dry_run }
+//                          one line                    ← { address, item, dry_run }
 //                                                      → { ids } or, with
 //                                                        dry_run, { text }
 //
@@ -55,8 +55,8 @@ import path from 'node:path';
 import { createOnChange } from './on-change.js';
 import { SrlError, runSrl } from './srl.js';
 
-// How much of the note to show after the answer: 'prose' (the note without its
-// items), 'full' (with them) or 'none' (see docs/items.md, "Context").
+// How much of the context to show after the answer: 'prose' (the collection
+// without its items), 'full' (with them) or 'none' (see docs/items.md, "Context").
 const CONTEXT = 'prose';
 
 // How many item IDs to give one srl show, so that its command line stays
@@ -79,9 +79,9 @@ const MAX_BODY = 1024 * 1024;
 
 // Sent with every answer. The page runs only its own scripts and styles,
 // can't be framed by another page (which could trick clicks into it), and
-// sends no Referer when a link in a note is followed. Style attributes are
-// allowed for the alignment of table columns. Images may come from
-// anywhere, since a note's Markdown can show any.
+// sends no Referer when a link in a card or context is followed. Style
+// attributes are allowed for the alignment of table columns. Images may
+// come from anywhere, since an item's Markdown can show any.
 const SECURITY_HEADERS = {
   'content-security-policy':
     "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; " +
@@ -190,12 +190,12 @@ export function createSrlServer({ dir, staticDir, onChange }) {
     },
 
     // The item is passed to srl as it is: srl checks it, and the address of
-    // the collection, given as `note`. With dry_run, srl prints the item as
-    // it would be written in a note, or a source program's preview of it,
-    // and writes nothing.
+    // the collection, given as `address`. With dry_run, srl prints the item
+    // as its source would add it, as written in a note or a source program's
+    // preview of it, and adds nothing.
     'POST /api/add': async (_url, body) => {
-      if (typeof body.note !== 'string' || body.note === '') {
-        throw new BadRequest('note must be the address of a collection');
+      if (typeof body.address !== 'string' || body.address === '') {
+        throw new BadRequest('address must be the address of a collection');
       }
       if (body.item === null || typeof body.item !== 'object' || Array.isArray(body.item)) {
         throw new BadRequest('item must be a JSON object');
@@ -203,7 +203,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       const dryRun = body.dry_run === true;
       // The address goes after `--`, so that one starting with `-` is never
       // read as an option.
-      const args = ['add', '--stdin', ...(dryRun ? ['--dry-run'] : []), '--', body.note];
+      const args = ['add', '--stdin', ...(dryRun ? ['--dry-run'] : []), '--', body.address];
       const { stdout } = await srl(args, JSON.stringify(body.item) + '\n');
       if (!dryRun) {
         changed();

@@ -43,7 +43,7 @@ LOG_FILE = Path(tempfile.gettempdir()) / f"{Path(__file__).stem}.log"
 
 INSTRUCTIONS = """\
 You write one flashcard for a spaced repetition system. The user says what
-the card should be about, and may add the note the card is in as
+the card should be about, and may add the text the card comes from as
 background. Write a single question on that topic and its answer.
 
 - The question must make sense on its own and must not contain or give
@@ -97,7 +97,7 @@ def describe(_input):
             {
                 "name": FIELD,
                 "description": "What the question should be about, as you would tell a "
-                "tutor. The item's note is sent too, as background.",
+                "tutor. The item's context is sent too, as background.",
             }
         ],
     }
@@ -126,7 +126,7 @@ def make(item, ask=None, log_file=LOG_FILE):
 
 def make_card(item, ask=None, log_file=LOG_FILE):
     """A question and answer the LLM writes for the PROMPT of an item
-    `validate` accepted, with the item's note as background. There is no
+    `validate` accepted, with the item's context as background. There is no
     `prompt_revealed`: nothing is hidden. Every call to the API, failed or
     not, is a line of `log_file`. `ask` stands in for the API in tests: it
     gets the request's text and gives the response."""
@@ -174,10 +174,10 @@ def log(log_file, entry):
 
 
 def request_text(topic, context):
-    """What the model is asked: the topic, then the note, if there is one."""
+    """What the model is asked: the topic, then the context, if there is one."""
     if not context:
         return topic
-    return f"{topic}\n\nThe note this card is in, as background:\n\n{context}"
+    return f"{topic}\n\nThe text this card comes from, as background:\n\n{context}"
 
 
 def api_key():

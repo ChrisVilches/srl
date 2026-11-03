@@ -1,6 +1,6 @@
 // The server's API (server/server.js).
 
-// A card (docs/cards.md, "Format") with its item's kind, note and context:
+// A card (docs/cards.md, "Format") with its item's kind, address and context:
 // what /api/card gives the card browser.
 export type ShownCard = {
   id: string;
@@ -46,7 +46,7 @@ export type KindDescription = {
 
 // A source of the store, as `srl sources --json` describes it
 // (docs/sources.md): where `srl add` may create a collection is its prefix,
-// then a path that a glob of `include` matches and none of `exclude` does.
+// then a name that a glob of `include` matches and none of `exclude` does.
 export type SourceDescription = {
   name: string;
   driver: string;
@@ -119,11 +119,13 @@ export const api = {
   kinds: async () => (await call<{ kinds: KindDescription[] }>('/api/kinds')).kinds,
   sources: async () => (await call<{ sources: SourceDescription[] }>('/api/sources')).sources,
   collections: async () => (await call<{ collections: string[] }>('/api/collections')).collections,
-  // The item as srl would write it to NOTE, writing nothing.
-  check: async (note: string, item: NewItem) =>
-    (await call<{ text: string }>('/api/add', { note, item, dry_run: true })).text,
-  // Writes the item to the end of NOTE, and gives its new ID.
-  add: async (note: string, item: NewItem) => (await change<{ ids: string[] }>('/api/add', { note, item })).ids,
+  // The item as its source would add it to the collection at ADDRESS,
+  // adding nothing.
+  check: async (address: string, item: NewItem) =>
+    (await call<{ text: string }>('/api/add', { address, item, dry_run: true })).text,
+  // Adds the item to the collection at ADDRESS, and gives its new IDs.
+  add: async (address: string, item: NewItem) =>
+    (await change<{ ids: string[] }>('/api/add', { address, item })).ids,
   // The item of ID as srl show --json prints it: its entries, fields and the
   // keys only srl gives, which srl edit ignores.
   item: async (id: string) =>

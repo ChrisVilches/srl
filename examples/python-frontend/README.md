@@ -20,10 +20,11 @@ screen needs a modern terminal such as Windows Terminal.
   cloze's blanks filled in (or leaves it as it is when the card has none,
   `prompt_revealed` being `null`), and adds the answer below it when there
   is one.
-- The context is shown under the answer, titled with its note (`see`, or
-  else `address`). It asks for the `prose` context: the note without its
-  items. A context from a note that isn't Markdown (by the extension of
-  `context_address`), such as a JSONL note, is shown as a code block.
+- The context is shown under the answer, titled with the address of its
+  collection (`see`, or else `address`). It asks for the `prose` context:
+  the collection without its items. A context from anything but a
+  Markdown note (by the extension of `context_address`), such as a JSONL
+  note or a table of a source program, is shown as a code block.
 - The screen never scrolls: the card and its context each scroll inside
   their own panel. When both are too long for the screen, each gets half
   of it; when one is shorter than half, the other takes the rest. A panel

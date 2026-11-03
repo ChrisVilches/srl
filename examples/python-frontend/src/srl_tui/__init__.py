@@ -40,8 +40,8 @@ THEME = Theme({"markdown.mark": "bold yellow", "markdown.h1": "bold magenta"})
 
 RATINGS = [("again", "red"), ("hard", "yellow"), ("good", "green"), ("easy", "blue")]
 
-# How much of the note to show after the answer: "prose" (the note without its
-# items), "full" (with them) or "none" (see docs/items.md, "Context").
+# How much of the context to show after the answer: "prose" (the collection
+# without its items), "full" (with them) or "none" (see docs/items.md, "Context").
 CONTEXT = "prose"
 
 console = Console(theme=THEME, highlight=False)
@@ -118,10 +118,11 @@ MARKDOWN_EXTENSIONS = (".md", ".markdown", ".mdx", ".qmd")
 
 
 def context_markdown(card):
-    """The card's context, as Markdown to render, by the extension of its note
-    (context_address). A context from any note but a Markdown one goes in a code
-    block as plain text, json for a JSONL note, with a fence longer than any
-    run of backticks in it."""
+    """The card's context, as Markdown to render, by the extension of its
+    collection's address (context_address). A context from anything but a
+    Markdown note, such as a JSONL note or a table of a source program, goes
+    in a code block as plain text, json for a JSONL note, with a fence longer
+    than any run of backticks in it."""
     context = card["context"]
     address = (card.get("context_address") or "").lower()
     if address.endswith(MARKDOWN_EXTENSIONS):

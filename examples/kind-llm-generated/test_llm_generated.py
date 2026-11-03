@@ -79,7 +79,7 @@ class MakeCard(unittest.TestCase):
         )
         self.assertEqual(asked, [TOPIC])
 
-    def test_the_note_is_sent_after_the_prompt(self):
+    def test_the_context_is_sent_after_the_prompt(self):
         asked = []
 
         def ask(text):

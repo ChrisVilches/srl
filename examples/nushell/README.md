@@ -59,7 +59,7 @@ All of these use the wrapper, not the bare `srl`.
 # Due cards about grammar, as a table
 srl find in:grammar state:due
 
-# How many cards each note has, largest first
+# How many cards each collection has, largest first
 srl find | group-by address --to-table
   | each {|g| {address: $g.address, cards: ($g.items | length)} }
   | sort-by cards --reverse

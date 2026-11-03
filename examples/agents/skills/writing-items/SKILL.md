@@ -9,7 +9,10 @@ Items live in Markdown notes, in srl blocks (below), or in JSONL notes,
 of a `jsonl` source: one JSON object per line, the same item
 object that `srl add` takes (see "Adding items with `srl add`"), and
 nothing else. A JSONL note is read only by a source of the store with
-`driver = "jsonl"` in `.srl/config.toml` (`srl sources` lists them).
+`driver = "jsonl"` in `.srl/config.toml` (`srl sources` lists them). A
+source program keeps its items its own way, such as in a database; they
+are added and changed with `srl add` and `srl edit --stdin`, as item
+objects, like any other.
 
 ## The syntax, in full
 
@@ -70,7 +73,7 @@ Header entries, in any order, each at most once:
 |---|---|
 | `id:ID` | The item's ID. `srl id` adds it; lowercase letters and digits, words joined by single `-` (`jp-grammar-desu`), 1 to 32 characters, never `.`. |
 | `draft` | Not studied until `srl accept`. |
-| `see:ADDRESS` | The note shown as context, instead of the item's own note: the address of a collection of the store (a note's path, for a source without a prefix; `srl collections` lists them). Quote addresses with spaces: `see:"my notes/a b.md"`. |
+| `see:ADDRESS` | The collection shown as context, instead of the item's own: the address of a collection of the store (a note's path, for a source without a prefix; `srl collections` lists them). Quote addresses with spaces: `see:"my notes/a b.md"`. |
 | `kind:NAME` | The kind. `qa` is the default; any other is a kind program named in `[kinds]` of `.srl/config.toml`, whose fields are its own. `srl kinds` describes every kind and its fields. |
 
 An item without an ID is an error for every command except `srl id`, which
@@ -78,7 +81,7 @@ fixes it. Two items with the same ID (usually a copied item) is an error:
 delete the ID from the copy and run `srl id`.
 
 The ID is the item's identity: editing it, moving it within or between
-notes, or renaming the note never changes its schedule.
+collections, or renaming its collection never changes its schedule.
 
 ## JSONL notes
 
@@ -192,7 +195,8 @@ leaves the old card's history behind; see the `fixing-problems` skill.
 - **Cloze for sentences and fixed phrases**: vocabulary in context,
   grammar patterns, formulas. Hide the part worth remembering, not filler.
 - **Write the item next to what it asks about**, or give it a `see` that
-  names that note. The note is shown after the answer, so the explanation
+  names that collection, such as a note. Its context is shown after the
+  answer, so the explanation
   does not need repeating in `A`.
 - `==text==` in a field is a highlight in the card too.
 
@@ -204,20 +208,22 @@ srl add ADDRESS [--dry-run] --stdin
 
 One item object per line on standard input: one JSON object. The
 lowercase keys are the item's header entries: `"id"` (leave it out to get a
-new one), `"kind"` (text, default `qa`), `"see"` (text, the note shown as
-its context) and `"draft"` (`true` or `false`). The uppercase keys are
-fields, and their values the fields' text. In a Markdown note, a newline in
-a value (`\n` in JSON) becomes a continuation line, and each item gets an
-srl block of its own, with a fence long enough for the code blocks in its
-fields; in a JSONL note, each item is one line,
-the object itself. `ADDRESS` names the note: its path relative to the
-store's folder (after the prefix of its source, if it has one), and it must be a
-note of a source (by default, end in `.md`; see `srl sources`), and
-is created with its folders if it doesn't exist. `srl collections` lists the
-notes by their addresses, also those without items, for `ADDRESS` and
-`"see"`. Items are
-appended at the end, and their IDs are printed. Every line is checked
-first, by the same rules as reading notes, kind programs included: one
+new one), `"kind"` (text, default `qa`), `"see"` (text, the address of the
+collection shown as its context) and `"draft"` (`true` or `false`). The
+uppercase keys are fields, and their values the fields' text. Each source
+adds the items its own way (a source program, as it keeps them). A note
+gets them at its end: in a Markdown note, a newline in a value (`\n` in
+JSON) becomes a continuation line, and each item gets an srl block of its
+own, with a fence long enough for the code blocks in its fields; in a
+JSONL note, each item is one line, the object itself. `ADDRESS` names the
+collection: for a note, its path relative to the store's folder (after
+the prefix of its source, if it has one). A collection that doesn't exist
+is created where a source of the store accepts it (`srl sources` says
+where; for the default source, a note ending in `.md`, created with its
+folders). `srl collections` lists the collections by their addresses,
+also those without items, for `ADDRESS` and `"see"`. The new IDs are
+printed. Every line is checked first, by the same rules as reading items,
+kind programs included: one
 bad line and nothing is added. So `--dry-run` is the way to know whether
 an item is valid; `srl kinds` only describes the fields.
 
@@ -230,8 +236,8 @@ JSONL
 
 As an agent, always give every item `"draft": true`, write into a note of
 your own (for example under `generated/`), and give each item a `"see"`
-when it is about one of the person's notes. Items about different notes
-can go in one call. Use `--dry-run` to show the person the items before
+when it is about one of the person's collections. Items about different
+collections can go in one call. Use `--dry-run` to show the person the items before
 writing them. A Markdown note of your own may also hold prose: write the
 note with its explanation first, then add the items to it. If the store
 reads JSONL notes (`srl sources` lists a `jsonl` source),
@@ -246,7 +252,8 @@ The person accepts drafts with `srl accept SELECTOR`, for example
 
 Only when the person asks you to change their items. Standard input holds
 item objects, one per line, as for `srl add`, each with the `"id"` of the
-item it replaces, in any note; the rest of each note is untouched. `srl
+item it replaces, in any collection; the rest of each collection is
+untouched. `srl
 show --json ID` prints the item in that form, with `address`, `source`, `file`,
 `line`, `cards`, `context` and `context_address`, which `srl edit` ignores: change what you
 need and give the line back. Each object is the whole new item: a field or
@@ -260,8 +267,9 @@ JSONL
 ```
 
 Quote the heredoc's delimiter (`<<'JSONL'`, not `<<JSONL`): unquoted, the
-shell runs backticks as commands and `srl` gets something else. `srl`
-writes each item in its note's syntax: a JSONL item as its line again; an
+shell runs backticks as commands and `srl` gets something else. Each
+item's source writes it its own way; in a note, in the note's syntax: a
+JSONL item as its line again; an
 item that has its srl block to itself as a new block, as `srl add` writes
 it (with srl's own fence and layout, not the one it had); an item that
 shares its srl block with others in its place there, as an `@` line and

@@ -84,11 +84,10 @@ skills can be given the `SKILL.md` files to read when needed.
 
 The prompt has the agent follow the rules in `docs/guides/agents.md`:
 
-- Items it writes are drafts, in notes of their own (JSONL notes, when the
-  store reads them), with `see` pointing
-  at the note they are about. You read them and `srl accept` the ones you
-  want.
-- It changes your notes or your schedule (`srl accept`, `srl edit`,
+- Items it writes are drafts, in collections of their own (JSONL notes,
+  when the store reads them), with `see` pointing at the collection they
+  are about. You read them and `srl accept` the ones you want.
+- It changes your items or your schedule (`srl accept`, `srl edit`,
   `srl reset`, `srl suspend`, `srl move`) only when you ask.
 - Reviews it records are marked `--by agent`.
 - It never writes to `.srl/`.

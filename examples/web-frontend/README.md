@@ -204,7 +204,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
 | `GET /api/sources` | `srl sources --json` | `{"sources": […]}`, each source as `srl sources` printed it |
 | `GET /api/collections` | `srl collections --json` | `{"collections": [ADDRESS…]}` |
-| `POST /api/add` | `srl add ADDRESS --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"note": ADDRESS, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as it would be written in a note, or a source program's preview |
+| `POST /api/add` | `srl add ADDRESS --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"address": ADDRESS, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as its source would add it, as written in a note or a source program's preview |
 | `GET /api/item?id=…` | `srl show ID --json --context none` | `{"item": …}`, the item object `srl show` printed |
 | `POST /api/edit` | `srl edit --stdin`, for `{"item": ITEM}`; `ITEM` is its one line | `{"ids": […]}` |
 

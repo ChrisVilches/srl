@@ -1,19 +1,19 @@
 ---
 name: fixing-problems
-description: Diagnose and fix srl problems - errors in notes or sources that stop every command, a card a kind program can't make that stops srl next, srl check and srl lint, items that silently aren't items, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, locking or cache messages, and revising suspended cards by the reasons they were suspended with. Load whenever an srl command fails, when cards are missing or behave unexpectedly, or when the person wants to fix cards they suspended.
+description: Diagnose and fix srl problems - errors in items or sources that stop every command, a card a kind program can't make that stops srl next, srl check and srl lint, items that silently aren't items, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, locking or cache messages, and revising suspended cards by the reasons they were suspended with. Load whenever an srl command fails, when cards are missing or behave unexpectedly, or when the person wants to fix cards they suspended.
 ---
 
 # Fixing problems
 
 ## Errors stop every command
 
-Any error in any note stops every command that reads items (`srl find`,
+Any error in any source stops every command that reads items (`srl find`,
 `srl next`, ...). Each error is printed on standard error as
 `ADDRESS:LINE: message` (the address being a note's path, for a source
 without a prefix), and the exit code is 2. Fix them all, then run the
 command again. `srl check` lists every problem in the store at once,
 except after an invalid configuration: it reports that alone and stops,
-since the notes and the log can't be read without it. Fix it and run
+since the sources and the log can't be read without it. Fix it and run
 `srl check` again.
 
 | Error | Usual cause | Fix |
@@ -30,14 +30,14 @@ since the notes and the log can't be read without it. Fix it and run
 | unknown field, missing `Q` or `A` | `B:`, or a `qa` item without `A` and without cloze | Use `Q` and `A` only; `A` is optional only with cloze. |
 | bad cloze | `{{c1::` without `}}`, empty text, `c0`, `c01`, nested, or cloze in `A` | Fix the deletion. |
 | `ADDRESS:LINE: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind:` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind:`. |
-| a reason such as `cannot find the program …` or `the program of kind X failed …`, ending `; no item of kind X can be read until the program works` | the program itself is broken: not installed, a missing dependency, a bug; not your notes | Fix or reinstall the program, or its command in `[kinds]`; run `srl check` again. |
+| a reason such as `cannot find the program …` or `the program of kind X failed …`, ending `; no item of kind X can be read until the program works` | the program itself is broken: not installed, a missing dependency, a bug; not your items | Fix or reinstall the program, or its command in `[kinds]`; run `srl check` again. |
 | `the program of kind X printed invalid output …` | a bug in the program | Report it to its author; the item is fine as written. |
-| `see:` doesn't name a note | the note was moved or renamed | Update the address (`srl collections` lists them). |
+| `` `see` … doesn't name a collection of the store `` | the collection, such as a note, was moved, renamed or deleted | Update the address (`srl collections` lists them). |
 | invalid configuration | a typo or out-of-range value in `.srl/config.toml` | Fix the named setting. |
 | ``[notes]` is not read: notes are a source of items now; …`` | a configuration written before sources | Write `[sources.notes]` with `driver = "markdown"` and the same `include` and `exclude`, and a `jsonl` source for JSONL notes, as the message says (see the `setting-up-a-store` skill). |
 | `ADDRESS: the source X gives it, but it is under the prefix P of the source Y …` | a note of one source lies under the prefix another source is mounted at | Leave it out of X with `exclude`, or give Y another prefix. |
 | `ADDRESS: the sources X and Y both give it …`, or `… it is the file F, which … is too …` | two sources' globs match the same file | Leave it out of one of them with `exclude`, or give one of them a prefix. |
-| `the source X failed: …; no item can be read or written until it works` | a source program is broken: not installed, a missing dependency, a bug, a wrong setting of its own in `[sources.X]`, or a service it needs is down; not your notes | Fix what the reason says, or the program's command and settings in `[sources.X]`; run `srl check` again. |
+| `the source X failed: …; no item can be read or written until it works` | a source program is broken: not installed, a missing dependency, a bug, a wrong setting of its own in `[sources.X]`, or a service it needs is down; not your items | Fix what the reason says, or the program's command and settings in `[sources.X]`; run `srl check` again. |
 | `cannot add to ADDRESS: …; nothing was added`, from `srl add` | no source can create a collection at that address (its `include` doesn't match it, or the prefix is wrong), or more than one would | Pick an address a source can create (`srl sources` says where), or an existing one (`srl collections`). |
 
 `srl show ID` prints an item exactly as written (in a JSONL note, its
@@ -111,12 +111,12 @@ schedule (ask them first). `TO` must have no history of its own. A deleted
 item also leaves an orphan; that is harmless, and `srl check` still exits
 with 0 when orphans are the only thing it reports.
 
-Editing an item's text, moving it, or renaming its note never changes its
+Editing an item's text, moving it, or renaming its collection never changes its
 schedule.
 
 ## Suspending and resetting
 
-- `srl suspend SEL`: stop studying cards, without deleting them; the note
+- `srl suspend SEL`: stop studying cards, without deleting them; the item
   isn't changed. `srl unsuspend SEL` undoes it. `srl find status:suspended`
   lists them.
 - `srl suspend SEL --reason TEXT` also keeps why: what the person found
@@ -137,7 +137,7 @@ why, and come back later to fix them. When asked to:
    person, or look at their reviews with `srl log id:ID`.
 2. `srl show ITEM --json` gives the item (`item` in the find line), with
    its context. Fix what the reason says: a clearer question or answer,
-   more context (in the note, or with `see`), or split the item into two
+   more context (in its collection, or with `see`), or split the item into two
    with `srl add` and remove the old one (see the `writing-items` skill).
    Show the person the new item before writing it with `srl edit --stdin`.
 3. Ask before `srl unsuspend id:ID`: it puts the card back into their
@@ -147,7 +147,7 @@ why, and come back later to fix them. When asked to:
 - `srl reset SEL`: make cards new again, for a fresh start. History stays
   in the log. Check the selector with `srl find SEL` (or `--dry-run`)
   first, since an empty selector matches every card.
-- Deleting an item from a note removes its cards. Its history stays in the
+- Deleting an item from its collection removes its cards. Its history stays in the
   log.
 
 ## Other messages

@@ -11,22 +11,31 @@ mention the next useful step.
 
 ## What srl is
 
-`srl` turns questions written inside Markdown notes, or in JSONL files of
-their own, into flashcards, records how well the person remembered each
-one, and schedules each card for review with the FSRS algorithm, so that
-what they learn is reviewed just before they would forget it.
+`srl` turns questions, written inside Markdown notes, in JSONL files of
+their own, or kept by a program in a database, into flashcards, records
+how well the person remembered each one, and schedules each card for
+review with the FSRS algorithm, so that what they learn is reviewed just
+before they would forget it.
 
-- A **store** is a folder of notes with a `.srl/` folder in it. `.srl/`
-  holds the configuration (`.srl/config.toml`) and the review log
+- A **store** is a folder with a `.srl/` folder in it. `.srl/` holds the
+  configuration (`.srl/config.toml`) and the review log
   (`.srl/log/*.jsonl`). Everything outside `.srl/` belongs to the person.
-- A **note** is a file a source of the store reads, set in `[sources]` of
-  `.srl/config.toml`: by default, any `.md` file. A note of a source whose
-  driver is `jsonl` is a **JSONL note**: it holds nothing but items, one
-  JSON object per line. `srl sources` says which sources the store has.
-- An **item** is a question written in a note: in a Markdown note, in an
-  srl block (a fenced code block whose language is `srl`), fields `Q:` and
-  `A:` after a header; in a JSONL note, one line such as
-  `{"id": "x7k2m9", "Q": "…", "A": "…"}`. It has an ID.
+- Items come from the store's **sources**, set in `[sources]` of
+  `.srl/config.toml`; `srl sources` says which ones the store has. Each
+  source has **collections** of items, each named everywhere by its
+  **address**, such as `rust/ownership.md`.
+- The two built-in drivers keep items in **notes**, files of the store.
+  By default the store has one `markdown` source, whose notes are its
+  `.md` files. A note of a source whose driver is `jsonl` is a **JSONL
+  note**: it holds nothing but items, one JSON object per line. A
+  **source program** keeps items its own way, such as in a database, and
+  its collections are whatever it groups them in, such as tables. Each
+  note is a collection; its address is its path, for a source without a
+  prefix.
+- An **item** is a question, with an ID, header entries and fields. In a
+  Markdown note it is written in an srl block (a fenced code block whose
+  language is `srl`), fields `Q:` and `A:` after a header; in a JSONL
+  note, it is one line such as `{"id": "x7k2m9", "Q": "…", "A": "…"}`.
 - A **card** is one question, ready to show: an ID, a prompt, the prompt as
   revealed with the answer (a cloze's blanks filled in), and an answer.
   The last two may be `null`: the revealed prompt is then the prompt, and
@@ -38,24 +47,24 @@ what they learn is reviewed just before they would forget it.
   agent the person asked to judge); `srl` never judges answers.
 - A **selector** picks cards: `in:grammar state:due`.
 
-All data is plain text. Notes can be edited in any editor, and the store can
-be kept in git.
+The store's own data is plain text. Notes can be edited in any editor, and
+the store can be kept in git.
 
 ## Rules you follow
 
 1. **Use the `srl` commands; never write to `.srl/` yourself.** The log is
    append-only and only `srl` writes it. You may read anything.
-2. **Items you write are drafts, in notes of their own.** Add them with
-   `srl add ADDRESS --stdin`, with `"draft": true` on every line, into a new
-   note such as `generated/ownership.md`, never into one of the person's
-   notes. If the store reads JSONL notes (`srl sources` lists a `jsonl`
-   source), prefer one it reads, such as
+2. **Items you write are drafts, in collections of their own.** Add them
+   with `srl add ADDRESS --stdin`, with `"draft": true` on every line, into
+   a new collection such as the note `generated/ownership.md`, never into
+   one of the person's collections. If the store reads JSONL notes (`srl
+   sources` lists a `jsonl` source), prefer one it reads, such as
    `generated/ownership.jsonl`. When they ask about one of the person's
-   notes, give each one `"see": "THAT_NOTE"` so it is shown as their
-   context; an item of a JSONL note has no other context. Drafts are never
-   studied; the person reads them and runs `srl accept` for the ones worth
-   keeping.
-3. **Change the person's notes or schedule only when they ask.** That means
+   collections, give each one `"see": "ITS_ADDRESS"` so it is shown as
+   their context; an item of a JSONL note has no other context. Drafts are
+   never studied; the person reads them and runs `srl accept` for the ones
+   worth keeping.
+3. **Change the person's items or schedule only when they ask.** That means
    `srl accept`, `srl edit --stdin`, `srl suspend`, `srl unsuspend`,
    `srl reset`, `srl move` and editing their files. When they ask, run it
    with `--dry-run` first if what it would change isn't obvious, and say what
@@ -157,8 +166,8 @@ A: Its answer.
 - An item ends at the next `@` line or the closing fence. Any other line
   in a block outside the items is an error.
 - Header entries: `id:ID` (added by `srl id` or `srl add`), `draft`,
-  `see:ADDRESS` (the note to show as context, by its address: its path,
-  for a source without a prefix), `kind:NAME` (`qa` by
+  `see:ADDRESS` (the collection to show as context, by its address: a
+  note's path, for a source without a prefix), `kind:NAME` (`qa` by
   default, or a kind program named in `[kinds]` of `.srl/config.toml`).
 - Everything else in the note is ordinary Markdown, and is shown as the
   **context** after the answer.
@@ -177,10 +186,10 @@ Good questions are small: one fact each, with one clear answer. Prefer
 several small items over one large one.
 
 To add items from a command, as you do, send one item object per line: the
-header entries `draft` and `see` (the note the item is about), and the
-fields. Leave `id` out to get a new one. `srl` writes each item in the
-note's syntax (in a Markdown note, a newline inside a value becomes a
-continuation line):
+header entries `draft` and `see` (the collection the item is about), and
+the fields. Leave `id` out to get a new one. Its source writes each item
+its own way: in a note, in the note's syntax (in a Markdown note, a
+newline inside a value becomes a continuation line):
 
 ```sh
 srl add generated/ownership.md --stdin <<'JSONL'
@@ -206,8 +215,8 @@ terminal (it needs uv). Both are meant for Linux, macOS and Windows, but
 are tried on Linux only. Either takes a selector and shows due cards, then
 new ones, until none is left:
 
-- Space or Enter shows the answer, then the context: the note the item
-  comes from, or the one its `see` names.
+- Space or Enter shows the answer, then the context: the collection the
+  item comes from, or the one its `see` names.
 - Then rate: `1` Again (didn't know it), `2` Hard, `3` Good, `4` Easy.
   `s` suspends the card.
 
@@ -225,9 +234,9 @@ Things that surprise beginners:
 
 You can also run a session yourself, in the chat, acting as the frontend:
 `srl next --json` gives the next card with its context (field `context`:
-the note at `see`, or at `address` when `see` is `null`, or `null` for an
-item of a JSONL note without `see`; field `context_address` names that
-note); show the prompt, wait for the answer, show
+the collection at `see`, or at `address` when `see` is `null`, or `null`
+when it has none, as for an item of a JSONL note without `see`; field
+`context_address` names that collection); show the prompt, wait for the answer, show
 the revealed prompt, the answer and the context (a `.jsonl` one as a code
 block, not as Markdown), get a rating,
 and record it with `srl review ID --rating N --by agent`. The `studying`
@@ -239,7 +248,7 @@ Terms separated by spaces must all match; a comma means or; `-` means not.
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | notes in a folder `NAME`, or a note named `NAME` plus an extension (`NAME.md`, …) |
+| `in:NAME` | collections whose address has a part `NAME` (a folder), or ends in `NAME` plus an extension (`NAME.md`, …) |
 | `path:GLOB` | addresses (a note's path, for a source without a prefix): `'path:rust/*'`, `'path:japanese/**'` (quote globs in the shell) |
 | `source:NAME` | items of one source of the store (`srl sources` lists them) |
 | `id:ID` | a card, or every card of an item |
@@ -265,7 +274,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl kinds` | describe each kind and its fields, before writing an item of it |
 | `srl show ID` | print an item and its context; with `--json`, as the item object `srl edit` takes back |
 | `srl cards ID` | print the cards of an item |
-| `srl add ADDRESS --stdin` | append items (JSONL of item objects) |
+| `srl add ADDRESS --stdin` | add items to a collection (JSONL of item objects) |
 | `srl edit --stdin` | replace items (JSONL of item objects, each with its `id`) |
 | `srl find status:draft` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |
@@ -275,17 +284,17 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl move FROM TO` | give an orphan's history to a new card, as `srl check` suggests |
 | `srl stats [SEL]` | counts per state, retention |
 | `srl log [SEL]` | the history of cards |
-| `srl check` / `srl lint` | find errors / likely mistakes in notes |
+| `srl check` / `srl lint` | find errors / likely mistakes in items |
 
 Every command that prints data takes `--json`. Every command that writes
 takes `--dry-run`. Exit codes: 0 success, 1 nothing found or nothing left,
 2 error. Errors go to standard error, saying what to do.
 
-**An error in any note stops every command that reads items**, until it is
-fixed. Read the message: it names the file and line, and the field when
-a kind program rejected the item. A message about a kind program as a
-whole ("… no item of kind X can be read until the program works") is the
-program's fault, not the notes'. **A card its kind program can't make stops `srl next`** in the
+**An error in any source stops every command that reads items**, until it
+is fixed. Read the message: it names the address and line, and the field
+when a kind program rejected the item. A message about a kind program as
+a whole ("… no item of kind X can be read until the program works") is
+the program's fault, not the items'. **A card its kind program can't make stops `srl next`** in the
 same way, with the card's ID and the reason, until it is fixed or the
 card is suspended.
 
@@ -299,5 +308,5 @@ Load a skill when the person needs more than the above:
 | `writing-items` | The full item syntax, cloze rules, code in cards, writing good questions, `srl add` and `srl edit --stdin`. |
 | `studying` | Study sessions with a frontend or in the chat, ratings, how the next card is chosen. |
 | `selectors` | Every selector term, combining them, quoting in each shell. |
-| `fixing-problems` | Errors in notes, cards that can't be made, `srl check` and `srl lint`, lost history after an edit, suspending and resetting, revising suspended cards. |
+| `fixing-problems` | Errors in items, cards that can't be made, `srl check` and `srl lint`, lost history after an edit, suspending and resetting, revising suspended cards. |
 | `reviewing-progress` | `srl stats`, `srl log`, leeches, and analyzing the log. |

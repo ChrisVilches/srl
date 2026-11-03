@@ -5,8 +5,8 @@ import { highlight } from './highlight';
 import { highlightJson } from './JsonView';
 
 // CommonMark plus ==highlight== (docs/cards.md, "Text formatting"), and GFM
-// tables, which notes use. Raw HTML in notes is shown as text, so a note can
-// never run scripts in the page. ```json code blocks are in colors; others
+// tables, which cards and Markdown notes use. Raw HTML in them is shown as
+// text, so a card or its context can never run scripts in the page. ```json code blocks are in colors; others
 // are left to markdown-it, which escapes them.
 const md = new MarkdownIt('commonmark', {
   html: false,
