@@ -123,7 +123,6 @@ export function Browse({ active }: { active: boolean }) {
       <TopBar view="browse">
         <SelectorInput
           selector={selector}
-          placeholder="selector, as for srl find"
           onSelector={(sel) => {
             setSelector(sel);
             setUrlSelector('browse', sel);

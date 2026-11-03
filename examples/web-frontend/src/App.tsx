@@ -183,7 +183,6 @@ function Study({ active }: { active: boolean }) {
       <TopBar view="study">
         <SelectorInput
           selector={selector}
-          placeholder="selector, e.g. in:grammar"
           onSelector={(sel) => {
             setSelector(sel);
             setUrlSelector('study', sel);
