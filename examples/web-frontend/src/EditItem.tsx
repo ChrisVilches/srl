@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { api } from './api';
-import { ErrorView, Label, MAIN_BUTTON, Panel, QUIET_BUTTON } from './CardParts';
+import { DraftCheckbox, ErrorView, Label, MAIN_BUTTON, Panel, QUIET_BUTTON } from './CardParts';
 
 // Editing an item of any source: its fields and whether it is a draft, as
 // srl show --json gives them, written back whole with srl edit --stdin. The
@@ -91,17 +91,13 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
           />
         </label>
       ))}
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={draft}
-          onChange={(event) => {
-            setDraft(event.target.checked);
-            edited();
-          }}
-        />
-        Draft
-      </label>
+      <DraftCheckbox
+        checked={draft}
+        onChange={(checked) => {
+          setDraft(checked);
+          edited();
+        }}
+      />
       {saving.kind === 'saved' && <Panel tone="ok" title="Saved" />}
       {saving.kind === 'failed' && (
         <Panel tone="error" title={saving.title}>

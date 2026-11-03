@@ -166,6 +166,16 @@ export function Counts({ counts }: { counts: [number, string, string?][] }) {
   );
 }
 
+// Whether an item is a draft, in every form that writes one.
+export function DraftCheckbox({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      Draft
+    </label>
+  );
+}
+
 export function Label({ children }: { children: ReactNode }) {
   return <div className="mb-2 text-xs font-semibold tracking-widest text-stone-400 uppercase">{children}</div>;
 }

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { api, type KindDescription, type NewItem, type SourceDescription } from './api';
-import { ErrorView, Key, KindBadge, Label, MAIN_BUTTON, Notice, OUTLINE_BUTTON, QUIET_BUTTON, WITH_KEY } from './CardParts';
+import { DraftCheckbox, ErrorView, Key, KindBadge, Label, MAIN_BUTTON, Notice, OUTLINE_BUTTON, QUIET_BUTTON, WITH_KEY } from './CardParts';
 import { useStartWhenShown } from './hooks';
 import { Modal } from './Modal';
 import { TopBar } from './TopBar';
@@ -200,10 +200,7 @@ export function Add({ active }: { active: boolean }) {
               />
             </Section>
 
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />
-              Draft: not studied until accepted (<code className="font-mono">srl accept</code>)
-            </label>
+            <DraftCheckbox checked={draft} onChange={setDraft} />
 
             <div className="flex flex-wrap items-center gap-2">
               <button
