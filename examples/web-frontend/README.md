@@ -80,7 +80,7 @@ as how `ja_word` marks words, without studying:
   on Edit, choosing a card or saving its item makes nothing until
   another side is shown.
 - Each card is made once and kept; **Make again** (`r`) runs its kind
-  program again, on every side but Edit, which shows the item and not
+  program again once the card has been made, on every side but Edit, which shows the item and not
   the card made from it, and submitting the selector forgets every card made.
 - Keys: ↑/↓ (or `k`/`j`) choose a card. Turning it is done with the
   mouse only, so that space and Enter stay free for typing.

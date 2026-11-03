@@ -135,14 +135,15 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
     return () => clearTimeout(timer);
   }, [side, selected, listed, made, make]);
 
-  // Keys: ↑/↓ (or k/j) choose a card, r makes it again (but on the edit side).
+  // Keys: ↑/↓ (or k/j) choose a card, r makes it again once it has been made
+  // (but on the edit side).
   useKeys(active, (event) => {
     const at = cards.findIndex((c) => c.id === selected);
     const move = MOVES[event.key];
     if (move !== undefined) {
       event.preventDefault();
       if (cards.length > 0) setSelected(cards[Math.max(0, Math.min(at + move, cards.length - 1))].id);
-    } else if (event.key === 'r' && side !== 'edit' && selected !== null && made[selected]?.kind !== 'making') {
+    } else if (event.key === 'r' && side !== 'edit' && selected !== null && made[selected] !== undefined && made[selected].kind !== 'making') {
       make(selected);
     }
   });
@@ -340,11 +341,13 @@ function Preview({
             </button>
           ))}
         </div>
-        {/* Edit shows the item, not the card made from it. */}
+        {/* Edit shows the item, not the card made from it. The button stays
+            disabled until the card has been made once, rather than turning
+            on while the card waits for MAKE_DELAY and off as it is made. */}
         {!editing && (
           <button
             onClick={onMake}
-            disabled={found === null || made?.kind === 'making'}
+            disabled={found === null || made === undefined || made.kind === 'making'}
             title="Make the card again: its kind program runs again"
             className={`py-1 ${WITH_KEY} ${QUIET_BUTTON}`}
           >
