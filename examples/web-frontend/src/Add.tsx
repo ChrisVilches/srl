@@ -150,9 +150,12 @@ export function Add({ active }: { active: boolean }) {
             </Section>
 
             {kind.fields.map((field) => (
-              <Section key={field.name} label={field.name} hint={field.description}>
+              // The kind's description of the field is its placeholder: there
+              // while the box is empty, out of the way once it is written in.
+              <Section key={field.name} label={field.name}>
                 <textarea
                   value={texts[field.name] ?? ''}
+                  placeholder={field.description}
                   onChange={(event) => setTexts((t) => ({ ...t, [field.name]: event.target.value }))}
                   rows={3}
                   spellCheck={false}

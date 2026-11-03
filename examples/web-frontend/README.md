@@ -101,7 +101,9 @@ Edit.
 It also **adds items** (the Add tab, or `#add`), one at a time:
 
 - The kind is chosen among those `srl kinds` describes, and the form
-  shows one box per field, with the kind's description of it. Changing
+  shows one box per field, with the kind's description of it as the
+  box's placeholder: shown while the box is empty, gone once something
+  is typed, since a kind is soon learned. Changing
   the kind keeps the text of a field of the same name.
 - The note it is appended to (any collection: a note, or a table of a
   source program) is chosen among those `srl collections` lists, by typing
