@@ -19,9 +19,11 @@ const VIEWS: Record<View, ComponentType<ViewProps>> = {
   add: Add,
 };
 
+// The view is the hash's first part: #browse, or #browse/CARD/SIDE, whose
+// other parts are Browse's own (src/Browse.tsx).
 const viewOfHash = (): View => {
-  const hash = window.location.hash.slice(1);
-  return hash === 'browse' || hash === 'add' ? hash : 'study';
+  const view = window.location.hash.slice(1).split('/')[0];
+  return view === 'browse' || view === 'add' ? view : 'study';
 };
 
 // Where the session is. It runs the frontend loop of docs/frontends.md:

@@ -80,6 +80,15 @@ as how `ja_word` marks words, without studying:
   the card made from it, and submitting the selector forgets every card made.
 - Keys: ↑/↓ (or `k`/`j`) choose a card. Turning it is done with the
   mouse only, so that space and Enter stay free for typing.
+- The chosen card and side are kept in the address, as
+  `#browse/CARD/SIDE`, the side left out for Prompt: `#browse/x7k2m9`,
+  `#browse/x7k2m9/edit`, after `?selector=…` if there is one. Reloading
+  the page opens the same card on the same side, and scrolls the list to
+  it once the cards are found. The address is read when the page opens,
+  and rewritten (without adding to the browser's history) whenever the
+  card or side changes. A card that isn't among the selector's cards,
+  such as one whose item was deleted, is said so in place of the card,
+  and an unknown side is Prompt.
 - It records nothing: no review, no suspension. Studying starts only when
   the Study tab is first shown, so a page opened on `#browse` runs no
   `srl next`.

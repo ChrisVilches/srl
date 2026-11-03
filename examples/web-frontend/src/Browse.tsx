@@ -24,6 +24,26 @@ type Made =
 // once revealed (with the context), as srl cards --json prints it, or its
 // item in a form to edit it.
 type Side = 'prompt' | 'revealed' | 'json' | 'edit';
+const SIDES: Side[] = ['prompt', 'revealed', 'json', 'edit'];
+
+// The chosen card and side are kept in the address, as #browse/CARD/SIDE,
+// with the side left out when it is the prompt: #browse, #browse/x7k2m9,
+// #browse/x7k2m9/edit. They are read when the page opens, and written
+// whenever they change while Browse is shown, so reloading the page comes
+// back to them. An unknown side is the prompt.
+function browseHash(): { card: string | null; side: Side } {
+  const [, card, side] = window.location.hash.slice(1).split('/').map(decodeURIComponent);
+  return { card: card || null, side: SIDES.find((s) => s === side) ?? 'prompt' };
+}
+
+function setBrowseHash(card: string | null, side: Side) {
+  const parts = ['browse', ...(card === null ? [] : [card, ...(side === 'prompt' ? [] : [side])])];
+  const url = new URL(window.location.href);
+  url.hash = parts.map(encodeURIComponent).join('/');
+  // replaceState fires no hashchange, and keeps moving through the list
+  // out of the browser's history.
+  window.history.replaceState(null, '', url);
+}
 
 const MAKE_DELAY = 300; // ms
 
@@ -33,9 +53,14 @@ const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }
 export function Browse({ active, submitted, onSelector }: ViewProps) {
   const { selector } = submitted;
   const [list, setList] = useState<List>({ kind: 'loading' });
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(() => browseHash().card);
   const [made, setMade] = useState<Record<string, Made>>({});
-  const [side, setSide] = useState<Side>('prompt');
+  const [side, setSide] = useState<Side>(() => browseHash().side);
+  // Written again when Browse is shown, since switching to it by its tab
+  // sets the address to #browse alone.
+  useEffect(() => {
+    if (active) setBrowseHash(selected, side);
+  }, [active, selected, side]);
   // The card being made, to stop when another is chosen.
   const making = useRef<{ id: string; abort: AbortController } | null>(null);
 
@@ -99,14 +124,16 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
   // list with the keys runs no kind program for the cards passed by. It is
   // made only on a side that shows it: Edit shows the item, so choosing a
   // card or saving its item there makes nothing until another side is shown.
+  // Only a card of the list is made: one named by the address that isn't
+  // among the selector's cards is never asked for.
+  const cards = list.kind === 'ready' ? list.cards : [];
+  const listed = cards.some((c) => c.id === selected);
   useEffect(() => {
     if (making.current && making.current.id !== selected) making.current.abort.abort();
-    if (side === 'edit' || selected === null || made[selected] !== undefined) return;
+    if (side === 'edit' || selected === null || !listed || made[selected] !== undefined) return;
     const timer = setTimeout(() => make(selected), MAKE_DELAY);
     return () => clearTimeout(timer);
-  }, [side, selected, made, make]);
-
-  const cards = list.kind === 'ready' ? list.cards : [];
+  }, [side, selected, listed, made, make]);
 
   // Keys: ↑/↓ (or k/j) choose a card, r makes it again (but on the edit side).
   useKeys(active, (event) => {
@@ -140,18 +167,33 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
           )}
         </div>
         <div className="overflow-y-auto px-4 py-6 [scrollbar-gutter:stable] sm:px-6">
-          <Preview
-            found={cards.find((c) => c.id === selected) ?? null}
-            made={selected === null ? undefined : made[selected]}
-            side={side}
-            onSide={setSide}
-            onMake={() => selected !== null && make(selected)}
-            onSaved={refresh}
-          />
+          {/* Until the cards are found, a card the address names may or may
+              not be among them: the preview waits. */}
+          {(selected === null || list.kind === 'ready') && (
+            <Preview
+              missing={selected !== null && !listed ? selected : null}
+              found={cards.find((c) => c.id === selected) ?? null}
+              made={selected === null ? undefined : made[selected]}
+              side={side}
+              onSide={setSide}
+              onMake={() => selected !== null && make(selected)}
+              onSaved={refresh}
+            />
+          )}
         </div>
       </main>
     </div>
   );
+}
+
+// Scrolls the list to the chosen card's row, as the callback ref of that row
+// only. React calls it when the row's element appears: when the cards come,
+// as after the page opened on a card of the address, and when the choice
+// moves to another row. A refresh that keeps the rows (by card ID) calls it
+// no more, so the list stays where it was. A function outside the
+// component, so that it is the same one at every render.
+function scrollToRow(row: HTMLButtonElement | null) {
+  row?.scrollIntoView({ block: 'nearest' });
 }
 
 // The cards in the order srl find gives them, under the address of each collection.
@@ -166,11 +208,6 @@ function CardList({
   made: Record<string, Made>;
   onChoose: (id: string) => void;
 }) {
-  const selectedRow = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    selectedRow.current?.scrollIntoView({ block: 'nearest' });
-  }, [selected]);
-
   return (
     <ul>
       {cards.map((card, i) => (
@@ -181,7 +218,7 @@ function CardList({
             </div>
           )}
           <button
-            ref={card.id === selected ? selectedRow : undefined}
+            ref={card.id === selected ? scrollToRow : undefined}
             onClick={() => onChoose(card.id)}
             className={`block w-full border-b border-stone-100 px-4 py-2.5 text-left dark:border-stone-900 ${
               card.id === selected
@@ -211,8 +248,11 @@ function Preview({
   onSide,
   onMake,
   onSaved,
+  missing,
 }: {
   found: FoundCard | null;
+  // The card the address names when the selector's cards don't include it.
+  missing: string | null;
   made: Made | undefined;
   side: Side;
   onSide: (side: Side) => void;
@@ -220,6 +260,15 @@ function Preview({
   // Called with the item's ID once it is saved, staying on the edit side.
   onSaved: (item: string) => Promise<void>;
 }) {
+  if (missing !== null) {
+    return (
+      <Notice>
+        No card <code className="font-mono">{missing}</code> is among the cards of this selector. Choose another one.{' '}
+        <Key>↑</Key>
+        <Key>↓</Key>
+      </Notice>
+    );
+  }
   if (found === null) {
     return (
       <Notice>
