@@ -87,7 +87,7 @@ Things that explain "why didn't my card show up?":
   siblings; cards that don't give each other away, such as two words of one
   sentence, can all be shown the same day.
 - **Drafts and suspended cards are never studied.** `srl find
-  status:draft` lists drafts; `srl find status:suspended` lists suspended
+  is:draft` lists drafts; `srl find is:suspended` lists suspended
   cards.
 - **Errors stop everything.** An error in any source makes `srl next` fail
   with the address and line; see the `fixing-problems` skill.

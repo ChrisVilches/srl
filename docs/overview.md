@@ -124,7 +124,7 @@ any particular note-taking app.
 | **Rating** | How well you knew a card, from 1 (Again) to 4 (Easy). Always given by whoever records the review, a person or a program acting for them, never computed by `srl`. |
 | **Frontend** | A program outside `srl` that shows cards to a person and records the ratings: it reads cards through the frontend contract and records ratings with `srl review`. `srl` has none built in. |
 | **Review event** | One line in the log: this card was rated this way, at this time. |
-| **Selector** | A short filter expression that picks cards, such as `in:grammar state:due`. |
+| **Selector** | A short filter expression that picks cards, such as `in:grammar is:due`. |
 | **Memory state** | What FSRS knows about a card (stability, difficulty, due date). Always computed from the log, never stored as truth. |
 
 ## The life of a review

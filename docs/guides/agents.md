@@ -210,6 +210,6 @@ history").
 
 ### Analyze
 
-The agent reads `srl stats`, `srl find state:leech` and `srl log` to report weak
+The agent reads `srl stats`, `srl find is:leech` and `srl log` to report weak
 areas, and proposes rewrites of leeches as edits or new drafts. Where reviews
 kept a `response`, it can also look at what you actually answered.

@@ -71,7 +71,7 @@ as how `ja_word` marks words, without studying:
   shows it as studying does: the prompt, or, turned, the revealed prompt,
   the answer and the context. The JSON side shows the card as `srl cards
   --json` prints it, in colors. A suspended card says so above it, with
-  the reason if it was given one, so `status:suspended` lists the cards to
+  the reason if it was given one, so `is:suspended` lists the cards to
   fix, and what to fix.
 - A kind program can take a while: the page counts the seconds while it
   runs. A card is made once it has stayed chosen

@@ -57,7 +57,7 @@ All of these use the wrapper, not the bare `srl`.
 
 ```nu
 # Due cards about grammar, as a table
-srl find in:grammar state:due
+srl find in:grammar is:due
 
 # How many cards each collection has, largest first
 srl find | group-by address --to-table
@@ -68,7 +68,7 @@ srl find | group-by address --to-table
 srl stats | get states
 
 # Cards that have been due for more than a week
-srl find state:due
+srl find is:due
   | where ($it.due | into datetime) < ((date now) - 1wk)
 ```
 

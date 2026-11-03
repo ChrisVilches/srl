@@ -117,7 +117,7 @@ schedule.
 ## Suspending and resetting
 
 - `srl suspend SEL`: stop studying cards, without deleting them; the item
-  isn't changed. `srl unsuspend SEL` undoes it. `srl find status:suspended`
+  isn't changed. `srl unsuspend SEL` undoes it. `srl find is:suspended`
   lists them.
 - `srl suspend SEL --reason TEXT` also keeps why: what the person found
   wrong with the card, so that it can be fixed later. `srl find --json`
@@ -132,7 +132,7 @@ schedule.
 People suspend cards they dislike or that are too hard for now, saying
 why, and come back later to fix them. When asked to:
 
-1. `srl find status:suspended --json` lists them; each line's
+1. `srl find is:suspended --json` lists them; each line's
    `suspend_reason` says what to fix. Cards without a reason: ask the
    person, or look at their reviews with `srl log id:ID`.
 2. `srl show ITEM --json` gives the item (`item` in the find line), with

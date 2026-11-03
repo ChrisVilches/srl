@@ -26,7 +26,7 @@ retention  88.5% of 400 reviews in 30 days
   too hard or too vague; well above is fine but costs more reviews than
   needed.
 - It applies the selector as written, so drafts and suspended cards count
-  unless the selector says `status:active`.
+  unless the selector says `is:active`.
 - `--json` gives `{"cards", "states": {...}, "reviews_today", "retention",
   "retention_reviews"}`, with `retention` from 0 to 1 or `null`.
 
@@ -46,7 +46,7 @@ Per-topic comparisons are a selector each: `srl stats in:grammar`,
 ## Leeches and weak spots
 
 ```sh
-srl find state:leech          # the cards that keep being forgotten
+srl find is:leech             # the cards that keep being forgotten
 srl show ID                   # read one, with its context
 srl log id:ID                 # its whole history
 ```

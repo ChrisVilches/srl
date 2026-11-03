@@ -90,7 +90,7 @@ async function web(out) {
     const study = async (selector) => {
       await page.goto(url);
       await sleep(800);
-      const input = await page.waitForSelector('input[placeholder="state:young in:grammar"]');
+      const input = await page.waitForSelector('input[placeholder="is:young in:grammar"]');
       await input.click({ count: 3 });
       await input.type(selector);
       await page.keyboard.press('Enter');

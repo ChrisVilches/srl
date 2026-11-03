@@ -24,7 +24,7 @@ Ideas that would change `srl` itself are in [ideas.md](../ideas.md).
 - **Contextual questions.** Questions set in your own projects and interests,
   using a personal context file.
 - **Language practice at "i+1".** Sentences using only vocabulary you already
-  know (`srl find in:vocab state:mature`) plus one new item.
+  know (`srl find in:vocab is:mature`) plus one new item.
 - **Teach-back.** You explain a note to a simulated confused student, or write
   the question yourself, and an LLM points out what was missing.
 - **Stale questions.** Compare an item with the note it asks about (its

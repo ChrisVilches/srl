@@ -9,7 +9,7 @@ use crate::store::nfc;
 use crate::{CardId, Config, Error, Item, Kind, Memories, Result, State};
 
 /// The keys of `key:value` terms.
-const KEYS: &str = "in, path, source, id, kind, status, state";
+const KEYS: &str = "in, path, source, id, kind, is";
 
 /// A parsed selector: cards match when they match every term.
 #[derive(Debug, Clone)]
@@ -34,8 +34,7 @@ enum Filter {
     /// Card IDs, or item IDs that stand for all their cards.
     Id(Vec<CardId>),
     Kind(Vec<Kind>),
-    Status(Vec<Status>),
-    State(Vec<StateTerm>),
+    Is(Vec<Is>),
     /// Lowercased.
     Text(String),
 }
@@ -73,15 +72,16 @@ impl Status {
     }
 }
 
-/// A value of `state:`: one of the four exclusive states, or `leech`, which
-/// overlaps them (see `docs/scheduling.md`, "States").
+/// A value of `is:`: a status, one of the four exclusive states, or `leech`,
+/// which overlaps them (see `docs/selectors.md`, "Statuses and states").
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StateTerm {
+enum Is {
+    Status(Status),
     State(State),
     Leech,
 }
 
-impl StateTerm {
+impl Is {
     fn parse(text: &str) -> Option<Self> {
         match text {
             "new" => Some(Self::State(State::New)),
@@ -89,12 +89,13 @@ impl StateTerm {
             "young" => Some(Self::State(State::Young)),
             "mature" => Some(Self::State(State::Mature)),
             "leech" => Some(Self::Leech),
-            _ => None,
+            _ => Status::parse(text).map(Self::Status),
         }
     }
 
-    fn matches(self, id: &CardId, memories: &Memories) -> bool {
+    fn matches(self, item: &Item, id: &CardId, memories: &Memories) -> bool {
         match self {
+            Self::Status(status) => Status::of(item, id, memories) == status,
             Self::State(state) => memories.state(id) == state,
             Self::Leech => memories.is_leech(id),
         }
@@ -112,13 +113,13 @@ impl Selector {
         Ok(Self { terms })
     }
 
-    /// The selector with one more term, `status:STATUS`, as some commands add
+    /// The selector with one more term, `is:STATUS`, as some commands add
     /// (see `docs/selectors.md`, "Defaults per command").
     #[must_use]
     pub fn and_status(self, status: Status) -> Self {
         let term = Term {
             negated: false,
-            filter: Filter::Status(vec![status]),
+            filter: Filter::Is(vec![Is::Status(status)]),
         };
         Self {
             terms: self.terms.into_iter().chain([term]).collect(),
@@ -171,8 +172,7 @@ impl Filter {
                 None => id.item() == item.id(),
             }),
             Self::Kind(kinds) => kinds.contains(item.kind()),
-            Self::Status(statuses) => statuses.contains(&Status::of(item, card, memories)),
-            Self::State(states) => states.iter().any(|state| state.matches(card, memories)),
+            Self::Is(values) => values.iter().any(|is| is.matches(item, card, memories)),
             Self::Text(text) => item.search_text().contains(text.as_str()),
         }
     }
@@ -246,17 +246,14 @@ fn keyed(key: &str, values: &str, config: &Config) -> std::result::Result<Filter
             Kind::parse(value, |name| config.kinds.contains_key(name))
         })
         .map(Filter::Kind),
-        "status" => each(&values, |value| {
-            Status::parse(value)
-                .ok_or_else(|| format!("`{value}` is not a status; use active, draft or suspended"))
-        })
-        .map(Filter::Status),
-        "state" => each(&values, |value| {
-            StateTerm::parse(value).ok_or_else(|| {
-                format!("`{value}` is not a state; use new, due, young, mature or leech")
+        "is" => each(&values, |value| {
+            Is::parse(value).ok_or_else(|| {
+                format!(
+                    "`{value}` is not a status or a state; use active, draft, suspended, new, due, young, mature or leech"
+                )
             })
         })
-        .map(Filter::State),
+        .map(Filter::Is),
         _ => Err(format!(
             "`{key}:` is not a key; use one of {KEYS}, or put the term in double quotes to search for the text"
         )),
@@ -456,16 +453,22 @@ mod tests {
     }
 
     #[test]
-    fn status_comes_from_the_header_and_the_log() {
-        assert_eq!(pick("status:draft"), ["aaa3"]);
-        assert_eq!(pick("status:suspended"), ["aaa4"]);
-        assert_eq!(pick("status:active"), ["aaa1", "aaa2.1", "aaa2.2"]);
+    fn is_status_comes_from_the_header_and_the_log() {
+        assert_eq!(pick("is:draft"), ["aaa3"]);
+        assert_eq!(pick("is:suspended"), ["aaa4"]);
+        assert_eq!(pick("is:active"), ["aaa1", "aaa2.1", "aaa2.2"]);
     }
 
     #[test]
-    fn state_comes_from_the_log() {
-        assert_eq!(pick("state:due"), ["aaa1"]);
-        assert_eq!(pick("-state:new"), ["aaa1"]);
+    fn is_state_comes_from_the_log() {
+        assert_eq!(pick("is:due"), ["aaa1"]);
+        assert_eq!(pick("-is:new"), ["aaa1"]);
+    }
+
+    #[test]
+    fn is_mixes_statuses_and_states() {
+        assert_eq!(pick("is:draft,due"), ["aaa1", "aaa3"]);
+        assert_eq!(pick("is:new is:active"), ["aaa2.1", "aaa2.2"]);
     }
 
     #[test]
@@ -526,10 +529,11 @@ mod tests {
         for text in [
             "in:",
             "in:a,,b",
-            "status:paused",
+            "is:paused",
             "id:XYZ",
             "id:a-",
-            "state:old",
+            "status:draft",
+            "state:new",
             "path:[",
             "-",
             "\"\"",

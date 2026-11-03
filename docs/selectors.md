@@ -6,8 +6,8 @@ typing or a program.
 
 ```sh
 srl next in:grammar,kanji
-srl find in:rust -state:new
-srl accept status:draft in:generated
+srl find in:rust -is:new
+srl accept is:draft in:generated
 ```
 
 ## Syntax
@@ -26,13 +26,22 @@ selector it didn't write puts it after `--`.
 | `source:NAME` | Cards whose item comes from the source `NAME` of `.srl/config.toml` (see [sources.md](sources.md)): `source:notes` is the cards of the notes of a store without `[sources]`. |
 | `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1.1` and `k3m9q1.2`. |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind` entry, or a kind named in `[kinds]` of `.srl/config.toml` (see [cards.md](cards.md), "Kinds"). A selector without `kind:` matches items of every kind. |
-| `status:S` | Cards with status `active`, `draft` or `suspended` (see [items.md](items.md), "Status") |
-| `state:S` | Cards in a scheduling state: `new`, `due`, `young`, `mature`, `leech` (see [scheduling.md](scheduling.md)). States come from replaying the log, so a selector with `state:` needs the configuration and the local time zone. |
+| `is:S` | Cards with status `S`, one of `active`, `draft` and `suspended` (see [items.md](items.md), "Status"), or in scheduling state `S`, one of `new`, `due`, `young`, `mature` and `leech` (see [scheduling.md](scheduling.md), "States"). States come from replaying the log, so a selector with `is:` needs the configuration and the local time zone. |
 | `word` or `"some words"` | Cards whose item contains the text, case-insensitively, in any field |
 
 `in:` is a quick way to name a topic, taken from how you already arrange
 your collections, such as the folders of your notes: there are no tags
 to write.
+
+## Statuses and states
+
+A card has a status, which says whether it is studied, and a state, which
+says where it is in its schedule. They are two separate things, kept apart
+in `srl find --json` as `status` and `state`, but one key, `is:`, selects
+both: no status and no state share a name, so a value says which it is.
+`is:draft,due` is the drafts and the due cards, and `is:new is:active` the
+new cards that are studied. See [rationale.md](rationale.md), "Why one
+`is:` for statuses and states".
 
 Keys and text are told apart by one rule: a term that starts with lowercase
 letters `a`–`z` and a colon is a `key:value` term, and anything else is text.
@@ -49,10 +58,10 @@ example is for POSIX shells (sh, bash, zsh) and PowerShell 7.3 or later.
 In Windows PowerShell 5.1, write `srl find '\"some words\"'`; in `cmd.exe`,
 write `srl find "\"some words\""`.
 
-A value can't be empty (`in:` or `in:a,,b`), and `source:`, `id:`, `kind:`,
-`status:` and `state:` values must be sources of the store, valid IDs,
-kinds, statuses and states. So a typo such as `kind:ja-word` fails instead
-of matching nothing.
+A value can't be empty (`in:` or `in:a,,b`), and `source:`, `id:`, `kind:`
+and `is:` values must be sources of the store, valid IDs, kinds, and
+statuses or states. So a typo such as `kind:ja-word` fails instead of
+matching nothing.
 
 Three combining rules, and nothing else:
 
@@ -73,7 +82,7 @@ One command adds a term of its own:
 
 | Command | Adds |
 |---|---|
-| `srl next` | `status:active` (drafts and suspended cards are never studied) |
+| `srl next` | `is:active` (drafts and suspended cards are never studied) |
 
 Every other command applies the selector exactly as written.
 
@@ -82,10 +91,10 @@ Every other command applies the selector exactly as written.
 ```sh
 srl next in:grammar,kanji                 # grammar or kanji notes
 srl find in:japanese -in:n5               # all Japanese except the n5 folder
-srl find state:leech --json               # every leech
+srl find is:leech --json                  # every leech
 srl find "ものともせず"                    # text search
 srl reset path:rust/ownership.md          # start a note over
-srl find in:vocab state:mature            # what you know well
+srl find in:vocab is:mature               # what you know well
 srl next kind:ja-words                    # study one kind of item
 srl find -kind:qa                         # every item of a kind program
 ```

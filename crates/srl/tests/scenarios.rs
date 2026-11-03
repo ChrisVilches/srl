@@ -335,7 +335,7 @@ fn drafts_added_by_a_tool_are_studied_once_accepted() {
     assert_eq!(added.lines().count(), 2);
     // Drafts wait for a person to look at them.
     assert!(store.next(&now, &[]).is_none());
-    let drafts = store.ok(&now, &["find", "status:draft"]);
+    let drafts = store.ok(&now, &["find", "is:draft"]);
     assert_eq!(drafts.lines().count(), 2);
     assert!(drafts.contains("Capital of Peru?"), "{drafts}");
     store.ok(&now, &["accept", "in:generated"]);
@@ -386,7 +386,7 @@ fn an_agents_questions_in_a_jsonl_note_are_studied_like_any_other() {
     );
     // Drafts wait for the person, who accepts them all.
     assert!(store.next(&now, &[]).is_none());
-    assert_eq!(store.ok(&now, &["find", "status:draft"]).lines().count(), 3);
+    assert_eq!(store.ok(&now, &["find", "is:draft"]).lines().count(), 3);
     store.ok(&now, &["accept", "path:generated/capitals.jsonl"]);
     assert!(!store.read("generated/capitals.jsonl").contains("draft"));
     // Studied as any card: the person's note is the context of the items

@@ -30,7 +30,7 @@ pub fn next<'a>(
 }
 
 /// The next card among those that match `selector` (plus
-/// `status:active`), with its item, if there is one.
+/// `is:active`), with its item, if there is one.
 ///
 /// Due cards come first, by due day and then card ID; then new cards, in
 /// the order they are written, if fewer than `new_per_day` cards had their

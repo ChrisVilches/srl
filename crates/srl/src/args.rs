@@ -37,7 +37,7 @@ pub(crate) struct Selector {
     #[arg(
         id = SELECTOR,
         value_name = "SELECTOR",
-        help = "Terms such as in:a,b -state:new or text; joined with spaces"
+        help = "Terms such as in:a,b -is:new or text; joined with spaces"
     )]
     pub(crate) terms: Vec<String>,
 }

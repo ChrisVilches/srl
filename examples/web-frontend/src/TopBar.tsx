@@ -103,7 +103,7 @@ export function SelectorInput({
         ref={input}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
-        placeholder="state:young in:grammar"
+        placeholder="is:young in:grammar"
         spellCheck={false}
         className="w-full rounded-md border border-stone-300 bg-transparent px-3 py-1.5 font-mono text-sm outline-none placeholder:text-stone-400 focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
       />

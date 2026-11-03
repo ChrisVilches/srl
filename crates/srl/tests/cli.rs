@@ -413,7 +413,7 @@ fn add_writes_items_with_their_header_entries() {
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
     let ids = lines(&added);
     assert_eq!(ids.len(), 2);
-    let drafts = srl(&["find", "in:generated", "status:draft", "--dir", d]);
+    let drafts = srl(&["find", "in:generated", "is:draft", "--dir", d]);
     assert_eq!(lines(&drafts).len(), 2);
     let context = srl(&["show", &ids[0], "--json", "--dir", d]);
     assert!(
@@ -450,7 +450,7 @@ fn drafts_move_through_accept_and_cards_through_suspend() {
     );
     let suspended = srl(&["suspend", "id:k3m9q1.2,tuna01", "--dir", d]);
     assert_eq!(lines(&suspended), ["k3m9q1.2", "tuna01"]);
-    let found = srl(&["find", "status:suspended", "--dir", d]);
+    let found = srl(&["find", "is:suspended", "--dir", d]);
     assert_eq!(lines(&found).len(), 2);
     let back = srl(&["unsuspend", "--dir", d]);
     assert_eq!(lines(&back), ["k3m9q1.2", "tuna01"]);
@@ -846,7 +846,7 @@ fn a_broken_log_line_is_reported_and_skipped() {
         .unwrap();
     let text = fs::read_to_string(&month).unwrap();
     fs::write(&month, format!("{text}not an event\n")).unwrap();
-    let output = srl(&["find", "state:young", "--dir", d]);
+    let output = srl(&["find", "is:young", "--dir", d]);
     assert_eq!(output.status.code(), Some(0));
     assert!(
         stderr(&output).contains("skipped line 2"),
@@ -890,7 +890,7 @@ fn orphans_are_reported_and_their_history_moves() {
     let moved = srl(&["move", "x7k2m9", "x7k2m9.1", "--dir", d]);
     assert_eq!(moved.status.code(), Some(0), "{}", stderr(&moved));
     assert_eq!(srl(&["check", "--dir", d]).stderr, b"");
-    let young = srl(&["find", "state:young", "--dir", d]);
+    let young = srl(&["find", "is:young", "--dir", d]);
     assert!(
         stdout(&young).starts_with("x7k2m9.1  "),
         "{}",
@@ -1146,12 +1146,12 @@ fn add_takes_paths_that_include_matches_and_exclude_does_not() {
 fn snapshot(d: &str) -> Vec<(String, String, Option<i32>)> {
     let commands: [&[&str]; 7] = [
         &["find"],
-        &["find", "state:due"],
-        &["find", "state:new", "-in:none"],
+        &["find", "is:due"],
+        &["find", "is:new", "-in:none"],
         &["next", "--json"],
         &["stats", "--json"],
         &["log", "--json"],
-        &["log", "state:young"],
+        &["log", "is:young"],
     ];
     commands
         .iter()

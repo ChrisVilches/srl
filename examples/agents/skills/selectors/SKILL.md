@@ -1,6 +1,6 @@
 ---
 name: selectors
-description: The complete srl selector language (in:, path:, source:, id:, kind:, status:, state:, text search, comma, minus) and how to quote selectors in sh, bash, zsh, PowerShell and cmd. Load when building a selector that is more than one or two simple terms, when a selector gives an error, or when text search needs quotes.
+description: The complete srl selector language (in:, path:, source:, id:, kind:, is:, text search, comma, minus) and how to quote selectors in sh, bash, zsh, PowerShell and cmd. Load when building a selector that is more than one or two simple terms, when a selector gives an error, or when text search needs quotes.
 ---
 
 # Selectors
@@ -17,8 +17,7 @@ A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
 | `source:NAME` | Cards whose item comes from the source `NAME`: `source:notes` for the notes of a store without `[sources]` (`srl sources` lists them). |
 | `id:ID` | A card (`id:k3m9q1.2`), or every card of an item (`id:k3m9q1`). |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind:` in their header, or a kind named in `[kinds]` of `.srl/config.toml`. An unknown kind is an error. Without `kind:`, items of every kind match. |
-| `status:S` | `active`, `draft` or `suspended`. |
-| `state:S` | `new` (never reviewed since reset), `due` (due today or earlier), `young` and `mature` (not due; stability under or over 21 days), `leech` (forgotten 8 times or more; overlaps the others). |
+| `is:S` | A status: `active`, `draft` or `suspended`. Or a state: `new` (never reviewed since reset), `due` (due today or earlier), `young` and `mature` (not due; stability under or over 21 days), `leech` (forgotten 8 times or more; overlaps the others). `is:draft,leech` mixes them freely. |
 | `word` | Items containing the text in any field, ignoring case. |
 | `"some words"` | The same, for text with spaces. Always text. |
 
@@ -27,7 +26,7 @@ A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
 | Syntax | Meaning |
 |---|---|
 | `key:a,b` | or: `in:grammar,kanji` |
-| `term term` | and: `in:rust state:due` |
+| `term term` | and: `in:rust is:due` |
 | `-term` | not: `-in:n5`, `-"some words"` |
 
 There is no grouping and no precedence. If something can't be said with
@@ -40,10 +39,10 @@ for text). To search for text containing a colon, quote it: `"std::move"`
 
 ## Defaults per command
 
-`srl next` adds `status:active`: drafts and suspended cards are never
+`srl next` adds `is:active`: drafts and suspended cards are never
 studied. Every other command
 applies the selector as written, so `srl stats` counts drafts and suspended
-cards unless told `status:active`.
+cards unless told `is:active`.
 
 ## Quoting in the shell
 
@@ -66,8 +65,8 @@ didn't write, such as one the person typed, put it after `--`, so nothing
 in it is read as an option: `srl find -- "$SEL"`.
 
 A value can't be empty (`in:`, `in:a,,b`), and the values of `id:`,
-`kind:`, `status:` and `state:` must be valid, so a typo such as
-`kind:ja-word` or `state:leeches` fails instead of matching nothing.
+`kind:` and `is:` must be valid, so a typo such as
+`kind:ja-word` or `is:leeches` fails instead of matching nothing.
 
 Quote globs too: zsh fails on an unquoted `*` that matches no file, and
 other shells may replace it with file names. Write
@@ -77,10 +76,10 @@ other shells may replace it with file names. Write
 
 ```sh
 srl find in:japanese -in:n5          # all Japanese except the n5 folder
-srl find in:rust -state:new          # rust cards already studied
-srl find state:leech                 # cards that keep being forgotten
+srl find in:rust -is:new             # rust cards already studied
+srl find is:leech                    # cards that keep being forgotten
 srl find "ものともせず"               # text search
-srl stats in:vocab status:active     # progress on studied vocabulary
+srl stats in:vocab is:active         # progress on studied vocabulary
 srl accept 'path:generated/**'       # accept every draft under generated/
 srl reset path:rust/ownership.md     # start one note over
 srl suspend id:k3m9q1                # stop studying every card of an item

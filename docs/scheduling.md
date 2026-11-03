@@ -203,7 +203,8 @@ the log under the old ID. `srl` never guesses where they belong:
 
 ## States
 
-Every card has one derived state, usable in selectors as `state:NAME`:
+Every card has one derived state, usable in selectors as `is:NAME` (see
+[selectors.md](selectors.md), "Statuses and states"):
 
 | State | Meaning |
 |---|---|

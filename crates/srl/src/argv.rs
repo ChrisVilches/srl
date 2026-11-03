@@ -169,11 +169,11 @@ mod tests {
 
     #[test]
     fn option_values_are_not_terms() {
-        let cli = parse(&["next", "-state:new", "--dir", "/store", "in:a"]);
+        let cli = parse(&["next", "-is:new", "--dir", "/store", "in:a"]);
         let Command::Next { selector, .. } = cli.command else {
             panic!("expected next, got {:?}", cli.command);
         };
-        assert_eq!(selector.terms, ["-state:new", "in:a"]);
+        assert_eq!(selector.terms, ["-is:new", "in:a"]);
         assert_eq!(cli.dir, Some(PathBuf::from("/store")));
     }
 

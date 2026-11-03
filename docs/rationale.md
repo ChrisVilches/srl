@@ -289,6 +289,23 @@ URL scheme, and it looks like `ADDRESS:LINE` and `key:value`.
 Trade-off: `k3m9q1.2` looks a little like a version number, and `.` can't
 be used in an ID.
 
+## Why one `is:` for statuses and states
+
+A card's status (`active`, `draft`, `suspended`) and its state (`new`,
+`due`, `young`, `mature`, `leech`) are two taxonomies: one says whether the
+card is studied, the other where it is in its schedule. A key for each,
+`status:` and `state:`, would be too alike to remember which holds which
+value. Someone picking cards wants "the drafts"
+or "the leeches", and doesn't care which taxonomy the word belongs to. No
+status and no state share a name, so one key can take any of them, and
+`is:draft` and `is:leech` read as what they mean.
+
+Trade-off: the selector mixes two taxonomies that are kept apart
+everywhere else, as the `status` and `state` of `srl find --json`. A
+status and a state can never share a name, so a new one must be named
+unlike all the others, and `is:a,b` can put a status and a state in one
+list, which is valid but mixes the two.
+
 ## Why schedule cards, with siblings
 
 Two cloze deletions in one sentence are two things you can know or not

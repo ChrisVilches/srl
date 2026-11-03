@@ -45,7 +45,7 @@ before they would forget it.
 - A **review** is one line in the log: this card was rated this way, at this
   time. Ratings go from 1 to 4, and are always given by a person (or by an
   agent the person asked to judge); `srl` never judges answers.
-- A **selector** picks cards: `in:grammar state:due`.
+- A **selector** picks cards: `in:grammar is:due`.
 
 The store's own data is plain text. Notes can be edited in any editor, and
 the store can be kept in git.
@@ -202,7 +202,7 @@ It prints the new item IDs. Then the person reads the note, deletes what
 they don't want, and accepts the rest:
 
 ```sh
-srl find status:draft                   # list drafts
+srl find is:draft                       # list drafts
 srl accept path:generated/ownership.md  # make them studied
 ```
 
@@ -253,13 +253,12 @@ Terms separated by spaces must all match; a comma means or; `-` means not.
 | `source:NAME` | items of one source of the store (`srl sources` lists them) |
 | `id:ID` | a card, or every card of an item |
 | `kind:K` | items of a kind: `qa` (also items with no `kind:`) or a kind in `[kinds]` |
-| `status:S` | `active`, `draft`, `suspended` |
-| `state:S` | `new`, `due`, `young`, `mature`, `leech` |
+| `is:S` | a status (`active`, `draft`, `suspended`) or a state (`new`, `due`, `young`, `mature`, `leech`) |
 | `word` | items containing the text; quote for spaces: `'"two words"'` |
 
 ```sh
 srl next in:grammar,kanji       # grammar or kanji
-srl find in:rust -state:new     # rust cards already studied
+srl find in:rust -is:new        # rust cards already studied
 ```
 
 ## Commands at a glance
@@ -276,7 +275,7 @@ srl find in:rust -state:new     # rust cards already studied
 | `srl cards ID` | print the cards of an item |
 | `srl add ADDRESS --stdin` | add items to a collection (JSONL of item objects) |
 | `srl edit --stdin` | replace items (JSONL of item objects, each with its `id`) |
-| `srl find status:draft` / `srl accept SEL` | list drafts / accept them |
+| `srl find is:draft` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |
 | `srl review ID --rating N` | record a rating |
 | `srl suspend SEL [--reason TEXT]` / `srl unsuspend SEL` | stop / resume studying cards; the reason says what to fix later |
