@@ -1,5 +1,5 @@
 //! The commands that change items: `srl id`, `srl accept`, `srl add` and
-//! `srl edit --stdin` (see `docs/notes.md`, "How srl writes to notes").
+//! `srl edit --stdin` (see `docs/items.md`, "How srl changes items").
 //!
 //! This module decides what changes, and checks every change before
 //! anything is written: item objects valid, IDs unique in the store, kinds

@@ -48,7 +48,7 @@ command that needs memory states replays the whole log, one rule per step:
 - A `move` event gives everything the card `from` has to the card `to`, and
   leaves `from` with nothing (see "Moving history").
 - `suspend` and `unsuspend` events only change the card's status (see
-  [notes.md](notes.md), "Status").
+  [items.md](items.md), "Status").
 
 Events about cards that no longer exist are replayed like any other; their
 memory is kept, and used again if the card comes back or is moved.

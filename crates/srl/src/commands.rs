@@ -116,7 +116,7 @@ fn open(store: &Store) -> anyhow::Result<Loaded> {
 }
 
 /// Reads the configuration and every note, and stops if the notes have
-/// any problem (see `docs/notes.md`, "Errors").
+/// any problem (see `docs/items.md`, "Errors").
 fn load(store: &Store) -> anyhow::Result<(Config, Catalog)> {
     load_with(store, &mut Index::open(store))
 }

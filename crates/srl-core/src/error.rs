@@ -173,7 +173,7 @@ impl Error {
 
     /// The address and line a problem in a source is about, line 0 for a
     /// collection as a whole or a problem whose source gives no line (see
-    /// `docs/notes.md`, "Errors").
+    /// `docs/items.md`, "Errors").
     pub(crate) fn place(&self) -> Option<(&str, usize)> {
         if let Self::Collection { address, .. } = self {
             return Some((address.as_str(), 0));

@@ -17,7 +17,7 @@ type Saving =
   | { kind: 'saved' }
   | { kind: 'failed'; title: string; message: string };
 
-// Field names are uppercase (docs/notes.md, "The item object").
+// Field names are uppercase (docs/items.md, "The item object").
 const isField = (key: string) => /^[A-Z][A-Z0-9_]*$/.test(key);
 
 // ON_SAVED is called once srl has written the item, to show its cards anew;

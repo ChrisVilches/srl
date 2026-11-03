@@ -56,7 +56,7 @@ import { createOnChange } from './on-change.js';
 import { SrlError, runSrl } from './srl.js';
 
 // How much of the note to show after the answer: 'prose' (the note without its
-// items), 'full' (with them) or 'none' (see docs/notes.md, "Context").
+// items), 'full' (with them) or 'none' (see docs/items.md, "Context").
 const CONTEXT = 'prose';
 
 // How many item IDs to give one srl show, so that its command line stays

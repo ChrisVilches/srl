@@ -1,5 +1,5 @@
 //! An item's context: the collection shown after the answer of its cards
-//! (see `docs/notes.md`, "Context").
+//! (see `docs/items.md`, "Context").
 //!
 //! Which collection it is depends only on `see`; what that collection shows
 //! is up to its own source, so an item of one source can name a collection

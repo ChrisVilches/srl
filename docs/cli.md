@@ -30,7 +30,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 - **Exit codes:** 0 success (or something found), 1 nothing found or nothing
   left, 2 error.
 - **Errors in sources stop every command that reads items** (see
-  [notes.md](notes.md), "Errors"), except `srl id` for items without an ID,
+  [items.md](items.md), "Errors"), except `srl id` for items without an ID,
   `srl check`, which reports them, and `srl lint`.
 - **`--dry-run`** on every command that writes: show what would change, change
   nothing.
@@ -65,7 +65,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
 | `srl check` | Check the sources, the configuration and the log; report each problem on standard error and exit with 2 if there are any (see "Checking" below). |
 | `srl lint` | Look for likely mistakes: text probably meant to be an item, and items probably not written as meant (see "Checking" below). |
-| `srl id` | Give an ID to every item without one (see [notes.md](notes.md), "How srl writes to notes"). Prints `ID  ADDRESS:LINE` per item; exit 1 if every item already had one. |
+| `srl id` | Give an ID to every item without one (see [items.md](items.md), "How srl changes items"). Prints `ID  ADDRESS:LINE` per item; exit 1 if every item already had one. |
 | `srl collections [--json]` | List the collections of the store, of every source, such as its notes (see [sources.md](sources.md)): one address per line, in the order of their addresses, as `srl find` sorts them. With `--json`, one object per collection, with its address, its source and its file, or `null` when it is no file of its own: `{"address": "japanese/grammar/wo.md", "source": "notes", "file": "japanese/grammar/wo.md"}`. It doesn't read any item, so errors in them don't stop it. Exit 1 if the store has none. |
 | `srl sources [--json]` | Describe the sources of the store, in the order of their names (see [sources.md](sources.md)): for each, a line with its name and description, then lines, indented by two spaces, for its driver (`markdown`, `jsonl`, or `program` for a source program), its prefix if it has one, the `include` globs and the `exclude` globs if it has some, each name and value separated by two spaces and globs by one. With `--json`, one object per source: `{"name": "notes", "driver": "markdown", "prefix": "", "description": "…", "creates": {"include": ["**/*.md"], "exclude": []}}`. The globs, in `creates` with `--json`, are those of the collections `srl add` may create in it, relative to its prefix: for the notes' drivers, its `include` and `exclude`; for a source program, the globs its `describe` gives, and no `exclude`. It doesn't read any item. |
 | `srl kinds [--json]` | Describe the kinds of the store: `qa`, then the kind programs of `[kinds]` sorted by name (see [cards.md](cards.md), "Describing a kind"). For each, a line with its name and description, then a line per field, indented by two spaces, with its name and description; names and descriptions are separated by two spaces. With `--json`, one object per kind: `{"name": "qa", "description": "…", "fields": [{"name": "Q", "description": "…"}, …]}`. It doesn't read the notes. If a kind program can't describe its kind, it fails at once with the reason, and prints nothing. |
@@ -98,11 +98,11 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 `suspend` event (see [log.md](log.md)), or `null` if the card is not
 suspended or was suspended without one. `srl show
 --json` prints one item object per item, with every entry and the keys
-only `srl` gives (see [notes.md](notes.md), "The item object"). Without
+only `srl` gives (see [items.md](items.md), "The item object"). Without
 `--json`, `srl show` prints, for each item: a line `ADDRESS:LINE`, the item as
 written in its syntax, and, if there is a context, a line `---` and the
 context. Items are separated by blank lines. `--context MODE` chooses the
-context's mode (see [notes.md](notes.md), "Context"); it is `prose`
+context's mode (see [items.md](items.md), "Context"); it is `prose`
 without it.
 
 **An item as written** is, in a JSONL note, its line. In srl blocks, it is
@@ -122,9 +122,9 @@ $EDITOR item.jsonl
 srl edit --stdin < item.jsonl
 ```
 
-Standard input holds one item object per line (see [notes.md](notes.md),
+Standard input holds one item object per line (see [items.md](items.md),
 "The item object"), each with the `id` of the item it replaces, which can
-be in any note and either syntax. Blank lines are ignored. What `srl show
+be in any collection, of any source. Blank lines are ignored. What `srl show
 --json` prints is such input: its keys `address`, `source`, `file`, `line`, `cards`, `context`
 and `context_address` are ignored. Each object is the whole new item, not a
 change to the old one: an entry left out takes its default, and a field
@@ -187,7 +187,7 @@ again too, so that the new reason replaces theirs; every card it changes
 gets the same reason. An empty `TEXT` is no reason. `srl accept` prints the item
 IDs it changed, the others the card IDs, one per line in the order they are
 written, and each exits with 1 if it changed nothing. `srl accept` changes
-notes (see [notes.md](notes.md), "How srl writes to notes"); the others
+items (see [items.md](items.md), "How srl changes items"); the others
 only append to the log.
 
 ### Adding items
@@ -197,7 +197,7 @@ srl add ADDRESS --stdin
 ```
 
 The items come from standard input, one item object per line (see
-[notes.md](notes.md), "The item object"): its header entries and its
+[items.md](items.md), "The item object"): its header entries and its
 fields. Each item has its own, so items about different notes, of
 different kinds, or drafts and not, can be added at once.
 
@@ -210,7 +210,7 @@ JSONL
 ```
 
 - **The lowercase keys `id`, `kind`, `see` and `draft` are header
-  entries** (see [notes.md](notes.md), "Header entries"). Each may be left
+  entries** (see [items.md](items.md), "Header entries"). Each may be left
   out: the item then gets a new ID, is `qa`, has its own collection as
   context (none in a JSONL note), and is not a draft. An `id` given is kept, and
   must not be used by an item of the store or another line.
@@ -339,7 +339,7 @@ belongs to the card it moved history to.
 `srl check` reads every source, the configuration and the log, and reports:
 
 - every error in the store's sources, such as an error in a note or a
-  source program that fails (see [notes.md](notes.md), "Errors");
+  source program that fails (see [items.md](items.md), "Errors");
 - an invalid configuration;
 - log lines that are not valid events;
 - orphans, with the `srl move` command that would keep their history when

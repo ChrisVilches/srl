@@ -80,15 +80,15 @@ context:
 | `id`, `prompt`, `prompt_revealed`, `answer` | The card (see [cards.md](cards.md)). `prompt_revealed` and `answer` may be `null`. |
 | `state` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Choosing the next card"). |
 | `kind` | The item's kind: `qa`, or the name of a kind program in `.srl/config.toml`, as in `srl show --json` (see [cards.md](cards.md), "Kinds"). |
-| `address` | The address of the collection the item is in, such as its note, as in `srl show --json` (see [notes.md](notes.md), "The item object"). |
+| `address` | The address of the collection the item is in, such as its note, as in `srl show --json` (see [items.md](items.md), "The item object"). |
 | `source` | The name of the item's source (see [sources.md](sources.md)). |
 | `file` | The file the item's collection is kept in, relative to the store's folder, or `null` when it is no file of its own. |
 | `see` | The address its `see` names, or `null`. |
-| `context` | The context, in the mode the frontend chose, or `null` when there is none (see [notes.md](notes.md), "Context"). |
+| `context` | The context, in the mode the frontend chose, or `null` when there is none (see [items.md](items.md), "Context"). |
 | `context_address` | The address of the collection the context comes from: `see`, or else `address` (see "Rendering"). `null` when `context` is. |
 
 **The frontend chooses the context's mode** with `--context`: `prose` (the
-default), `full` or `none`. How much of the note to show is a choice about
+default), `full` or `none`. How much of a collection to show is a choice about
 presentation, so it belongs to the frontend, not to the store.
 
 ## Rendering
@@ -96,11 +96,13 @@ presentation, so it belongs to the frontend, not to the store.
 Card text is Markdown, and may also hold `==highlight==` (see
 [cards.md](cards.md), "Text formatting"). **`srl` doesn't say what the
 context's text is: the frontend decides how to render it from
-`context_address`**, the note it comes from (see [notes.md](notes.md),
-"Context"), for example by its extension: Markdown for `.md`, Quarto for
-`.qmd`, JSON lines for `.jsonl`. What the text holds is the note's, as
-`notes.md` describes for each mode: a note of srl blocks without its front
-matter and, in mode `prose`, without its blocks; a JSONL note as it is.
+`context_address`**, the collection it comes from (see
+[items.md](items.md), "Context"), for example by its extension: Markdown
+for `.md`, Quarto for `.qmd`, JSON lines for `.jsonl`. What the text
+holds is up to the collection's source, in each mode: for the notes of
+the built-in drivers, a note of srl blocks without its front matter and,
+in mode `prose`, without its blocks, and a JSONL note as it is (see
+[notes.md](notes.md), "Context"); for a source program, what it gives.
 
 A frontend renders the notes it supports as it likes, and **shows any
 other note as plain text**, with whatever fallbacks it wants, such as for

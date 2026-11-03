@@ -183,7 +183,7 @@ impl Catalog {
             .find(|located| nfc(&located.address) == address)
     }
 
-    /// The context of `item` in `mode` (see `docs/notes.md`, "Context"):
+    /// The context of `item` in `mode` (see `docs/items.md`, "Context"):
     /// [`Catalog::contexts`] for one item.
     pub fn context(&self, item: &Item, mode: ContextMode) -> Result<Option<Context>> {
         let mut contexts = self.contexts(&[item], mode)?;
@@ -308,7 +308,7 @@ impl Catalog {
     }
 
     /// The problems in the sources. Every command that reads items stops
-    /// if there are any (see `docs/notes.md`, "Errors").
+    /// if there are any (see `docs/items.md`, "Errors").
     pub fn problems(&self) -> &[Error] {
         &self.problems
     }

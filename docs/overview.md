@@ -146,11 +146,12 @@ moved. A card's identity is its ID, so edits never affect its schedule.
 
 ## The contracts
 
-These six formats are fixed, because everything else depends on them:
+These seven formats are fixed, because everything else depends on them:
 
 | Contract | Joins | Document |
 |---|---|---|
-| **Item syntaxes and the item object** | Authors (you, scripts, imports) and everything that reads notes; `srl add`, `srl edit` and `srl show --json` | [notes.md](notes.md) |
+| **Item object** | Authors (scripts, imports), sources and everything that reads items; `srl add`, `srl edit` and `srl show --json` | [items.md](items.md), "The item object" |
+| **Item syntaxes** | Authors (you, scripts, imports) and the built-in drivers, which read and write notes | [notes.md](notes.md) |
 | **Card** | Kinds and everything that shows a card | [cards.md](cards.md) |
 | **Frontend contract** | `srl` and frontends: `srl next --json` | [frontends.md](frontends.md) |
 | **Review event** | `srl review` and the scheduler or any analysis | [log.md](log.md) |
@@ -247,7 +248,8 @@ The specification:
 |---|---|
 | [store.md](store.md) | Store layout, how a store is found, configuration, the index cache |
 | [sources.md](sources.md) | Sources of items: drivers, collections, prefixes and addresses, what every source does |
-| [notes.md](notes.md) | Notes and the item syntaxes: srl blocks, JSONL notes, header entries, fields, the item object, IDs, status, context, how `srl` writes to notes |
+| [items.md](items.md) | Items, whatever their source: header entries, fields, IDs, status, context, how `srl` changes items, errors, the item object |
+| [notes.md](notes.md) | The notes of the built-in drivers: which files are notes, the item syntaxes (srl blocks, JSONL), what a note shows as context, how `srl` writes to notes |
 | [cards.md](cards.md) | The `qa` kind, cloze deletions, kind programs and groups of siblings, card IDs, the card format and its text formatting |
 | [scheduling.md](scheduling.md) | Ratings, FSRS, days, choosing the next card, siblings, new-card limits, states |
 | [log.md](log.md) | The review log and its events |
@@ -301,7 +303,7 @@ Main design decisions still to take:
   Markdown with `==highlight==` only ([cards.md](cards.md), "Text
   formatting").
 - **Making strictness less annoying.** Today every error in a note stops
-  every command that reads items ([notes.md](notes.md), "Errors"), and a
+  every command that reads items ([items.md](items.md), "Errors"), and a
   card its kind program can't make stops `srl next`
   ([cli.md](cli.md), "Studying"). That stays the rule: `srl` never works
   with broken data. More configuration and tools are wanted so that it

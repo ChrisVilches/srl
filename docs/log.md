@@ -103,7 +103,7 @@ with nothing (see [scheduling.md](scheduling.md), "Moving history").
 | `reason` | `suspend` only: why the card was suspended, as text, if it was suspended with one (`srl suspend --reason`), so that it can be fixed later. `null` if none was given. Suspensions recorded before this rule have no `reason`, and are read as with `null`. |
 
 A card is suspended when its last `suspend` or `unsuspend` event is a
-`suspend` (see [notes.md](notes.md), "Status"). Its reason is the
+`suspend` (see [items.md](items.md), "Status"). Its reason is the
 `reason` of that last `suspend`: a new `suspend` replaces it, even with
 `null`, and an `unsuspend` clears it. A `reset` keeps it, as it keeps the
 suspension, and a `move` gives it to the card `to` with the rest of the

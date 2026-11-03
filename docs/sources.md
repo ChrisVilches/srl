@@ -99,7 +99,7 @@ The rules, the same for every source:
    `see`, `srl add` and `path:` take addresses alone.
 
 A collection that breaks one of these rules is an error in the store
-(see [notes.md](notes.md), "Errors"): it stops every command that reads
+(see [items.md](items.md), "Errors"): it stops every command that reads
 items, and `srl check` reports it, as `ADDRESS: message`.
 
 **A new collection**, for `srl add`, is created in the source mounted
@@ -115,18 +115,18 @@ Every source does the same few things, each its own way:
   drivers, its notes.
 - **It reads its items**, each with its collection, the line where it
   starts if it can say, and the item as written, and the problems it
-  finds (see [notes.md](notes.md), "Errors").
+  finds (see [items.md](items.md), "Errors").
 - **It shows a collection as context**, to the collection's own items and
   to the items that name it with `see`, wherever they come from: the
   context of an item is always asked of the source that owns the
   collection shown, found by its address, so each collection is shown by
-  its own source's rules (see [notes.md](notes.md), "Context").
+  its own source's rules (see [items.md](items.md), "Context").
 - **It makes changes**: it adds items to a collection, creating it if
   needed, and replaces items. It is given each item to replace as it was
   read, and refuses to change an item that is no longer as it was, since
   someone changed it in between. Every change to a source is made and
-  checked before anything is written (see [notes.md](notes.md), "How srl
-  writes to notes").
+  checked before anything is written (see [items.md](items.md), "How srl
+  changes items").
 - **It looks for likely mistakes**, for `srl lint`.
 - **It describes itself**, for `srl sources`: what it is, and which
   collections `srl add` may create in it, as globs: a driver's `include`
@@ -184,14 +184,14 @@ holds `config`, the program's keys.
   names it when it is changed, unique in the source, such as a key of a
   database; its `line`, from 1, or `null`; `written`, the item as the
   program writes it, for `srl show`, or `null`, which shows its item
-  object; and `item`, its item object (see [notes.md](notes.md), "The
+  object; and `item`, its item object (see [items.md](items.md), "The
   item object"), read as strictly as `srl add` reads one. An item may
   come without an `id`, for `srl id` to give it one: a program never makes
   IDs itself. A problem is reported as an error in the store, at its
   collection and line.
 - **`context`** gives what a collection shows as context, to its own
   items (`own` is `true`) or to the items that name it with `see`, in
-  mode `prose` or `full` (see [notes.md](notes.md), "Context"). Mode
+  mode `prose` or `full` (see [items.md](items.md), "Context"). Mode
   `prose` never shows items, in any source.
 - **`write`** gets every change one command makes to the source, in one
   call. An `item`, `before` or `after` is an item object as `srl` writes

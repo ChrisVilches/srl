@@ -26,7 +26,7 @@ selector it didn't write puts it after `--`.
 | `source:NAME` | Cards whose item comes from the source `NAME` of `.srl/config.toml` (see [sources.md](sources.md)): `source:notes` is the cards of the notes of a store without `[sources]`. |
 | `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1.1` and `k3m9q1.2`. |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind` entry, or a kind named in `[kinds]` of `.srl/config.toml` (see [cards.md](cards.md), "Kinds"). A selector without `kind:` matches items of every kind. |
-| `status:S` | Cards with status `active`, `draft` or `suspended` (see [notes.md](notes.md), "Status") |
+| `status:S` | Cards with status `active`, `draft` or `suspended` (see [items.md](items.md), "Status") |
 | `state:S` | Cards in a scheduling state: `new`, `due`, `young`, `mature`, `leech` (see [scheduling.md](scheduling.md)). States come from replaying the log, so a selector with `state:` needs the configuration and the local time zone. |
 | `word` or `"some words"` | Cards whose item contains the text, case-insensitively, in any field |
 

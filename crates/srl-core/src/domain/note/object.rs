@@ -1,5 +1,5 @@
 //! The item object: an item as one JSON object, its header entries and its
-//! fields side by side (see `docs/notes.md`, "The item object"). It is a
+//! fields side by side (see `docs/items.md`, "The item object"). It is a
 //! line of a JSONL note, a line of `srl add --stdin` and `srl edit
 //! --stdin`, and, with the keys only `srl` gives, what `srl show --json`
 //! prints.

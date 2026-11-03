@@ -41,7 +41,7 @@ THEME = Theme({"markdown.mark": "bold yellow", "markdown.h1": "bold magenta"})
 RATINGS = [("again", "red"), ("hard", "yellow"), ("good", "green"), ("easy", "blue")]
 
 # How much of the note to show after the answer: "prose" (the note without its
-# items), "full" (with them) or "none" (see docs/notes.md, "Context").
+# items), "full" (with them) or "none" (see docs/items.md, "Context").
 CONTEXT = "prose"
 
 console = Console(theme=THEME, highlight=False)

@@ -40,7 +40,7 @@ enum Filter {
     Text(String),
 }
 
-/// A card's status (see `docs/notes.md`, "Status").
+/// A card's status (see `docs/items.md`, "Status").
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Status {

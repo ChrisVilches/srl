@@ -522,7 +522,7 @@ in `source.rs` builds them from the configuration.
   into lines, a change of lines (`Edit`) and applying it, finding the
   item a change is about, and writing a file safely (see "Note
   editing").
-- **The item object** (see [notes.md](notes.md), "The item object") is
+- **The item object** (see [items.md](items.md), "The item object") is
   read and written by `domain/note/object.rs`, for the JSONL source and for the
   standard input of `srl add` and `srl edit`. `Item::json` writes it for
   `srl show --json`.

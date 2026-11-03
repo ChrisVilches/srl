@@ -64,7 +64,7 @@ feel you could answer it.
 ## Card IDs
 
 A **card ID** is the ID of its item, alone or followed by `.` and a
-**suffix**, made like an item ID (see [notes.md](notes.md), "Identity"):
+**suffix**, made like an item ID (see [items.md](items.md), "Identity"):
 words of lowercase letters `a`–`z` and digits, joined by single `-`, 1 to
 32 characters:
 
@@ -98,7 +98,7 @@ old ID; `srl check` reports it, and `srl move` gives it to another card
 
 ## Kinds
 
-An item's **kind**, set by its `kind` entry (see [notes.md](notes.md),
+An item's **kind**, set by its `kind` entry (see [items.md](items.md),
 "Header entries"), decides which fields it
 takes and how they become cards, and which of its cards are siblings
 (see [scheduling.md](scheduling.md), "Siblings"). `qa` is built in and
@@ -264,10 +264,10 @@ standard error is free for messages.
 
 `fields` is an object of the item's fields, keyed by name, in the order
 they are written. No key is written twice in an item, whatever its kind
-(see [notes.md](notes.md), "Errors"), so the object loses nothing. An
+(see [items.md](items.md), "Errors"), so the object loses nothing. An
 error's `message` and `field` follow the rules of messages in
 [cli.md](cli.md): a plain sentence that says what to do; `field` is a
-field name, made as in [notes.md](notes.md), "The item object".
+field name, made as in [items.md](items.md), "The item object".
 
 **`groups` never gets the context or the day**, so that card IDs depend
 on the item's fields alone (see [rationale.md](rationale.md), "Why
@@ -393,7 +393,7 @@ When something goes wrong, the place it happens says whose fault it is:
   number of input lines) **is a problem of the program**, not of its
   items: it is reported once, and no item of the kind is read until it is
   fixed. Like an error in an item, it stops every command that reads
-  items (see [notes.md](notes.md), "Errors").
+  items (see [items.md](items.md), "Errors").
 - **A card that can't be made fails the command**, whether `make` gave
   `{"error": …}` for it, failed as a whole, took too long, or printed
   invalid output for it. `srl next` fails with the reason and prints no

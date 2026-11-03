@@ -1,4 +1,4 @@
-//! Items: their entries, fields and IDs (see `docs/notes.md`), and the item
+//! Items: their entries, fields and IDs (see `docs/items.md`), and the item
 //! object, the one JSON form of an item.
 //!
 //! How items are written is the business of their sources (see
@@ -26,7 +26,7 @@ pub struct Field {
 }
 
 /// What an item says about itself besides its fields: its header entries
-/// (see `docs/notes.md`, "Header entries"), whatever the syntax writes them
+/// (see `docs/items.md`, "Header entries"), whatever the syntax writes them
 /// as.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Entries {
@@ -261,7 +261,7 @@ impl Item {
     }
 
     /// The item object, with every entry and the keys only `srl` gives
-    /// (see `docs/notes.md`, "The item object"), with its context and the
+    /// (see `docs/items.md`, "The item object"), with its context and the
     /// path of the note it comes from.
     pub fn json(&self, context: Option<&Context>) -> Value {
         let mut object = Map::new();

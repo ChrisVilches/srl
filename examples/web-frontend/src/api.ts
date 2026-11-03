@@ -55,7 +55,7 @@ export type SourceDescription = {
   creates: { include: string[]; exclude: string[] };
 };
 
-// An item object for `srl add --stdin` (docs/notes.md, "The item object"): its header
+// An item object for `srl add --stdin` (docs/items.md, "The item object"): its header
 // entries kind, see and draft, and its fields.
 export type NewItem = Record<string, string | boolean>;
 
