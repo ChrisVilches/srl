@@ -260,3 +260,12 @@ npm run dev       # Vite with hot reload on :5173, the API on :4318
 npm runs it in this folder, so choose the store with `SRL_DIR`, or `srl`
 uses the default store. `npm run build` checks the types and builds
 `dist/`.
+
+## TODO
+
+- The collection picker of the Add tab (`NotePicker` in `src/Add.tsx`) is
+  written by hand, a plain `<input>` and a `<ul>` under it, and is not
+  accessible: it has no `role="combobox"`, `listbox` or `option`, no
+  `aria-expanded`, `aria-controls` or `aria-activedescendant`, so a
+  screen reader announces neither the list nor the chosen row, and moving
+  the chosen row with ↑/↓ doesn't scroll it into view.
