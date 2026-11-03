@@ -21,7 +21,7 @@ type Saving =
 const isField = (key: string) => /^[A-Z][A-Z0-9_]*$/.test(key);
 
 // ON_SAVED is called once srl has written the item, to show its cards anew;
-// the form stays, with what became of the save. Cancel puts back the item as
+// the form stays, with what became of the save. Reset puts back the item as
 // srl last had it: as read, or as last saved.
 export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<void> }) {
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
@@ -121,7 +121,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
           title="Put back the item as srl has it"
           className={`text-sm ${QUIET_BUTTON}`}
         >
-          Cancel
+          Reset
         </button>
       </div>
     </div>
