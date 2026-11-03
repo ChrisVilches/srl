@@ -313,6 +313,16 @@ the modal give the focus back to the form when it closes.
 
 ## TODO
 
+- In the card browser, Prompt, Revealed and JSON show nothing under the
+  sides at first: while the cards are being found, and then for the
+  moment (`MAKE_DELAY` in `src/Browse.tsx`) before the card starts to be
+  made. Only then does "Making the card…" show. Ideally something would
+  show from the start, as Edit's form skeleton does, and lead into
+  "Making the card…" without a blank, then a change. Not critical, since
+  "Making the card…" does come soon. (The skeleton of a card shared by
+  every side was tried and removed: it vanished, then "Making the card…"
+  replaced it, which looked odd.)
+
 - The collection picker of the Add tab (`CollectionPicker` in `src/Add.tsx`) is
   written by hand, a plain `<input>` and a `<ul>` under it, and is not
   accessible: it has no `role="combobox"`, `listbox` or `option`, no

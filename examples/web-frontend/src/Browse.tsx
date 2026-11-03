@@ -270,6 +270,9 @@ function CardList({
 // the sides are shown, with a skeleton for the card's collection and due
 // date, and for the form on Edit; the other sides show nothing until the
 // card is made, which Making shows.
+// TODO: Prompt, Revealed and JSON are blank under the sides until Making
+// shows, while the cards are found and for MAKE_DELAY after; they should
+// show something from the start. See the README's TODO.
 function Preview({
   loading,
   found,
