@@ -164,11 +164,6 @@ export function Add({ active }: { active: boolean }) {
             <Section
               label="Note"
               hint="The note to append the item to: an existing one, or a new one, typed as its path, where a source of the store can create it (srl sources)."
-              action={
-                <button onClick={load} className={`py-0.5 text-xs ${QUIET_BUTTON}`}>
-                  Reload notes
-                </button>
-              }
             >
               <NotePicker
                 notes={notes}
@@ -219,20 +214,15 @@ const INPUT =
 function Section({
   label,
   hint,
-  action,
   children,
 }: {
   label: string;
   hint?: string;
-  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section>
-      <div className="flex items-baseline justify-between gap-2">
-        <Label>{label}</Label>
-        {action}
-      </div>
+      <Label>{label}</Label>
       {hint && <p className="-mt-1 mb-2 text-sm text-stone-500">{hint}</p>}
       {children}
     </section>

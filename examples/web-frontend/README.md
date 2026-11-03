@@ -109,7 +109,9 @@ It also **adds items** (the Add tab, or `#add`), one at a time:
   address typed in full, offered as **New note** when a source of the
   store could create it there, as `srl sources` describes (its prefix,
   then a path its `include` globs match and its `exclude` globs don't).
-  `srl add` creates it, and has the last word on whether it may.
+  `srl add` creates it, and has the last word on whether it may. The
+  notes are read once, when the tab is first shown; reloading the page
+  reads them again.
 - The note last added to is chosen again on the next visit. It is kept
   in the browser's `localStorage`, so it is per browser and per address
   (port), and forgotten when `srl collections` no longer lists it.
