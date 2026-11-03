@@ -349,13 +349,11 @@ function Preview({
 }
 
 // A card being made, with how long it has taken so far: a kind program can
-// take a while.
+// take a while. A card of a built-in kind gets no line under it.
 function Making({ kind, since }: { kind: string; since: number }) {
   return (
     <Waiting title="Making the card…" since={since}>
-      {kind === 'qa' ? (
-        'srl cards is making it.'
-      ) : (
+      {kind !== 'qa' && (
         <>
           srl cards is running the kind program <code className="font-mono">{kind}</code>.
         </>
