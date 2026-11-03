@@ -36,10 +36,10 @@ type Phase =
 type Stats = { reviewed: number; new: number; again: number };
 
 const RATINGS: { rating: Rating; name: string; style: string }[] = [
-  { rating: 1, name: 'Again', style: 'bg-rose-600 hover:bg-rose-500' },
-  { rating: 2, name: 'Hard', style: 'bg-amber-600 hover:bg-amber-500' },
-  { rating: 3, name: 'Good', style: 'bg-emerald-600 hover:bg-emerald-500' },
-  { rating: 4, name: 'Easy', style: 'bg-sky-600 hover:bg-sky-500' },
+  { rating: 1, name: 'Again', style: 'bg-rose-600 enabled:hover:bg-rose-500' },
+  { rating: 2, name: 'Hard', style: 'bg-amber-600 enabled:hover:bg-amber-500' },
+  { rating: 3, name: 'Good', style: 'bg-emerald-600 enabled:hover:bg-emerald-500' },
+  { rating: 4, name: 'Easy', style: 'bg-sky-600 enabled:hover:bg-sky-500' },
 ];
 
 // How long the card shown stays while srl next makes the next one, before

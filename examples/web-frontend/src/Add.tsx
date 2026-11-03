@@ -210,7 +210,7 @@ export function Add({ active }: { active: boolean }) {
               >
                 Add <Key>ctrl+enter</Key>
               </button>
-              <button onClick={check} disabled={collection === null || busy} className={`${OUTLINE_BUTTON} disabled:opacity-50`}>
+              <button onClick={check} disabled={collection === null || busy} className={OUTLINE_BUTTON}>
                 Check
               </button>
             </div>

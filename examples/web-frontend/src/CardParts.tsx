@@ -4,14 +4,18 @@ import type { FoundCard, ShownCard } from './api';
 import { Markdown } from './Markdown';
 import { isSelectorError, SelectorHelp } from './SelectorHelp';
 
+// Every button changes color on hover only while it is enabled (`enabled:hover:`),
+// so one disabled while srl works, or until its form is complete, doesn't look
+// clickable.
+
 // The look of a view's main action: a raised surface in the theme's colors,
 // like the card.
 export const MAIN_BUTTON =
-  'rounded-lg border border-stone-300 bg-white font-medium text-stone-900 shadow-sm hover:bg-stone-100 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700';
+  'rounded-lg border border-stone-300 bg-white font-medium text-stone-900 shadow-sm enabled:hover:bg-stone-100 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:enabled:hover:bg-stone-700';
 // The looks of the buttons that aren't a view's main action.
 export const OUTLINE_BUTTON =
-  'rounded-lg border border-stone-300 px-4 py-2 text-sm hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-900';
-export const QUIET_BUTTON = 'rounded-lg px-3 text-stone-500 hover:bg-stone-200 disabled:opacity-50 dark:hover:bg-stone-800';
+  'rounded-lg border border-stone-300 px-4 py-2 text-sm enabled:hover:bg-stone-100 dark:border-stone-700 disabled:opacity-50 dark:enabled:hover:bg-stone-900';
+export const QUIET_BUTTON = 'rounded-lg px-3 text-stone-500 enabled:hover:bg-stone-200 disabled:opacity-50 dark:enabled:hover:bg-stone-800';
 // The layout of a button with a Key after its name, which centers the key
 // on the name's line: inline, the smaller key sits on the baseline, low.
 export const WITH_KEY = 'inline-flex items-center justify-center gap-1';
