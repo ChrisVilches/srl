@@ -25,7 +25,7 @@ pub use app::write::{Added, Written, accept, add, assign_ids, edit};
 pub use config::Config;
 pub use domain::card::{Card, CardId, SUFFIX_SEPARATOR};
 pub use domain::context::{Context, ContextMode};
-pub use domain::note::{Field, Item, ItemId};
+pub use domain::item::{Field, Item, ItemId};
 pub use domain::schedule::{History, Memories, Memory, Reviewed, Seen, State};
 pub use domain::selector::{Selector, Status};
 pub use domain::stats::{StateCounts, Stats, stats};

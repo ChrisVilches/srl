@@ -1,8 +1,8 @@
 //! The item object: an item as one JSON object, its header entries and its
 //! fields side by side (see `docs/items.md`, "The item object"). It is a
 //! line of a JSONL note, a line of `srl add --stdin` and `srl edit
-//! --stdin`, and, with the keys only `srl` gives, what `srl show --json`
-//! prints.
+//! --stdin`, what a source program is given and gives for an item, and,
+//! with the keys only `srl` gives, what `srl show --json` prints.
 
 use std::fmt;
 
@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde::de::{Deserializer, MapAccess, Visitor};
 use serde_json::{Map, Value};
 
-use crate::domain::note::{Entries, Field, ItemId, is_field_key};
+use crate::domain::item::{Entries, Field, ItemId, is_field_key};
 
 /// The keys that `srl show --json` prints and nothing reads: they are
 /// ignored wherever an item object is read.
@@ -33,7 +33,7 @@ pub(crate) struct Object {
 
 /// Reads `text` as an item object. `"kind": "qa"`, `"see": null` and
 /// `"draft": false` mean the same as leaving the key out. Whether the kind
-/// exists, the fields suit it and `see` names a note is checked later.
+/// exists, the fields suit it and `see` names a collection is checked later.
 /// Errors are plain reasons.
 pub(crate) fn read(text: &str) -> Result<Object, String> {
     let Pairs(pairs) = serde_json::from_str::<Pairs>(text)
@@ -106,9 +106,9 @@ fn text_of(key: &str, value: Value) -> Result<String, String> {
     Ok(text)
 }
 
-/// The item object of `entries` and `fields` as `srl` writes it into a
-/// JSONL note: the entries that differ from their defaults, then the
-/// fields.
+/// The item object of `entries` and `fields` as `srl` writes it, into a
+/// JSONL note or for a source program: the entries that differ from their
+/// defaults, then the fields.
 pub(crate) fn written(entries: &Entries, fields: &[Field]) -> Map<String, Value> {
     let mut object = Map::new();
     if let Some(id) = &entries.id {

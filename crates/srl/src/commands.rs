@@ -95,7 +95,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
 /// card's memory today, and the time.
 struct Loaded {
     config: Config,
-    notes: Catalog,
+    catalog: Catalog,
     memories: Memories,
     now: Zoned,
 }
@@ -104,18 +104,18 @@ struct Loaded {
 /// lines that were skipped.
 fn open(store: &Store) -> anyhow::Result<Loaded> {
     let mut index = Index::open(store);
-    let (config, notes) = load_with(store, &mut index)?;
+    let (config, catalog) = load_with(store, &mut index)?;
     let (memories, now, problems) = memories(&mut index, &config)?;
     problems.iter().for_each(output::problem);
     Ok(Loaded {
         config,
-        notes,
+        catalog,
         memories,
         now,
     })
 }
 
-/// Reads the configuration and every note, and stops if the notes have
+/// Reads the configuration and every item, and stops if the sources have
 /// any problem (see `docs/items.md`, "Errors").
 fn load(store: &Store) -> anyhow::Result<(Config, Catalog)> {
     load_with(store, &mut Index::open(store))
@@ -125,20 +125,20 @@ fn load(store: &Store) -> anyhow::Result<(Config, Catalog)> {
 /// any problem with the cache.
 fn load_with(store: &Store, index: &mut Index) -> anyhow::Result<(Config, Catalog)> {
     let config = Config::load(store)?;
-    let notes = Catalog::load(store, &config, index);
+    let catalog = Catalog::load(store, &config, index);
     report_cache(index);
-    Ok((config, strict(notes?)?))
+    Ok((config, strict(catalog?)?))
 }
 
-/// `notes`, if they have no problems; otherwise reports every problem and
+/// `catalog`, if it has no problems; otherwise reports every problem and
 /// fails.
-fn strict(notes: Catalog) -> anyhow::Result<Catalog> {
-    notes.problems().iter().for_each(output::problem);
-    let count = notes.problems().len();
+fn strict(catalog: Catalog) -> anyhow::Result<Catalog> {
+    catalog.problems().iter().for_each(output::problem);
+    let count = catalog.problems().len();
     if count > 0 {
-        return Err(Error::NotesInvalid { count }.into());
+        return Err(Error::ItemsInvalid { count }.into());
     }
-    Ok(notes)
+    Ok(catalog)
 }
 
 /// Every card's memory on today's study day, through the index cache, the
@@ -180,17 +180,17 @@ fn init(flag: Option<PathBuf>, dir: Option<PathBuf>, dry_run: bool) -> anyhow::R
 fn check(store: &Store) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
     let mut index = Index::open(store);
-    let notes = Catalog::load_asking(store, &config, &mut index);
+    let catalog = Catalog::load_asking(store, &config, &mut index);
     report_cache(&mut index);
-    let notes = notes?;
+    let catalog = catalog?;
     let (memories, _, log_problems) = memories(&mut index, &config)?;
-    let problems = notes
+    let problems = catalog
         .problems()
         .iter()
         .chain(&log_problems)
         .collect::<Vec<_>>();
     problems.iter().copied().for_each(output::problem);
-    srl_core::orphans(&notes, &memories)
+    srl_core::orphans(&catalog, &memories)
         .iter()
         .for_each(output::problem);
     Ok(if problems.is_empty() {
@@ -213,15 +213,15 @@ fn lint(store: &Store) -> anyhow::Result<Outcome> {
 fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
     let mut index = Index::open(store);
-    let notes = Catalog::load(store, &config, &mut index);
+    let catalog = Catalog::load(store, &config, &mut index);
     report_cache(&mut index);
-    let notes = notes?;
-    notes
+    let catalog = catalog?;
+    catalog
         .problems()
         .iter()
         .filter(|problem| !matches!(problem, Error::MissingId { .. }))
         .for_each(output::problem);
-    let written = srl_core::assign_ids(&notes, seed("for new IDs")?, dry_run)?;
+    let written = srl_core::assign_ids(&catalog, seed("for new IDs")?, dry_run)?;
     output::written(&written);
     Ok(found_anything(!written.is_empty()))
 }
@@ -249,8 +249,8 @@ fn sources(store: &Store, json: bool) -> anyhow::Result<Outcome> {
     Ok(Outcome::Done)
 }
 
-/// `srl kinds`: describes every kind, `qa` first, without reading the
-/// notes. Fails at once if a kind program can't describe its kind.
+/// `srl kinds`: describes every kind, `qa` first, without reading any
+/// item. Fails at once if a kind program can't describe its kind.
 fn kinds(store: &Store, json: bool) -> anyhow::Result<Outcome> {
     let described = srl_core::kinds(store, &Config::load(store)?)?;
     if json {
@@ -263,7 +263,7 @@ fn kinds(store: &Store, json: bool) -> anyhow::Result<Outcome> {
 
 /// The cards that match `selector`, with their items.
 fn select<'a>(loaded: &'a Loaded, selector: &Selector) -> Vec<(&'a Item, &'a CardId)> {
-    selector.select(loaded.notes.cards(), &loaded.memories)
+    selector.select(loaded.catalog.cards(), &loaded.memories)
 }
 
 /// `srl find`: lists the matching cards.
@@ -307,12 +307,12 @@ fn state_name(state: State) -> &'static str {
 
 /// The items the IDs given to a command stand for, each once, in the order
 /// given; and the IDs that name nothing, reported.
-fn items_of<'a>(notes: &'a Catalog, ids: &[String]) -> (Vec<&'a Item>, Vec<Error>) {
+fn items_of<'a>(catalog: &'a Catalog, ids: &[String]) -> (Vec<&'a Item>, Vec<Error>) {
     let mut seen = HashSet::new();
     let mut items = Vec::new();
     let mut problems = Vec::new();
     for id in ids {
-        match notes.item_of(id) {
+        match catalog.item_of(id) {
             Ok(item) => {
                 if seen.insert(item.id().clone()) {
                     items.push(item);
@@ -345,9 +345,9 @@ fn context_mode(mode: crate::args::ContextMode) -> ContextMode {
 
 /// `srl show ID…`: prints each item with its context in `mode`.
 fn show(store: &Store, ids: &[String], mode: ContextMode, json: bool) -> anyhow::Result<Outcome> {
-    let (_, notes) = load(store)?;
-    let (items, problems) = items_of(&notes, ids);
-    let contexts = notes.contexts(&items, mode)?;
+    let (_, catalog) = load(store)?;
+    let (items, problems) = items_of(&catalog, ids);
+    let contexts = catalog.contexts(&items, mode)?;
     let shown = items.into_iter().zip(contexts).collect::<Vec<_>>();
     if json {
         let lines = shown
@@ -363,12 +363,12 @@ fn show(store: &Store, ids: &[String], mode: ContextMode, json: bool) -> anyhow:
 
 /// `srl cards ID…`: the cards of each item ID, or the card of each card ID.
 fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
-    let (config, notes) = load(store)?;
+    let (config, catalog) = load(store)?;
     let day = today(&config)?;
     let mut problems = Vec::new();
     let mut found = Vec::new();
     for id in ids {
-        match notes
+        match catalog
             .item_of(id)
             .and_then(|item| Ok((item, CardId::parse(id)?)))
         {
@@ -383,7 +383,7 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
     }
     // A card that can't be made fails the whole command before anything is
     // printed (see `docs/cli.md`, "Cards").
-    let found = notes.make_cards(&found, day)?;
+    let found = catalog.make_cards(&found, day)?;
     if json {
         output::json_lines(&found)?;
     } else {
@@ -392,13 +392,19 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
     Ok(reported(&problems))
 }
 
-/// `srl add ADDRESS --stdin`: appends items to a collection, and prints
-/// their IDs, or with `--dry-run` the items as they would be written.
+/// `srl add ADDRESS --stdin`: adds items to a collection, and prints
+/// their IDs, or with `--dry-run` the items as their source would add them.
 fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
-    let (_, notes) = load(store)?;
+    let (_, catalog) = load(store)?;
     let input = stdin()?;
     let dry_run = args.dry_run.dry_run;
-    let added = srl_core::add(&notes, &args.address, &input, seed("for new IDs")?, dry_run)?;
+    let added = srl_core::add(
+        &catalog,
+        &args.address,
+        &input,
+        seed("for new IDs")?,
+        dry_run,
+    )?;
     if dry_run {
         output::text(&added.text);
     } else {
@@ -410,8 +416,8 @@ fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
 /// `srl edit --stdin`: replaces items with standard input, and prints
 /// their IDs.
 fn edit(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
-    let (_, notes) = load(store)?;
-    let ids = srl_core::edit(&notes, &stdin()?, dry_run)?;
+    let (_, catalog) = load(store)?;
+    let ids = srl_core::edit(&catalog, &stdin()?, dry_run)?;
     output::ids(&ids);
     Ok(found_anything(!ids.is_empty()))
 }
@@ -426,7 +432,7 @@ fn accept(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Result<O
         .map(|(item, _)| item)
         .filter(|item| item.is_draft() && seen.insert(item.id().clone()))
         .collect::<Vec<_>>();
-    let written = srl_core::accept(&loaded.notes, &items, dry_run)?;
+    let written = srl_core::accept(&loaded.catalog, &items, dry_run)?;
     let ids = written.iter().map(|done| &done.id).collect::<Vec<_>>();
     output::ids(&ids);
     Ok(found_anything(!written.is_empty()))
@@ -468,7 +474,7 @@ fn move_history(store: &Store, from: &str, to: &str, dry_run: bool) -> anyhow::R
     let loaded = open(store)?;
     let event = srl_core::move_history(
         store,
-        &loaded.notes,
+        &loaded.catalog,
         &loaded.memories,
         &CardId::parse(from)?,
         &CardId::parse(to)?,
@@ -483,7 +489,7 @@ fn move_history(store: &Store, from: &str, to: &str, dry_run: bool) -> anyhow::R
 
 /// `srl next`: the next card, if there is one. With `--json`, the card
 /// with what a frontend shows around it: its state, and its item's kind,
-/// note and context in `mode` (see `docs/cli.md`, "Studying").
+/// collection and context in `mode` (see `docs/cli.md`, "Studying").
 fn next(
     store: &Store,
     selector: &Selector,
@@ -492,7 +498,7 @@ fn next(
 ) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
     let next = srl_core::next(
-        &loaded.notes,
+        &loaded.catalog,
         &loaded.memories,
         selector,
         &loaded.config,
@@ -517,7 +523,7 @@ fn next(
             context: Option<String>,
             context_address: Option<String>,
         }
-        let context = loaded.notes.context(item, mode)?;
+        let context = loaded.catalog.context(item, mode)?;
         output::json_lines(&[Next {
             card: &card,
             state: state_name(loaded.memories.state(card.id())),
@@ -538,7 +544,7 @@ fn next(
 /// `srl review`: records a review from standard input, or of cards by ID.
 /// Prints nothing, or with `--dry-run` the events it would write.
 fn review(store: &Store, args: &ReviewArgs) -> anyhow::Result<Outcome> {
-    let (_, notes) = load(store)?;
+    let (_, catalog) = load(store)?;
     let dry_run = args.dry_run.dry_run;
     let requests = if args.stdin {
         vec![ReviewRequest::parse(&stdin()?)?]
@@ -562,7 +568,7 @@ fn review(store: &Store, args: &ReviewArgs) -> anyhow::Result<Outcome> {
             })
             .collect::<srl_core::Result<Vec<_>>>()?
     };
-    let events = srl_core::review(store, &notes, &requests, &now()?, dry_run)?;
+    let events = srl_core::review(store, &catalog, &requests, &now()?, dry_run)?;
     if dry_run {
         output::json_lines(&events)?;
     }
@@ -583,13 +589,13 @@ fn reset(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Result<Ou
 /// the matching cards. Exit 1 if no card matches.
 fn stats(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
     let mut index = Index::open(store);
-    let (config, notes) = load_with(store, &mut index)?;
+    let (config, catalog) = load_with(store, &mut index)?;
     let history = index.history(&config);
     report_cache(&mut index);
     let (history, problems) = history?;
     problems.iter().for_each(output::problem);
     let memories = Memories::new(history.memories, &config, today(&config)?);
-    let selected = selector.select(notes.cards(), &memories);
+    let selected = selector.select(catalog.cards(), &memories);
     let stats = srl_core::stats(&selected, &memories, &history.reviews);
     if json {
         output::json_lines(&[&stats])?;
@@ -602,12 +608,12 @@ fn stats(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outco
 /// `srl log`: the events of the matching cards, in log order. It needs every
 /// event, so it reads the log files rather than the index cache.
 fn log(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
-    let (config, notes) = load(store)?;
+    let (config, catalog) = load(store)?;
     let log = Log::load(store, &config.schedule)?;
     log.problems.iter().for_each(output::problem);
     let memories = Memories::replay(&log, &config, today(&config)?)?;
     let ids = selector
-        .select(notes.cards(), &memories)
+        .select(catalog.cards(), &memories)
         .into_iter()
         .map(|(_, card)| card)
         .collect::<Vec<_>>();

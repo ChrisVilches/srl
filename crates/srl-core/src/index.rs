@@ -1,13 +1,13 @@
 //! The index cache, `.srl/cache/index.sqlite` (see `docs/store.md`, "The
 //! index cache").
 //!
-//! It keeps what is slow to compute from the files: the log replayed
+//! It keeps what is slow to compute: the log replayed
 //! through FSRS, and what kind programs answered about items (see
 //! `docs/cards.md`, "How srl calls them"). Every log file is still read on
 //! every use and compared
 //! with the cache by its BLAKE3 hash, so the cache can only skip work, never
-//! change a result. When it can't be used, the files are read directly and
-//! the problem is reported.
+//! change a result. When it can't be used, the log is read directly, kind
+//! programs are asked about every item, and the problem is reported.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -119,8 +119,8 @@ fn corrupt(what: &str, reason: impl fmt::Display) -> Failure {
 pub struct Index {
     store: Store,
     connection: Option<Connection>,
-    /// Set once the cache turned out to be unusable: from then on the files
-    /// are read directly.
+    /// Set once the cache turned out to be unusable: from then on the log
+    /// is read directly.
     disabled: bool,
     problems: Vec<Error>,
 }
@@ -373,7 +373,7 @@ fn execute(
 }
 
 /// The BLAKE3 hash of `bytes`, in hex. Not SHA-256: without the CPU's SHA
-/// instructions it is several times slower, and every file is hashed on
+/// instructions it is several times slower, and every log file is hashed on
 /// every use.
 fn hash(bytes: &[u8]) -> String {
     blake3::hash(bytes).to_hex().to_string()
@@ -759,7 +759,7 @@ fn memory_row(row: &MemoryRow) -> std::result::Result<Memory, Failure> {
     })
 }
 
-/// Reads the files directly, as if there were no cache.
+/// Reads the log directly, as if there were no cache.
 fn uncached_history(store: &Store, config: &Config) -> Result<(History, Vec<Error>)> {
     let log = Log::load(store, &config.schedule)?;
     Ok((History::replay(&log, config)?, log.problems))
@@ -1038,7 +1038,7 @@ mod tests {
             index.problems().as_slice(),
             [Error::CacheUnusable { .. }]
         ));
-        // Reported once: the files are read directly from then on.
+        // Reported once: the log is read directly from then on.
         index.memories(&Config::default()).unwrap();
         assert!(index.problems().is_empty());
     }

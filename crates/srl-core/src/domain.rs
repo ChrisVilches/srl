@@ -4,7 +4,7 @@
 
 pub(crate) mod card;
 pub(crate) mod context;
-pub(crate) mod note;
+pub(crate) mod item;
 pub(crate) mod random;
 pub(crate) mod schedule;
 pub(crate) mod selector;

@@ -397,7 +397,7 @@ fn cards_prints_the_cards_of_items_and_cards() {
 }
 
 #[test]
-fn add_appends_items_with_their_header_entries() {
+fn add_writes_items_with_their_header_entries() {
     let tmp = japanese();
     let d = dir(&tmp);
     let input = "{\"Q\": \"Use 〜をものともせず\\nabout football.\", \"A\": \"…\", \"see\": \"japanese/grammar/wo.md\", \"draft\": true}\n{\"Q\": \"{{c1::嵐}}をものともせず\", \"draft\": true}\n";
@@ -609,7 +609,7 @@ fn a_jsonl_note_is_a_context_as_it_is_in_mode_full_only() {
         ),
     ]);
     let d = dir(&tmp);
-    // The context and the note it comes from.
+    // The context and the address of its collection.
     let context = |id: &str, mode: &str| {
         let output = srl(&["show", id, "--json", "--context", mode, "--dir", d]);
         assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
@@ -743,7 +743,7 @@ fn the_study_loop_records_reviews_and_holds_back_siblings() {
 }
 
 #[test]
-fn next_json_gives_the_card_with_its_state_note_and_context() {
+fn next_json_gives_the_card_with_its_state_collection_and_context() {
     let tmp = japanese();
     let d = dir(&tmp);
     let first = next_card(d, &[]);
@@ -1000,7 +1000,7 @@ fn collections_lists_every_note_without_reading_it() {
 }
 
 #[test]
-fn kinds_describes_qa_without_reading_the_notes() {
+fn kinds_describes_qa_without_reading_any_item() {
     let tmp = japanese();
     let d = dir(&tmp);
     write(&tmp, "broken.md", "```srl\nbroken\n```\n");
@@ -1207,7 +1207,7 @@ fn the_index_cache_never_changes_what_commands_print() {
     assert_eq!(stdout(&found), cached[0].0);
     assert_eq!(snapshot(d), cached);
 
-    // A cache that can't be used is reported, and the files are read directly.
+    // A cache that can't be used is reported, and the log is read directly.
     fs::remove_dir_all(&cache).unwrap();
     fs::write(&cache, "not a folder").unwrap();
     let found = srl(&["find", "--dir", d]);
@@ -1383,7 +1383,7 @@ fn cards_fails_at_once_if_a_kind_program_fails() {
 }
 
 #[test]
-fn an_item_validate_rejects_is_reported_like_any_error_in_a_note() {
+fn an_item_validate_rejects_is_reported_like_any_error_in_a_source() {
     let tmp = store_with_kind(&[(
         "a.md",
         "```srl id:abc kind:fake\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}]}\n```\n",

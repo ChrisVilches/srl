@@ -12,7 +12,7 @@ use serde_json::{Map, Value};
 
 use crate::domain::card::{Card, CardId};
 use crate::domain::context::Context;
-use crate::domain::note::{Field, ItemId};
+use crate::domain::item::{Field, ItemId};
 use crate::{Config, Error, Index, Store};
 
 use cloze::Piece;

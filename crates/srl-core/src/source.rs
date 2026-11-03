@@ -17,7 +17,7 @@ use std::fmt;
 
 use crate::config::Driver;
 use crate::domain::context::ContextMode;
-use crate::domain::note::object::Object;
+use crate::domain::item::object::Object;
 use crate::{Config, Error, Result, Store};
 use files::NoteFiles;
 use jsonl::Jsonl;
@@ -124,7 +124,7 @@ pub(crate) struct ContextRequest<'a> {
 /// A change to the items of a source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Change {
-    /// Appends `item` to `collection`, creating it if it doesn't exist.
+    /// Adds `item` to `collection`, creating it if it doesn't exist.
     Add { collection: String, item: Object },
     /// Replaces the item of `collection` named by `handle`, which was read
     /// as `before`, with `after`. Refused if the item is no longer

@@ -12,7 +12,7 @@ use serde_json::{Map, Value};
 
 use crate::config::globs;
 use crate::domain::context::ContextMode;
-use crate::domain::note::object::{self, Object};
+use crate::domain::item::object::{self, Object};
 use crate::process;
 use crate::source::{
     Change, Collection, ContextRequest, Description, Finding, Problem, Read, ReadItem, Refusal,

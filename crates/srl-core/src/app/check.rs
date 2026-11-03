@@ -14,8 +14,11 @@ use crate::{CardId, Catalog, Config, Error, Memories, Result, Store};
 /// exists, and that item has exactly one card with no events, the notice
 /// says how to move the history there (see `docs/scheduling.md`, "Moving
 /// history").
-pub fn orphans(notes: &Catalog, memories: &Memories) -> Vec<Error> {
-    let cards = notes.cards().map(|(_, card)| card).collect::<HashSet<_>>();
+pub fn orphans(catalog: &Catalog, memories: &Memories) -> Vec<Error> {
+    let cards = catalog
+        .cards()
+        .map(|(_, card)| card)
+        .collect::<HashSet<_>>();
     let mut orphans = memories
         .all()
         .filter(|(id, memory)| memory.seen.is_some() && !cards.contains(id))
@@ -30,7 +33,7 @@ pub fn orphans(notes: &Catalog, memories: &Memories) -> Vec<Error> {
                 .filter(|other| other.item() == id.item())
                 .count()
                 == 1;
-            let fresh = notes
+            let fresh = catalog
                 .item(id.item())
                 .map(|item| {
                     item.cards()
@@ -160,7 +163,7 @@ mod tests {
                     handle: String::new(),
                     line: Some(item.line),
                     written: Some(item.text),
-                    item: crate::domain::note::object::Object {
+                    item: crate::domain::item::object::Object {
                         entries: item.entries,
                         fields: item.fields,
                     },

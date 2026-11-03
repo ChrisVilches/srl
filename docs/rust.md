@@ -22,17 +22,17 @@ crates/
     src/config.rs       store.md, "Configuration"; the study day
     src/store.rs        store.md: finding, creating and listing a store and its files
     src/domain.rs       the domain: items, cards, selectors, scheduling, as values
-    src/domain/note.rs       notes.md: the item model (entries, fields, IDs, status), where an item comes from (`Origin`)
-    src/domain/note/object.rs  notes.md, "The item object": reading and writing items as JSON objects
+    src/domain/item.rs       items.md: the item model (entries, fields, IDs, status), where an item comes from (`Origin`)
+    src/domain/item/object.rs  items.md, "The item object": reading and writing items as JSON objects
     src/domain/card.rs       cards.md: the card format and card IDs
-    src/domain/context.rs    notes.md, "Context": the context's modes, and the `Context` given
+    src/domain/context.rs    items.md, "Context": the context's modes, and the `Context` given
     src/domain/selector.rs   selectors.md
     src/domain/schedule.rs   scheduling.md: replaying the log through FSRS, states
     src/domain/stats.rs      cli.md, "Analysis": `srl stats`
     src/domain/random.rs     reproducible random numbers for new IDs and `srl next`
     src/app.rs          the application: what the commands do with the domain and the ports
     src/app/catalog.rs       every item of the store, read from its sources and checked by their kinds; which collection is an item's context
-    src/app/write.rs         notes.md, "How srl writes to notes": what `srl id`, `srl accept`, `srl add` and `srl edit` change, checked before any source writes it
+    src/app/write.rs         items.md, "How srl changes items": what `srl id`, `srl accept`, `srl add` and `srl edit` change, checked before any source writes it
     src/app/check.rs         cli.md, "Checking": `srl check`, and `srl lint` through the sources
     src/app/review.rs        log.md and scheduling.md: recording reviews, resets, moves, suspensions
     src/app/next.rs          scheduling.md, "Choosing the next card" and "Siblings"
@@ -62,7 +62,7 @@ crates/
 
 ### The core is a library, the CLI is a thin layer on top
 
-`srl-core` holds every rule from the specification: notes, items, cards,
+`srl-core` holds every rule from the specification: sources, items, cards,
 scheduling, the log, selectors and the store. `srl` turns
 command-line arguments into calls to `srl-core` and prints the results.
 
@@ -106,7 +106,7 @@ in Clean Architecture or hexagonal architecture:
 Within a layer, each area of the specification has its module
 (`selectors.md` in `domain/selector.rs`, `store.md`, "The index cache" in
 `index.rs`, and so on); one document may be spread over several layers,
-as `notes.md` is. A module that grows too big gets submodules in a folder
+as `items.md` is. A module that grows too big gets submodules in a folder
 of the same name (`selector.rs` plus `selector/parse.rs`), never a
 `mod.rs`.
 
@@ -185,7 +185,7 @@ types, so that the compiler checks them:
   ratings, selector terms. A `match` on them lists every variant. Don't use a
   `_ =>` arm on our own enums (the `wildcard_enum_match_arm` lint flags it),
   so that adding a variant shows every place that must handle it.
-- **Parse, don't validate.** Input from outside (notes, log lines,
+- **Parse, don't validate.** Input from outside (what sources read, log lines,
   JSON on standard input) is parsed once, at the boundary, into
   types that can only hold valid values. After that, code doesn't check again.
   For example, a note is read once by its source (see "Sources") and
@@ -203,7 +203,7 @@ types, so that the compiler checks them:
   `.unwrap_or(…)`, don't drop the cause with `.map_err(|_| …)`, and don't
   leave an `Err(_) => {}` arm empty. Propagate errors with `?`. Where the
   specification says to carry on after a failure (an invalid log line,
-  every error in every note), return the failure next to the results so the CLI can
+  every error in every source), return the failure next to the results so the CLI can
   report it on standard error. Never skip it without a word.
 - Turning a missing value into a default is fine when the specification
   says so, as with an absent `config.toml` key. Turning a *failure* into a
@@ -215,7 +215,7 @@ types, so that the compiler checks them:
   without it (`.context("cannot read the current directory")`), and turns
   errors into exit code 2 in one place (`main.rs`).
 - **Errors that can be recovered from, or that the user should hear about,
-  are returned.** Bad input, missing files, errors in notes, invalid log lines:
+  are returned.** Bad input, missing files, errors in sources, invalid log lines:
   every one becomes an `Err` that travels up to the CLI, which reports it on
   standard error with what to do about it. This is nearly every error.
 - **Where recovering makes no sense, use `expect("…")` with a good
@@ -411,7 +411,7 @@ Current dependencies:
 | `toml` | `srl-core` | Parsing `.srl/config.toml` |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |
 | `sha2` | `srl-core` | The `hash` of review events |
-| `unicode-normalization` | `srl-core` | NFC for comparing note paths |
+| `unicode-normalization` | `srl-core` | NFC for comparing addresses and the paths of notes |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
 | `globset` | `srl-core` | `path:` globs in selectors, `exclude` globs |
 | `serde` (derive), `serde_json` (`preserve_order`, `float_roundtrip`) | both | The JSON formats; fields keep their order, and numbers read back from the index cache are exactly the ones written |
@@ -523,7 +523,7 @@ in `source.rs` builds them from the configuration.
   item a change is about, and writing a file safely (see "Note
   editing").
 - **The item object** (see [items.md](items.md), "The item object") is
-  read and written by `domain/note/object.rs`, for the JSONL source and for the
+  read and written by `domain/item/object.rs`, for the JSONL source, source programs and the
   standard input of `srl add` and `srl edit`. `Item::json` writes it for
   `srl show --json`.
 - **The `qa` kind's lint is the core's** (`app/check.rs`), on the items

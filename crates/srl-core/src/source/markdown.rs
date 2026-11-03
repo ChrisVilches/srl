@@ -11,8 +11,8 @@
 mod blocks;
 
 use crate::Result;
-use crate::domain::note::Entries;
-use crate::domain::note::object::Object;
+use crate::domain::item::Entries;
+use crate::domain::item::object::Object;
 use crate::source::files::{
     Edit, Keyed, NoteFiles, add_read, append, apply, by_collection, changed_meanwhile, keyed,
     position_of, verified,

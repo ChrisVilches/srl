@@ -6,8 +6,8 @@
 use serde_json::Value;
 
 use crate::domain::context::ContextMode;
-use crate::domain::note::object::{self, Object};
-use crate::domain::note::{Entries, Field};
+use crate::domain::item::object::{self, Object};
+use crate::domain::item::{Entries, Field};
 use crate::source::files::{
     Edit, NoteFiles, Parsed, ParsedItem, add_read, append, apply, by_collection, changed_meanwhile,
     keyed, lines, position_of, unless_blank, verified,
@@ -210,7 +210,7 @@ fn written(entries: &Entries, fields: &[Field]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::note::ItemId;
+    use crate::domain::item::ItemId;
 
     #[test]
     fn every_line_that_is_not_blank_is_an_item() {

@@ -51,7 +51,7 @@ pub(crate) struct Json {
 
 #[derive(Debug, Args)]
 pub(crate) struct Context {
-    /// How to show the context: the note without its items, with them, or nothing.
+    /// How to show the context: the collection without its items, with them, or nothing.
     #[arg(long, value_enum, value_name = "MODE", default_value_t = ContextMode::Prose)]
     pub(crate) context: ContextMode,
 }
@@ -73,9 +73,9 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Check the notes, the configuration and the log.
+    /// Check the sources, the configuration and the log.
     Check,
-    /// Look for likely mistakes in notes: text probably meant to be an item, and items probably not written as meant.
+    /// Look for likely mistakes: text probably meant to be an item, and items probably not written as meant.
     Lint,
     /// Give an ID to every item without one.
     Id {
@@ -118,7 +118,7 @@ pub(crate) enum Command {
     ///
     /// With --json, the cards are in the card format of `srl next --json`
     /// (the prompt, the revealed prompt and the answer), without the state,
-    /// kind, note and context around it. Without --json, they are printed for
+    /// kind, collection and context around it. Without --json, they are printed for
     /// people. Making a card runs its kind program, if it has one.
     Cards {
         /// Card or item IDs.
@@ -127,7 +127,7 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Append items (JSONL of item objects from standard input) to a collection, such as a note.
+    /// Add new items (JSONL of item objects from standard input) to a collection, such as a note.
     Add(AddArgs),
     /// Replace items with standard input (JSONL of items, each naming the item it replaces by `id`).
     Edit {
@@ -174,7 +174,7 @@ pub(crate) enum Command {
     ///
     /// With --json, it maps the store to what a frontend requires: the card, in
     /// the format of `srl cards --json`, with its state, its item's kind and
-    /// note, and the context to show after the answer. srl itself never shows cards interactively. Without
+    /// collection, and the context to show after the answer. srl itself never shows cards interactively. Without
     /// --json, the card is printed for people, as `srl cards` prints it.
     Next {
         #[command(flatten)]

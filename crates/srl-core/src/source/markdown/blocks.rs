@@ -6,7 +6,7 @@
 //! on, so that one run lists all of them.
 
 use crate::domain::context::ContextMode;
-use crate::domain::note::{Entries, Field, ItemId, is_field_key};
+use crate::domain::item::{Entries, Field, ItemId, is_field_key};
 use crate::kind::has_deletion;
 use crate::source::files::{Edit, Parsed, ParsedItem, lines, unless_blank};
 

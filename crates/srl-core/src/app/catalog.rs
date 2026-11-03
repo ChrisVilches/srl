@@ -12,8 +12,8 @@ use serde::Serialize;
 
 use crate::domain::card::{Card, CardId};
 use crate::domain::context::{Context, ContextMode};
-use crate::domain::note::object::Object;
-use crate::domain::note::{Field, Item, ItemId, Origin};
+use crate::domain::item::object::Object;
+use crate::domain::item::{Field, Item, ItemId, Origin};
 use crate::kind::{Answer, Asked, Cache, Kind, Programs, ToMake, check};
 use crate::source::{ContextRequest, Sources};
 use crate::store::nfc;
@@ -83,8 +83,8 @@ impl Catalog {
                 .collect::<HashMap<_, _>>();
             collections.extend(mine);
             let read = mounted.source.read()?;
-            problems.extend(read.problems.into_iter().map(|problem| Error::Note {
-                path: mounted.address(&problem.collection),
+            problems.extend(read.problems.into_iter().map(|problem| Error::At {
+                address: mounted.address(&problem.collection),
                 line: problem.line,
                 reason: problem.reason,
             }));
@@ -115,7 +115,7 @@ impl Catalog {
                     Err(Unread::Problem(problem)) => problems.push(problem),
                     Err(Unread::Unidentified(origin)) => {
                         problems.push(Error::MissingId {
-                            path: origin.address.clone(),
+                            address: origin.address.clone(),
                             line: origin.line,
                         });
                         unidentified.push(*origin);
@@ -139,12 +139,12 @@ impl Catalog {
             .collect::<HashSet<_>>();
         problems.extend(items.iter().filter_map(|item| {
             let see = item.see.as_deref()?;
-            (!known.contains(&nfc(see))).then(|| Error::Note {
-                path: item.origin.address.clone(),
+            (!known.contains(&nfc(see))).then(|| Error::At {
+                address: item.origin.address.clone(),
                 line: item.origin.line,
                 reason: format!(
-                    "`see:{see}` doesn't name a note of the store; give a path relative to the \
-                     store's folder, such as japanese/grammar/wo.md"
+                    "`see` {see} doesn't name a collection of the store; give its address, as \
+                     `srl collections` lists it, such as japanese/grammar/wo.md"
                 ),
             })
         }));
@@ -438,8 +438,8 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
     let mut problems = parsed
         .errors
         .into_iter()
-        .map(|(line, reason)| Error::Note {
-            path: path.to_owned(),
+        .map(|(line, reason)| Error::At {
+            address: path.to_owned(),
             line: Some(line),
             reason,
         })
@@ -463,7 +463,7 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
             Ok(item) => written.push(item),
             Err(Unread::Problem(problem)) => problems.push(problem),
             Err(Unread::Unidentified(origin)) => problems.push(Error::MissingId {
-                path: origin.address,
+                address: origin.address,
                 line: origin.line,
             }),
         }
@@ -501,8 +501,8 @@ fn check_items(
                 items.push(item);
             }
             Some(Answer::Invalid(reasons)) => {
-                problems.extend(reasons.into_iter().map(|reason| Error::Note {
-                    path: item.origin.address.clone(),
+                problems.extend(reasons.into_iter().map(|reason| Error::At {
+                    address: item.origin.address.clone(),
                     line: item.origin.line,
                     reason,
                 }));
@@ -579,7 +579,7 @@ fn clashes(sources: &Sources, collections: &[Located]) -> Vec<Error> {
 }
 
 /// The key collections are sorted by: their address in NFC, so that the
-/// Unicode form of a file's name never changes the order (see
+/// Unicode form of a name never changes the order (see
 /// `docs/store.md`, "File names"), then as written.
 fn by_address(address: &str) -> (String, String) {
     (nfc(address), address.to_owned())
@@ -590,7 +590,7 @@ fn by_address(address: &str) -> (String, String) {
 /// same line; problems about no collection come last.
 fn in_place_order(problems: &mut [Error]) {
     problems.sort_by_cached_key(|problem| match problem.place() {
-        Some((path, line)) => (false, nfc(path), path.to_owned(), line),
+        Some((address, line)) => (false, nfc(address), address.to_owned(), line),
         None => (true, String::new(), String::new(), 0),
     });
 }
@@ -617,7 +617,7 @@ pub(crate) fn check_new(new: &[Object], programs: &Programs) -> Vec<Error> {
             Ok(item) => items.push(item),
             Err(Unread::Problem(problem)) => problems.push(problem),
             Err(Unread::Unidentified(origin)) => problems.push(Error::MissingId {
-                path: origin.address,
+                address: origin.address,
                 line: origin.line,
             }),
         }
@@ -643,8 +643,8 @@ fn written_item(
     programs: &Programs,
 ) -> std::result::Result<Item, Unread> {
     let at = |reason: String| {
-        Unread::Problem(Error::Note {
-            path: origin.address.clone(),
+        Unread::Problem(Error::At {
+            address: origin.address.clone(),
             line: origin.line,
             reason,
         })
@@ -680,7 +680,7 @@ fn written_item(
 /// An item as written by a source that gives no text of its own: its item
 /// object on one line, as `srl` writes one.
 fn as_one_line(object: &Object) -> String {
-    serde_json::Value::Object(crate::domain::note::object::written(
+    serde_json::Value::Object(crate::domain::item::object::written(
         &object.entries,
         &object.fields,
     ))
@@ -704,8 +704,8 @@ fn unique(items: Vec<Item>) -> (Vec<Item>, Vec<Error>) {
     let mut duplicates = Vec::new();
     for item in items {
         if let Some((address, line)) = first.get(&item.id) {
-            duplicates.push(Error::Note {
-                path: item.origin.address.clone(),
+            duplicates.push(Error::At {
+                address: item.origin.address.clone(),
                 line: item.origin.line,
                 reason: format!(
                     "the ID {} is also used by {}; delete the ID from the copy \
@@ -792,7 +792,7 @@ mod tests {
         let lines = problems
             .iter()
             .map(|problem| {
-                let (Error::Note { line, .. } | Error::MissingId { line, .. }) = problem else {
+                let (Error::At { line, .. } | Error::MissingId { line, .. }) = problem else {
                     panic!("unexpected {problem}");
                 };
                 *line

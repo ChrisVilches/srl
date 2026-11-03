@@ -36,7 +36,7 @@ pub(crate) fn addresses(collections: &[CollectionInfo]) {
     }
 }
 
-/// Prints one line per changed item: its ID and `PATH:LINE`, separated by
+/// Prints one line per changed item: its ID and `ADDRESS:LINE`, separated by
 /// two spaces.
 pub(crate) fn written(written: &[Written]) {
     for done in written {
@@ -44,7 +44,7 @@ pub(crate) fn written(written: &[Written]) {
     }
 }
 
-/// Prints one line per card: its ID, `PATH:LINE` of its item, and the
+/// Prints one line per card: its ID, `ADDRESS:LINE` of its item, and the
 /// first line of the item's first field, separated by two spaces.
 pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
     for (item, card) in cards {
@@ -58,7 +58,7 @@ pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
     }
 }
 
-/// Prints items for people: for each, a line `PATH:LINE`, the item as
+/// Prints items for people: for each, a line `ADDRESS:LINE`, the item as
 /// written, and the context after a line `---` if there is one. Items are
 /// separated by blank lines.
 pub(crate) fn items(items: &[(&Item, Option<Context>)]) {
@@ -177,7 +177,7 @@ pub(crate) fn sources(sources: &[SourceDescription]) {
     }
 }
 
-/// Prints what `srl lint` found, as `PATH:LINE: message`.
+/// Prints what `srl lint` found, as `ADDRESS:LINE: message`.
 pub(crate) fn lints(found: &[Lint]) {
     for lint in found {
         println!("{}: {}", at(&lint.address, lint.line), lint.message);

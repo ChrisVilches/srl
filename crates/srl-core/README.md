@@ -7,10 +7,12 @@ for the command line. **If you want to study, install `srl` instead:**
 cargo install srl
 ```
 
-`srl-core` holds every rule of `srl`: the store, the item syntaxes (srl
-blocks in Markdown notes, JSONL notes), kinds, cards and cloze deletions,
-the review log, FSRS scheduling and selectors. It also runs the kind
-programs a store names in its configuration, which turn items into cards.
+`srl-core` holds every rule of `srl`: the store, its sources of items
+(the built-in drivers, of srl blocks in Markdown notes and of JSONL
+notes, and source programs), kinds, cards and cloze deletions, the review
+log, FSRS scheduling and selectors. It also runs the kind and source
+programs a store names in its configuration: kind programs turn items
+into cards, and source programs keep items their own way.
 The `srl` command line is a thin layer on top of it.
 
 The library has no CLI code and does no I/O behind your back: it never

@@ -12,8 +12,8 @@ use std::path::Path;
 use globset::GlobSet;
 
 use crate::config::SourceConfig;
-use crate::domain::note::object::Object;
-use crate::domain::note::{Entries, Field};
+use crate::domain::item::object::Object;
+use crate::domain::item::{Entries, Field};
 use crate::source::{Change, Collection, Description, Problem, Read, ReadItem, Refusal};
 use crate::store::nfc;
 use crate::{Error, Result, Store};

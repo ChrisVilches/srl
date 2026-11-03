@@ -145,17 +145,17 @@ impl Selector {
     }
 }
 
-/// The names `in:` matches for a note path: each folder, and the file name
-/// without its extension, in NFC and lowercased.
-fn names(path: &str) -> impl Iterator<Item = String> + '_ {
-    let (folders, file) = path.rsplit_once('/').unwrap_or(("", path));
-    let stem = Path::new(file)
+/// The names `in:` matches for an address: each part before the last, and
+/// the last part without its extension, in NFC and lowercased.
+fn names(address: &str) -> impl Iterator<Item = String> + '_ {
+    let (parents, last) = address.rsplit_once('/').unwrap_or(("", address));
+    let stem = Path::new(last)
         .file_stem()
         .and_then(|stem| stem.to_str())
-        .unwrap_or(file);
-    folders
+        .unwrap_or(last);
+    parents
         .split('/')
-        .filter(|folder| !folder.is_empty())
+        .filter(|part| !part.is_empty())
         .chain([stem])
         .map(|name| nfc(name).to_lowercase())
 }
@@ -428,7 +428,7 @@ mod tests {
     }
 
     #[test]
-    fn in_drops_only_the_file_names_extension() {
+    fn in_drops_only_the_last_parts_extension() {
         assert_eq!(
             names("v1.2/Grammar.notes.TXT").collect::<Vec<_>>(),
             ["v1.2", "grammar.notes"]

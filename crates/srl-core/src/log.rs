@@ -13,8 +13,8 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::config::Schedule;
-use crate::domain::note::Entries;
-use crate::domain::note::object::written;
+use crate::domain::item::Entries;
+use crate::domain::item::object::written;
 use crate::kind::Kind;
 use crate::{CardId, Error, Item, Result, Store};
 
@@ -144,7 +144,7 @@ pub(crate) fn time(now: &Zoned) -> String {
 /// The `hash` of an item: the start of the SHA-256, in hex, of its kind and
 /// fields as an item object, written as `srl` writes one (see
 /// `docs/log.md`). Its ID, `see` and `draft` are left out, and so is how
-/// its note writes it, so that only a change to the question changes it.
+/// its source writes it, so that only a change to the question changes it.
 pub(crate) fn hash(item: &Item) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let entries = Entries {

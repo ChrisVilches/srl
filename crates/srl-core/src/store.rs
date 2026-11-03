@@ -79,7 +79,8 @@ pub struct Lookup {
     pub data_dir: Option<PathBuf>,
 }
 
-/// One `srl` store: a folder of notes with a `.srl/` folder in it.
+/// One `srl` store: a folder with a `.srl/` folder in it, and the sources
+/// of its items, by default its notes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Store {
     root: PathBuf,

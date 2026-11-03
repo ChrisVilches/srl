@@ -53,7 +53,7 @@ fn check_rating(rating: u8) -> Result<()> {
 /// store. Returns the events; with `dry_run`, they are not written.
 pub fn review(
     store: &Store,
-    notes: &Catalog,
+    catalog: &Catalog,
     requests: &[ReviewRequest],
     now: &Zoned,
     dry_run: bool,
@@ -62,7 +62,7 @@ pub fn review(
         .iter()
         .map(|request| {
             check_rating(request.rating)?;
-            let (item, _) = notes
+            let (item, _) = catalog
                 .card(&request.card)
                 .ok_or_else(|| Error::UnknownCard {
                     id: request.card.to_string(),
@@ -165,7 +165,7 @@ fn card_events(ids: &[CardId], now: &Zoned, kind: fn(CardEvent) -> Event) -> Vec
 /// no events at all (see `docs/scheduling.md`, "Moving history").
 pub fn move_history(
     store: &Store,
-    notes: &Catalog,
+    catalog: &Catalog,
     memories: &Memories,
     from: &CardId,
     to: &CardId,
@@ -177,7 +177,7 @@ pub fn move_history(
         to: to.to_string(),
         reason: reason.to_owned(),
     };
-    if notes.card(from).is_some() {
+    if catalog.card(from).is_some() {
         return Err(refuse(&format!(
             "{from} is still a card of the store; only an orphan's history can move"
         )));
@@ -185,7 +185,7 @@ pub fn move_history(
     if memories.get(from).seen.is_none() {
         return Err(refuse(&format!("{from} has no reviews to move")));
     }
-    if notes.card(to).is_none() {
+    if catalog.card(to).is_none() {
         return Err(refuse(&format!("{to} is not a card of the store")));
     }
     if memories.get(to).touched {
@@ -229,8 +229,8 @@ mod tests {
             "```srl\n@ id:aaa1\nQ: q\nA: a\n\n@ id:aaa2\nQ: {{c1::x}} {{c2::y}}\n\n@ id:aaa3 draft\nQ: d\nA: e\n```\n",
         )
         .unwrap();
-        let notes = Catalog::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();
-        (tmp, store, notes)
+        let catalog = Catalog::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();
+        (tmp, store, catalog)
     }
 
     fn now() -> Zoned {
@@ -264,12 +264,12 @@ mod tests {
 
     #[test]
     fn a_review_is_recorded_for_its_card() {
-        let (_tmp, store, notes) = store();
+        let (_tmp, store, catalog) = store();
         let request = ReviewRequest::parse(
             r#"{"card": "aaa2.2", "rating": 2, "response": "y", "by": "agent"}"#,
         )
         .unwrap();
-        let events = review(&store, &notes, &[request], &now(), false).unwrap();
+        let events = review(&store, &catalog, &[request], &now(), false).unwrap();
         assert_eq!(logged(&store), events);
         let Event::Review(first) = &events[0] else {
             panic!("expected a review");
@@ -292,10 +292,10 @@ mod tests {
         ] {
             assert!(ReviewRequest::parse(text).is_err(), "accepted {text}");
         }
-        let (_tmp, store, notes) = store();
+        let (_tmp, store, catalog) = store();
         for card in ["aaa2", "zzz9", "aaa1.1"] {
             assert!(
-                review(&store, &notes, &[request(card, 3)], &now(), false).is_err(),
+                review(&store, &catalog, &[request(card, 3)], &now(), false).is_err(),
                 "accepted {card}"
             );
         }
@@ -304,9 +304,9 @@ mod tests {
 
     #[test]
     fn reset_only_touches_cards_that_are_not_new() {
-        let (_tmp, store, notes) = store();
-        review(&store, &notes, &[request("aaa1", 3)], &now(), false).unwrap();
-        let all = notes.cards().collect::<Vec<_>>();
+        let (_tmp, store, catalog) = store();
+        review(&store, &catalog, &[request("aaa1", 3)], &now(), false).unwrap();
+        let all = catalog.cards().collect::<Vec<_>>();
         let reset_ids = reset(&store, &all, &memories(&store), &now(), false).unwrap();
         assert_eq!(reset_ids, [CardId::parse("aaa1").unwrap()]);
         assert!(matches!(logged(&store).last(), Some(Event::Reset(_))));
@@ -314,8 +314,8 @@ mod tests {
 
     #[test]
     fn suspend_and_unsuspend_skip_drafts_and_cards_already_there() {
-        let (_tmp, store, notes) = store();
-        let all = notes.cards().collect::<Vec<_>>();
+        let (_tmp, store, catalog) = store();
+        let all = catalog.cards().collect::<Vec<_>>();
         let suspended = suspend(&store, &all, &memories(&store), None, &now(), false).unwrap();
         assert_eq!(suspended.len(), 3);
         let again = suspend(&store, &all, &memories(&store), None, &now(), false).unwrap();
@@ -329,8 +329,8 @@ mod tests {
 
     #[test]
     fn a_reason_replaces_the_reason_of_cards_already_suspended() {
-        let (_tmp, store, notes) = store();
-        let all = notes.cards().collect::<Vec<_>>();
+        let (_tmp, store, catalog) = store();
+        let all = catalog.cards().collect::<Vec<_>>();
         let id = CardId::parse("aaa1").unwrap();
         suspend(&store, &all[..1], &memories(&store), None, &now(), false).unwrap();
         assert_eq!(memories(&store).suspend_reason(&id), None);
@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn history_moves_only_from_an_orphan_to_an_untouched_card() {
-        let (_tmp, store, notes) = store();
+        let (_tmp, store, catalog) = store();
         let id = |text: &str| CardId::parse(text).unwrap();
         log::append(
             &store,
@@ -360,10 +360,18 @@ mod tests {
             })],
         )
         .unwrap();
-        review(&store, &notes, &[request("aaa2.1", 3)], &now(), false).unwrap();
+        review(&store, &catalog, &[request("aaa2.1", 3)], &now(), false).unwrap();
         let memories = memories(&store);
         let attempt = |from: &str, to: &str| {
-            move_history(&store, &notes, &memories, &id(from), &id(to), &now(), true)
+            move_history(
+                &store,
+                &catalog,
+                &memories,
+                &id(from),
+                &id(to),
+                &now(),
+                true,
+            )
         };
         assert!(attempt("aaa1", "aaa2.2").is_err(), "a card of the store");
         assert!(attempt("zzz1", "aaa2.2").is_err(), "no reviews");

@@ -5,7 +5,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::note::{ItemId, is_id_text};
+use crate::domain::item::{ItemId, is_id_text};
 use crate::{Error, Result};
 
 /// The character between a card ID's item ID and its suffix, as in

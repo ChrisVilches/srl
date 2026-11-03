@@ -22,7 +22,8 @@
 //!
 //! The card made for suffix `S` has the prompt `S?`, the revealed prompt
 //! `S!`, and an answer that tells what the program got: the study day, the
-//! context and its format, and the name of the folder it ran in.
+//! context and the address of its collection, and the name of the folder it
+//! ran in.
 //!
 //! `describe` has no item, so an argument before the call decides it
 //! instead: `fail` makes it fail, and any other text is printed as is, in

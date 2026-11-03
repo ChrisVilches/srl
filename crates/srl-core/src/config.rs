@@ -8,7 +8,7 @@ use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use jiff::civil::{Date, DateTime};
 use serde::Deserialize;
 
-use crate::domain::note::is_id_text;
+use crate::domain::item::is_id_text;
 use crate::store::nfc;
 use crate::{Error, Result, Store};
 
@@ -93,7 +93,7 @@ impl Driver {
 pub struct SourceConfig {
     pub driver: Driver,
     /// Where the source's collections are among the store's addresses:
-    /// `""`, or a path ending in `/`.
+    /// `""`, or folders ending in `/`, such as `vocab/`.
     pub prefix: String,
     /// Globs of notes, relative to the store's folder; the driver's own
     /// when not given. Only for the notes' drivers.

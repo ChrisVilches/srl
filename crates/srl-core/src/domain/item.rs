@@ -26,8 +26,8 @@ pub struct Field {
 }
 
 /// What an item says about itself besides its fields: its header entries
-/// (see `docs/items.md`, "Header entries"), whatever the syntax writes them
-/// as.
+/// (see `docs/items.md`, "Header entries"), however its source writes
+/// them.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Entries {
     pub(crate) id: Option<ItemId>,
@@ -175,8 +175,9 @@ impl Item {
         &self.id
     }
 
-    /// The address of the item's collection: for a note, its path,
-    /// relative to the store's folder, with `/` between folders.
+    /// The address of the item's collection: for a note of a source
+    /// without a prefix, its path relative to the store's folder, with `/`
+    /// between folders.
     pub fn address(&self) -> &str {
         &self.origin.address
     }
@@ -203,7 +204,7 @@ impl Item {
         &self.kind
     }
 
-    /// The path `see:` gives, if any.
+    /// The address `see` gives, if any.
     pub fn see(&self) -> Option<&str> {
         self.see.as_deref()
     }
@@ -216,7 +217,7 @@ impl Item {
         &self.fields
     }
 
-    /// The item written on its own, lines joined with `\n`, as the syntax
+    /// The item written on its own, lines joined with `\n`, as its source
     /// gives it: what `srl show` prints.
     pub fn text(&self) -> &str {
         &self.text
@@ -261,8 +262,8 @@ impl Item {
     }
 
     /// The item object, with every entry and the keys only `srl` gives
-    /// (see `docs/items.md`, "The item object"), with its context and the
-    /// path of the note it comes from.
+    /// (see `docs/items.md`, "The item object"), with its context and
+    /// where it comes from.
     pub fn json(&self, context: Option<&Context>) -> Value {
         let mut object = Map::new();
         object.insert("id".to_owned(), Value::from(self.id.as_str()));

@@ -181,7 +181,7 @@ again.
 - **No access:** if the cache can't be created, opened or written (for
   example a read-only store, or another `srl` holding it for more than 5
   seconds), this is reported on standard error and the command reads the
-  files directly, and asks kind programs about every item.
+  log directly, and asks kind programs about every item.
 - `.srl/cache/` is created by the first command that needs it.
 - Each update is one SQLite transaction, so several `srl` processes can
   share the cache.

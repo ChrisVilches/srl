@@ -43,9 +43,10 @@ pub enum Error {
     )]
     InvalidCardId { text: String },
 
-    #[error("{}: {reason}", at(path, *line))]
-    Note {
-        path: String,
+    /// A problem in a source, at an item or a line of a collection.
+    #[error("{}: {reason}", at(address, *line))]
+    At {
+        address: String,
         line: Option<usize>,
         reason: String,
     },
@@ -53,14 +54,17 @@ pub enum Error {
     #[error("{address}: {reason}")]
     Collection { address: String, reason: String },
 
-    #[error("{}: this item has no ID; run `srl id` to give it one", at(path, *line))]
-    MissingId { path: String, line: Option<usize> },
+    #[error("{}: this item has no ID; run `srl id` to give it one", at(address, *line))]
+    MissingId {
+        address: String,
+        line: Option<usize>,
+    },
 
     #[error(
-        "{count} problem(s) in the notes, listed above; fix them first, since srl reads every \
-         item strictly"
+        "{count} problem(s) in the store's sources, listed above; fix them first, since srl \
+         reads every item strictly"
     )]
-    NotesInvalid { count: usize },
+    ItemsInvalid { count: usize },
 
     #[error("no item or card has the ID {id}; list cards with `srl find`")]
     UnknownId { id: String },
@@ -92,8 +96,8 @@ pub enum Error {
     #[error("line {line} of standard input is not a valid item: {reason}; nothing was written")]
     InvalidLine { line: usize, reason: String },
 
-    #[error("cannot add to {path}: {reason}; nothing was added")]
-    InvalidNotePath { path: String, reason: String },
+    #[error("cannot add to {address}: {reason}; nothing was added")]
+    CannotAdd { address: String, reason: String },
 
     #[error(
         "{path} changed while srl was working on it, so it was not written; run the command \
@@ -149,13 +153,13 @@ pub enum Error {
     Fsrs { reason: String },
 
     #[error(
-        "the index cache {} was damaged ({reason}), so it was rebuilt from the files; nothing was lost",
+        "the index cache {} was damaged ({reason}), so it was rebuilt from the log and the kind programs; nothing was lost",
         path.display()
     )]
     CacheRebuilt { path: PathBuf, reason: String },
 
     #[error(
-        "cannot use the index cache {}: {reason}; reading the files directly instead, which is slower \
+        "cannot use the index cache {}: {reason}; reading the log and asking kind programs directly instead, which is slower \
          (check that you may write to the store's .srl/cache folder, or delete it)",
         path.display()
     )]
@@ -178,8 +182,8 @@ impl Error {
         if let Self::Collection { address, .. } = self {
             return Some((address.as_str(), 0));
         }
-        if let Self::Note { path, line, .. } | Self::MissingId { path, line } = self {
-            Some((path.as_str(), line.unwrap_or(0)))
+        if let Self::At { address, line, .. } | Self::MissingId { address, line } = self {
+            Some((address.as_str(), line.unwrap_or(0)))
         } else {
             None
         }
