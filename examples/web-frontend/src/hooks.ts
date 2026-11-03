@@ -18,7 +18,7 @@ export function useKeys(active: boolean, onKey: (event: KeyboardEvent) => void) 
     if (!active) return;
     const listener = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.target instanceof HTMLInputElement) return;
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
       if (document.querySelector('dialog[open]')) return;
       onKey(event);
     };

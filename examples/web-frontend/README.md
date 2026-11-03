@@ -66,7 +66,8 @@ as how `ja_word` marks words, without studying:
   choosing another card stops the one being made (see "How it works").
 - Each card is made once and kept; **Make again** (`r`) runs its kind
   program again, and submitting the selector forgets every card made.
-- Keys: ↑/↓ (or `k`/`j`) choose a card, space (or Enter) turns it.
+- Keys: ↑/↓ (or `k`/`j`) choose a card. Turning it is done with the
+  mouse only, so that space and Enter stay free for typing.
 - It records nothing: no review, no suspension. Studying starts only when
   the Study tab is first shown, so a page opened on `#browse` runs no
   `srl next`.

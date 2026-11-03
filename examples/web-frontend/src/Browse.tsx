@@ -103,16 +103,13 @@ export function Browse({ active }: { active: boolean }) {
 
   const cards = list.kind === 'ready' ? list.cards : [];
 
-  // Keys: ↑/↓ (or k/j) choose a card, space or Enter turns it, r makes it again.
+  // Keys: ↑/↓ (or k/j) choose a card, r makes it again.
   useKeys(active, (event) => {
     const at = cards.findIndex((c) => c.id === selected);
     const move = MOVES[event.key];
     if (move !== undefined) {
       event.preventDefault();
       if (cards.length > 0) setSelected(cards[Math.max(0, Math.min(at + move, cards.length - 1))].id);
-    } else if (event.key === ' ' || event.key === 'Enter') {
-      event.preventDefault();
-      setSide((s) => (s === 'prompt' ? 'revealed' : 'prompt'));
     } else if (event.key === 'r' && selected !== null && made[selected]?.kind !== 'making') {
       make(selected);
     }
@@ -263,9 +260,6 @@ function Preview({
             </button>
           ))}
         </div>
-        <span className="inline-flex items-center gap-1 text-xs text-stone-400">
-          <Key>space</Key> turns
-        </span>
         <button
           onClick={onMake}
           disabled={made?.kind === 'making'}
