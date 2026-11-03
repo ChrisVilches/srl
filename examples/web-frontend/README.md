@@ -124,6 +124,10 @@ It also **adds items** (the Add tab, or `#add`), one at a time:
   the fields. The page knows no rule of any kind: srl checks the item, and
   the page shows what srl says, such as a field the kind needs. Fields
   left blank are left out of the item, and `kind` is left out for `qa`.
+- What Check and Add give, the item, its ID or srl's error, is shown in
+  a modal, `src/Modal.tsx` as every dialog of the page. It opens with its
+  Close button focused, so Enter, space or Escape closes it and gives the
+  focus back to the form, to write the next item.
 
 It is an npm package of its own, kept apart from `srl` and from the other
 examples: everything it needs is in this folder.

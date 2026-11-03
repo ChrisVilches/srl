@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { api, type KindDescription, type NewItem, type SourceDescription } from './api';
-import { ErrorView, Key, KindBadge, Label, MAIN_BUTTON, Notice, OUTLINE_BUTTON, Panel, QUIET_BUTTON, WITH_KEY } from './CardParts';
+import { ErrorView, Key, KindBadge, Label, MAIN_BUTTON, Notice, OUTLINE_BUTTON, QUIET_BUTTON, WITH_KEY } from './CardParts';
 import { useStartWhenShown } from './hooks';
+import { Modal } from './Modal';
 import { TopBar } from './TopBar';
 
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
@@ -203,7 +204,7 @@ export function Add({ active }: { active: boolean }) {
               {busy && <span className="text-sm text-stone-400">Asking srl…</span>}
             </div>
 
-            <ResultView result={result} kind={kind.name} />
+            <ResultModal result={result} kind={kind.name} onClose={() => setResult({ kind: 'none' })} />
           </div>
         )}
       </main>
@@ -232,36 +233,39 @@ function Section({
   );
 }
 
-function ResultView({ result, kind }: { result: Result; kind: string }) {
-  switch (result.kind) {
-    case 'none':
-      return null;
-    case 'checked':
-      return (
-        <Panel tone="ok" title="Valid. srl would append:">
-          <pre className="overflow-x-auto font-mono text-sm whitespace-pre-wrap">{result.text}</pre>
-        </Panel>
-      );
-    case 'added':
-      return (
-        <Panel tone="ok" title={`Added to ${result.note}`}>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            {result.ids.map((id) => (
-              <code key={id} className="font-mono">
-                {id}
-              </code>
-            ))}
-            <KindBadge kind={kind} />
-          </div>
-        </Panel>
-      );
-    case 'error':
-      return (
-        <Panel tone="error" title="srl refused the item">
-          <pre className="overflow-x-auto text-sm whitespace-pre-wrap">{result.message}</pre>
-        </Panel>
-      );
-  }
+const OK_BOX = 'rounded-lg bg-emerald-50 p-3 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100';
+const ERROR_BOX = 'rounded-lg bg-rose-50 p-3 text-rose-950 dark:bg-rose-950/40 dark:text-rose-200';
+
+// What the last Check or Add gave, in a modal, closed to go on writing. The
+// browser focuses its Close button, so Enter, space or Escape closes it,
+// and gives the focus back to where it was in the form.
+function ResultModal({ result, kind, onClose }: { result: Result; kind: string; onClose: () => void }) {
+  const title = {
+    none: '',
+    checked: 'Valid. srl would append:',
+    added: result.kind === 'added' ? `Added to ${result.note}` : '',
+    error: 'srl refused the item',
+  }[result.kind];
+  return (
+    <Modal open={result.kind !== 'none'} title={title} onClose={onClose}>
+      {result.kind === 'checked' && (
+        <pre className={`max-h-[50vh] overflow-auto font-mono text-sm whitespace-pre-wrap ${OK_BOX}`}>{result.text}</pre>
+      )}
+      {result.kind === 'added' && (
+        <div className={`flex flex-wrap items-center gap-2 text-sm ${OK_BOX}`}>
+          {result.ids.map((id) => (
+            <code key={id} className="font-mono">
+              {id}
+            </code>
+          ))}
+          <KindBadge kind={kind} />
+        </div>
+      )}
+      {result.kind === 'error' && (
+        <pre className={`max-h-[50vh] overflow-auto text-sm whitespace-pre-wrap ${ERROR_BOX}`}>{result.message}</pre>
+      )}
+    </Modal>
+  );
 }
 
 // How many matching notes the picker shows.

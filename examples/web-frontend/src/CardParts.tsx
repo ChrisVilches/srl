@@ -136,7 +136,7 @@ export function ErrorView({ message, onRetry }: { message: string; onRetry: () =
   );
 }
 
-// What srl answered to a change, such as adding or saving an item: in green
+// What srl answered to a change, such as saving an item: in green
 // when it worked, in red when it didn't.
 export function Panel({ tone, title, children }: { tone: 'ok' | 'error'; title: string; children?: ReactNode }) {
   const style =
