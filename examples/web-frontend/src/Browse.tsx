@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type FoundCard, type ShownCard } from './api';
-import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, StateBadges, Waiting, WITH_KEY } from './CardParts';
+import { CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, StateBadges, Waiting, WITH_KEY } from './CardParts';
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
 import type { ViewProps } from './App';
@@ -151,11 +151,12 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
     <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar view="browse">
         <SelectorInput selector={selector} onSelector={onSelector} />
+        {list.kind === 'loading' && <Skeleton className="h-4 w-16" />}
         {list.kind === 'ready' && <Counts counts={[[cards.length, cards.length === 1 ? 'card' : 'cards']]} />}
       </TopBar>
       <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-4 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-cols-[26rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
         <div className="overflow-y-auto border-b border-stone-200 [scrollbar-gutter:stable] lg:border-r lg:border-b-0 dark:border-stone-800">
-          {list.kind === 'loading' && <p className="p-6 text-stone-400">Finding cards…</p>}
+          {list.kind === 'loading' && <ListSkeleton />}
           {list.kind === 'error' && (
             <div className="p-6">
               <ErrorView message={list.message} onRetry={() => find(selector)} />
@@ -168,7 +169,8 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
         </div>
         <div className="overflow-y-auto px-4 py-6 [scrollbar-gutter:stable] sm:px-6">
           {/* Until the cards are found, a card the address names may or may
-              not be among them: the preview waits. */}
+              not be among them: the preview waits, in the shape of a card. */}
+          {selected !== null && list.kind === 'loading' && <PreviewSkeleton />}
           {(selected === null || list.kind === 'ready') && (
             <Preview
               missing={selected !== null && !listed ? selected : null}
@@ -183,6 +185,44 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
         </div>
       </main>
     </div>
+  );
+}
+
+// The widths of the excerpts in the list's skeleton, varied so it looks
+// like a list.
+const EXCERPT_WIDTHS = ['w-3/4', 'w-1/2', 'w-2/3', 'w-5/6', 'w-2/5', 'w-3/5', 'w-3/4', 'w-1/2'];
+
+// The list while srl finds the cards: a collection's address, then rows of
+// an ID and an excerpt.
+function ListSkeleton() {
+  return (
+    <Loading label="Finding cards">
+      <div className="border-b border-stone-200 bg-stone-100/95 px-4 py-2 dark:border-stone-800 dark:bg-stone-900/95">
+        <Skeleton className="h-3 w-40" />
+      </div>
+      {EXCERPT_WIDTHS.map((width, i) => (
+        <div key={i} className="border-b border-stone-100 px-4 py-2.5 dark:border-stone-900">
+          <Skeleton className="h-3 w-14" />
+          <Skeleton className={`mt-2 h-4 ${width}`} />
+        </div>
+      ))}
+    </Loading>
+  );
+}
+
+// The card the address names, while srl finds the cards: the sides, then a
+// card with its ID and a question.
+function PreviewSkeleton() {
+  return (
+    <Loading label="Finding the card" className="flex flex-col gap-6">
+      <Skeleton className="h-8 w-72 max-w-full" />
+      <div className="rounded-2xl border border-stone-200 bg-white px-6 pt-4 pb-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="mt-4 h-3 w-20" />
+        <Skeleton className="mt-3 h-6 w-3/4" />
+        <Skeleton className="mt-2 h-6 w-1/2" />
+      </div>
+    </Loading>
   );
 }
 

@@ -37,7 +37,10 @@ macOS and Windows (it is tried on Linux only).
   no keys to press.
 - When the next card takes a while to make, as when its kind program asks
   an LLM, a spinner says so, with the seconds it has taken. Cards that
-  come in under 300 ms replace the last one without it.
+  come in under 300 ms replace the last one without it. Everything else
+  the page waits for, such as the cards of Browse, an item to edit or what
+  Add needs, is shown as a skeleton, grey bars laid out as it will be, in
+  place of a text saying it is loading.
 - The selector can be changed in the page; the counters at the top are the
   cards reviewed, the new ones among them, and the Again ratings. The
   page has one selector, the same in Study and Browse: submitting it in

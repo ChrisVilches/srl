@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { api, type KindDescription, type NewItem, type SourceDescription } from './api';
-import { DraftCheckbox, ErrorView, Key, KindBadge, Label, MAIN_BUTTON, Notice, OUTLINE_BUTTON, QUIET_BUTTON, WITH_KEY } from './CardParts';
+import { DraftCheckbox, ErrorView, Key, KindBadge, Label, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
 import { useStartWhenShown } from './hooks';
 import { Modal, ResultBox } from './Modal';
 import { TopBar } from './TopBar';
@@ -137,7 +137,7 @@ export function Add({ active }: { active: boolean }) {
     <div className="flex min-h-screen flex-col">
       <TopBar view="add">{null}</TopBar>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
-        {store.kind === 'loading' && <Notice>Loading…</Notice>}
+        {store.kind === 'loading' && <FormSkeleton />}
         {store.kind === 'error' && <ErrorView message={store.message} onRetry={load} />}
         {store.kind === 'ready' && kind !== undefined && (
           <div className="flex flex-col gap-6" onKeyDown={onKeyDown}>
@@ -223,6 +223,41 @@ export function Add({ active }: { active: boolean }) {
         )}
       </main>
     </div>
+  );
+}
+
+// The form while srl reads the kinds, collections and sources: the kind,
+// two fields, the collection and context with their hints, Draft and the
+// buttons, as laid out once they come.
+function FormSkeleton() {
+  const label = <Skeleton className="mb-2 h-3 w-20" />;
+  return (
+    <Loading label="Reading the kinds and collections" className="flex flex-col gap-6">
+      <section>
+        {label}
+        <Skeleton className="h-9" />
+        <Skeleton className="mt-3 h-4 w-80 max-w-full" />
+      </section>
+      {[0, 1].map((i) => (
+        <section key={i}>
+          {label}
+          <Skeleton className="h-20" />
+        </section>
+      ))}
+      {['w-1/2', 'w-1/6'].map((rest) => (
+        <section key={rest}>
+          {label}
+          <Skeleton className="h-4" />
+          <Skeleton className={`mt-1 mb-2 h-4 ${rest}`} />
+          <Skeleton className="h-9" />
+        </section>
+      ))}
+      <Skeleton className="h-4 w-16" />
+      <div className="flex gap-2">
+        <Skeleton className="h-11 w-36" />
+        <Skeleton className="h-9 w-20" />
+      </div>
+    </Loading>
   );
 }
 

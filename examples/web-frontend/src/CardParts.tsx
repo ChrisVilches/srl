@@ -199,6 +199,28 @@ export function Waiting({ title, since, children }: { title: string; since: numb
   );
 }
 
+// The shape of what is loading, in place of a text that says so: a view
+// shows one built from Skeleton bars, laid out like what will replace it,
+// so the page doesn't jump when it comes. LABEL says what is loading to a
+// screen reader. Waiting is for a card being made, which can take long
+// enough that the seconds are worth showing.
+export function Loading({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+  return (
+    <div role="status" aria-busy className={className}>
+      <span className="sr-only">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+// A bar of a skeleton, sized by CLASSNAME. It pulses, but not with reduced
+// motion.
+export function Skeleton({ className }: { className: string }) {
+  return (
+    <div aria-hidden className={`rounded-md bg-stone-200 motion-safe:animate-pulse dark:bg-stone-800 ${className}`} />
+  );
+}
+
 export function Notice({ children }: { children: ReactNode }) {
   return <p className="m-auto text-stone-400">{children}</p>;
 }

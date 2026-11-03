@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { api } from './api';
-import { DraftCheckbox, ErrorView, Label, MAIN_BUTTON, QUIET_BUTTON } from './CardParts';
+import { DraftCheckbox, ErrorView, Label, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
 import { Modal, ResultBox } from './Modal';
 
 // Editing an item of any source: its fields and whether it is a draft, as
@@ -51,7 +51,7 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
   };
   useEffect(load, [id]);
 
-  if (loaded.kind === 'loading') return <p className="text-stone-400">Reading the item…</p>;
+  if (loaded.kind === 'loading') return <ItemSkeleton />;
   if (loaded.kind === 'error') return <ErrorView message={loaded.message} onRetry={load} />;
 
   const save = () => {
@@ -119,5 +119,26 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
         </button>
       </div>
     </div>
+  );
+}
+
+// The form while srl reads the item: the item's line, two fields, Draft
+// and the buttons.
+function ItemSkeleton() {
+  return (
+    <Loading label="Reading the item" className="flex flex-col gap-4">
+      <Skeleton className="h-4 w-80 max-w-full" />
+      {['h-14', 'h-24'].map((height) => (
+        <div key={height}>
+          <Skeleton className="mb-2 h-3 w-16" />
+          <Skeleton className={height} />
+        </div>
+      ))}
+      <Skeleton className="h-4 w-16" />
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-16" />
+        <Skeleton className="h-9 w-16" />
+      </div>
+    </Loading>
   );
 }
