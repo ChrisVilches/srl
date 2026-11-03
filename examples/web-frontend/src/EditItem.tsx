@@ -66,7 +66,7 @@ export function EditItem({ id, onSaved, onCancel }: { id: string; onSaved: () =>
       </label>
       {saving.error !== null && <p className="text-sm whitespace-pre-wrap text-red-600 dark:text-red-400">{saving.error}</p>}
       <div className="flex gap-2">
-        <button onClick={save} disabled={saving.busy} className={`${MAIN_BUTTON} disabled:opacity-50`}>
+        <button onClick={save} disabled={saving.busy} className={`px-3 py-2 text-sm ${MAIN_BUTTON}`}>
           Save
         </button>
         <button onClick={onCancel} className={`text-sm ${QUIET_BUTTON}`}>
