@@ -263,7 +263,7 @@ uses the default store. `npm run build` checks the types and builds
 
 ## TODO
 
-- The collection picker of the Add tab (`NotePicker` in `src/Add.tsx`) is
+- The collection picker of the Add tab (`CollectionPicker` in `src/Add.tsx`) is
   written by hand, a plain `<input>` and a `<ul>` under it, and is not
   accessible: it has no `role="combobox"`, `listbox` or `option`, no
   `aria-expanded`, `aria-controls` or `aria-activedescendant`, so a
