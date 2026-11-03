@@ -17,7 +17,7 @@ type List = { kind: 'loading' } | { kind: 'ready'; cards: FoundCard[] } | { kind
 // A card being made, made (with how long it took), or that couldn't be.
 type Made =
   | { kind: 'making'; since: number }
-  | { kind: 'ready'; card: ShownCard; ms: number }
+  | { kind: 'ready'; card: ShownCard }
   | { kind: 'error'; message: string };
 
 // How the chosen card is shown: as studying shows its prompt, as it shows it
@@ -103,7 +103,7 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
     const since = performance.now();
     setMade((m) => ({ ...m, [id]: { kind: 'making', since } }));
     api.card(id, abort.signal).then(
-      (card) => setMade((m) => ({ ...m, [id]: { kind: 'ready', card, ms: performance.now() - since } })),
+      (card) => setMade((m) => ({ ...m, [id]: { kind: 'ready', card } })),
       (error: Error) => {
         if (!abort.signal.aborted) {
           setMade((m) => ({ ...m, [id]: { kind: 'error', message: error.message } }));
@@ -326,29 +326,24 @@ function Preview({
       {editing && <EditItem id={found.item} onSaved={() => onSaved(found.item)} />}
       {!editing && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
       {!editing && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
-      {!editing && made?.kind === 'ready' && (
-        <>
-          {side === 'json' ? (
-            <JsonView
-              value={{
-                id: made.card.id,
-                prompt: made.card.prompt,
-                prompt_revealed: made.card.prompt_revealed,
-                answer: made.card.answer,
-              }}
-            />
-          ) : (
-            <CardFace
-              card={made.card}
-              revealed={side === 'revealed'}
-              badges={<StateBadges status={found.status} state={found.state} />}
-            />
-          )}
-          <p className="text-center text-xs text-stone-400">
-            made by srl cards in {(made.ms / 1000).toFixed(1)} s
-          </p>
-        </>
-      )}
+      {!editing &&
+        made?.kind === 'ready' &&
+        (side === 'json' ? (
+          <JsonView
+            value={{
+              id: made.card.id,
+              prompt: made.card.prompt,
+              prompt_revealed: made.card.prompt_revealed,
+              answer: made.card.answer,
+            }}
+          />
+        ) : (
+          <CardFace
+            card={made.card}
+            revealed={side === 'revealed'}
+            badges={<StateBadges status={found.status} state={found.state} />}
+          />
+        ))}
     </div>
   );
 }
