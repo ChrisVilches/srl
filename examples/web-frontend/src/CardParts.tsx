@@ -89,13 +89,15 @@ function ContextView({ card }: { card: ShownCard }) {
   }
   return (
     <section className="rounded-2xl bg-stone-100 px-6 py-5 dark:bg-stone-900/50">
-      <div className="mb-3 font-mono text-xs text-stone-500">{card.context_address}</div>
+      <div className="mb-3 truncate font-mono text-xs text-stone-500" title={card.context_address ?? undefined}>
+        {card.context_address}
+      </div>
       <Markdown text={contextMarkdown(card.context, card.context_address)} className="prose-sm prose-stone" />
     </section>
   );
 }
 
-const MARKDOWN_EXTENSIONS = ['.md', '.markdown', '.mdx', '.qmd'];
+const MARKDOWN_EXTENSIONS =['.md', '.markdown', '.mdx', '.qmd'];
 
 // The context as Markdown to render, by the extension of its note
 // (context_address). A context from any note but a Markdown one goes in a code

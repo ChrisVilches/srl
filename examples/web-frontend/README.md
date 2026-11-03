@@ -21,7 +21,8 @@ macOS and Windows (it is tried on Linux only).
   such as a JSONL note, is shown as a code block, a JSONL one in colors.
   A table wider than the page scrolls sideways in its own box, leaving
   the text around it in place. A long ID or kind is cut short in the
-  card's header, whole in its tooltip.
+  card's header, and a long note name over the context, whole in its
+  tooltip.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
   card without recording a review, after asking why in a dialog: what to
   fix before studying it again. The reason may be left empty; Enter
