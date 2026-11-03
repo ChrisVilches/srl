@@ -60,8 +60,18 @@ async function web(out) {
     // not the system's setting.
     await page.goto(url);
     await page.evaluate((s) => localStorage.setItem('srl-web-theme', s), scheme);
-    const size = (width) => page.setViewport({ width, height: 900, deviceScaleFactor: 2 });
+    let width = WIDTH;
+    const size = (w, height = 900) => {
+      width = w;
+      return page.setViewport({ width, height, deviceScaleFactor: 2 });
+    };
     const shot = async (name) => {
+      // The window is made as tall as the page. A full-page shot of a page
+      // taller than the window keeps the window's layout, so Study's
+      // rating bar, sticky at the window's bottom, would cover the middle
+      // of the page instead of resting below the card.
+      const height = await page.evaluate(() => document.documentElement.scrollHeight);
+      await size(width, Math.max(900, height));
       // Firefox's scrollbars stay light in the dark scheme. The style is a
       // constructed sheet: srl-web's Content-Security-Policy blocks a
       // <style> tag, such as page.addStyleTag adds, which then never loads.
@@ -74,6 +84,7 @@ async function web(out) {
       const png = path.join(out, `web-${name}-${scheme}.png`);
       await page.screenshot({ path: png, fullPage: true });
       console.log(png);
+      await size(width);
     };
     // Study the cards of a selector, typed into the page's selector box.
     const study = async (selector) => {
@@ -111,7 +122,10 @@ async function web(out) {
     const card = await page.waitForSelector('::-p-text(道頓堀で)');
     await card.click();
     await sleep(2500);
-    await reveal();
+    // Browse turns a card with its tabs, not with a key.
+    const revealed = await page.waitForSelector('button::-p-text(Revealed)');
+    await revealed.click();
+    await sleep(1500);
     await shot('7-browse');
 
     await size(WIDTH);

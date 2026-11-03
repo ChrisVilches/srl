@@ -180,6 +180,12 @@ for something else, and update this section when they change.
   (`style-src 'self'`) blocks the `<style>` tag `page.addStyleTag` adds,
   which then never loads, and the call times out (`script.callFunction
   timed out`).
+- A full-page shot keeps the window's layout, so on a page taller than the
+  window Study's rating bar (sticky at the window's bottom) covered the
+  middle of the page. `shoot.mjs` makes the window as tall as the page
+  before each shot.
+- Browse turns a card with its Prompt and Revealed tabs, not with a key:
+  `shoot.mjs` clicks Revealed.
 - Playwright's own browsers are a large download that may stall; that is
   why the system's Firefox is used.
 - In `srl-web`, inline code in cards and contexts shows its backticks, from the
