@@ -65,7 +65,8 @@ as how `ja_word` marks words, without studying:
   for a moment, so moving through the list makes no card on the way, and
   choosing another card stops the one being made (see "How it works").
 - Each card is made once and kept; **Make again** (`r`) runs its kind
-  program again, and submitting the selector forgets every card made.
+  program again, on every side but Edit, which shows the item and not
+  the card made from it, and submitting the selector forgets every card made.
 - Keys: ↑/↓ (or `k`/`j`) choose a card. Turning it is done with the
   mouse only, so that space and Enter stay free for typing.
 - It records nothing: no review, no suspension. Studying starts only when
