@@ -39,7 +39,7 @@ Meant for Linux, macOS and Windows; tried on Linux only.
   changed items, so
   `srl find`, `srl check`, selectors and scheduling cost nothing.
   `describe`, for `srl kinds` and editors, names the same field, with the
-  label `Prompt` that frontends show in its place (see
+  label `LLM prompt` that frontends show in its place (see
   [docs/cards.md](../../docs/cards.md), "Describing a kind").
 - **`make` calls the LLM**, and srl calls it only for cards about to be
   shown: the one `srl next` (and so every frontend) gives, and each card

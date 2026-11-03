@@ -194,7 +194,7 @@ class AsSrlRunsIt(unittest.TestCase):
     def test_describe_names_the_field_that_validate_checks(self):
         [described] = self.answers(self.run_call("describe", [{}]))
         self.assertEqual([field["name"] for field in described["fields"]], ["PROMPT"])
-        self.assertEqual([field["label"] for field in described["fields"]], ["Prompt"])
+        self.assertEqual([field["label"] for field in described["fields"]], ["LLM prompt"])
 
     def test_make_without_a_key_gives_errors_and_logs_nothing(self):
         with tempfile.TemporaryDirectory() as folder:
