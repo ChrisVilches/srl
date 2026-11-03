@@ -44,3 +44,22 @@ export function Modal({
     </dialog>
   );
 }
+
+const RESULT_BOX = {
+  ok: 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100',
+  error: 'bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-200',
+};
+
+// What srl answered to a change, in a modal: in green when it worked, in red
+// when it didn't. Its text keeps its line breaks and wraps, and a long
+// answer scrolls in the box; MONO for text written for srl, such as an item.
+// Every view that changes the store shows its outcome this way.
+export function ResultBox({ tone, mono, children }: { tone: 'ok' | 'error'; mono?: boolean; children: ReactNode }) {
+  return (
+    <div
+      className={`max-h-[50vh] overflow-y-auto rounded-lg p-3 text-sm break-words whitespace-pre-wrap ${mono ? 'font-mono' : ''} ${RESULT_BOX[tone]}`}
+    >
+      {children}
+    </div>
+  );
+}

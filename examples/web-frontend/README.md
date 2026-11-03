@@ -91,10 +91,10 @@ fields and whether it is a draft, as `srl show --json` gives them, and **Save** 
 --stdin`; `srl` finds the item by its ID, and its source writes it. The
 cards are then found again in place: the list stays where it is scrolled,
 its rows change where the item's cards changed, and only the item's
-cards are forgotten, to be made anew when shown. The page stays on Edit, and says
-under the form whether it worked: saved, srl's error if it didn't save
-the item, or srl's error if it saved it but couldn't find the cards
-again. Any change to the form clears that. Reset puts back the fields
+cards are forgotten, to be made anew when shown. The page stays on Edit,
+and says whether it worked in the same modal as Add: **Saved** with the
+item's ID, srl's error if it didn't save the item, or srl's error if it
+saved it but couldn't find the cards again. Reset puts back the fields
 and Draft as srl has the item, as read or as last saved, and stays on
 Edit.
 

@@ -137,21 +137,6 @@ export function ErrorView({ message, onRetry }: { message: string; onRetry: () =
   );
 }
 
-// What srl answered to a change, such as saving an item: in green
-// when it worked, in red when it didn't.
-export function Panel({ tone, title, children }: { tone: 'ok' | 'error'; title: string; children?: ReactNode }) {
-  const style =
-    tone === 'ok'
-      ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
-      : 'bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-200';
-  return (
-    <div className={`rounded-lg p-4 ${style}`}>
-      <div className={`text-sm font-semibold ${children === undefined ? '' : 'mb-2'}`}>{title}</div>
-      {children}
-    </div>
-  );
-}
-
 // Numbers for the top bar, each with its name and, optionally, its color.
 export function Counts({ counts }: { counts: [number, string, string?][] }) {
   return (

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { api } from './api';
-import { DraftCheckbox, ErrorView, Label, MAIN_BUTTON, Panel, QUIET_BUTTON } from './CardParts';
+import { DraftCheckbox, ErrorView, Label, MAIN_BUTTON, QUIET_BUTTON } from './CardParts';
+import { Modal, ResultBox } from './Modal';
 
 // Editing an item of any source: its fields and whether it is a draft, as
 // srl show --json gives them, written back whole with srl edit --stdin. The
@@ -10,7 +11,7 @@ import { DraftCheckbox, ErrorView, Label, MAIN_BUTTON, Panel, QUIET_BUTTON } fro
 
 type Loaded = { kind: 'loading' } | { kind: 'ready'; item: Record<string, unknown> } | { kind: 'error'; message: string };
 
-// What became of the last save: shown under the form until the next change.
+// What became of the last save: shown in a modal until it is closed.
 type Saving =
   | { kind: 'idle' }
   | { kind: 'busy' }
@@ -21,7 +22,8 @@ type Saving =
 const isField = (key: string) => /^[A-Z][A-Z0-9_]*$/.test(key);
 
 // ON_SAVED is called once srl has written the item, to show its cards anew;
-// the form stays, with what became of the save. Reset puts back the item as
+// the form stays, and what became of the save is shown in a modal, as Add
+// shows what it gave. Reset puts back the item as
 // srl last had it: as read, or as last saved.
 export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<void> }) {
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
@@ -68,8 +70,6 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
       (error: Error) => setSaving({ kind: 'failed', title: 'srl did not save the item', message: error.message }),
     );
   };
-  // Any change after a save makes its outcome stale.
-  const edited = () => setSaving((s) => (s.kind === 'busy' ? s : { kind: 'idle' }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -82,28 +82,25 @@ export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<v
           <Label>{key}</Label>
           <textarea
             value={text}
-            onChange={(event) => {
-              setTexts((t) => ({ ...t, [key]: event.target.value }));
-              edited();
-            }}
+            onChange={(event) => setTexts((t) => ({ ...t, [key]: event.target.value }))}
             rows={Math.min(12, Math.max(2, text.split('\n').length + 1))}
             className="rounded-lg border border-stone-300 bg-white p-2 font-mono text-sm dark:border-stone-700 dark:bg-stone-900"
           />
         </label>
       ))}
-      <DraftCheckbox
-        checked={draft}
-        onChange={(checked) => {
-          setDraft(checked);
-          edited();
-        }}
-      />
-      {saving.kind === 'saved' && <Panel tone="ok" title="Saved" />}
-      {saving.kind === 'failed' && (
-        <Panel tone="error" title={saving.title}>
-          <pre className="overflow-x-auto text-sm whitespace-pre-wrap">{saving.message}</pre>
-        </Panel>
-      )}
+      <DraftCheckbox checked={draft} onChange={setDraft} />
+      <Modal
+        open={saving.kind === 'saved' || saving.kind === 'failed'}
+        title={saving.kind === 'failed' ? saving.title : 'Saved'}
+        onClose={() => setSaving({ kind: 'idle' })}
+      >
+        {saving.kind === 'saved' && (
+          <ResultBox tone="ok" mono>
+            {String(loaded.item.id)}
+          </ResultBox>
+        )}
+        {saving.kind === 'failed' && <ResultBox tone="error">{saving.message}</ResultBox>}
+      </Modal>
       <div className="flex gap-2">
         <button onClick={save} disabled={saving.kind === 'busy'} className={`px-3 py-2 text-sm ${MAIN_BUTTON}`}>
           Save
