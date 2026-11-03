@@ -53,9 +53,9 @@ impl Memory {
     }
 }
 
-/// A scheduling state (see `docs/scheduling.md`, "States").
+/// Where a card is in its schedule (see `docs/scheduling.md`, "Schedule").
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum State {
+pub enum Place {
     New,
     Due,
     Young,
@@ -237,21 +237,21 @@ impl Memories {
         self.by_card.iter()
     }
 
-    /// The study day the states are computed for.
+    /// The study day the schedule is computed for.
     pub fn today(&self) -> Date {
         self.today
     }
 
-    /// The state of card `id` today.
-    pub fn state(&self, id: &CardId) -> State {
+    /// Where card `id` is in its schedule today.
+    pub fn place(&self, id: &CardId) -> Place {
         let memory = self.get(id);
         match (memory.due, memory.stability()) {
-            (Some(due), _) if due <= self.today => State::Due,
+            (Some(due), _) if due <= self.today => Place::Due,
             (Some(_), Some(stability)) if stability >= to_f32(f64::from(self.mature_days)) => {
-                State::Mature
+                Place::Mature
             }
-            (Some(_), _) => State::Young,
-            (None, _) => State::New,
+            (Some(_), _) => Place::Young,
+            (None, _) => Place::New,
         }
     }
 
@@ -416,7 +416,7 @@ mod tests {
     #[test]
     fn a_card_without_reviews_is_new() {
         let memories = replay(Vec::new(), date(2026, 10, 26));
-        assert_eq!(memories.state(&id()), State::New);
+        assert_eq!(memories.place(&id()), Place::New);
         assert!(!memories.get(&id()).touched);
     }
 
@@ -425,11 +425,11 @@ mod tests {
         let day = date(2026, 10, 26);
         let memories = replay(vec![review(day, 1)], day);
         let memory = memories.get(&id());
-        assert_eq!(memories.state(&id()), State::Young);
+        assert_eq!(memories.place(&id()), Place::Young);
         assert_eq!(memory.due, Some(date(2026, 10, 27)));
         assert!(memories.reviewed_today(&id()));
         let later = replay(vec![review(day, 1)], date(2026, 10, 27));
-        assert_eq!(later.state(&id()), State::Due);
+        assert_eq!(later.place(&id()), Place::Due);
         assert!(!later.reviewed_today(&id()));
     }
 
@@ -468,7 +468,7 @@ mod tests {
             ],
             day,
         );
-        assert_eq!(memories.state(&id()), State::New);
+        assert_eq!(memories.place(&id()), Place::New);
         assert_eq!(memories.get(&id()).seen.map(|seen| seen.position), Some(0));
         assert!(memories.is_suspended(&id()));
         assert_eq!(memories.suspend_reason(&id()).as_deref(), Some("too hard"));

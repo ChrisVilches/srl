@@ -77,8 +77,9 @@ kind (see [cards.md](cards.md), "Kinds"). An item has at least one field.
 
 ## Status
 
-Every card has one status, usable in selectors as `is:NAME` (see
-[selectors.md](selectors.md), "Statuses and states"):
+Every card has one status, given as `status` in the JSON of `srl find`,
+and usable in selectors as `is:NAME` (see
+[selectors.md](selectors.md), "Status, schedule and leeches"):
 
 | Status | Studied? | Comes from |
 |---|---|---|

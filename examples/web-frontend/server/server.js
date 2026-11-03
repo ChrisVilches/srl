@@ -156,7 +156,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
     },
 
     // The card as srl cards --json makes it, with what srl next --json gives
-    // around it but the state, from its item.
+    // around it but its schedule and leech, from its item.
     'GET /api/card': async (url, _body, signal) => {
       const id = requireId(url.searchParams.get('id'));
       const [cards, show] = await Promise.all([

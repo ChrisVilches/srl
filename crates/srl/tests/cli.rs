@@ -277,10 +277,10 @@ fn find_json_prints_one_card_per_line() {
         [
             serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo.md",
                 "source": "notes", "file": "japanese/grammar/wo.md",
-                "line": 10, "status": "active", "state": "new", "due": null, "suspend_reason": null}),
+                "line": 10, "status": "active", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
             serde_json::json!({"id": "saba01", "item": "saba01", "address": "kanji/fish.md",
                 "source": "notes", "file": "kanji/fish.md",
-                "line": 6, "status": "draft", "state": "new", "due": null, "suspend_reason": null}),
+                "line": 6, "status": "draft", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
         ]
     );
 }
@@ -754,7 +754,8 @@ fn next_json_gives_the_card_with_its_state_collection_and_context() {
             "prompt": "What does 〜をものともせず mean?",
             "prompt_revealed": null,
             "answer": "Undeterred by (adversity), braving.",
-            "state": "new",
+            "schedule": "new",
+            "leech": false,
             "kind": "qa",
             "address": "japanese/grammar/wo.md",
             "source": "notes",

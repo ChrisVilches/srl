@@ -13,8 +13,8 @@ use jiff::Zoned;
 use jiff::civil::Date;
 use serde::Serialize;
 use srl_core::{
-    Card, CardId, Catalog, Config, ContextMode, Error, Index, Item, Log, Lookup, Memories,
-    ReviewRequest, Selector, State, Status, Store,
+    Card, CardId, Catalog, Config, ContextMode, Error, Index, Item, Log, Lookup, Memories, Place,
+    ReviewRequest, Selector, Status, Store,
 };
 
 use crate::args::{AddArgs, By, Cli, Command, ReviewArgs};
@@ -283,7 +283,8 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
                     "file": item.file(),
                     "line": item.line(),
                     "status": Status::of(item, card, memories),
-                    "state": state_name(memories.state(card)),
+                    "schedule": place_name(memories.place(card)),
+                    "leech": memories.is_leech(card),
                     "due": memories.get(card).due.map(|day| day.to_string()),
                     "suspend_reason": memories.suspend_reason(card),
                 })
@@ -296,12 +297,12 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
     Ok(found_anything(!found.is_empty()))
 }
 
-fn state_name(state: State) -> &'static str {
+fn place_name(state: Place) -> &'static str {
     match state {
-        State::New => "new",
-        State::Due => "due",
-        State::Young => "young",
-        State::Mature => "mature",
+        Place::New => "new",
+        Place::Due => "due",
+        Place::Young => "young",
+        Place::Mature => "mature",
     }
 }
 
@@ -514,7 +515,8 @@ fn next(
         struct Next<'a> {
             #[serde(flatten)]
             card: &'a Card,
-            state: &'static str,
+            schedule: &'static str,
+            leech: bool,
             kind: &'a str,
             address: &'a str,
             source: &'a str,
@@ -526,7 +528,8 @@ fn next(
         let context = loaded.catalog.context(item, mode)?;
         output::json_lines(&[Next {
             card: &card,
-            state: state_name(loaded.memories.state(card.id())),
+            schedule: place_name(loaded.memories.place(card.id())),
+            leech: loaded.memories.is_leech(card.id()),
             kind: item.kind().as_str(),
             address: item.address(),
             source: item.source(),

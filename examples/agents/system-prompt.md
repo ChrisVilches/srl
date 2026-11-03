@@ -253,7 +253,7 @@ Terms separated by spaces must all match; a comma means or; `-` means not.
 | `source:NAME` | items of one source of the store (`srl sources` lists them) |
 | `id:ID` | a card, or every card of an item |
 | `kind:K` | items of a kind: `qa` (also items with no `kind:`) or a kind in `[kinds]` |
-| `is:S` | a status (`active`, `draft`, `suspended`) or a state (`new`, `due`, `young`, `mature`, `leech`) |
+| `is:S` | a status (`active`, `draft`, `suspended`), a place in the schedule (`new`, `due`, `young`, `mature`), or `leech` |
 | `word` | items containing the text; quote for spaces: `'"two words"'` |
 
 ```sh
@@ -276,12 +276,12 @@ srl find in:rust -is:new        # rust cards already studied
 | `srl add ADDRESS --stdin` | add items to a collection (JSONL of item objects) |
 | `srl edit --stdin` | replace items (JSONL of item objects, each with its `id`) |
 | `srl find is:draft` / `srl accept SEL` | list drafts / accept them |
-| `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its state, kind and context, as frontends read it |
+| `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its schedule, kind and context, as frontends read it |
 | `srl review ID --rating N` | record a rating |
 | `srl suspend SEL [--reason TEXT]` / `srl unsuspend SEL` | stop / resume studying cards; the reason says what to fix later |
 | `srl reset SEL` | make cards new again |
 | `srl move FROM TO` | give an orphan's history to a new card, as `srl check` suggests |
-| `srl stats [SEL]` | counts per state, retention |
+| `srl stats [SEL]` | counts per place in the schedule, leeches, retention |
 | `srl log [SEL]` | the history of cards |
 | `srl check` / `srl lint` | find errors / likely mistakes in items |
 

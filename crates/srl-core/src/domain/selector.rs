@@ -6,7 +6,7 @@ use globset::GlobSet;
 
 use crate::config::globs;
 use crate::store::nfc;
-use crate::{CardId, Config, Error, Item, Kind, Memories, Result, State};
+use crate::{CardId, Config, Error, Item, Kind, Memories, Place, Result};
 
 /// The keys of `key:value` terms.
 const KEYS: &str = "in, path, source, id, kind, is";
@@ -72,22 +72,22 @@ impl Status {
     }
 }
 
-/// A value of `is:`: a status, one of the four exclusive states, or `leech`,
-/// which overlaps them (see `docs/selectors.md`, "Statuses and states").
+/// A value of `is:`: a status, a place in the schedule, or `leech`, which can
+/// go with any place (see `docs/selectors.md`, "Status, schedule and leeches").
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Is {
     Status(Status),
-    State(State),
+    Place(Place),
     Leech,
 }
 
 impl Is {
     fn parse(text: &str) -> Option<Self> {
         match text {
-            "new" => Some(Self::State(State::New)),
-            "due" => Some(Self::State(State::Due)),
-            "young" => Some(Self::State(State::Young)),
-            "mature" => Some(Self::State(State::Mature)),
+            "new" => Some(Self::Place(Place::New)),
+            "due" => Some(Self::Place(Place::Due)),
+            "young" => Some(Self::Place(Place::Young)),
+            "mature" => Some(Self::Place(Place::Mature)),
             "leech" => Some(Self::Leech),
             _ => Status::parse(text).map(Self::Status),
         }
@@ -96,7 +96,7 @@ impl Is {
     fn matches(self, item: &Item, id: &CardId, memories: &Memories) -> bool {
         match self {
             Self::Status(status) => Status::of(item, id, memories) == status,
-            Self::State(state) => memories.state(id) == state,
+            Self::Place(place) => memories.place(id) == place,
             Self::Leech => memories.is_leech(id),
         }
     }
@@ -249,7 +249,7 @@ fn keyed(key: &str, values: &str, config: &Config) -> std::result::Result<Filter
         "is" => each(&values, |value| {
             Is::parse(value).ok_or_else(|| {
                 format!(
-                    "`{value}` is not a status or a state; use active, draft, suspended, new, due, young, mature or leech"
+                    "`{value}` is not a value of `is:`; use active, draft, suspended, new, due, young, mature or leech"
                 )
             })
         })
@@ -460,13 +460,13 @@ mod tests {
     }
 
     #[test]
-    fn is_state_comes_from_the_log() {
+    fn is_place_comes_from_the_log() {
         assert_eq!(pick("is:due"), ["aaa1"]);
         assert_eq!(pick("-is:new"), ["aaa1"]);
     }
 
     #[test]
-    fn is_mixes_statuses_and_states() {
+    fn is_mixes_statuses_places_and_leech() {
         assert_eq!(pick("is:draft,due"), ["aaa1", "aaa3"]);
         assert_eq!(pick("is:new is:active"), ["aaa2.1", "aaa2.2"]);
     }

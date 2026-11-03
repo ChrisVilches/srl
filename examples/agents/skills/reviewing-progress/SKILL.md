@@ -1,6 +1,6 @@
 ---
 name: reviewing-progress
-description: Report how the person's studies are going with srl stats and srl log, find weak spots and leeches, explain the card states, and analyze the review log with jq or duckdb. Load when the person asks about progress, retention, workload, difficult cards, or what to improve.
+description: Report how the person's studies are going with srl stats and srl log, find weak spots and leeches, explain where cards are in their schedule, and analyze the review log with jq or duckdb. Load when the person asks about progress, retention, workload, difficult cards, or what to improve.
 ---
 
 # Reviewing progress
@@ -18,8 +18,8 @@ reviews today  25
 retention  88.5% of 400 reviews in 30 days
 ```
 
-- `new`, `due`, `young` and `mature` add up to `cards`; `leech` overlaps
-  them.
+- `new`, `due`, `young` and `mature` add up to `cards`; `leech` counts the
+  leeches among them.
 - `retention` is the share of reviews in the last 30 study days that were
   not Again, counting only cards that were not new at the time. Compare it
   with `desired_retention` (default 90%): well below means the cards are
@@ -27,21 +27,25 @@ retention  88.5% of 400 reviews in 30 days
   needed.
 - It applies the selector as written, so drafts and suspended cards count
   unless the selector says `is:active`.
-- `--json` gives `{"cards", "states": {...}, "reviews_today", "retention",
+- `--json` gives `{"cards", "schedule": {...}, "leech", "reviews_today", "retention",
   "retention_reviews"}`, with `retention` from 0 to 1 or `null`.
 
 Per-topic comparisons are a selector each: `srl stats in:grammar`,
 `srl stats in:vocab`.
 
-## States
+## Schedule and leeches
 
-| State | Meaning |
+A card is at one place in its schedule, `schedule` in `srl find --json`,
+and is a leech or not, `leech` (`true` or `false`). Select either with
+`is:`.
+
+| Value | Meaning |
 |---|---|
 | `new` | Not reviewed since the last reset. |
 | `due` | Reviewed before, and due today or earlier. |
 | `young` | Not due; stability under 21 days (`mature_days`). |
 | `mature` | Not due; stability of 21 days or more. Known well. |
-| `leech` | Forgotten (rated Again after a first review) 8 times or more (`leech_lapses`). |
+| `leech` | Forgotten (rated Again after a first review) 8 times or more (`leech_lapses`). Not a place in the schedule: a leech is also due, young or mature. |
 
 ## Leeches and weak spots
 

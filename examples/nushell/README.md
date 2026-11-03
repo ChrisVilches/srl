@@ -4,7 +4,7 @@
 gives its data as Nushell data, without `--json` or `| from json --objects`:
 
 ```nu
-srl find in:grammar | where state == due | get id
+srl find in:grammar | where schedule == due | get id
 ```
 
 It is a convenience for people who use `srl` from Nushell. Nothing in it is
@@ -64,8 +64,8 @@ srl find | group-by address --to-table
   | each {|g| {address: $g.address, cards: ($g.items | length)} }
   | sort-by cards --reverse
 
-# How many cards are in each state
-srl stats | get states
+# How many cards are at each place in the schedule
+srl stats | get schedule
 
 # Cards that have been due for more than a week
 srl find is:due

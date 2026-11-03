@@ -26,22 +26,12 @@ selector it didn't write puts it after `--`.
 | `source:NAME` | Cards whose item comes from the source `NAME` of `.srl/config.toml` (see [sources.md](sources.md)): `source:notes` is the cards of the notes of a store without `[sources]`. |
 | `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1.1` and `k3m9q1.2`. |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind` entry, or a kind named in `[kinds]` of `.srl/config.toml` (see [cards.md](cards.md), "Kinds"). A selector without `kind:` matches items of every kind. |
-| `is:S` | Cards with status `S`, one of `active`, `draft` and `suspended` (see [items.md](items.md), "Status"), or in scheduling state `S`, one of `new`, `due`, `young`, `mature` and `leech` (see [scheduling.md](scheduling.md), "States"). States come from replaying the log, so a selector with `is:` needs the configuration and the local time zone. |
+| `is:S` | Cards with status `S`, one of `active`, `draft` and `suspended` (see [items.md](items.md), "Status"); cards at `S` in their schedule, one of `new`, `due`, `young` and `mature` (see [scheduling.md](scheduling.md), "Schedule"); or, for `is:leech`, the leeches (see [scheduling.md](scheduling.md), "Leeches"). See "Status, schedule and leeches" below. These come from replaying the log, so a selector with `is:` needs the configuration and the local time zone. |
 | `word` or `"some words"` | Cards whose item contains the text, case-insensitively, in any field |
 
 `in:` is a quick way to name a topic, taken from how you already arrange
 your collections, such as the folders of your notes: there are no tags
 to write.
-
-## Statuses and states
-
-A card has a status, which says whether it is studied, and a state, which
-says where it is in its schedule. They are two separate things, kept apart
-in `srl find --json` as `status` and `state`, but one key, `is:`, selects
-both: no status and no state share a name, so a value says which it is.
-`is:draft,due` is the drafts and the due cards, and `is:new is:active` the
-new cards that are studied. See [rationale.md](rationale.md), "Why one
-`is:` for statuses and states".
 
 Keys and text are told apart by one rule: a term that starts with lowercase
 letters `a`–`z` and a colon is a `key:value` term, and anything else is text.
@@ -59,8 +49,8 @@ In Windows PowerShell 5.1, write `srl find '\"some words\"'`; in `cmd.exe`,
 write `srl find "\"some words\""`.
 
 A value can't be empty (`in:` or `in:a,,b`), and `source:`, `id:`, `kind:`
-and `is:` values must be sources of the store, valid IDs, kinds, and
-statuses or states. So a typo such as `kind:ja-word` fails instead of
+and `is:` values must be sources of the store, valid IDs, kinds, and the
+values listed for `is:`. So a typo such as `kind:ja-word` fails instead of
 matching nothing.
 
 Three combining rules, and nothing else:
@@ -75,6 +65,23 @@ There is no grouping and no operator precedence. If you need something these
 rules can't express, run two commands.
 
 An empty selector matches every card.
+
+## Status, schedule and leeches
+
+A card has three things that `is:` selects, each separate from the
+others, and given apart in the JSON of `srl find` (see [cli.md](cli.md)):
+
+| JSON field | Says | Values |
+|---|---|---|
+| `status` | whether the card is studied | `active`, `draft`, `suspended` |
+| `schedule` | where the card is in its schedule | `new`, `due`, `young`, `mature` |
+| `leech` | whether the card keeps being forgotten | `true`, `false` |
+
+One key selects all three, since no value of one is a value of another:
+`is:draft` is the drafts, `is:due` the due cards and `is:leech` the
+leeches. `is:draft,due` is the drafts and the due cards, and `is:new
+is:active` the new cards that are studied. See [rationale.md](rationale.md),
+"Why one `is:` for status, schedule and leeches".
 
 ## Defaults per command
 

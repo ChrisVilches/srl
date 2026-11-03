@@ -15,8 +15,8 @@ export type ShownCard = {
 };
 
 // What `srl next --json` prints (docs/frontends.md, "What a frontend gets"):
-// the same, with the card's state.
-export type Card = ShownCard & { state: 'new' | 'due' };
+// the same, with where the card is in its schedule and whether it is a leech.
+export type Card = ShownCard & { schedule: 'new' | 'due'; leech: boolean };
 
 // A card as `srl find --json` lists it (docs/cli.md, "Items and cards"),
 // with its item's kind and the first line of its first field.
@@ -26,7 +26,8 @@ export type FoundCard = {
   address: string;
   line: number | null;
   status: 'active' | 'draft' | 'suspended';
-  state: string;
+  schedule: 'new' | 'due' | 'young' | 'mature';
+  leech: boolean;
   due: string | null;
   // Why the card is suspended, if it was suspended with a reason.
   suspend_reason: string | null;

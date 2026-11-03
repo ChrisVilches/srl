@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use crate::log;
 use crate::{
-    By, CardEvent, CardId, Catalog, Error, Event, Item, Memories, Move, Result, Review, State,
+    By, CardEvent, CardId, Catalog, Error, Event, Item, Memories, Move, Place, Result, Review,
     Store, Suspend,
 };
 
@@ -92,7 +92,7 @@ pub fn reset(
     let ids = selected
         .iter()
         .map(|(_, card)| *card)
-        .filter(|id| memories.state(id) != State::New)
+        .filter(|id| memories.place(id) != Place::New)
         .cloned()
         .collect::<Vec<_>>();
     write(store, card_events(&ids, now, Event::Reset), dry_run)?;

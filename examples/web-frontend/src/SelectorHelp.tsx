@@ -19,10 +19,11 @@ const EXAMPLES: [string, string][] = [
   ['in:grammar,kanji', 'Cards in grammar or in kanji'],
   ['in:japanese -in:kanji', 'Cards in japanese, but not in kanji'],
   ['path:japanese/*', 'Cards of the collections directly in japanese/; path:japanese/** for everything below it'],
-  ['is:due', 'Cards due today; the states are new, due, young, mature and leech'],
+  ['is:due', 'Cards due today; a card is new, due, young or mature in its schedule'],
   ['is:new in:grammar', 'New cards in grammar'],
-  ['is:draft', 'Draft cards; the statuses are active, draft and suspended'],
+  ['is:draft', 'Draft cards; a card is active, draft or suspended'],
   ['is:suspended', 'Suspended cards: in Browse, the cards to fix, each with why'],
+  ['is:leech', 'Cards forgotten again and again, whose question likely needs rewriting'],
   ['kind:qa', 'Cards of items of a kind: qa, or a kind of the store'],
   ['source:notes', 'Cards whose items come from a source of the store'],
   ['id:k3m9q1', 'The cards of an item, or a card, by its ID'],
@@ -53,8 +54,8 @@ export function SelectorHelp() {
         A selector is a list of terms separated by spaces. A term is a <code className="font-mono">key:value</code>{' '}
         or text. The keys are <code className="font-mono">in</code>, <code className="font-mono">path</code>,{' '}
         <code className="font-mono">source</code>, <code className="font-mono">id</code>,{' '}
-        <code className="font-mono">kind</code>, <code className="font-mono">status</code> and{' '}
-        <code className="font-mono">state</code>; any other key is an error. An empty selector is every card.
+        <code className="font-mono">kind</code> and <code className="font-mono">is</code>; any other key is an
+        error. An empty selector is every card.
       </p>
       <Rows rows={RULES} />
       <p>There is no grouping: for something these rules can't say, search twice.</p>

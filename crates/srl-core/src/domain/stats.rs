@@ -1,12 +1,12 @@
-//! `srl stats`: cards per state, reviews today, recent retention (see
-//! `docs/cli.md`, "Analysis").
+//! `srl stats`: cards per place in the schedule, leeches, reviews today,
+//! recent retention (see `docs/cli.md`, "Analysis").
 
 use std::collections::HashSet;
 
 use jiff::Span;
 use serde::Serialize;
 
-use crate::{CardId, Item, Memories, Reviewed, State};
+use crate::{CardId, Item, Memories, Place, Reviewed};
 
 /// How many study days, today included, retention looks back.
 const RETENTION_DAYS: i64 = 30;
@@ -16,7 +16,9 @@ const RETENTION_DAYS: i64 = 30;
 pub struct Stats {
     /// How many cards were looked at.
     pub cards: usize,
-    pub states: StateCounts,
+    pub schedule: ScheduleCounts,
+    /// How many of the cards are leeches, wherever they are in the schedule.
+    pub leech: usize,
     /// Reviews of these cards on today's study day.
     pub reviews_today: usize,
     /// Over the last 30 study days, the share of reviews of these cards
@@ -27,46 +29,41 @@ pub struct Stats {
     pub retention_reviews: usize,
 }
 
-/// Cards per state. `leech` overlaps the other four, which add up to all
-/// cards.
+/// Cards per place in the schedule, which add up to all cards.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
-pub struct StateCounts {
+pub struct ScheduleCounts {
     pub new: usize,
     pub due: usize,
     pub young: usize,
     pub mature: usize,
-    pub leech: usize,
 }
 
 /// The statistics of `cards`, from their memories and every review of the
 /// log.
 pub fn stats(cards: &[(&Item, &CardId)], memories: &Memories, reviews: &[Reviewed]) -> Stats {
-    let states = cards
-        .iter()
-        .fold(StateCounts::default(), |counts, (_, id)| {
-            let counts = StateCounts {
-                leech: counts.leech + usize::from(memories.is_leech(id)),
-                ..counts
-            };
-            match memories.state(id) {
-                State::New => StateCounts {
+    let schedule =
+        cards.iter().fold(
+            ScheduleCounts::default(),
+            |counts, (_, id)| match memories.place(id) {
+                Place::New => ScheduleCounts {
                     new: counts.new + 1,
                     ..counts
                 },
-                State::Due => StateCounts {
+                Place::Due => ScheduleCounts {
                     due: counts.due + 1,
                     ..counts
                 },
-                State::Young => StateCounts {
+                Place::Young => ScheduleCounts {
                     young: counts.young + 1,
                     ..counts
                 },
-                State::Mature => StateCounts {
+                Place::Mature => ScheduleCounts {
                     mature: counts.mature + 1,
                     ..counts
                 },
-            }
-        });
+            },
+        );
+    let leech = cards.iter().filter(|(_, id)| memories.is_leech(id)).count();
     let ids = cards
         .iter()
         .map(|(_, card)| *card)
@@ -90,7 +87,8 @@ pub fn stats(cards: &[(&Item, &CardId)], memories: &Memories, reviews: &[Reviewe
     });
     Stats {
         cards: cards.len(),
-        states,
+        schedule,
+        leech,
         reviews_today: reviews.iter().filter(|review| review.day == today).count(),
         retention,
         retention_reviews: recalled.len(),
@@ -137,7 +135,7 @@ mod tests {
     }
 
     #[test]
-    fn states_today_and_retention_are_counted() {
+    fn schedule_today_and_retention_are_counted() {
         let today = date(2026, 10, 26);
         let entries = vec![
             // Long ago: outside the 30 days.
@@ -163,8 +161,8 @@ mod tests {
             .collect::<Vec<_>>();
         let stats = stats(&cards, &memories, &history.reviews);
         assert_eq!(stats.cards, 3);
-        assert_eq!(stats.states.new, 1);
-        assert_eq!(stats.states.young, 2);
+        assert_eq!(stats.schedule.new, 1);
+        assert_eq!(stats.schedule.young, 2);
         assert_eq!(stats.reviews_today, 2);
         assert_eq!(stats.retention_reviews, 2);
         assert_eq!(stats.retention, Some(0.5));
@@ -180,6 +178,6 @@ mod tests {
         let items = items();
         let stats = stats(&[(&items[0], &items[0].cards()[0])], &memories, &[]);
         assert_eq!(stats.retention, None);
-        assert_eq!(stats.states.new, 1);
+        assert_eq!(stats.schedule.new, 1);
     }
 }

@@ -17,7 +17,7 @@ A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
 | `source:NAME` | Cards whose item comes from the source `NAME`: `source:notes` for the notes of a store without `[sources]` (`srl sources` lists them). |
 | `id:ID` | A card (`id:k3m9q1.2`), or every card of an item (`id:k3m9q1`). |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind:` in their header, or a kind named in `[kinds]` of `.srl/config.toml`. An unknown kind is an error. Without `kind:`, items of every kind match. |
-| `is:S` | A status: `active`, `draft` or `suspended`. Or a state: `new` (never reviewed since reset), `due` (due today or earlier), `young` and `mature` (not due; stability under or over 21 days), `leech` (forgotten 8 times or more; overlaps the others). `is:draft,leech` mixes them freely. |
+| `is:S` | A status: `active`, `draft` or `suspended`. Or a place in the schedule: `new` (never reviewed since reset), `due` (due today or earlier), `young` and `mature` (not due; stability under or over 21 days). Or `leech`: forgotten 8 times or more, whatever its place. `is:draft,leech` mixes them freely. |
 | `word` | Items containing the text in any field, ignoring case. |
 | `"some words"` | The same, for text with spaces. Always text. |
 

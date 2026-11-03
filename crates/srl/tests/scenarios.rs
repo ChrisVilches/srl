@@ -230,8 +230,8 @@ fn a_first_session_studies_every_new_card_once_in_written_order() {
     assert_eq!(store.study(&now, 3), written);
     let stats = store.stats(&now);
     assert_eq!(stats["cards"], 4);
-    assert_eq!(stats["states"]["new"], 0);
-    assert_eq!(stats["states"]["young"], 4);
+    assert_eq!(stats["schedule"]["new"], 0);
+    assert_eq!(stats["schedule"]["young"], 4);
     assert_eq!(stats["reviews_today"], 4);
     assert_eq!(store.json(&now, &["log", "--json"]).len(), 4);
 }
@@ -278,17 +278,17 @@ fn a_forgotten_card_is_due_the_next_day_before_any_new_card() {
     assert_eq!(store.due(&tomorrow, france), "2026-03-02");
     let next = store.next(&tomorrow, &[]).unwrap();
     assert_eq!(next["id"], france);
-    assert_eq!(next["state"], "due");
+    assert_eq!(next["schedule"], "due");
 }
 
 #[test]
 fn new_cards_are_introduced_ten_a_day() {
     let store = Store::new(&[("deck.md", &questions(15))]);
     assert_eq!(store.study(&at(1, 19), 3).len(), 10);
-    assert_eq!(store.stats(&at(1, 19))["states"]["new"], 5);
+    assert_eq!(store.stats(&at(1, 19))["schedule"]["new"], 5);
     // The next day brings the other five; the first ten aren't due yet.
     assert_eq!(store.study(&at(2, 19), 3).len(), 5);
-    assert_eq!(store.stats(&at(2, 19))["states"]["new"], 0);
+    assert_eq!(store.stats(&at(2, 19))["schedule"]["new"], 0);
 }
 
 #[test]
@@ -459,5 +459,27 @@ fn fixing_a_typo_keeps_the_cards_schedule() {
             .contains("Capital of Australia?")
     );
     assert_eq!(store.due(&at(2, 19), &card), due);
-    assert_eq!(store.cards(&at(2, 19))[0]["state"], "young");
+    assert_eq!(store.cards(&at(2, 19))[0]["schedule"], "young");
+}
+
+#[test]
+fn a_card_forgotten_again_and_again_is_a_leech_wherever_it_is_in_its_schedule() {
+    let store = Store::new(&[
+        ("geography/capitals.md", CAPITALS),
+        (".srl/config.toml", "[schedule]\nleech_lapses = 1\n"),
+    ]);
+    let now = at(1, 19);
+    let card = text(&store.next(&now, &[]).unwrap(), "id");
+    store.review(&now, &card, 3);
+    store.review(&now, &card, 1);
+    let found = store.json(&now, &["find", "--json", "is:leech"]);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0]["id"], card.as_str());
+    assert_eq!(found[0]["leech"], true);
+    assert_ne!(found[0]["schedule"], "new");
+    let others = store.json(&now, &["find", "--json", "-is:leech"]);
+    assert!(others.iter().all(|other| other["leech"] == false));
+    let stats = store.stats(&now);
+    assert_eq!(stats["leech"], 1);
+    assert_eq!(stats["schedule"]["new"], 3);
 }

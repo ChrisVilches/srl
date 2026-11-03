@@ -289,22 +289,30 @@ URL scheme, and it looks like `ADDRESS:LINE` and `key:value`.
 Trade-off: `k3m9q1.2` looks a little like a version number, and `.` can't
 be used in an ID.
 
-## Why one `is:` for statuses and states
+## Why one `is:` for status, schedule and leeches
 
-A card's status (`active`, `draft`, `suspended`) and its state (`new`,
-`due`, `young`, `mature`, `leech`) are two taxonomies: one says whether the
-card is studied, the other where it is in its schedule. A key for each,
-`status:` and `state:`, would be too alike to remember which holds which
-value. Someone picking cards wants "the drafts"
-or "the leeches", and doesn't care which taxonomy the word belongs to. No
-status and no state share a name, so one key can take any of them, and
-`is:draft` and `is:leech` read as what they mean.
+A card has a status (`active`, `draft`, `suspended`), a place in its
+schedule (`new`, `due`, `young`, `mature`) and is a leech or not. These
+are three taxonomies: whether the card is studied, where it is in its
+schedule, and whether it keeps being forgotten. A key for each would be
+three more names to remember, and the obvious ones, `status:` and
+`state:`, are too alike to remember which holds which value. Someone
+picking cards wants "the drafts" or "the leeches", and doesn't care which
+taxonomy the word belongs to. No value of one is a value of another, so
+one key can take any of them, and `is:draft` and `is:leech` read as what
+they mean.
 
-Trade-off: the selector mixes two taxonomies that are kept apart
-everywhere else, as the `status` and `state` of `srl find --json`. A
-status and a state can never share a name, so a new one must be named
-unlike all the others, and `is:a,b` can put a status and a state in one
-list, which is valid but mixes the two.
+Outside selectors the three stay apart, as the fields `status`,
+`schedule` and `leech` of `srl find --json`, each with one value: a
+program reads a field and never has to choose a key. Their names don't
+look alike, and `schedule` rather than "state" says what the field is
+about. A leech is a field of its own, not a place in the schedule,
+because a leech is also due, young or mature.
+
+Trade-off: the selector mixes three taxonomies that are kept apart
+everywhere else. No two of their values can share a name, so a new value
+must be named unlike all the others, and `is:a,b` can put a status and a
+place in one list, which is valid but mixes them.
 
 ## Why schedule cards, with siblings
 
@@ -559,7 +567,7 @@ So `srl` has no interactive study command. It stays a CLI that other
 programs drive, the same on every platform, and frontends live outside it:
 `examples/` has a web viewer and a terminal frontend to copy (see
 [guides/frontends.md](guides/frontends.md)). `srl next --json` gives
-everything a frontend shows (the card, its state, its kind, collection and context),
+everything a frontend shows (the card, its schedule, its kind, collection and context),
 so a frontend needs no other command to read (see
 [frontends.md](frontends.md)).
 

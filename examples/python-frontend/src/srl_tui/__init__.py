@@ -269,8 +269,11 @@ class Session:
         right = Text.assemble((card["id"], "dim"), "  ")
         # qa is the default kind; any other is a program, such as one that asks an LLM
         right.append(card["kind"] + "  ", "dim" if card["kind"] == "qa" else "bold magenta")
-        if card["state"] == "new":
+        if card["schedule"] == "new":
             right.append("new  ", "bold cyan")
+        if card["leech"]:
+            # forgotten again and again: the question likely needs rewriting
+            right.append("leech  ", "bold yellow")
         right.append_text(self.counts())
         grid = Table.grid(expand=True)
         grid.add_column()
@@ -395,7 +398,7 @@ class Session:
     def review(self, card, rating):
         srl("review", "--stdin", stdin=json.dumps({"card": card["id"], "rating": rating}))
         self.reviewed += 1
-        self.new += card["state"] == "new"
+        self.new += card["schedule"] == "new"
         self.again += rating == 1
 
 

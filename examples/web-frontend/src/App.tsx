@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import { Add } from './Add';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
-import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges, Waiting, WITH_KEY } from './CardParts';
+import { CardBadges, CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
@@ -136,7 +136,7 @@ function Study({ active, submitted, onSelector }: ViewProps) {
         await api.review(card.id, rating);
         setStats((s) => ({
           reviewed: s.reviewed + 1,
-          new: s.new + (card.state === 'new' ? 1 : 0),
+          new: s.new + (card.schedule === 'new' ? 1 : 0),
           again: s.again + (rating === 1 ? 1 : 0),
         }));
         await toNext(selector);
@@ -233,11 +233,12 @@ function CardView({
   const { card } = phase;
   return (
     <div className="flex flex-1 flex-col gap-6">
-      {/* A studied card is always new or due, so only new gets a label. */}
+      {/* A studied card is always new or due, so only new gets a label, and a
+          leech, whose question likely needs rewriting. */}
       <CardFace
         card={card}
         revealed={phase.kind === 'answer'}
-        badges={card.state === 'new' && <StateBadges state={card.state} />}
+        badges={(card.schedule === 'new' || card.leech) && <CardBadges schedule={card.schedule} leech={card.leech} />}
       />
 
       <div className="sticky bottom-0 -mx-4 mt-auto border-t border-stone-200 bg-stone-50/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 dark:border-stone-800 dark:bg-stone-950/90">

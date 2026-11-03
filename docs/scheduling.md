@@ -201,20 +201,29 @@ the log under the old ID. `srl` never guesses where they belong:
 > safely is wanted, in `srl` or in a frontend or wrapper; nothing about it
 > is decided (see [overview.md](overview.md), "Open questions").
 
-## States
+## Schedule
 
-Every card has one derived state, usable in selectors as `is:NAME` (see
-[selectors.md](selectors.md), "Statuses and states"):
+Every card is at one place in its schedule, derived from the log, and
+given as `schedule` in the JSON of `srl find` and `srl next`. Selectors
+take it as `is:NAME` (see [selectors.md](selectors.md), "Status, schedule
+and leeches"):
 
-| State | Meaning |
+| Schedule | Meaning |
 |---|---|
 | `new` | No reviews since the last reset. |
 | `due` | Has reviews and is due today or earlier. |
 | `mature` | Not due, and stability is at least `mature_days` (default 21). |
 | `young` | Not due, and stability is below `mature_days`. |
-| `leech` | At least `leech_lapses` (default 8) lapses since the last reset. Can also be `due`, `mature` or `young`. |
 
-`leech` overlaps with the others; the other four are exclusive.
+## Leeches
+
+A card with at least `leech_lapses` (default 8) lapses since the last
+reset is a **leech**: it keeps being forgotten, which usually means its
+question needs rewriting. Being a leech is not a place in the schedule: a
+leech can be `due`, `young` or `mature` (never `new`, since it has been
+reviewed). It is given as `leech`, `true`
+or `false`, in the JSON of `srl find` and `srl next`, and selectors take
+it as `is:leech`.
 
 ## What scheduling ignores
 

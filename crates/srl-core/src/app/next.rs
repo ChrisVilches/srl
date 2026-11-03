@@ -7,7 +7,7 @@ use jiff::civil::Date;
 
 use crate::domain::random;
 use crate::{
-    Card, CardId, Catalog, Config, Item, ItemId, Memories, Result, Selector, State, Status,
+    Card, CardId, Catalog, Config, Item, ItemId, Memories, Place, Result, Selector, Status,
 };
 
 /// The next card among those that match `selector`, made by its kind to
@@ -50,10 +50,10 @@ fn pick<'a>(
     let eligible = selector
         .select(catalog.cards(), memories)
         .into_iter()
-        .filter(|(_, card)| match memories.state(card) {
-            State::Due => true,
-            State::New => new_allowed,
-            State::Young | State::Mature => false,
+        .filter(|(_, card)| match memories.place(card) {
+            Place::Due => true,
+            Place::New => new_allowed,
+            Place::Young | Place::Mature => false,
         })
         .collect::<Vec<_>>();
     let picks = picks(&eligible, memories);
@@ -61,12 +61,12 @@ fn pick<'a>(
         |item: &Item, card: &CardId| picks.get(&(item.id(), item.group(card))) == Some(&card);
     let mut due = eligible
         .iter()
-        .filter(|(_, card)| memories.state(card) == State::Due)
+        .filter(|(_, card)| memories.place(card) == Place::Due)
         .collect::<Vec<_>>();
     due.sort_by_key(|(_, card)| (memories.get(card).due, (*card).clone()));
     let new = eligible
         .iter()
-        .filter(|(_, card)| memories.state(card) == State::New);
+        .filter(|(_, card)| memories.place(card) == Place::New);
     let window = usize::try_from(config.schedule.max_skip)
         .expect("a u32 should fit in a usize")
         .saturating_add(1);

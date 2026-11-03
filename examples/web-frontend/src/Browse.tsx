@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, type FoundCard, type ShownCard } from './api';
-import { CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, StateBadges, Waiting, WITH_KEY } from './CardParts';
+import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, Waiting, WITH_KEY } from './CardParts';
 import { EditItem, ItemSkeleton } from './EditItem';
 import { JsonView } from './JsonView';
 import type { ViewProps } from './App';
@@ -259,7 +259,7 @@ function CardList({
             <div className="flex items-center gap-2 text-xs text-stone-400">
               <span className="font-mono text-stone-600 dark:text-stone-300">{card.id}</span>
               <KindBadge kind={card.kind} />
-              <StateBadges status={card.status} state={card.state} />
+              <CardBadges status={card.status} schedule={card.schedule} leech={card.leech} />
               {made[card.id]?.kind === 'making' && <span className="text-amber-600">making…</span>}
               {card.line !== null && <span className="ml-auto font-mono">:{card.line}</span>}
             </div>
@@ -398,7 +398,7 @@ function Preview({
           <CardFace
             card={made.card}
             revealed={side === 'revealed'}
-            badges={<StateBadges status={found.status} state={found.state} />}
+            badges={<CardBadges status={found.status} schedule={found.schedule} leech={found.leech} />}
           />
         ))}
     </div>

@@ -124,14 +124,14 @@ pub(crate) fn events(events: &[&Event]) {
 /// percentage with the number of reviews it comes from, or `-` without
 /// reviews.
 pub(crate) fn stats(report: &Stats) {
-    let states = &report.states;
+    let schedule = &report.schedule;
     for (name, value) in [
         ("cards", report.cards),
-        ("new", states.new),
-        ("due", states.due),
-        ("young", states.young),
-        ("mature", states.mature),
-        ("leech", states.leech),
+        ("new", schedule.new),
+        ("due", schedule.due),
+        ("young", schedule.young),
+        ("mature", schedule.mature),
+        ("leech", report.leech),
         ("reviews today", report.reviews_today),
     ] {
         println!("{name}  {value}");

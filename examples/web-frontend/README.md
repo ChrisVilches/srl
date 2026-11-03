@@ -19,7 +19,8 @@ macOS and Windows (it is tried on Linux only).
   on the page: srl doesn't say which kinds are built in, so the page
   lists them in `BUILT_IN_KINDS` in `src/CardParts.tsx`, and a new one
   must be added there. A card that isn't new is always due, so it gets
-  no label for that.
+  no label for that, unless it is a leech: then it is labelled `due` and,
+  in amber, `leech`, as its question likely needs rewriting.
 - After the answer it shows the context in `prose` mode, under the
   address of its collection; `CONTEXT` in `server/server.js` chooses the
   mode. A context from anything but a Markdown note (by the extension of
@@ -65,7 +66,8 @@ as how `ja_word` marks words, without studying:
 
 - It lists the cards of a selector as `srl find` does, in the order they
   are written and under the address of each collection: each card's ID, line,
-  kind (unless built in), status (when not active) and state, and the
+  kind (unless built in), status (when not active), place in the schedule
+  and whether it is a leech, and the
   first line of its item's first field.
 - Choosing a card makes it with `srl cards`, running its kind program, and
   shows it as studying does: the prompt, or, turned, the revealed prompt,

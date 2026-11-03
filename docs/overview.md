@@ -19,7 +19,7 @@ document, listed at the end.
    resetting, checking, analyzing. Scheduling is part of the data layer
    too: a card's memory state is computed from the log.
 2. **One fixed mapping from that data to frontends.** `srl next --json`
-   turns the store into one card ready to show, with its state, kind and
+   turns the store into one card ready to show, with its schedule, kind and
    context. This is the **frontend contract** (see
    [frontends.md](frontends.md)), which every frontend reads. The rating
    goes back with `srl review`, an ordinary command of the data layer: it
@@ -251,7 +251,7 @@ The specification:
 | [items.md](items.md) | Items, whatever their source: header entries, fields, IDs, status, context, how `srl` changes items, errors, the item object |
 | [notes.md](notes.md) | The notes of the built-in drivers: which files are notes, the item syntaxes (srl blocks, JSONL), what a note shows as context, how `srl` writes to notes |
 | [cards.md](cards.md) | The `qa` kind, cloze deletions, kind programs and groups of siblings, card IDs, the card format and its text formatting |
-| [scheduling.md](scheduling.md) | Ratings, FSRS, days, choosing the next card, siblings, new-card limits, states |
+| [scheduling.md](scheduling.md) | Ratings, FSRS, days, choosing the next card, siblings, new-card limits, schedule, leeches |
 | [log.md](log.md) | The review log and its events |
 | [selectors.md](selectors.md) | The selector language |
 | [cli.md](cli.md) | Command conventions and the command reference |

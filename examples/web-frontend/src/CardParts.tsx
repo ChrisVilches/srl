@@ -74,8 +74,17 @@ export function KindBadge({ kind }: { kind: string }) {
 }
 
 // The card's status when it isn't active (srl next gives only active
-// cards), and its state, in sky blue when new.
-export function StateBadges({ status, state }: { status?: FoundCard['status']; state: string }) {
+// cards), where it is in its schedule, in sky blue when new, and, in amber,
+// whether it is a leech.
+export function CardBadges({
+  status,
+  schedule,
+  leech,
+}: {
+  status?: FoundCard['status'];
+  schedule: FoundCard['schedule'];
+  leech: boolean;
+}) {
   return (
     <>
       {status !== undefined && status !== 'active' && (
@@ -84,10 +93,18 @@ export function StateBadges({ status, state }: { status?: FoundCard['status']; s
         </span>
       )}
       <span
-        className={`${PILL} ${state === 'new' ? 'bg-sky-100 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300' : ''}`}
+        className={`${PILL} ${schedule === 'new' ? 'bg-sky-100 font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300' : ''}`}
       >
-        {state}
+        {schedule}
       </span>
+      {leech && (
+        <span
+          className={`${PILL} bg-amber-100 font-medium text-amber-800 dark:bg-amber-400/10 dark:text-amber-300`}
+          title="Forgotten again and again: the question likely needs rewriting"
+        >
+          leech
+        </span>
+      )}
     </>
   );
 }

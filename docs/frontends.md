@@ -52,7 +52,7 @@ card (`srl suspend id:ID`, with `--reason TEXT` if the person says why,
 so that they can fix the card later), opening the file its item is kept in, when there is one (`file`, relative
 to the store's folder, in an editor of its choice), or a summary at the
 end, counting the
-cards whose `state` was `new`.
+cards whose `schedule` was `new`.
 
 A frontend never computes schedules. That belongs to `srl`, so every
 frontend behaves the same. Since `srl next` reads every source and the
@@ -61,14 +61,15 @@ log every time, edits and reviews made elsewhere count at once.
 ## What a frontend gets
 
 `srl next --json` prints one object: the card's fields (see
-[cards.md](cards.md)), then the card's state and its item's kind, collection and
+[cards.md](cards.md)), then where the card is in its schedule, whether it
+is a leech, and its item's kind, collection and
 context:
 
 ```json
 {"id": "k3m9q1.2", "prompt": "周囲の反対をものともせず、==[who]==は起業した。",
  "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
  "answer": "Despite everyone's opposition, she started a company.",
- "state": "due", "kind": "qa",
+ "schedule": "due", "leech": false, "kind": "qa",
  "address": "japanese/grammar/wo-mono-tomo-sezu.md", "source": "notes",
  "file": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
@@ -78,7 +79,8 @@ context:
 | Field | Meaning |
 |---|---|
 | `id`, `prompt`, `prompt_revealed`, `answer` | The card (see [cards.md](cards.md)). `prompt_revealed` and `answer` may be `null`. |
-| `state` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Choosing the next card"). |
+| `schedule` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Schedule" and "Choosing the next card"). |
+| `leech` | Whether the card is a leech, `true` or `false` (see [scheduling.md](scheduling.md), "Leeches"): a frontend may say so, as the question likely needs rewriting. |
 | `kind` | The item's kind: `qa`, or the name of a kind program in `.srl/config.toml`, as in `srl show --json` (see [cards.md](cards.md), "Kinds"). |
 | `address` | The address of the collection the item is in, such as its note, as in `srl show --json` (see [items.md](items.md), "The item object"). |
 | `source` | The name of the item's source (see [sources.md](sources.md)). |

@@ -27,7 +27,7 @@ crates/
     src/domain/card.rs       cards.md: the card format and card IDs
     src/domain/context.rs    items.md, "Context": the context's modes, and the `Context` given
     src/domain/selector.rs   selectors.md
-    src/domain/schedule.rs   scheduling.md: replaying the log through FSRS, states
+    src/domain/schedule.rs   scheduling.md: replaying the log through FSRS, places in the schedule
     src/domain/stats.rs      cli.md, "Analysis": `srl stats`
     src/domain/random.rs     reproducible random numbers for new IDs and `srl next`
     src/app.rs          the application: what the commands do with the domain and the ports
@@ -181,7 +181,7 @@ freely later.
 The specification is mostly closed sets and fixed formats. Write them as
 types, so that the compiler checks them:
 
-- **Closed sets are enums**: statuses, scheduling states,
+- **Closed sets are enums**: statuses, places in the schedule,
   ratings, selector terms. A `match` on them lists every variant. Don't use a
   `_ =>` arm on our own enums (the `wildcard_enum_match_arm` lint flags it),
   so that adding a variant shows every place that must handle it.

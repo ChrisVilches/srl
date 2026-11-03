@@ -90,11 +90,14 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 ```json
 {"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo-mono-tomo-sezu.md",
  "source": "notes", "file": "japanese/grammar/wo-mono-tomo-sezu.md",
- "line": 10, "status": "active", "state": "due", "due": "2026-10-24",
- "suspend_reason": null}
+ "line": 10, "status": "active", "schedule": "due", "leech": false,
+ "due": "2026-10-24", "suspend_reason": null}
 ```
 
-`due` is the study day the card is due, or `null` for a new card.
+`status` says whether the card is studied (see [items.md](items.md),
+"Status"), `schedule` where it is in its schedule, and `leech` whether it
+keeps being forgotten (see [scheduling.md](scheduling.md), "Schedule" and
+"Leeches"). `due` is the study day the card is due, or `null` for a new card.
 `suspend_reason` is why the card is suspended, the `reason` of its last
 `suspend` event (see [log.md](log.md)), or `null` if the card is not
 suspended or was suspended without one. `srl show
@@ -271,7 +274,8 @@ review wants to keep it, such as an answer typed into a frontend (see
 was decided.
 
 `srl next --json` is the frontend contract: what it prints, one object
-with the card, its state, and its item's kind, collection and context, is
+with the card, where it is in its schedule, whether it is a leech, and its
+item's kind, collection and context, is
 specified in [frontends.md](frontends.md), "What a frontend gets". `--context MODE` chooses the context's mode,
 `prose` without it. Only the JSON output has a context, so without
 `--json` the flag changes nothing.
@@ -301,7 +305,7 @@ is not enough, because a review is about one card. With `--dry-run`,
 
 | Command | Does |
 |---|---|
-| `srl stats [SELECTOR] [--json]` | Cards per state, reviews today, retention over the last 30 days (share of non-Again ratings on cards that were not new), for the matching cards (see below). Exit 1 if none matches. |
+| `srl stats [SELECTOR] [--json]` | Cards per place in the schedule, leeches, reviews today, retention over the last 30 days (share of non-Again ratings on cards that were not new), for the matching cards (see below). Exit 1 if none matches. |
 | `srl log [SELECTOR] [--json]` | Print the log events of matching cards, in log order (see below); with `--json`, the events as stored. Exit 1 if there are none. |
 
 `srl stats` applies the selector as written, so it counts drafts and
@@ -319,8 +323,9 @@ reviews today  25
 retention  88.5% of 400 reviews in 30 days
 ```
 
-- `new`, `due`, `young` and `mature` add up to `cards`. `leech` overlaps
-  them (see [scheduling.md](scheduling.md), "States").
+- `new`, `due`, `young` and `mature` add up to `cards`. `leech` counts
+  the leeches among them (see [scheduling.md](scheduling.md), "Schedule" and
+  "Leeches").
 - `reviews today` counts the reviews of the matching cards on today's study
   day.
 - `retention` looks at the last 30 study days, today included. It counts
@@ -328,8 +333,8 @@ retention  88.5% of 400 reviews in 30 days
   the share that were not Again. Without such reviews it is `-`.
 
 With `--json` it prints one object:
-`{"cards": N, "states": {"new": N, "due": N, "young": N, "mature": N,
-"leech": N}, "reviews_today": N, "retention": R, "retention_reviews": N}`,
+`{"cards": N, "schedule": {"new": N, "due": N, "young": N, "mature": N},
+"leech": N, "reviews_today": N, "retention": R, "retention_reviews": N}`,
 where `retention` is a number from 0 to 1, or `null`.
 
 `srl log` prints one line per event, its fields separated by two spaces:
