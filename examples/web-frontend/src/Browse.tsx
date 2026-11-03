@@ -145,7 +145,6 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
             onSide={setSide}
             onMake={() => selected !== null && make(selected)}
             onSaved={refresh}
-            onCancel={() => setSide('prompt')}
           />
         </div>
       </main>
@@ -210,7 +209,6 @@ function Preview({
   onSide,
   onMake,
   onSaved,
-  onCancel,
 }: {
   found: FoundCard | null;
   made: Made | undefined;
@@ -219,7 +217,6 @@ function Preview({
   onMake: () => void;
   // Called with the item's ID once it is saved, staying on the edit side.
   onSaved: (item: string) => Promise<void>;
-  onCancel: () => void;
 }) {
   if (found === null) {
     return (
@@ -275,7 +272,7 @@ function Preview({
           <p className="mt-1 whitespace-pre-wrap">{found.suspend_reason}</p>
         </div>
       )}
-      {editing && <EditItem id={found.item} onSaved={() => onSaved(found.item)} onCancel={onCancel} />}
+      {editing && <EditItem id={found.item} onSaved={() => onSaved(found.item)} />}
       {!editing && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
       {!editing && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
       {!editing && made?.kind === 'ready' && (

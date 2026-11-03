@@ -21,12 +21,19 @@ type Saving =
 const isField = (key: string) => /^[A-Z][A-Z0-9_]*$/.test(key);
 
 // ON_SAVED is called once srl has written the item, to show its cards anew;
-// the form stays, with what became of the save.
-export function EditItem({ id, onSaved, onCancel }: { id: string; onSaved: () => Promise<void>; onCancel: () => void }) {
+// the form stays, with what became of the save. Cancel puts back the item as
+// srl last had it: as read, or as last saved.
+export function EditItem({ id, onSaved }: { id: string; onSaved: () => Promise<void> }) {
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [texts, setTexts] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState(false);
   const [saving, setSaving] = useState<Saving>({ kind: 'idle' });
+
+  // Shows the fields of ITEM, as srl has it.
+  const fill = (item: Record<string, unknown>) => {
+    setTexts(Object.fromEntries(Object.entries(item).filter(([key]) => isField(key)).map(([key, value]) => [key, String(value)])));
+    setDraft(item.draft === true);
+  };
 
   const load = () => {
     setLoaded({ kind: 'loading' });
@@ -34,8 +41,7 @@ export function EditItem({ id, onSaved, onCancel }: { id: string; onSaved: () =>
     api.item(id).then(
       (item) => {
         setLoaded({ kind: 'ready', item });
-        setTexts(Object.fromEntries(Object.entries(item).filter(([key]) => isField(key)).map(([key, value]) => [key, String(value)])));
-        setDraft(item.draft === true);
+        fill(item);
       },
       (error: Error) => setLoaded({ kind: 'error', message: error.message }),
     );
@@ -51,12 +57,14 @@ export function EditItem({ id, onSaved, onCancel }: { id: string; onSaved: () =>
     const item = { ...loaded.item, ...texts, draft };
     setSaving({ kind: 'busy' });
     api.edit(item).then(
-      () =>
-        onSaved().then(
+      () => {
+        setLoaded({ kind: 'ready', item });
+        return onSaved().then(
           () => setSaving({ kind: 'saved' }),
           (error: Error) =>
             setSaving({ kind: 'failed', title: 'Saved, but srl could not find the cards again', message: error.message }),
-        ),
+        );
+      },
       (error: Error) => setSaving({ kind: 'failed', title: 'srl did not save the item', message: error.message }),
     );
   };
@@ -104,7 +112,15 @@ export function EditItem({ id, onSaved, onCancel }: { id: string; onSaved: () =>
         <button onClick={save} disabled={saving.kind === 'busy'} className={`px-3 py-2 text-sm ${MAIN_BUTTON}`}>
           Save
         </button>
-        <button onClick={onCancel} className={`text-sm ${QUIET_BUTTON}`}>
+        <button
+          onClick={() => {
+            fill(loaded.item);
+            setSaving({ kind: 'idle' });
+          }}
+          disabled={saving.kind === 'busy'}
+          title="Put back the item as srl has it"
+          className={`text-sm ${QUIET_BUTTON}`}
+        >
           Cancel
         </button>
       </div>

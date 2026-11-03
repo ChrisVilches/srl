@@ -86,8 +86,9 @@ its rows change where the item's cards changed, and only the item's
 cards are forgotten, to be made anew. The page stays on Edit, and says
 under the form whether it worked: saved, srl's error if it didn't save
 the item, or srl's error if it saved it but couldn't find the cards
-again. Any change to the form clears that. Cancel goes back to the
-Prompt side.
+again. Any change to the form clears that. Cancel puts back the fields
+and Draft as srl has the item, as read or as last saved, and stays on
+Edit.
 
 It also **adds items** (the Add tab, or `#add`), one at a time:
 
