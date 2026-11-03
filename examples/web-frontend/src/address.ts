@@ -53,19 +53,27 @@ const terms = (selector: string) => selector.match(/-?"[^"]*"?|\S+/g) ?? [];
 // selector does.
 const encode = (s: string) => encodeURIComponent(s).replace(/%2C/gi, ',').replace(/%3A/gi, ':');
 
-// The selector in the address, its terms in the order of the parameters;
-// empty, every card, if there is none.
-export function urlSelector(): string {
-  return [...new URLSearchParams(window.location.search)].map(([name, value]) => paramTerm(name, value)).join(' ');
+// The selector of the query QUERY, its terms in the order of the
+// parameters; empty, every card, if there is none.
+export function selectorOfQuery(query: string): string {
+  return [...new URLSearchParams(query)].map(([name, value]) => paramTerm(name, value)).join(' ');
 }
+
+// The query of SELECTOR, without its ?: empty for the empty selector.
+export function queryOfSelector(selector: string): string {
+  return terms(selector)
+    .map(termParam)
+    .map(([name, value]) => `${encode(name)}=${encode(value)}`)
+    .join('&');
+}
+
+// The selector in the address.
+export const urlSelector = () => selectorOfQuery(window.location.search);
 
 // Writes SELECTOR in the address, in place of the one there, without adding
 // to the browser's history.
 export function setUrlSelector(selector: string) {
   const url = new URL(window.location.href);
-  url.search = terms(selector)
-    .map(termParam)
-    .map(([name, value]) => `${encode(name)}=${encode(value)}`)
-    .join('&');
+  url.search = queryOfSelector(selector);
   window.history.replaceState(null, '', url);
 }

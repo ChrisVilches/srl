@@ -16,7 +16,8 @@
     "dev": "node server/dev.js",
     "build": "tsc --noEmit && vite build",
     "start": "node bin/srl-web.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
   },
   "engines": {
     "node": ">=20"

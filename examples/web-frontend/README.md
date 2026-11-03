@@ -297,7 +297,9 @@ npm run dev       # Vite with hot reload on :5173, the API on :4318
 
 npm runs it in this folder, so choose the store with `SRL_DIR`, or `srl`
 uses the default store. `npm run build` checks the types and builds
-`dist/`.
+`dist/`. `npm test` runs the tests of `test/` with Node's own test
+runner: how the selector is written in the address's query and read back
+from it.
 
 ### A button whose answer is a modal
 
