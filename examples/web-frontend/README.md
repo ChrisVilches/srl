@@ -42,7 +42,9 @@ macOS and Windows (it is tried on Linux only).
   the page waits for, such as the cards of Browse, an item to edit or what
   Add needs, is shown as a skeleton, grey bars laid out as it will be, in
   place of a text saying it is loading.
-- The selector can be changed in the page; the counters at the top are the
+- The selector can be changed in the page, and the X at the right of its
+  box, shown while the box holds text, empties it and applies no
+  selector, every card; the counters at the top are the
   cards reviewed, the new ones among them, and the Again ratings. The
   page has one selector, the same in Study and Browse: submitting it in
   either changes it in both, and a view hidden at the time applies it

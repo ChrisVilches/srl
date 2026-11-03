@@ -1,4 +1,4 @@
-import { MoonIcon, SunIcon } from '@heroicons/react/24/outline';
+import { MoonIcon, SunIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { go, type View } from './address';
@@ -72,7 +72,10 @@ function ThemeButton() {
 }
 
 // The selector box of a view. Submitting it calls ON_SELECTOR. Its
-// placeholder is a selector that works, the same in every view.
+// placeholder is a selector that works, the same in every view. While it
+// holds text, an X at its right empties it and, if a selector is
+// submitted, submits none, every card, keeping the box focused to type
+// another.
 export function SelectorInput({
   selector,
   onSelector,
@@ -86,7 +89,7 @@ export function SelectorInput({
 
   return (
     <form
-      className="min-w-48 flex-1"
+      className="relative min-w-48 flex-1"
       onSubmit={(event) => {
         event.preventDefault();
         input.current?.blur();
@@ -99,8 +102,23 @@ export function SelectorInput({
         onChange={(event) => setDraft(event.target.value)}
         placeholder="is:young in:grammar"
         spellCheck={false}
-        className="w-full rounded-md border border-stone-300 bg-transparent px-3 py-1.5 font-mono text-sm outline-none placeholder:text-stone-400 focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
+        className="w-full rounded-md border border-stone-300 bg-transparent py-1.5 pr-9 pl-3 font-mono text-sm outline-none placeholder:text-stone-400 focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
       />
+      {draft !== '' && (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft('');
+            if (selector !== '') onSelector('');
+            input.current?.focus();
+          }}
+          aria-label="Clear the selector"
+          title="Clear the selector"
+          className="absolute inset-y-0 right-1 my-auto h-fit rounded-md p-1 text-stone-400 hover:bg-stone-200 hover:text-stone-600 dark:hover:bg-stone-800 dark:hover:text-stone-300"
+        >
+          <XMarkIcon className="size-4" aria-hidden />
+        </button>
+      )}
     </form>
   );
 }
