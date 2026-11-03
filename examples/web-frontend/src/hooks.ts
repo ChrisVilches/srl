@@ -10,6 +10,21 @@ export function useStartWhenShown(active: boolean, start: () => void) {
   }, [active, start]);
 }
 
+// A selector submitted in any view, numbered so that submitting the same
+// selector again counts as a new submission.
+export type Submitted = { selector: string; n: number };
+
+// Calls LOAD with each selector submitted, once ACTIVE is true: a view
+// applies the page's selector when shown, so a hidden view runs no srl.
+export function useSubmitted(active: boolean, submitted: Submitted | null, load: (selector: string) => void) {
+  const loaded = useRef<number | null>(null);
+  useEffect(() => {
+    if (!active || submitted === null || loaded.current === submitted.n) return;
+    loaded.current = submitted.n;
+    load(submitted.selector);
+  }, [active, submitted, load]);
+}
+
 // Gives ON_KEY the keys pressed while ACTIVE, but those with Ctrl, Meta or
 // Alt, those typed in a text box and those pressed while a dialog is open
 // (src/Modal.tsx), which belong to it.

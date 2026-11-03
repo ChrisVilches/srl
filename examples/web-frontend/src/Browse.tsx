@@ -4,8 +4,9 @@ import { api, type FoundCard, type ShownCard } from './api';
 import { CardFace, Counts, ErrorView, KindBadge, Key, Notice, QUIET_BUTTON, StateBadges, Waiting, WITH_KEY } from './CardParts';
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
-import { useKeys, useStartWhenShown } from './hooks';
-import { SelectorInput, setUrlSelector, TopBar, urlSelector } from './TopBar';
+import type { ViewProps } from './App';
+import { useKeys, useSubmitted } from './hooks';
+import { SelectorInput, TopBar } from './TopBar';
 
 // The card browser: the cards of a selector as `srl find` lists them, and any
 // one of them made and shown as studying shows it, without studying it. For
@@ -29,8 +30,8 @@ const MAKE_DELAY = 300; // ms
 // The keys that choose the card below or above.
 const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 };
 
-export function Browse({ active }: { active: boolean }) {
-  const [selector, setSelector] = useState<string | null>(null);
+export function Browse({ active, submitted, onSelector }: ViewProps) {
+  const selector = submitted?.selector ?? null;
   const [list, setList] = useState<List>({ kind: 'loading' });
   const [selected, setSelected] = useState<string | null>(null);
   const [made, setMade] = useState<Record<string, Made>>({});
@@ -50,20 +51,8 @@ export function Browse({ active }: { active: boolean }) {
     }
   }, []);
 
-  // Starts when first shown, with the selector in the address, or else the
-  // one srl-web was started with.
-  const start = useCallback(
-    () =>
-      Promise.resolve(urlSelector('browse') ?? api.selector()).then(
-        (sel) => {
-          setSelector(sel);
-          find(sel);
-        },
-        (error: Error) => setList({ kind: 'error', message: error.message }),
-      ),
-    [find],
-  );
-  useStartWhenShown(active, start);
+  // Finds the cards of each selector submitted, once shown.
+  useSubmitted(active, submitted, find);
 
   // Makes card ID with srl cards, stopping the card being made, if any.
   // Each card is made once, when first chosen, and again only when asked.
@@ -117,14 +106,7 @@ export function Browse({ active }: { active: boolean }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar view="browse">
-        <SelectorInput
-          selector={selector}
-          onSelector={(sel) => {
-            setSelector(sel);
-            setUrlSelector('browse', sel);
-            find(sel);
-          }}
-        />
+        <SelectorInput selector={selector} onSelector={onSelector} />
         {list.kind === 'ready' && <Counts counts={[[cards.length, cards.length === 1 ? 'card' : 'cards']]} />}
       </TopBar>
       <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-4 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-cols-[26rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">

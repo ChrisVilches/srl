@@ -4,12 +4,16 @@ import { Add } from './Add';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
 import { CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, StateBadges, Waiting, WITH_KEY } from './CardParts';
-import { useKeys, useStartWhenShown } from './hooks';
+import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
 import { SelectorInput, setUrlSelector, TopBar, urlSelector, type View } from './TopBar';
 
-const VIEWS: Record<View, ComponentType<{ active: boolean }>> = {
+// What every view is given: whether it is shown, and the page's selector,
+// one for every view, with how to submit another.
+export type ViewProps = { active: boolean; submitted: Submitted | null; onSelector: (selector: string) => void };
+
+const VIEWS: Record<View, ComponentType<ViewProps>> = {
   study: Study,
   browse: Browse,
   add: Add,
@@ -59,13 +63,34 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  // The selector in the address, or else the one srl-web was started with.
+  const [submitted, setSubmitted] = useState<Submitted | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
+  const loadSelector = useCallback(() => {
+    setConfigError(null);
+    Promise.resolve(urlSelector() ?? api.selector()).then(
+      (selector) => setSubmitted({ selector, n: 0 }),
+      (error: Error) => setConfigError(error.message),
+    );
+  }, []);
+  useEffect(loadSelector, [loadSelector]);
+  const onSelector = useCallback((selector: string) => {
+    setUrlSelector(selector);
+    setSubmitted((s) => ({ selector, n: (s?.n ?? 0) + 1 }));
+  }, []);
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
+      {configError !== null && (
+        <div className="mx-auto max-w-3xl px-4 py-8">
+          <ErrorView message={configError} onRetry={loadSelector} />
+        </div>
+      )}
       {(Object.keys(VIEWS) as View[]).map((v) => {
         const Pane = VIEWS[v];
         return (
           <div key={v} className={view === v ? 'contents' : 'hidden'}>
-            <Pane active={view === v} />
+            <Pane active={view === v} submitted={submitted} onSelector={onSelector} />
           </div>
         );
       })}
@@ -74,8 +99,8 @@ export default function App() {
   );
 }
 
-function Study({ active }: { active: boolean }) {
-  const [selector, setSelector] = useState<string | null>(null);
+function Study({ active, submitted, onSelector }: ViewProps) {
+  const selector = submitted?.selector ?? null;
   const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: performance.now() }));
   const [stats, setStats] = useState<Stats>({ reviewed: 0, new: 0, again: 0 });
   const [busy, setBusy] = useState(false);
@@ -103,23 +128,11 @@ function Study({ active }: { active: boolean }) {
     }
   }, []);
 
-  // Takes the selector in the address, or else asks for the one srl-web was
-  // started with, then asks for the first card.
-  const start = useCallback(
-    () =>
-      step(async () => {
-        setPhase({ kind: 'loading', since: performance.now() });
-        const sel = urlSelector('study') ?? (await api.selector());
-        setSelector(sel);
-        await toNext(sel);
-      }),
-    [step, toNext],
-  );
-
   const loadNext = useCallback((sel: string) => step(() => toNext(sel)), [step, toNext]);
 
-  // Starts when first shown: a page opened on the browser makes no card.
-  useStartWhenShown(active, start);
+  // Asks for a card with each selector submitted, once shown: a page opened
+  // on the browser makes no card.
+  useSubmitted(active, submitted, loadNext);
 
   const reveal = useCallback(() => {
     if (phase.kind !== 'prompt') return;
@@ -181,14 +194,7 @@ function Study({ active }: { active: boolean }) {
   return (
     <div className="flex min-h-screen flex-col">
       <TopBar view="study">
-        <SelectorInput
-          selector={selector}
-          onSelector={(sel) => {
-            setSelector(sel);
-            setUrlSelector('study', sel);
-            loadNext(sel);
-          }}
-        />
+        <SelectorInput selector={selector} onSelector={onSelector} />
         <StatsLine stats={stats} />
       </TopBar>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
@@ -196,7 +202,7 @@ function Study({ active }: { active: boolean }) {
           <Waiting title="Loading…" since={phase.since} />
         )}
         {phase.kind === 'error' && (
-          <ErrorView message={phase.message} onRetry={() => (selector === null ? start() : loadNext(selector))} />
+          <ErrorView message={phase.message} onRetry={() => selector !== null && loadNext(selector)} />
         )}
         {phase.kind === 'done' && (
           <DoneView selector={selector ?? ''} stats={stats} onCheck={() => loadNext(selector ?? '')} />

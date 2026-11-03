@@ -60,16 +60,16 @@ function ThemeButton() {
   );
 }
 
-// The selector last submitted in VIEW, kept in the address as ?study= or
-// ?browse=, so that reloading the page keeps it; null if none was. The views
-// are chosen by the hash, so switching keeps both.
-export function urlSelector(view: View): string | null {
-  return new URLSearchParams(window.location.search).get(view);
+// The selector last submitted, in any view, kept in the address as
+// ?selector=, so that reloading the page keeps it; null if none was. The
+// views are chosen by the hash, so switching keeps it.
+export function urlSelector(): string | null {
+  return new URLSearchParams(window.location.search).get('selector');
 }
 
-export function setUrlSelector(view: View, selector: string) {
+export function setUrlSelector(selector: string) {
   const url = new URL(window.location.href);
-  url.searchParams.set(view, selector);
+  url.searchParams.set('selector', selector);
   window.history.replaceState(null, '', url);
 }
 
