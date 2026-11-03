@@ -167,7 +167,7 @@ export function Add({ active }: { active: boolean }) {
 
             <Section
               label="Note"
-              hint="The note to append the item to: an existing one, or a new one, typed as its path, where a source of the store can create it (srl sources)."
+              hint="Where the item is added: an existing collection, such as a note or a table of a database, or a new one, typed as its address, where a source of the store can create it (srl sources)."
             >
               <NotePicker
                 notes={notes}
@@ -180,9 +180,11 @@ export function Add({ active }: { active: boolean }) {
 
             <Section
               label="Context"
-              hint="Optional: the note shown after the answer (see:), when it isn't the note above."
+              hint="Optional: the collection shown for context along with the answer (see:). Without one, it is the one the item is added to, shown here until another is chosen."
             >
-              <NotePicker notes={notes} value={see} onChange={setSee} placeholder="The note above" clearable />
+              {/* The input is controlled, so its placeholder follows the
+                  collection chosen above like any other prop. */}
+              <NotePicker notes={notes} value={see} onChange={setSee} placeholder={note ?? ''} clearable />
             </Section>
 
             <label className="flex items-center gap-2 text-sm">

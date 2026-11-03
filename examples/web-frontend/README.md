@@ -117,8 +117,10 @@ It also **adds items** (the Add tab, or `#add`), one at a time:
 - The note last added to is chosen again on the next visit. It is kept
   in the browser's `localStorage`, so it is per browser and per address
   (port), and forgotten when `srl collections` no longer lists it.
-- An optional context note, chosen the same way, becomes the item's
-  `see:`; **Draft** makes it a draft.
+- An optional context collection, chosen the same way, becomes the
+  item's `see:`. Until one is chosen, its box shows, as its placeholder,
+  the collection the item is added to, which is its context without
+  one. **Draft** makes the item a draft.
 - **Check** runs `srl add --dry-run` and shows the item as srl would
   write it; **Add** (Ctrl+Enter) adds it and shows its ID, then empties
   the fields. The page knows no rule of any kind: srl checks the item, and
