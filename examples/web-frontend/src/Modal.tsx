@@ -9,7 +9,9 @@ import { OUTLINE_BUTTON } from './CardParts';
 // injects <style> elements, which the page's Content-Security-Policy
 // refuses). It fades and grows in, and out, by the class `modal`
 // (src/index.css); while it fades out, it keeps showing what it showed
-// when it was open, though its parent has moved on.
+// when it was open, though its parent has moved on. A form whose button
+// opens one keeps its buttons disabled until it closes (README.md, "A
+// button whose answer is a modal").
 export function Modal({
   open,
   title,

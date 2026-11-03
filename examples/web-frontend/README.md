@@ -267,6 +267,29 @@ npm runs it in this folder, so choose the store with `SRL_DIR`, or `srl`
 uses the default store. `npm run build` checks the types and builds
 `dist/`.
 
+### A button whose answer is a modal
+
+A button that asks srl for something and shows the answer in a modal,
+such as Add and Check in Add, or Save in Edit, follows one rule:
+
+**The form's buttons stay disabled from the click until the answer's
+modal is closed**, not only while srl works. Derive it from the state the
+form already has: disabled while srl works *or* while there is an answer
+to show, as `waiting` in `src/Add.tsx` and `saving.kind !== 'idle'` in
+`src/EditItem.tsx`. Check the same condition wherever the action can
+start besides the button, such as a key (Ctrl+Enter in Add).
+
+Why: a disabled button is dimmed (`disabled:opacity-50`). If it were
+enabled as soon as srl answers, it would turn bright for a moment, then
+dim again under the modal's backdrop as it fades in: a flash. Kept
+disabled, it stays dimmed under the backdrop and brightens once, as the
+modal closes. It also keeps a second click from starting another request
+while the answer is shown.
+
+The rest comes with `src/Modal.tsx`: show the answer in `ResultBox`
+(green when srl did it, red with srl's message when it didn't), and let
+the modal give the focus back to the form when it closes.
+
 ## TODO
 
 - The collection picker of the Add tab (`CollectionPicker` in `src/Add.tsx`) is
