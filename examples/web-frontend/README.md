@@ -4,7 +4,8 @@
 [docs/frontends.md](../../docs/frontends.md): a small server on localhost
 that runs `srl` commands, and a page in the browser that shows the cards
 to study, a browser of any card, and a form that adds items. It
-needs `srl` on `PATH` and Node.js 20 or later, and should work on Linux,
+needs `srl` on `PATH` and Node.js 22.22 or later (for React Router and
+Vite), and should work on Linux,
 macOS and Windows (it is tried on Linux only).
 
 - Card text and context are rendered as CommonMark plus GFM tables, with
@@ -132,8 +133,9 @@ as how `ja_word` marks words, without studying:
   It is made only on a side that shows it, Prompt, Revealed or JSON:
   on Edit or Details, choosing a card or saving its item makes nothing
   until another side is shown.
-- Each card is made once and kept while Browse is shown; **Make again** (`r`) runs its kind
-  program again once the card has been made, on Prompt, Revealed and
+- Each card is made once and kept while Browse is shown; **Make again**
+  (`r`) runs its kind program again once the card has been made, on
+  Prompt, Revealed and
   JSON only, since Edit shows the item and Details what srl says about
   the card, not the card made from it; submitting the selector, or
   leaving Browse, forgets every card made, and leaving stops the one
@@ -201,8 +203,9 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   add it: as it would be written in a note, or the preview a source
   program gives; **Add** (Ctrl+Enter) adds it and shows its ID, then empties
   the fields. Leaving Add while a field of the kind holds text asks
-  first, in a dialog, whether to leave and lose the item. The page knows no rule of any kind: srl checks the item, and
-  the page shows what srl says, such as a field the kind needs. Fields
+  first, in a dialog, whether to leave and lose the item. The page knows
+  no rule of any kind: srl checks the item, and the page shows what srl
+  says, such as a field the kind needs. Fields
   left blank are left out of the item, and `kind` is left out for `qa`.
   While srl works, and while its answer is shown, both buttons are
   disabled, with no other sign; Save and Reset in Edit too.
@@ -385,8 +388,9 @@ What leaving a view would lose that can't be made again, text typed and
 not yet saved, is guarded with `UnsavedGuard` (`src/Modal.tsx`, with the
 router's `useBlocker`): going to another path while there is any asks
 first, and so does reloading or closing the page, which the router never
-sees, through the browser's `beforeunload`. Add uses it for the item being written, and Edit for the item's
-edits. A new form that holds work the user typed uses it too.
+sees, through the browser's `beforeunload`. Add uses it for the item
+being written, and Edit for the item's edits. A new form that holds work
+the user typed uses it too.
 
 ### Where the page is: the address, through the router
 
