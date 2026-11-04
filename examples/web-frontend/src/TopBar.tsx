@@ -1,13 +1,10 @@
 import { MoonIcon, SunIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { VIEW_PATHS, type View } from './address';
 import { QUIET_BUTTON } from './CardParts';
 import { currentTheme, setTheme } from './theme';
-
-// The last path of each view, which its tab goes back to (see App).
-export const ViewPaths = createContext<Record<View, string>>(VIEW_PATHS);
 
 // The bar at the top of each view: the switch between views, then the
 // view's own controls. It spans the whole window in every view, however
@@ -15,16 +12,13 @@ export const ViewPaths = createContext<Record<View, string>>(VIEW_PATHS);
 // name links to the root, the study view with no selector in the address,
 // and loads the page anew.
 //
-// A tab goes to the view's last address, keeping the selector, so Browse
-// comes back to its card, and opens it in a new tab when clicked with a
-// modifier or the middle button. The tab of the view shown stays on its
-// address, adding nothing to the browser's history.
+// A tab is a link to its view's path, keeping the selector, and opens it in
+// a new tab when clicked with a modifier or the middle button.
 export function TopBar({ view, children }: { view: View; children: ReactNode }) {
-  const paths = useContext(ViewPaths);
   const { search } = useLocation();
   const tab = (target: View, name: string) => (
     <Link
-      to={{ pathname: paths[target], search }}
+      to={{ pathname: VIEW_PATHS[target], search }}
       className={
         view === target
           ? 'rounded-md bg-stone-200 px-2.5 py-1 font-medium dark:bg-stone-800'

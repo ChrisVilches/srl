@@ -1,6 +1,7 @@
 // The page's address: its path names the view, its query the selector.
+// Each view is a route (src/main.tsx):
 //
-//   /                     study
+//   /                     study, as is any path not below
 //   /browse[/CARD[/SIDE]] the card browser, with Browse's own parts (src/Browse.tsx)
 //   /add                  adding items
 //
@@ -18,14 +19,8 @@
 // The views: studying (the page's start), the card browser and adding items.
 export type View = 'study' | 'browse' | 'add';
 
-// The path each view starts at.
+// The path of each view, which its tab links to.
 export const VIEW_PATHS: Record<View, string> = { study: '/', browse: '/browse', add: '/add' };
-
-// The view is the path's first part; any other path is study.
-export function viewOfPath(pathname: string): View {
-  const view = pathname.split('/')[1];
-  return view === 'browse' || view === 'add' ? view : 'study';
-}
 
 // A term as a parameter: key:value is key=value, and text, quoted or not, is
 // text=TEXT without its quotes. A term negated with - gives its parameter

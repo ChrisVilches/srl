@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 
 import { api, type FoundCard, type ShownCard } from './api';
 import { CardDetails, CardDetailsSkeleton } from './CardDetails';
 import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, Waiting, WITH_KEY } from './CardParts';
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
-import type { ViewProps } from './App';
+import { useView } from './App';
 import { useKeys, useSettled, useSubmitted } from './hooks';
 import { SelectorInput, TopBar } from './TopBar';
 
@@ -38,14 +38,9 @@ const SIDES: Side[] = ['prompt', 'revealed', 'json', 'edit', 'details'];
 const MADE_SIDES: Side[] = ['prompt', 'revealed', 'json'];
 
 // The chosen card and side are kept in the address's path, and only there,
-// as /browse/CARD/SIDE, with the side left out when it is the prompt:
-// /browse, /browse/x7k2m9, /browse/x7k2m9/edit (see src/address.ts). An
-// unknown side is the prompt.
-function parseBrowsePath(path: string): { card: string | null; side: Side } {
-  const [, , card, side] = path.split('/').map(decodeURIComponent);
-  return { card: card || null, side: SIDES.find((s) => s === side) ?? 'prompt' };
-}
-
+// as /browse/CARD/SIDE (the route's :card and :side, src/main.tsx), with the
+// side left out when it is the prompt: /browse, /browse/x7k2m9,
+// /browse/x7k2m9/edit (see src/address.ts). An unknown side is the prompt.
 function browsePath(card: string | null, side: Side): string {
   const parts = ['browse', ...(card === null ? [] : [card, ...(side === 'prompt' ? [] : [side])])];
   return '/' + parts.map(encodeURIComponent).join('/');
@@ -59,7 +54,8 @@ const CHOICE_DELAY = 300; // ms
 // The keys that choose the card below or above.
 const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 };
 
-export function Browse({ active, path, submitted, onSelector }: ViewProps) {
+export function Browse() {
+  const { submitted, onSelector } = useView();
   const { selector } = submitted;
   const [list, setList] = useState<List>({ kind: 'loading', before: [] });
   const [made, setMade] = useState<Record<string, Made>>({});
@@ -67,15 +63,18 @@ export function Browse({ active, path, submitted, onSelector }: ViewProps) {
   // Choosing a card replaces the address, so that moving through the list
   // stays out of the browser's history; turning to another side adds to
   // it, so back turns back.
-  const { card: selected, side } = parseBrowsePath(path);
+  const params = useParams();
+  const selected = params.card ?? null;
+  const side = SIDES.find((s) => s === params.side) ?? 'prompt';
   const navigate = useNavigate();
   const { search } = useLocation();
   const setSelected = (card: string) => navigate({ pathname: browsePath(card, side), search }, { replace: true });
   const setSide = (s: Side) => {
     if (s !== side) navigate({ pathname: browsePath(selected, s), search });
   };
-  // The card being made, to stop when another is chosen.
+  // The card being made, to stop when another is chosen or Browse is left.
   const making = useRef<{ id: string; abort: AbortController } | null>(null);
+  useEffect(() => () => making.current?.abort.abort(), []);
 
   // Finding forgets every card made, so that a selector submitted again
   // makes its cards anew.
@@ -91,7 +90,7 @@ export function Browse({ active, path, submitted, onSelector }: ViewProps) {
   }, []);
 
   // Finds the cards of each selector submitted, once shown.
-  useSubmitted(active, submitted, find);
+  useSubmitted(submitted, find);
 
   // After the item ITEM was saved, finds the cards again in place: the list
   // stays as it is until the new one replaces it, rows kept by card ID, so
@@ -150,7 +149,7 @@ export function Browse({ active, path, submitted, onSelector }: ViewProps) {
 
   // Keys: ↑/↓ (or k/j) choose a card, r makes it again once it has been made
   // (on a side that shows it).
-  useKeys(active, (event) => {
+  useKeys((event) => {
     const at = cards.findIndex((c) => c.id === selected);
     const move = MOVES[event.key];
     if (move !== undefined) {

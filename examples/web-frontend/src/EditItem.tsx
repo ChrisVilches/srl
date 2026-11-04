@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { api, fieldLabel, type KindDescription } from './api';
 import { DraftCheckbox, ErrorView, Label, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
-import { Modal, ResultBox } from './Modal';
+import { Modal, ResultBox, UnsavedGuard } from './Modal';
 
 // Editing an item of any source: its fields and whether it is a draft, as
 // srl show --json gives them, written back whole with srl edit --stdin. The
@@ -80,6 +80,12 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
   if (id === null || loaded.kind === 'loading' || loaded.id !== id) return <ItemSkeleton />;
   if (loaded.kind === 'error') return <ErrorView message={loaded.message} onRetry={load} />;
 
+  // A field or Draft differs from the item as srl has it: leaving would lose
+  // the edits.
+  const unsaved =
+    Object.entries(texts).some(([key, text]) => text !== String(loaded.item[key])) ||
+    draft !== (loaded.item.draft === true);
+
   const save = () => {
     // The whole item: its entries as read, the fields as edited. The keys
     // only srl gives are ignored by srl edit.
@@ -100,6 +106,7 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
 
   return (
     <div className="flex flex-col gap-4">
+      <UnsavedGuard unsaved={unsaved} what="The edits to this item aren't saved, and leaving its Edit side loses them." />
       <p className="text-sm text-stone-500">
         Item <span className="font-mono">{String(loaded.item.id)}</span> of <span className="font-mono">{String(loaded.item.address)}</span>{' '}
         (source {String(loaded.item.source)}).

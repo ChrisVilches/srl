@@ -63,10 +63,11 @@ macOS and Windows (it is tried on Linux only).
 - The selector can be changed in the page, and the X at the right of its
   box, shown while the box holds text, empties it and applies no
   selector, every card; the counters at the top are the
-  cards reviewed, the new ones among them, and the Again ratings. The
+  cards reviewed, the new ones among them, and the Again ratings, since
+  Study was last shown. The
   page has one selector, the same in Study and Browse: submitting it in
-  either changes it in both, and a view hidden at the time applies it
-  when shown again, so a hidden Study runs no `srl next`. The selector
+  either changes it in both, as the other view finds when it is shown.
+  The selector
   submitted is kept in the address's query, one parameter per term:
   `key:value` is `key=value`, text (quoted or not) is `text=…`, and a
   negated term puts its `-` before the name, so `in:a,b -kind:qa "two
@@ -87,9 +88,13 @@ macOS and Windows (it is tried on Linux only).
   another side each add to the browser's history; choosing another card
   replaces the address instead, so moving through the list doesn't fill
   the history. Doing again what the address already shows, such as
-  submitting its selector or clicking the tab or side shown, adds
-  nothing. A tab goes back to its view's last address, keeping the
-  selector, so Browse comes back to its card and side. The name
+  submitting its selector or clicking the side shown, adds nothing. A
+  tab goes to its view's path, keeping the selector: Browse's tab goes
+  to the list, with no card chosen. A view starts anew each time it is
+  shown, and what it had is gone once it is left (see "Routing the
+  usual way"); leaving with text typed and not saved, in Add or in
+  Browse's Edit, asks first, in a dialog, whether to leave and lose it.
+  The name
   srl at the left of the top bar links to the root, loading the page
   anew on the study view with the selector cleared.
 - Dark, or light with the button at the right of the top bar, which
@@ -125,11 +130,12 @@ as how `ja_word` marks words, without studying:
   It is made only on a side that shows it, Prompt, Revealed or JSON:
   on Edit or Details, choosing a card or saving its item makes nothing
   until another side is shown.
-- Each card is made once and kept; **Make again** (`r`) runs its kind
+- Each card is made once and kept while Browse is shown; **Make again** (`r`) runs its kind
   program again once the card has been made, on Prompt, Revealed and
   JSON only, since Edit shows the item and Details what srl says about
-  the card, not the card made from it; submitting the selector forgets
-  every card made.
+  the card, not the card made from it; submitting the selector, or
+  leaving Browse, forgets every card made, and leaving stops the one
+  being made.
 - Keys: ↑/↓ (or `k`/`j`) choose a card. Turning it is done with the
   mouse only, so that space and Enter stay free for typing.
 - The chosen card and side are kept in the address, as
@@ -143,8 +149,7 @@ as how `ja_word` marks words, without studying:
   such as one whose item was deleted, is said so in place of the card,
   and an unknown side is Prompt.
 - It records nothing: no review, no suspension. Studying starts only when
-  the Study tab is first shown, so a page opened on `/browse` runs no
-  `srl next`.
+  Study is shown, so a page opened on `/browse` runs no `srl next`.
 
 In the card browser, the **Edit** side, next to Prompt, Revealed and
 JSON, edits the item of the chosen card, whatever its source: a note, or
@@ -160,7 +165,10 @@ and says whether it worked in the same modal as Add: **Saved** with the
 item's ID, srl's error if it didn't save the item, or srl's error if it
 saved it but couldn't find the cards again. Reset puts back the fields
 and Draft as srl has the item, as read or as last saved, and stays on
-Edit.
+Edit. Choosing another card, turning to another side or leaving Browse
+while the fields or Draft differ from the item as srl has it asks
+first, in a dialog, whether to leave and lose the edits; submitting
+another selector doesn't, since the form stays.
 
 It also **adds items** (the Add tab, or `/add`), one at a time:
 
@@ -179,8 +187,7 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   (its prefix, then an address its `include` globs match and its
   `exclude` globs don't). `srl add` creates it, and has the last word on
   whether it may; the source writes the item its own way. The
-  collections are read once, when the tab is first shown; reloading the
-  page reads them again.
+  collections are read each time Add is shown.
 - The collection last added to is chosen again on the next visit. It is kept
   in the browser's `localStorage`, so it is per browser and per address
   (port), and forgotten when `srl collections` no longer lists it.
@@ -191,7 +198,8 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
 - **Check** runs `srl add --dry-run` and shows the item as srl would
   add it: as it would be written in a note, or the preview a source
   program gives; **Add** (Ctrl+Enter) adds it and shows its ID, then empties
-  the fields. The page knows no rule of any kind: srl checks the item, and
+  the fields. Leaving Add while a field of the kind holds text asks
+  first, in a dialog, whether to leave and lose the item. The page knows no rule of any kind: srl checks the item, and
   the page shows what srl says, such as a field the kind needs. Fields
   left blank are left out of the item, and `kind` is left out for `qa`.
   While srl works, and while its answer is shown, both buttons are
@@ -356,6 +364,26 @@ Only the start, before the server listens, may be synchronous, as in
 `bin/srl-web.js` checking with `existsSync` that the frontend is built:
 nothing is waiting for it yet.
 
+### Routing the usual way
+
+Routing should feel the same everywhere and have nothing hacky about
+it, so it is done the way React Router means it to be, even where that
+costs something. The router is a data router (`createBrowserRouter` in
+`src/main.tsx`). Each view is a route, and only the route shown is
+mounted: leaving a view unmounts it, and coming back starts it anew, so
+Study asks `srl next` again, Browse finds its cards and makes them again,
+and Add reads the kinds and collections again. That is accepted. Don't
+keep views mounted while hidden, keep their state outside them so that
+it survives, or work out from the address by hand what the router can
+give, such as a view's own part of the path (use `useParams()`, as
+Browse does for its card and side).
+
+What leaving a view would lose that can't be made again, text typed and
+not yet saved, is guarded with `UnsavedGuard` (`src/Modal.tsx`, with the
+router's `useBlocker`): going to another path while there is any asks
+first. Add uses it for the item being written, and Edit for the item's
+edits. A new form that holds work the user typed uses it too.
+
 ### Where the page is: the address, through the router
 
 Where the page is, what back should undo, is kept in the address and
@@ -365,10 +393,10 @@ a filter, goes there too, in the path or the query (`src/address.ts`
 lists them all). It follows one set of rules, so that every part works
 the same way with back, forward, reload and bookmarks:
 
-- **Read it from the router on every render.** Use `useLocation()`, or
-  the `path` a view is given (`ViewProps`), and derive the value from it,
-  like `parseBrowsePath` in `src/Browse.tsx`. Don't copy it into
-  `useState` or a ref to keep in step, and don't read `window.location`.
+- **Read it from the router on every render.** Use `useParams()` or
+  `useLocation()`, and derive the value from it, like the card and side
+  in `src/Browse.tsx`. Don't copy it into `useState` or a ref to keep in
+  step, and don't read `window.location`.
 - **Change it only by going to another address.** Use `<Link>`, or
   `navigate()` from `useNavigate()`. Never call `window.history`, listen
   to `popstate`, or fire events of your own to make the page follow the
@@ -384,14 +412,14 @@ the same way with back, forward, reload and bookmarks:
   in the handler that changes it. A view loads its cards when the
   selector it derives changes (`useSubmitted` in `src/hooks.ts`), so
   back and forward load them as submitting does.
-- **A hidden view keeps its last path.** Every view stays mounted, and
-  App keeps the last path of each (`paths`): a hidden view is given that
-  one, and its tab goes back to it. A new view gets this by being in
-  `VIEWS` and `VIEW_PATHS`.
+- **A new view is a route.** Add it to the routes of `src/main.tsx` and
+  to `VIEW_PATHS` in `src/address.ts`, which its tab links to. It gets
+  the selector from App with `useView()`.
 
 What isn't where the page is stays in React state: data from srl, the
 text of a form, the study session, an open dialog, the theme. Back
-doesn't undo these.
+doesn't undo these, and they go with their view when it is left (see
+"Routing the usual way").
 
 After a change that touches any of this, try back and forward through
 it, and reload, and check that the page shows what its address says.

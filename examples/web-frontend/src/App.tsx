@@ -1,33 +1,24 @@
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router';
 
-import { Add } from './Add';
-import { queryOfSelector, selectorOfQuery, VIEW_PATHS, viewOfPath, type View } from './address';
+import { queryOfSelector, selectorOfQuery } from './address';
 import { api, type Card, type Rating } from './api';
-import { Browse } from './Browse';
 import { CardDetailsDialog } from './CardDetails';
 import { CardBadges, CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
-import { SelectorInput, TopBar, ViewPaths } from './TopBar';
+import { SelectorInput, TopBar } from './TopBar';
 
-// What every view is given: whether it is shown, its path in the address
-// (the last one while hidden), and the page's selector, one for every view,
-// with how to submit another.
-export type ViewProps = {
-  active: boolean;
-  path: string;
+// What App gives the view of its route: the page's selector, one for every
+// view, with how to submit another.
+export type ViewContext = {
   submitted: Submitted;
   onSelector: (selector: string) => void;
 };
 
-const VIEWS: Record<View, ComponentType<ViewProps>> = {
-  study: Study,
-  browse: Browse,
-  add: Add,
-};
+export const useView = () => useOutletContext<ViewContext>();
 
 // Where the session is. It runs the frontend loop of docs/frontends.md:
 // get a card, show the prompt, show the answer and the context, rate it.
@@ -57,12 +48,10 @@ async function nextPhase(selector: string): Promise<Phase> {
   return card ? { kind: 'prompt', card } : { kind: 'done' };
 }
 
-// Every view stays mounted, so that switching keeps the session, the
-// browser and the item being written where they were; only the one shown
-// takes keys.
+// The page: the view of the route (src/main.tsx), which is mounted while
+// its route is shown, and the error of the --on-change program.
 export default function App() {
   const { pathname, search } = useLocation();
-  const view = viewOfPath(pathname);
 
   // The selector in the address, or else none, which is every card, with
   // the number of selectors submitted, so that submitting the same one
@@ -82,29 +71,16 @@ export default function App() {
     [navigate, pathname, selector],
   );
 
-  // The last path of each view: a hidden view keeps showing it, as Browse
-  // keeps its card, and the view's tab goes back to it.
-  const [paths, setPaths] = useState<Record<View, string>>(() => ({ ...VIEW_PATHS, [view]: pathname }));
-  if (paths[view] !== pathname) setPaths({ ...paths, [view]: pathname });
-
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      <ViewPaths.Provider value={paths}>
-        {(Object.keys(VIEWS) as View[]).map((v) => {
-          const Pane = VIEWS[v];
-          return (
-            <div key={v} className={view === v ? 'contents' : 'hidden'}>
-              <Pane active={view === v} path={paths[v]} submitted={submitted} onSelector={onSelector} />
-            </div>
-          );
-        })}
-      </ViewPaths.Provider>
+      <Outlet context={{ submitted, onSelector } satisfies ViewContext} />
       <OnChangeError />
     </div>
   );
 }
 
-function Study({ active, submitted, onSelector }: ViewProps) {
+export function Study() {
+  const { submitted, onSelector } = useView();
   const { selector } = submitted;
   const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: performance.now() }));
   const [stats, setStats] = useState<Stats>({ reviewed: 0, new: 0, again: 0 });
@@ -135,9 +111,8 @@ function Study({ active, submitted, onSelector }: ViewProps) {
 
   const loadNext = useCallback((sel: string) => step(() => toNext(sel)), [step, toNext]);
 
-  // Asks for a card with each selector submitted, once shown: a page opened
-  // on the browser makes no card.
-  useSubmitted(active, submitted, loadNext);
+  // Asks for a card when shown, and with each selector submitted.
+  useSubmitted(submitted, loadNext);
 
   const reveal = useCallback(() => {
     if (phase.kind !== 'prompt') return;
@@ -190,7 +165,7 @@ function Study({ active, submitted, onSelector }: ViewProps) {
 
   // Keys: space or Enter shows the answer, 1–4 rate, s suspends, i shows the
   // card's details.
-  useKeys(active, (event) => {
+  useKeys((event) => {
     if (event.key === 'i') {
       showDetails();
       return;

@@ -1,9 +1,8 @@
-import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { api, fieldLabel, type KindDescription, type NewItem, type SourceDescription } from './api';
 import { DraftCheckbox, ErrorView, Key, KindBadge, Label, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
-import { useStartWhenShown } from './hooks';
-import { Modal, ResultBox } from './Modal';
+import { Modal, ResultBox, UnsavedGuard } from './Modal';
 import { TopBar } from './TopBar';
 
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
@@ -48,7 +47,7 @@ function rememberCollection(address: string) {
   }
 }
 
-export function Add({ active }: { active: boolean }) {
+export function Add() {
   const [store, setStore] = useState<Store>({ kind: 'loading' });
   const [kindName, setKindName] = useState('qa');
   // Field texts by name, kept when the kind changes, so that a field of the
@@ -76,12 +75,16 @@ export function Add({ active }: { active: boolean }) {
       setStore({ kind: 'error', message: (error as Error).message });
     }
   }, []);
-  useStartWhenShown(active, load);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const kinds = store.kind === 'ready' ? store.kinds : [];
   const collections = store.kind === 'ready' ? store.collections : [];
   const sources = store.kind === 'ready' ? store.sources : [];
   const kind = kinds.find((k) => k.name === kindName) ?? kinds[0];
+  // A field of the kind holds text: the item would be lost by leaving.
+  const unsaved = kind !== undefined && kind.fields.some((field) => (texts[field.name] ?? '').trim() !== '');
 
   // The item for srl add: `kind` unless it is qa (the default), `see` and
   // `draft` when set, and the fields of the kind that aren't blank.
@@ -136,6 +139,7 @@ export function Add({ active }: { active: boolean }) {
   return (
     <div className="flex min-h-screen flex-col">
       <TopBar view="add">{null}</TopBar>
+      <UnsavedGuard unsaved={unsaved} what="The item being written isn't added yet, and leaving Add loses it." />
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
         {store.kind === 'loading' && <FormSkeleton />}
         {store.kind === 'error' && <ErrorView message={store.message} onRetry={load} />}
