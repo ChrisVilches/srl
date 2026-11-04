@@ -11,7 +11,9 @@
 // The address is the only place this state is kept: the page reads it from
 // the address on every render, through the router (react-router), and
 // changes it by going to another address. So back and forward go through
-// all of it, and the page shows whatever address they come to.
+// all of it, and the page shows whatever address they come to. Follow the
+// rules of README.md, "Where the page is: the address, through the router",
+// when adding to it.
 
 // The views: studying (the page's start), the card browser and adding items.
 export type View = 'study' | 'browse' | 'add';

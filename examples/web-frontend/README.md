@@ -317,6 +317,46 @@ uses the default store. `npm run build` checks the types and builds
 runner: how the selector is written in the address's query and read back
 from it.
 
+### Where the page is: the address, through the router
+
+Where the page is, what back should undo, is kept in the address and
+nowhere else: the view, the selector, Browse's card and side. Anything
+new of that kind, such as another view, a part of a view to go to, or
+a filter, goes there too, in the path or the query (`src/address.ts`
+lists them all). It follows one set of rules, so that every part works
+the same way with back, forward, reload and bookmarks:
+
+- **Read it from the router on every render.** Use `useLocation()`, or
+  the `path` a view is given (`ViewProps`), and derive the value from it,
+  like `parseBrowsePath` in `src/Browse.tsx`. Don't copy it into
+  `useState` or a ref to keep in step, and don't read `window.location`.
+- **Change it only by going to another address.** Use `<Link>`, or
+  `navigate()` from `useNavigate()`. Never call `window.history`, listen
+  to `popstate`, or fire events of your own to make the page follow the
+  address: the router does both.
+- **A change adds to the browser's history by default.** Pass
+  `{ replace: true }` only when going through many places on the way to
+  one, which back shouldn't step through: choosing a card in Browse's
+  list, with ↑/↓ or the mouse. Going to the address already shown adds
+  nothing: `<Link>` replaces by itself, and `navigate()` needs a check, as
+  `setSide` in `src/Browse.tsx` does, or `{ replace: true }`, as
+  `onSelector` in `src/App.tsx` does.
+- **What follows from the address runs because the address changed**, not
+  in the handler that changes it. A view loads its cards when the
+  selector it derives changes (`useSubmitted` in `src/hooks.ts`), so
+  back and forward load them as submitting does.
+- **A hidden view keeps its last path.** Every view stays mounted, and
+  App keeps the last path of each (`paths`): a hidden view is given that
+  one, and its tab goes back to it. A new view gets this by being in
+  `VIEWS` and `VIEW_PATHS`.
+
+What isn't where the page is stays in React state: data from srl, the
+text of a form, the study session, an open dialog, the theme. Back
+doesn't undo these.
+
+After a change that touches any of this, try back and forward through
+it, and reload, and check that the page shows what its address says.
+
 ### A button whose answer is a modal
 
 A button that asks srl for something and shows the answer in a modal,
