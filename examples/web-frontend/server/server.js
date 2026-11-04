@@ -17,6 +17,7 @@
 //                                                      → { cards: [found…] }
 //   GET  /api/card?id=…    srl cards ID --json and srl show ID --json
 //                          --context CONTEXT           → { card }
+//   GET  /api/log?id=…     srl log id:ID --json        → { events: [event…] }
 //
 // /api/card makes the card, so a kind program runs and may take a while (an
 // LLM, say). When the page stops waiting, srl is killed.
@@ -132,8 +133,8 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       return {};
     },
 
-    // Each card as srl find --json gives it, with its item's kind and the
-    // first line of its first field, as srl find prints without --json.
+    // Each card as srl find --json gives it, with its item's kind and see,
+    // and the first line of its first field, as srl find prints without --json.
     'GET /api/find': async (url) => {
       const { found, stdout } = await srl(['find', '--json', ...selectorArgs(url)]);
       const cards = found ? jsonLines(stdout) : [];
@@ -150,7 +151,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
           const item = items.get(card.item);
           // Field names are the item object's uppercase keys.
           const first = Object.entries(item).find(([key]) => /^[A-Z]/.test(key))?.[1] ?? '';
-          return { ...card, kind: item.kind, excerpt: first.split('\n')[0] };
+          return { ...card, kind: item.kind, see: item.see, excerpt: first.split('\n')[0] };
         }),
       };
     },
@@ -178,6 +179,15 @@ export function createSrlServer({ dir, staticDir, onChange }) {
           context_address: item.context_address,
         },
       };
+    },
+
+    // The card's log events, in log order. id: also matches the cards of an
+    // item of that ID, so only the card's own are kept: those naming it, and
+    // the moves of history to it.
+    'GET /api/log': async (url, _body, signal) => {
+      const id = requireId(url.searchParams.get('id'));
+      const { found, stdout } = await srl(['log', '--json', '--', `id:${id}`], undefined, signal);
+      return { events: found ? jsonLines(stdout).filter((event) => event.card === id || event.to === id) : [] };
     },
 
     'GET /api/kinds': async () => ({ kinds: jsonLines((await srl(['kinds', '--json'])).stdout) }),

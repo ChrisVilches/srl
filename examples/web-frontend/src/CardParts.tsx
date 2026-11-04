@@ -20,17 +20,25 @@ export const QUIET_BUTTON = 'rounded-lg px-3 text-stone-500 enabled:hover:bg-sto
 // on the name's line: inline, the smaller key sits on the baseline, low.
 export const WITH_KEY = 'inline-flex items-center justify-center gap-1';
 
-// A card as studying shows it: its ID and kind, and the prompt, or, once
-// revealed, the revealed prompt, the answer and the context. BADGES go after
-// the kind.
-export function CardFace({ card, revealed, badges }: { card: ShownCard; revealed: boolean; badges?: ReactNode }) {
+// A card as studying shows it: its kind, and the prompt, or, once revealed,
+// the revealed prompt, the answer and the context. BADGES go after the kind,
+// and START before it, at the left. Its ID and the rest are in CardDetails.
+export function CardFace({
+  card,
+  revealed,
+  badges,
+  start,
+}: {
+  card: ShownCard;
+  revealed: boolean;
+  badges?: ReactNode;
+  start?: ReactNode;
+}) {
   return (
     <>
       <article className="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
         <div className="flex items-center justify-between gap-3 px-6 pt-4 text-xs text-stone-400">
-          <span className="min-w-0 truncate font-mono" title={card.id}>
-            {card.id}
-          </span>
+          <span className="min-w-0">{start}</span>
           <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <KindBadge kind={card.kind} />
             {badges}

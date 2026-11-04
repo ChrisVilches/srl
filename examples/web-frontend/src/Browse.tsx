@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
 import { api, type FoundCard, type ShownCard } from './api';
+import { CardDetails, CardDetailsSkeleton } from './CardDetails';
 import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, Waiting, WITH_KEY } from './CardParts';
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
@@ -279,9 +280,9 @@ function CardList({
 }
 
 // The chosen card, on the chosen side. While LOADING, the cards being found,
-// the sides are shown, with a skeleton for the card's collection and due
-// date, and for the form on Edit; the other sides show nothing until the
-// card is made, which Making shows.
+// the sides are shown, with a skeleton for the card's details, above the
+// card on every side, and for the form on Edit; the other sides show nothing
+// until the card is made, which Making shows.
 // TODO: Prompt, Revealed and JSON are blank under the sides until Making
 // shows, while the cards are found and for MAKE_DELAY after; they should
 // show something from the start. See the README's TODO.
@@ -359,32 +360,12 @@ function Preview({
             Make again <Key>r</Key>
           </button>
         )}
-        {found === null ? (
-          <Loading label="Finding the card" className="ml-auto flex items-center gap-2">
-            <Skeleton className="h-3 w-40" />
-            <Skeleton className="h-3 w-20" />
-          </Loading>
-        ) : (
-          <span className="ml-auto min-w-0 truncate font-mono text-xs text-stone-400" title={found.address}>
-            {found.address}
-            {found.line === null ? '' : `:${found.line}`} · due {found.due ?? '—'}
-          </span>
-        )}
       </div>
 
-      {/* A card suspended without a reason says so, with no reason. */}
-      {found !== null && found.status === 'suspended' && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-500/40 dark:bg-amber-400/10">
-          {found.suspend_reason === null ? (
-            <div className="font-medium text-amber-800 dark:text-amber-300">Suspended, with no reason given</div>
-          ) : (
-            <>
-              <div className="font-medium text-amber-800 dark:text-amber-300">Suspended because</div>
-              <p className="mt-1 whitespace-pre-wrap">{found.suspend_reason}</p>
-            </>
-          )}
-        </div>
-      )}
+      {/* The card's details, on every side, above the card and not in it. */}
+      <section className="rounded-2xl border border-stone-200 px-5 py-4 dark:border-stone-800">
+        {found === null ? <CardDetailsSkeleton /> : <CardDetails card={found} />}
+      </section>
       {/* Until the cards are found, the form waits for the card's item, as
           one skeleton from the page's opening to the form. */}
       {editing && <EditItem id={found === null ? null : found.item} onSaved={onSaved} />}

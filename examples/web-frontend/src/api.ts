@@ -19,11 +19,14 @@ export type ShownCard = {
 export type Card = ShownCard & { schedule: 'new' | 'due'; leech: boolean };
 
 // A card as `srl find --json` lists it (docs/cli.md, "Items and cards"),
-// with its item's kind and the first line of its first field.
+// with its item's kind and see, and the first line of its first field.
 export type FoundCard = {
   id: string;
   item: string;
   address: string;
+  source: string;
+  // The file its collection is kept in, or null when it is no file of its own.
+  file: string | null;
   line: number | null;
   status: 'active' | 'draft' | 'suspended';
   schedule: 'new' | 'due' | 'young' | 'mature';
@@ -32,10 +35,21 @@ export type FoundCard = {
   // Why the card is suspended, if it was suspended with a reason.
   suspend_reason: string | null;
   kind: string;
+  see: string | null;
   excerpt: string;
 };
 
 export type Rating = 1 | 2 | 3 | 4;
+
+// An event of the log, as stored (docs/log.md, "Events"). A move belongs to
+// the card it moved history to.
+export type LogEvent = { t: string } & (
+  | { type: 'review'; card: string; rating: Rating; response: string | null; by: 'human' | 'agent'; hash: string }
+  | { type: 'reset'; card: string }
+  | { type: 'suspend'; card: string; reason: string | null }
+  | { type: 'unsuspend'; card: string }
+  | { type: 'move'; from: string; to: string }
+);
 
 // A kind as `srl kinds --json` describes it (docs/cards.md, "Describing a
 // kind"): what it is for, and its fields, each with its label for people
@@ -123,6 +137,9 @@ export const api = {
   // Makes the card, running its kind program. Aborting SIGNAL stops srl.
   card: async (id: string, signal: AbortSignal) =>
     (await call<{ card: ShownCard }>(`/api/card?${new URLSearchParams({ id })}`, undefined, signal)).card,
+  // The card's log events, in log order. Aborting SIGNAL stops srl.
+  log: async (id: string, signal: AbortSignal) =>
+    (await call<{ events: LogEvent[] }>(`/api/log?${new URLSearchParams({ id })}`, undefined, signal)).events,
   kinds: async () => (await call<{ kinds: KindDescription[] }>('/api/kinds')).kinds,
   sources: async () => (await call<{ sources: SourceDescription[] }>('/api/sources')).sources,
   collections: async () => (await call<{ collections: string[] }>('/api/collections')).collections,

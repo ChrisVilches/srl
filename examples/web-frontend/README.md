@@ -13,23 +13,37 @@ macOS and Windows (it is tried on Linux only).
   cloze's blanks filled in (or leaves it as it is when the card has none,
   `prompt_revealed` being `null`), and adds the answer below it when there
   is one.
-- Each card is labelled with its ID, its kind in violet when the kind is
+- Each card is labelled with its kind in violet when the kind is
   a program, such as one that asks an LLM, and `new` when it is new. A
-  built-in kind (only `qa` for now) is never shown, here or anywhere else
-  on the page: srl doesn't say which kinds are built in, so the page
+  built-in kind (only `qa` for now) is shown only in the card's details
+  (below): srl doesn't say which kinds are built in, so the page
   lists them in `BUILT_IN_KINDS` in `src/CardParts.tsx`, and a new one
   must be added there. A card that isn't new is always due, so it gets
   no label for that, unless it is a leech: then it is labelled `due` and,
   in amber, `leech`, as its question likely needs rewriting.
+- The card's ID is not on the card. **Details** (`i`), at the left of its
+  header, opens its details in a modal: everything srl says about it, to
+  trace it back to where it comes from and what happened to it. Its card
+  and item IDs, its kind (a built-in one too), its source, the address
+  of its collection with the item's line, the file the collection is
+  kept in, the collection its context comes from, its status (with the
+  reason, if it is suspended), its place in the schedule, the day it is
+  due, whether it is a leech, and its history: every event of the log
+  for it, newest first, each with its time, as `srl log` gives them (a
+  review's rating, who recorded it, the response if there is one and the
+  hash of its question). They are `src/CardDetails.tsx`, which Browse
+  shows too.
 - After the answer it shows the context in `prose` mode, under the
   address of its collection; `CONTEXT` in `server/server.js` chooses the
   mode. A context from anything but a Markdown note (by the extension of
   `context_address`), such as a JSONL note or a table of a source
   program, is shown as a code block, a JSONL one in colors. A table
   wider than the page scrolls sideways in its own box, leaving the text
-  around it in place. A long ID or kind is cut short in the card's
-  header, and a long address over the context, whole in its tooltip.
-- Keys: space (or Enter) shows the answer, `1`–`4` rate, `s` suspends the
+  around it in place. A long kind is cut short in the card's header, a
+  long address over the context and a long value in the details, whole
+  in its tooltip.
+- Keys: space (or Enter) shows the answer, `1`–`4` rate, `i` shows the
+  card's details, `s` suspends the
   card without recording a review, after asking why in a dialog: what to
   fix before studying it again. The reason may be left empty; Enter
   suspends, Shift+Enter starts a new line, Escape cancels. Buttons name
@@ -92,9 +106,14 @@ as how `ja_word` marks words, without studying:
 - Choosing a card makes it with `srl cards`, running its kind program, and
   shows it as studying does: the prompt, or, turned, the revealed prompt,
   the answer and the context. The JSON side shows the card as `srl cards
-  --json` prints it, in colors. A suspended card says so above it, with
-  the reason if it was given one, so `is:suspended` lists the cards to
-  fix, and what to fix.
+  --json` prints it, in colors.
+- Above the card, on every side, are its details, the same as Study's
+  modal shows, in a box of their own and not in the card. A suspended
+  card says so at their top, with the reason if it was given one, so
+  `is:suspended` lists the cards to fix, and what to fix. They come from
+  the list, so they show at once; only the history is read, with `srl
+  log`, once a card has stayed chosen for a moment, and again whenever
+  the cards are found again.
 - A kind program can take a while: the page counts the seconds while it
   runs. A card is made once it has stayed chosen
   for a moment, so moving through the list makes no card on the way, and
@@ -249,7 +268,8 @@ scheduling here; that belongs to `srl`.
 | `GET /api/next?sel=…` | `srl next SEL --json --context prose` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
 | `POST /api/review` | `srl review --stdin`, with the request body | `{}` |
 | `POST /api/suspend` | `srl suspend id:CARD --reason=REASON`, for `{"card": CARD, "reason": REASON}`; an empty or missing `reason` is none | `{}` |
-| `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --context none` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind` and `excerpt`, the first line of its first field |
+| `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --context none` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind`, `see` and `excerpt`, the first line of its first field |
+| `GET /api/log?id=…` | `srl log id:ID --json` | `{"events": […]}`: the card's events, in log order, as stored; those of other cards of an item of the same ID are left out |
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json --context prose` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `address`, `see`, `context` and `context_address`, as `srl next --json` gives them (not its `source` and `file`) |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
 | `GET /api/sources` | `srl sources --json` | `{"sources": […]}`, each source as `srl sources` printed it |

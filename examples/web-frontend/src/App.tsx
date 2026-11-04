@@ -1,3 +1,4 @@
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
@@ -5,6 +6,7 @@ import { Add } from './Add';
 import { queryOfSelector, selectorOfQuery, VIEW_PATHS, viewOfPath, type View } from './address';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
+import { CardDetailsDialog } from './CardDetails';
 import { CardBadges, CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
@@ -179,8 +181,20 @@ function Study({ active, submitted, onSelector }: ViewProps) {
     [phase, selector, step, toNext],
   );
 
-  // Keys: space or Enter shows the answer, 1–4 rate, s suspends.
+  // The card's details, in a dialog.
+  const [showingDetails, setShowingDetails] = useState(false);
+  const showDetails = useCallback(() => {
+    if (phase.kind !== 'prompt' && phase.kind !== 'answer') return;
+    setShowingDetails(true);
+  }, [phase]);
+
+  // Keys: space or Enter shows the answer, 1–4 rate, s suspends, i shows the
+  // card's details.
   useKeys(active, (event) => {
+    if (event.key === 'i') {
+      showDetails();
+      return;
+    }
     if (busy) return;
     if (event.key === ' ' || event.key === 'Enter') {
       if (phase.kind !== 'prompt') return;
@@ -211,7 +225,17 @@ function Study({ active, submitted, onSelector }: ViewProps) {
           <DoneView selector={selector} stats={stats} onCheck={() => loadNext(selector)} />
         )}
         {(phase.kind === 'prompt' || phase.kind === 'answer') && (
-          <CardView phase={phase} busy={busy} onReveal={reveal} onRate={rate} onSuspend={askWhy} />
+          <>
+            <CardView
+              phase={phase}
+              busy={busy}
+              onReveal={reveal}
+              onRate={rate}
+              onSuspend={askWhy}
+              onDetails={showDetails}
+            />
+            <CardDetailsDialog id={phase.card.id} open={showingDetails} onClose={() => setShowingDetails(false)} />
+          </>
         )}
         <SuspendDialog open={askingWhy} onSuspend={suspend} onClose={() => setAskingWhy(false)} />
       </main>
@@ -237,12 +261,14 @@ function CardView({
   onReveal,
   onRate,
   onSuspend,
+  onDetails,
 }: {
   phase: Extract<Phase, { kind: 'prompt' | 'answer' }>;
   busy: boolean;
   onReveal: () => void;
   onRate: (rating: Rating) => void;
   onSuspend: () => void;
+  onDetails: () => void;
 }) {
   const { card } = phase;
   return (
@@ -253,6 +279,16 @@ function CardView({
         card={card}
         revealed={phase.kind === 'answer'}
         badges={(card.schedule === 'new' || card.leech) && <CardBadges schedule={card.schedule} leech={card.leech} />}
+        start={
+          <button
+            onClick={onDetails}
+            title="Everything srl says about this card, and its history"
+            className={`-ml-3 py-1 text-xs ${WITH_KEY} ${QUIET_BUTTON}`}
+          >
+            <InformationCircleIcon aria-hidden className="h-4 w-4" />
+            Details <Key>i</Key>
+          </button>
+        }
       />
 
       <div className="sticky bottom-0 -mx-4 mt-auto border-t border-stone-200 bg-stone-50/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 dark:border-stone-800 dark:bg-stone-950/90">
