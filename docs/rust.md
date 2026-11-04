@@ -316,6 +316,7 @@ Known places:
 | `store.rs`, `note_paths`, `nfc`; [store.md](store.md) | macOS often lists file names in Unicode NFD, so paths could sort and match differently | Handled: paths are sorted and matched against `path:`, `in:` and `exclude` in NFC, on every platform |
 | `source/files.rs`, `replace_file`; [notes.md](notes.md) | Replacing a note atomically: a rename over an existing file, which Windows refuses while another program holds the file open without sharing | Handled: the rename's error is reported and the note left as it was. **TODO in code and spec**: not run on Windows |
 | `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `.srl/log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
+| `process.rs`, `Running`, `stop_programs`; `srl`'s `main.rs`; [cards.md](cards.md) | Stopping a program with every process it started: a process group and signal handlers on Unix, a job object on Windows | Handled. **TODO in code and spec**: on Unix, `SIGKILL` can't be caught; on Windows, a process started before the program is put in its job escapes it, and it is not run on Windows |
 | `index.rs`, `connect`; [store.md](store.md) | SQLite's file locking is unreliable on network file systems (NFS, SMB) on every platform: concurrent updates could damage the index cache | **TODO in code and spec**: damage is usually detected and the cache rebuilt; keep stores on a local disk for now |
 
 ## Testing
@@ -407,6 +408,9 @@ Current dependencies:
 | `getrandom` | `srl` | The random seeds for new item IDs and for `srl next`'s pick (the core derives both from them), unless `SRL_SEED` gives one |
 | `dirs` | `srl` | The platform's data directory, for the default store |
 | `which` | `srl-core` | Finding kind programs and source programs on `PATH`, with `PATHEXT` on Windows |
+| `rustix` (`process`) | `srl-core` on Unix; tests of `srl` on Unix | Stopping a program's process group, without `unsafe` (see [cards.md](cards.md), "Stopping a program"); sending `SIGTERM` to `srl` in tests |
+| `signal-hook` (`iterator`) | `srl` on Unix | Stopping the programs `srl` runs when it gets `SIGINT`, `SIGTERM` or `SIGHUP`, then ending by the same signal |
+| `win32job` | `srl-core` on Windows | The job object each program runs in, which stops its processes when `srl` ends, without `unsafe` |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
 | `toml` | `srl-core` | Parsing `.srl/config.toml` |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |

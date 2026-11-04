@@ -24,5 +24,11 @@ toml.workspace = true
 unicode-normalization.workspace = true
 which.workspace = true
 
+[target.'cfg(unix)'.dependencies]
+rustix.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+win32job.workspace = true
+
 [lints]
 workspace = true

@@ -170,7 +170,9 @@ the program with the call as its last argument, writes JSON lines to its
 standard input and closes it, and reads JSON lines from its standard
 output. A status other than 0 is a failure of the whole call, and what
 the program printed on standard error is the reason. Every input line
-holds `config`, the program's keys.
+holds `config`, the program's keys. It is stopped as a kind program is,
+with every process it started, when `srl` is stopped (see
+[cards.md](cards.md), "Stopping a program").
 
 | Call | Input | Output |
 |---|---|---|

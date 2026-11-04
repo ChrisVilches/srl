@@ -28,6 +28,9 @@ thiserror = "2.0.21"
 toml = { version = "1.1.8", default-features = false, features = ["std", "parse", "serde"] }
 unicode-normalization = { version = "0.1.26", default-features = false, features = ["std"] }
 which = "8.0.6"
+rustix = { version = "1.1.6", default-features = false, features = ["std", "process"] }
+signal-hook = { version = "0.4.6", default-features = false, features = ["iterator"] }
+win32job = "2.0.3"
 
 # Lint policy: see docs/rust.md, "Linting".
 [workspace.lints.rust]

@@ -33,4 +33,6 @@ pub use error::{Error, Result, at};
 pub use index::Index;
 pub use kind::{FieldDescription, Kind, KindDescription, kinds};
 pub use log::{By, CardEvent, Entry, Event, Log, Move, Review, Suspend};
+#[cfg(unix)]
+pub use process::stop_programs;
 pub use store::{Lookup, Store};

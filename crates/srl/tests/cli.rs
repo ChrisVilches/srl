@@ -1341,6 +1341,76 @@ fn kind_selects_items_by_their_kind() {
     assert!(stderr(&output).contains("there is no kind `nope`"));
 }
 
+/// A store whose one card is made by a test kind program that starts a
+/// process appending to `ticks` in the store's folder, then waits a minute.
+fn store_with_ticking_kind() -> TempDir {
+    store_with_kind(&[(
+        "a.md",
+        "```srl id:abc kind:fake\nSPAWN_MAKE: ticks\nSLEEP_MAKE: 60\n```\n",
+    )])
+}
+
+/// Waits until `ticks` exists: the process the kind program starts is
+/// running.
+#[cfg(unix)]
+fn wait_for_ticks(ticks: &Path) {
+    let start = std::time::Instant::now();
+    while !ticks.exists() {
+        assert!(
+            start.elapsed() < std::time::Duration::from_secs(10),
+            "no process started"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+/// Whether `ticks` is still growing: the process appending to it runs.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn still_ticking(ticks: &Path) -> bool {
+    let before = fs::metadata(ticks).unwrap().len();
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    fs::metadata(ticks).unwrap().len() != before
+}
+
+#[test]
+fn a_kind_program_out_of_time_is_stopped_with_what_it_started() {
+    let tmp = store_with_ticking_kind();
+    let config = fs::read_to_string(tmp.path().join(".srl/config.toml")).unwrap();
+    write(
+        &tmp,
+        ".srl/config.toml",
+        &format!("{config}\n[kind_programs]\ncard_timeout = 1\n"),
+    );
+    let output = srl(&["next", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("took longer than 1 seconds"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(!still_ticking(&tmp.path().join("ticks")));
+}
+
+#[cfg(unix)]
+#[test]
+fn srl_stopped_by_a_signal_stops_its_kind_program_with_what_it_started() {
+    use rustix::process::{Pid, Signal, kill_process};
+    use std::os::unix::process::ExitStatusExt as _;
+    let tmp = store_with_ticking_kind();
+    let ticks = tmp.path().join("ticks");
+    let mut child = srl_command()
+        .args(["next", "--dir", dir(&tmp)])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    wait_for_ticks(&ticks);
+    kill_process(Pid::from_child(&child), Signal::TERM).unwrap();
+    let status = child.wait().unwrap();
+    assert_eq!(status.signal(), Some(Signal::TERM.as_raw()));
+    assert!(!still_ticking(&ticks));
+}
+
 #[test]
 fn next_fails_if_its_kind_program_fails_to_make_the_card() {
     let tmp = store_with_kind(&[(

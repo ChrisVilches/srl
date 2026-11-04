@@ -29,7 +29,9 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 - **Standard output carries results only.** Errors and warnings go to standard
   error, as one plain message each, saying what to do about it.
 - **Exit codes:** 0 success (or something found), 1 nothing found or nothing
-  left, 2 error.
+  left, 2 error. Stopped by a signal, `srl` first stops the programs it
+  runs, then ends by that signal, with no exit code (see
+  [cards.md](cards.md), "Stopping a program").
 - **Errors in sources stop every command that reads items** (see
   [items.md](items.md), "Errors"), except `srl id` for items without an ID,
   `srl check`, which reports them, and `srl lint`.

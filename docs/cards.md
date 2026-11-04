@@ -423,6 +423,33 @@ card the kind could give, not the one `srl next` will show.
 > large dictionary or database), mostly in `make`. Both are postponed
 > (see [ideas.md](ideas.md), "Kind programs").
 
+#### Stopping a program
+
+A kind program, or a source program (see [sources.md](sources.md)), is
+stopped together with every process it started, theirs included:
+
+- **when it runs out of time**, as a `make` call can (see "How srl calls
+  them" above);
+- **when `srl` is stopped**: on Unix by `SIGINT` (Ctrl+C), `SIGTERM` or
+  `SIGHUP`, after which `srl` ends by the same signal; on Windows however
+  `srl` ends, closed or killed. So a program that kills `srl`, as a
+  frontend that stops waiting for a card does, stops the kind program
+  making it too, and whatever it was waiting for, such as an LLM's answer.
+
+What a program leaves running after it exits on its own is not stopped:
+it is the program's.
+
+On Unix, each program runs as the leader of a process group of its own,
+which `srl` stops. Ctrl+C in a terminal reaches `srl` alone, which stops
+the program. On Windows, each program runs in a job object, which stops
+its processes when `srl` ends.
+
+> **TODO (platform):** on Unix, `srl` killed with `SIGKILL` can't stop
+> anything, and its programs run on until they end. On Windows, a process
+> the program starts in the very first moment, before `srl` puts the
+> program in its job object, isn't in it, and isn't stopped with it. Not
+> run on Windows yet.
+
 ### Describing a kind
 
 Every kind describes itself, so that a person, an editor or a script

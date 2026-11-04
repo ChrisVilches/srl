@@ -12,6 +12,10 @@
 //! - `GROUPS_RAW`: printed as is for `groups`, in place of the groups.
 //! - `FAIL_MAKE`: `make` gives an error for the suffixes listed (`_` for
 //!   none).
+//! - `SPAWN_MAKE`: `make` first starts a copy of the program, run as
+//!   `srl-test-kind --tick FILE`, that appends a line to this file, relative
+//!   to the folder it runs in, every 20 ms for a minute, so that a test can
+//!   tell whether a process the kind program started was stopped.
 //! - `SLEEP_MAKE`: `make` waits this many seconds first, once per call.
 //! - `MAKE_RAW`: printed as is for `make`, in place of the card.
 //! - `BREAK_VALIDATE`, `BREAK_GROUPS`, `BREAK_MAKE`: that call fails as a
@@ -31,7 +35,7 @@
 
 use std::fs::OpenOptions;
 use std::io::{self, BufRead as _, Write as _};
-use std::process::ExitCode;
+use std::process::{Command, ExitCode, Stdio};
 use std::thread;
 use std::time::Duration;
 
@@ -45,6 +49,11 @@ use serde_json::{Value, json};
 fn main() -> ExitCode {
     // srl adds the call last, after the arguments of `[kinds]`.
     let mut args = std::env::args().skip(1).collect::<Vec<_>>();
+    if let [mode, file] = args.as_slice()
+        && mode == "--tick"
+    {
+        return tick(file);
+    }
     let call = args.pop().unwrap_or_default();
     let describe = args.first().map(String::as_str);
     let mut inputs = Vec::new();
@@ -132,6 +141,17 @@ fn answer(call: &str, inputs: &[Value], describe: Option<&str>) -> Result<Vec<St
             .collect()),
         "groups" => Ok(inputs.iter().map(groups).collect()),
         "make" => {
+            if let Some(file) = inputs.iter().find_map(|input| field(input, "SPAWN_MAKE")) {
+                let program =
+                    std::env::current_exe().map_err(|error| format!("SPAWN_MAKE: {error}"))?;
+                Command::new(program)
+                    .args(["--tick", file])
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .map_err(|error| format!("SPAWN_MAKE: {error}"))?;
+            }
             if let Some(seconds) = inputs.iter().find_map(|input| field(input, "SLEEP_MAKE")) {
                 let seconds = seconds
                     .parse()
@@ -142,6 +162,22 @@ fn answer(call: &str, inputs: &[Value], describe: Option<&str>) -> Result<Vec<St
         }
         other => Err(format!("unknown call `{other}`")),
     }
+}
+
+/// Appends a line to `file` every 20 ms for a minute (see `SPAWN_MAKE`).
+fn tick(file: &str) -> ExitCode {
+    for _ in 0..3000 {
+        let appended = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(file)
+            .and_then(|mut file| file.write_all(b"tick\n"));
+        if appended.is_err() {
+            return ExitCode::FAILURE;
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+    ExitCode::SUCCESS
 }
 
 /// What `groups` prints for `input`.

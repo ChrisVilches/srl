@@ -2,6 +2,12 @@
 //! alike: one process per call, its input on standard input, its answer on
 //! standard output (see `docs/cards.md`, "How srl calls them", and
 //! `docs/sources.md`, "Source programs").
+//!
+//! A program is stopped with every process it started, when it runs out of
+//! time and when `srl` is stopped (see `docs/cards.md`, "Stopping a
+//! program"): on Unix it leads a process group of its own, which
+//! `stop_programs` stops; on Windows it is put in a job object that stops
+//! its processes when it is closed, as it is when `srl` ends however it ends.
 
 use std::io::{self, Read, Write as _};
 use std::path::{Path, PathBuf};
@@ -71,15 +77,16 @@ pub(crate) fn run(
     input: String,
     timeout: Option<Duration>,
 ) -> Result<String, Failure> {
-    let mut child = Command::new(program)
+    let mut command = Command::new(program);
+    command
         .args(args)
         .arg(call)
         .current_dir(root)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(Failure::CannotStart)?;
+        .stderr(Stdio::piped());
+    let mut running = Running::start(&mut command).map_err(Failure::CannotStart)?;
+    let child = &mut running.child;
     let stdin = child
         .stdin
         .take()
@@ -97,7 +104,7 @@ pub(crate) fn run(
             .take()
             .expect("a program's stderr should be piped"),
     );
-    let Some(status) = wait(&mut child, timeout).map_err(Failure::Io)? else {
+    let Some(status) = running.wait(timeout).map_err(Failure::Io)? else {
         return Err(Failure::TimedOut);
     };
     let joined = |handle: JoinHandle<io::Result<Vec<u8>>>| {
@@ -140,22 +147,165 @@ fn reader(mut pipe: impl Read + Send + 'static) -> JoinHandle<io::Result<Vec<u8>
     })
 }
 
-/// Waits for `child` to finish, for at most `timeout` if there is one.
-/// `None` if it ran out of time, in which case it is stopped.
-fn wait(child: &mut Child, timeout: Option<Duration>) -> io::Result<Option<ExitStatus>> {
-    let Some(timeout) = timeout else {
-        return child.wait().map(Some);
-    };
-    let start = Instant::now();
-    loop {
-        if let Some(status) = child.try_wait()? {
-            return Ok(Some(status));
+/// A program that was started, with what stops it and every process it
+/// started: its process group on Unix, its job object on Windows.
+struct Running {
+    child: Child,
+    #[cfg(windows)]
+    job: win32job::Job,
+}
+
+impl Running {
+    /// Starts `command` as the leader of a process group of its own (Unix),
+    /// or in a job object of its own (Windows). On Unix no program starts
+    /// once `srl` is being stopped.
+    #[cfg(unix)]
+    fn start(command: &mut Command) -> io::Result<Self> {
+        use std::os::unix::process::CommandExt as _;
+        command.process_group(0);
+        // Started and recorded under the lock, so that `stop_programs`
+        // never misses a program.
+        let mut groups = groups();
+        if groups.stopping {
+            return Err(io::Error::other("srl is being stopped"));
         }
-        if start.elapsed() >= timeout {
+        let child = command.spawn()?;
+        groups.running.push(child.id());
+        Ok(Self { child })
+    }
+
+    #[cfg(windows)]
+    fn start(command: &mut Command) -> io::Result<Self> {
+        use std::os::windows::io::AsRawHandle as _;
+        let mut limits = win32job::ExtendedLimitInfo::new();
+        limits.limit_kill_on_job_close();
+        let job = win32job::Job::create_with_limit_info(&limits)?;
+        let mut child = command.spawn()?;
+        // TODO(platform): a process the program starts before it is put in
+        // the job is not in it. Starting it suspended would close that
+        // window, which std::process doesn't offer.
+        if let Err(error) = job.assign_process(child.as_raw_handle() as isize) {
             child.kill()?;
             child.wait()?;
-            return Ok(None);
+            return Err(error.into());
         }
-        thread::sleep(POLL);
+        Ok(Self { child, job })
+    }
+
+    /// Waits for the program to finish, for at most `timeout` if there is
+    /// one. `None` if it ran out of time, in which case it is stopped with
+    /// every process it started.
+    fn wait(&mut self, timeout: Option<Duration>) -> io::Result<Option<ExitStatus>> {
+        let Some(timeout) = timeout else {
+            return self
+                .child
+                .wait()
+                .map(Some)
+                .and_then(|status| self.ended(status));
+        };
+        let start = Instant::now();
+        loop {
+            if let Some(status) = self.child.try_wait()? {
+                return self.ended(Some(status));
+            }
+            if start.elapsed() >= timeout {
+                self.stop()?;
+                self.child.wait()?;
+                return Ok(None);
+            }
+            thread::sleep(POLL);
+        }
+    }
+
+    /// Stops the program and every process it started. It has not been
+    /// waited for, so its process group can't be another's yet.
+    #[cfg(unix)]
+    fn stop(&mut self) -> io::Result<()> {
+        kill_group(self.child.id())
+    }
+
+    #[cfg(windows)]
+    fn stop(&mut self) -> io::Result<()> {
+        self.child.kill()?;
+        // Closing the job, once dropped, stops the rest.
+        Ok(())
+    }
+
+    /// Once the program has exited on its own: what it left running is
+    /// not stopped, so on Windows the job no longer stops its processes
+    /// when it is closed.
+    #[cfg(unix)]
+    #[expect(clippy::unnecessary_wraps, reason = "the same as on Windows")]
+    #[expect(clippy::unused_self, reason = "the same as on Windows")]
+    fn ended<T>(&self, status: T) -> io::Result<T> {
+        Ok(status)
+    }
+
+    #[cfg(windows)]
+    fn ended<T>(&self, status: T) -> io::Result<T> {
+        self.job
+            .set_extended_limit_info(&win32job::ExtendedLimitInfo::new())?;
+        Ok(status)
+    }
+}
+
+#[cfg(unix)]
+impl Drop for Running {
+    fn drop(&mut self) {
+        groups().running.retain(|&group| group != self.child.id());
+    }
+}
+
+/// The process groups of the programs running now, by the ID of their
+/// leader, and whether `srl` is being stopped.
+#[cfg(unix)]
+struct Groups {
+    running: Vec<u32>,
+    stopping: bool,
+}
+
+#[cfg(unix)]
+static GROUPS: std::sync::Mutex<Groups> = std::sync::Mutex::new(Groups {
+    running: Vec::new(),
+    stopping: false,
+});
+
+#[cfg(unix)]
+fn groups() -> std::sync::MutexGuard<'static, Groups> {
+    // The list stays right if a thread panicked holding it: it is changed
+    // in one step.
+    GROUPS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Stops every process of the process group `group`.
+#[cfg(unix)]
+fn kill_group(group: u32) -> io::Result<()> {
+    let pid = i32::try_from(group)
+        .ok()
+        .and_then(rustix::process::Pid::from_raw)
+        .ok_or_else(|| io::Error::other(format!("{group} is not a process ID")))?;
+    Ok(rustix::process::kill_process_group(
+        pid,
+        rustix::process::Signal::KILL,
+    )?)
+}
+
+/// Stops every program `srl` is running, with every process it started,
+/// and starts no other: for `srl` to call before it ends on a signal such
+/// as `SIGTERM`, which would otherwise leave them running. On Windows a
+/// job object does this when `srl` ends.
+// TODO(platform): `SIGKILL` can't be caught, so `srl` killed with it leaves
+// its programs running. Linux could have them killed with their parent
+// (`PR_SET_PDEATHSIG`), but only from code run in the new process before
+// it starts the program, which needs `unsafe`; macOS has nothing like it.
+#[cfg(unix)]
+pub fn stop_programs() {
+    let mut groups = groups();
+    groups.stopping = true;
+    for &group in &groups.running {
+        // A group whose processes have all ended is gone already.
+        let _gone = kill_group(group);
     }
 }
