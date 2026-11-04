@@ -9,10 +9,6 @@ import { Modal } from './Modal';
 // file, where it is in its schedule, and its history in the log. Study shows
 // it in a modal (CardDetailsDialog), Browse above the chosen card.
 
-// How long a card stays chosen before its history is read, so that moving
-// through Browse's list with the keys runs no srl log for the cards passed by.
-const HISTORY_DELAY = 150; // ms
-
 const RATING_NAMES: Record<Rating, { name: string; color: string }> = {
   1: { name: 'Again', color: 'text-rose-600 dark:text-rose-400' },
   2: { name: 'Hard', color: 'text-amber-600 dark:text-amber-400' },
@@ -21,8 +17,9 @@ const RATING_NAMES: Record<Rating, { name: string; color: string }> = {
 };
 
 // The details of CARD, as srl find --json lists it. Every kind is named here,
-// a built-in one too, unlike on the card.
-export function CardDetails({ card }: { card: FoundCard }) {
+// a built-in one too, unlike on the card. Its history is read once
+// READ_HISTORY is true: Browse waits until the card has stayed chosen.
+export function CardDetails({ card, readHistory = true }: { card: FoundCard; readHistory?: boolean }) {
   const where = card.line === null ? card.address : `${card.address}:${card.line}`;
   return (
     <div className="flex flex-col gap-4 text-sm">
@@ -79,7 +76,7 @@ export function CardDetails({ card }: { card: FoundCard }) {
           {card.see ?? <None>its collection</None>}
         </Entry>
       </dl>
-      <History card={card} />
+      <History card={card} read={readHistory} />
     </div>
   );
 }
@@ -104,28 +101,24 @@ function None({ children }: { children: ReactNode }) {
   return <span className="text-stone-400">{children}</span>;
 }
 
-// The card's log events, newest first. The events of another card aren't
-// shown while this one's are read; this card's, read before its row was found
-// again, stay until the new ones come.
-function History({ card }: { card: FoundCard }) {
+// The card's log events, newest first, read once READ is true. The events of
+// another card aren't shown while this one's are read; this card's, read
+// before its row was found again, stay until the new ones come.
+function History({ card, read }: { card: FoundCard; read: boolean }) {
   const [history, setHistory] = useState<{ id: string; events: LogEvent[] } | { id: string; error: string } | null>(
     null,
   );
   useEffect(() => {
+    if (!read) return;
     const abort = new AbortController();
-    const timer = setTimeout(() => {
-      api.log(card.id, abort.signal).then(
-        (events) => setHistory({ id: card.id, events }),
-        (error: Error) => {
-          if (!abort.signal.aborted) setHistory({ id: card.id, error: error.message });
-        },
-      );
-    }, HISTORY_DELAY);
-    return () => {
-      clearTimeout(timer);
-      abort.abort();
-    };
-  }, [card]);
+    api.log(card.id, abort.signal).then(
+      (events) => setHistory({ id: card.id, events }),
+      (error: Error) => {
+        if (!abort.signal.aborted) setHistory({ id: card.id, error: error.message });
+      },
+    );
+    return () => abort.abort();
+  }, [card, read]);
 
   const shown = history?.id === card.id ? history : null;
   return (

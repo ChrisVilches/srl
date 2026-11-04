@@ -423,7 +423,7 @@ the modal give the focus back to the form when it closes.
 
 - In the card browser, Prompt, Revealed and JSON show nothing under the
   sides at first: while the cards are being found, and then for the
-  moment (`MAKE_DELAY` in `src/Browse.tsx`) before the card starts to be
+  moment (`CHOICE_DELAY` in `src/Browse.tsx`) before the card starts to be
   made. Only then does "Making the card…" show. Ideally something would
   show from the start, as Edit's form skeleton does, and lead into
   "Making the card…" without a blank, then a change. Not critical, since

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Runs START the first time ACTIVE is true: a view starts when first shown.
 export function useStartWhenShown(active: boolean, start: () => void) {
@@ -25,6 +25,18 @@ export function useSubmitted(active: boolean, submitted: Submitted, load: (selec
     loaded.current = submitted;
     load(submitted.selector);
   }, [active, submitted, load]);
+}
+
+// VALUE once it has stayed the same for MS, and at first VALUE itself, so
+// that what follows from a choice runs only for the one that stays: moving
+// through a list with the keys runs nothing for the rows passed by.
+export function useSettled<T>(value: T, ms: number): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return settled;
 }
 
 // Gives ON_KEY the keys pressed while ACTIVE, but those with Ctrl, Meta or

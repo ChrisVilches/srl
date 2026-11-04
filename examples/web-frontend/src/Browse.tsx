@@ -7,7 +7,7 @@ import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notic
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
 import type { ViewProps } from './App';
-import { useKeys, useSubmitted } from './hooks';
+import { useKeys, useSettled, useSubmitted } from './hooks';
 import { SelectorInput, TopBar } from './TopBar';
 
 // The card browser: the cards of a selector as `srl find` lists them, and any
@@ -51,7 +51,10 @@ function browsePath(card: string | null, side: Side): string {
   return '/' + parts.map(encodeURIComponent).join('/');
 }
 
-const MAKE_DELAY = 300; // ms
+// How long a card stays chosen before it is made and its history read, so
+// that moving through the list with the keys runs no kind program and no
+// srl log for the cards passed by.
+const CHOICE_DELAY = 300; // ms
 
 // The keys that choose the card below or above.
 const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 };
@@ -130,8 +133,7 @@ export function Browse({ active, path, submitted, onSelector }: ViewProps) {
   }, []);
 
   // Choosing another card stops the one being made. The chosen card is made
-  // once it has stayed chosen for MAKE_DELAY, so that moving through the
-  // list with the keys runs no kind program for the cards passed by. It is
+  // once it has stayed chosen for CHOICE_DELAY (settled). It is
   // made only on a side that shows it (MADE_SIDES), so choosing a card on
   // Edit or Details, or saving its item, makes nothing until another side is
   // shown. Only a card of the list is made: one named by the address that
@@ -139,12 +141,12 @@ export function Browse({ active, path, submitted, onSelector }: ViewProps) {
   const cards = list.kind === 'ready' ? list.cards : [];
   const listed = cards.some((c) => c.id === selected);
   const showsMade = MADE_SIDES.includes(side);
+  const settled = useSettled(selected, CHOICE_DELAY);
   useEffect(() => {
     if (making.current && making.current.id !== selected) making.current.abort.abort();
-    if (!showsMade || selected === null || !listed || made[selected] !== undefined) return;
-    const timer = setTimeout(() => make(selected), MAKE_DELAY);
-    return () => clearTimeout(timer);
-  }, [showsMade, selected, listed, made, make]);
+    if (!showsMade || selected === null || settled !== selected || !listed || made[selected] !== undefined) return;
+    make(selected);
+  }, [showsMade, selected, settled, listed, made, make]);
 
   // Keys: ↑/↓ (or k/j) choose a card, r makes it again once it has been made
   // (on a side that shows it).
@@ -191,6 +193,7 @@ export function Browse({ active, path, submitted, onSelector }: ViewProps) {
               missing={selected !== null && list.kind === 'ready' && !listed ? selected : null}
               found={(list.kind === 'loading' ? list.before : cards).find((c) => c.id === selected) ?? null}
               made={selected === null ? undefined : made[selected]}
+              settled={selected !== null && settled === selected}
               side={side}
               onSide={setSide}
               onMake={() => selected !== null && make(selected)}
@@ -289,12 +292,13 @@ function CardList({
 // details on Details; the other sides show nothing until the card is made,
 // which Making shows.
 // TODO: Prompt, Revealed and JSON are blank under the sides until Making
-// shows, while the cards are found and for MAKE_DELAY after; they should
+// shows, while the cards are found and for CHOICE_DELAY after; they should
 // show something from the start. See the README's TODO.
 function Preview({
   loading,
   found,
   made,
+  settled,
   side,
   onSide,
   onMake,
@@ -306,6 +310,9 @@ function Preview({
   // The card the address names when the selector's cards don't include it.
   missing: string | null;
   made: Made | undefined;
+  // Whether the card has stayed chosen for CHOICE_DELAY: its history is
+  // read only then.
+  settled: boolean;
   side: Side;
   onSide: (side: Side) => void;
   onMake: () => void;
@@ -355,7 +362,7 @@ function Preview({
         </div>
         {/* Edit and Details don't show the card made from the item. The
             button stays disabled until the card has been made once, rather
-            than turning on while the card waits for MAKE_DELAY and off as
+            than turning on while the card waits for CHOICE_DELAY and off as
             it is made. */}
         {showsMade && (
           <button
@@ -371,7 +378,7 @@ function Preview({
 
       {side === 'details' && (
         <section className="rounded-2xl border border-stone-200 px-5 py-4 dark:border-stone-800">
-          {found === null ? <CardDetailsSkeleton /> : <CardDetails card={found} />}
+          {found === null ? <CardDetailsSkeleton /> : <CardDetails card={found} readHistory={settled} />}
         </section>
       )}
       {/* Until the cards are found, the form waits for the card's item, as
