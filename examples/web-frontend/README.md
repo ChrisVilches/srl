@@ -343,6 +343,19 @@ uses the default store. `npm run build` checks the types and builds
 runner: how the selector is written in the address's query and read back
 from it.
 
+### The server never blocks
+
+The server is one Node process serving every request, so a synchronous
+call there makes all of them wait for it. Once it is serving, all its
+I/O is asynchronous: `spawn`, never `execSync` or `spawnSync`, and
+`node:fs/promises` or streams, never `readFileSync`, `existsSync` or
+another `…Sync` function. This covers the request handlers and anything
+they call (`server/`), the `--on-change` runs, and timers.
+
+Only the start, before the server listens, may be synchronous, as in
+`bin/srl-web.js` checking with `existsSync` that the frontend is built:
+nothing is waiting for it yet.
+
 ### Where the page is: the address, through the router
 
 Where the page is, what back should undo, is kept in the address and
