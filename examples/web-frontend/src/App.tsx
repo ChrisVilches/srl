@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
 
 import { Add } from './Add';
-import { setUrlSelector, urlSelector, viewOfPath, type View } from './address';
+import { isUrlSelector, setUrlSelector, urlSelector, viewOfPath, type View } from './address';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
 import { CardBadges, CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
@@ -62,17 +62,21 @@ export default function App() {
     setSubmitted((s) => ({ selector, n: s.n + 1 }));
   }, []);
 
-  // The view follows the address: the tabs, and back and forward. The
-  // selector isn't kept in the browser's history: going back to an address
-  // with another selector writes the page's own in it again.
+  // The view and the selector follow the address: the tabs, and back and
+  // forward. Coming back to another selector applies it as submitting it
+  // does, but without adding to the browser's history.
   useEffect(() => {
-    const onPop = () => {
+    const follow = () => {
       setView(viewOfPath());
-      setUrlSelector(submitted.selector);
+      setSubmitted((s) => (isUrlSelector(s.selector) ? s : { selector: urlSelector(), n: s.n + 1 }));
     };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, [submitted.selector]);
+    window.addEventListener('popstate', follow);
+    window.addEventListener('go', follow);
+    return () => {
+      window.removeEventListener('popstate', follow);
+      window.removeEventListener('go', follow);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">

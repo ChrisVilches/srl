@@ -60,8 +60,12 @@ macOS and Windows (it is tried on Linux only).
   only place a selector comes from: `srl-web` takes none.
 - Each view has its own path: `/` for Study, `/browse` and `/add`. The
   tabs switch views in the page, keeping the selector, and add to the
-  browser's history, so back and forward switch views too; the selector
-  isn't part of that history, and stays the one last submitted. The name
+  browser's history, so back and forward switch views too. Submitting
+  another selector, or emptying the box with its X, adds to that history
+  too; submitting the one in the address again doesn't. Back and forward
+  follow the address they come to: its view, and its selector, applied
+  as if submitted, so the box shows it and the cards are found or asked
+  for again, without adding to the history. The name
   srl at the left of the top bar links to the root, loading the page
   anew on the study view with the selector cleared.
 - Dark, or light with the button at the right of the top bar, which
@@ -101,8 +105,9 @@ as how `ja_word` marks words, without studying:
   `/browse/CARD/SIDE`, the side left out for Prompt: `/browse/x7k2m9`,
   `/browse/x7k2m9/edit`, before the selector's query if there is one. Reloading
   the page opens the same card on the same side, and scrolls the list to
-  it once the cards are found. The address is read when the page opens,
-  and rewritten (without adding to the browser's history) whenever the
+  it once the cards are found. The address is read when the page opens
+  and when back or forward comes to an address of Browse, which then
+  shows that address's card and side, and rewritten (without adding to the browser's history) whenever the
   card or side changes. The list always scrolls the chosen card to its
   middle, whether after a reload or when choosing another with the keys. A card that isn't among the selector's cards,
   such as one whose item was deleted, is said so in place of the card,

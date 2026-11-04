@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { viewOfPath } from './address';
 import { api, type FoundCard, type ShownCard } from './api';
 import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, Waiting, WITH_KEY } from './CardParts';
 import { EditItem } from './EditItem';
@@ -34,9 +35,10 @@ const SIDES: Side[] = ['prompt', 'revealed', 'json', 'edit'];
 // The chosen card and side are kept in the address's path, as
 // /browse/CARD/SIDE, with the side left out when it is the prompt: /browse,
 // /browse/x7k2m9, /browse/x7k2m9/edit (see src/address.ts). They are read
-// when the page opens, and written whenever they change while Browse is
-// shown, so reloading the page comes back to them. An unknown side is the
-// prompt.
+// when the page opens and when back or forward comes to an address of
+// Browse, and written whenever they change while Browse is shown, so
+// reloading the page, or going back to an address, comes back to them. An
+// unknown side is the prompt.
 function browsePath(): { card: string | null; side: Side } {
   const [, , card, side] = window.location.pathname.split('/').map(decodeURIComponent);
   return { card: card || null, side: SIDES.find((s) => s === side) ?? 'prompt' };
@@ -66,6 +68,16 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
   useEffect(() => {
     if (active) setBrowsePath(selected, side);
   }, [active, selected, side]);
+  useEffect(() => {
+    const onPop = () => {
+      if (viewOfPath() !== 'browse') return;
+      const path = browsePath();
+      setSelected(path.card);
+      setSide(path.side);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   // The card being made, to stop when another is chosen.
   const making = useRef<{ id: string; abort: AbortController } | null>(null);
 

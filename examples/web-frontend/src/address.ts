@@ -7,6 +7,9 @@
 // The query holds the selector last submitted, one parameter per term, so
 // that reloading the page keeps it: in:a,b -kind:qa "two words" is
 // ?in=a,b&-kind=qa&text=two%20words. Switching views keeps the query.
+// Submitting another selector adds to the browser's history, as switching
+// views does, so back and forward go through both, and the page follows
+// the address they come to.
 
 // The views: studying (the page's start), the card browser and adding items.
 export type View = 'study' | 'browse' | 'add';
@@ -18,10 +21,12 @@ export function viewOfPath(): View {
 }
 
 // Shows PATH, keeping the query, as a new entry of the browser's history.
-// App follows the address on popstate, which pushState doesn't fire.
+// App follows the address on go as on popstate, which pushState doesn't
+// fire. It is an event of its own so that Browse, which reads its card from
+// the address on popstate, keeps its card when its tab is clicked.
 export function go(path: string) {
   window.history.pushState(null, '', path + window.location.search);
-  window.dispatchEvent(new PopStateEvent('popstate'));
+  window.dispatchEvent(new Event('go'));
 }
 
 // A term as a parameter: key:value is key=value, and text, quoted or not, is
@@ -70,10 +75,16 @@ export function queryOfSelector(selector: string): string {
 // The selector in the address.
 export const urlSelector = () => selectorOfQuery(window.location.search);
 
-// Writes SELECTOR in the address, in place of the one there, without adding
-// to the browser's history.
+// Whether SELECTOR is the one in the address, both written as queries, so
+// that spaces, or an address written by hand with %2C for its commas, make
+// no difference.
+export const isUrlSelector = (selector: string) => queryOfSelector(selector) === queryOfSelector(urlSelector());
+
+// Writes SELECTOR in the address as a new entry of the browser's history,
+// unless it is the one there already.
 export function setUrlSelector(selector: string) {
+  if (isUrlSelector(selector)) return;
   const url = new URL(window.location.href);
   url.search = queryOfSelector(selector);
-  window.history.replaceState(null, '', url);
+  window.history.pushState(null, '', url);
 }
