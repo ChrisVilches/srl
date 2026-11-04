@@ -142,16 +142,20 @@ pub(crate) fn time(now: &Zoned) -> String {
 }
 
 /// The `hash` of an item: the start of the SHA-256, in hex, of its kind and
-/// fields as an item object, written as `srl` writes one (see
-/// `docs/log.md`). Its ID, `see` and `draft` are left out, and so is how
-/// its source writes it, so that only a change to the question changes it.
+/// fields as an item object, written as `srl` writes one, with the fields
+/// in the order of their names (see `docs/log.md`). Its ID, `see` and
+/// `draft` are left out, and so are how its source writes it and the order
+/// its fields are written in, so that only a change to the question changes
+/// it.
 pub(crate) fn hash(item: &Item) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let entries = Entries {
         kind: matches!(item.kind(), Kind::Program(_)).then(|| item.kind().as_str().to_owned()),
         ..Entries::default()
     };
-    let object = Value::Object(written(&entries, item.fields())).to_string();
+    let mut fields = item.fields().to_vec();
+    fields.sort_by(|a, b| a.key.cmp(&b.key));
+    let object = Value::Object(written(&entries, &fields)).to_string();
     Sha256::digest(object.as_bytes())
         .iter()
         .flat_map(|byte| [byte >> 4, byte & 0x0f])
@@ -402,15 +406,26 @@ mod tests {
             "Prose.\n````srl id:abc draft see:b.md\nQ: q\nA: a\n````\n\nMore.\n",
             &programs,
         );
-        // `printf '%s' '{"Q":"q","A":"a"}' | sha256sum | cut -c1-12`
-        assert_eq!(hash(&items[0]), "23531498e859");
+        // `printf '%s' '{"A":"a","Q":"q"}' | sha256sum | cut -c1-12`
+        assert_eq!(hash(&items[0]), "c17b039155ea");
         // However the item is written, and whatever its ID, `see` and draft.
         let (items, _) = crate::app::catalog::read_items(
             "a.jsonl",
             "\n{\"id\": \"xyz\", \"Q\": \"q\",\"kind\":\"qa\", \"A\": \"a\"}\r\n",
             &programs,
         );
-        assert_eq!(hash(&items[0]), "23531498e859");
+        assert_eq!(hash(&items[0]), "c17b039155ea");
+    }
+
+    #[test]
+    fn the_hash_is_the_same_whatever_order_the_fields_are_written_in() {
+        let programs = crate::kind::Programs::default();
+        let (items, _) = crate::app::catalog::read_items(
+            "a.jsonl",
+            "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"xyz\", \"A\": \"a\", \"Q\": \"q\"}\n",
+            &programs,
+        );
+        assert_eq!(hash(&items[0]), hash(&items[1]));
     }
 
     #[test]
