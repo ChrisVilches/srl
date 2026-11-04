@@ -432,6 +432,14 @@ doesn't undo these, and they go with their view when it is left (see
 After a change that touches any of this, try back and forward through
 it, and reload, and check that the page shows what its address says.
 
+### A red button
+
+A button is red (`DANGER_BUTTON` in `src/CardParts.tsx`) when clicking
+it loses something or takes a card out of study: Leave, when leaving
+Add or Edit with unsaved text, and Suspend in the suspend dialog. A
+button that only leads to one, such as Suspend in Study's bar, which
+opens the dialog, keeps its own look.
+
 ### A button whose answer is a modal
 
 A button that asks srl for something and shows the answer in a modal,

@@ -12,6 +12,10 @@ import { isSelectorError, SelectorHelp } from './SelectorHelp';
 // like the card.
 export const MAIN_BUTTON =
   'rounded-lg border border-stone-300 bg-white font-medium text-stone-900 shadow-sm enabled:hover:bg-stone-100 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:enabled:hover:bg-stone-700';
+// The look of a button that confirms losing something, or taking a card
+// out of study: a raised red surface, the same in both themes.
+export const DANGER_BUTTON =
+  'rounded-lg border border-rose-700 bg-rose-600 font-medium text-white shadow-sm shadow-rose-900/20 enabled:hover:bg-rose-500 enabled:active:bg-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 disabled:opacity-50 dark:border-rose-500/60 dark:enabled:hover:bg-rose-500';
 // The looks of the buttons that aren't a view's main action.
 export const OUTLINE_BUTTON =
   'rounded-lg border border-stone-300 px-4 py-2 text-sm enabled:hover:bg-stone-100 dark:border-stone-700 disabled:opacity-50 dark:enabled:hover:bg-stone-900';

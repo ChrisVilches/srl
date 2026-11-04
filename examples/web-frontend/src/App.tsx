@@ -5,7 +5,7 @@ import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router
 import { queryOfSelector, selectorOfQuery } from './address';
 import { api, type Card, type Rating } from './api';
 import { CardDetailsDialog } from './CardDetails';
-import { CardBadges, CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
+import { CardBadges, CardFace, Counts, DANGER_BUTTON, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
@@ -351,7 +351,7 @@ function SuspendDialog({
           className="rounded-lg border border-stone-300 bg-white p-2 text-base text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
         />
       </label>
-      <button onClick={() => onSuspend(reason)} className={`self-start px-5 py-2.5 ${MAIN_BUTTON}`}>
+      <button onClick={() => onSuspend(reason)} className={`self-start px-5 py-2.5 ${WITH_KEY} ${DANGER_BUTTON}`}>
         Suspend <Key>ctrl+enter</Key>
       </button>
     </Modal>

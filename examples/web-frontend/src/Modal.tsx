@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useBlocker } from 'react-router';
 
-import { OUTLINE_BUTTON } from './CardParts';
+import { DANGER_BUTTON, OUTLINE_BUTTON } from './CardParts';
 
 // A modal dialog, shown while OPEN: the browser's own <dialog>, which keeps
 // focus in it and closes on Escape. ON_CLOSE is called when it is closed,
@@ -70,7 +70,7 @@ export function UnsavedGuard({ unsaved, what }: { unsaved: boolean; what: string
   return (
     <Modal open={blocker.state === 'blocked'} title="Leave without saving?" onClose={() => blocker.reset?.()}>
       <p className="text-sm text-stone-500">{what}</p>
-      <button onClick={() => blocker.proceed?.()} className={`self-start ${OUTLINE_BUTTON}`}>
+      <button onClick={() => blocker.proceed?.()} className={`self-start px-4 py-2 text-sm ${DANGER_BUTTON}`}>
         Leave
       </button>
     </Modal>
