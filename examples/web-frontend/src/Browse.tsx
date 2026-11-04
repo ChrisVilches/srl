@@ -12,7 +12,12 @@ import { SelectorInput, TopBar } from './TopBar';
 // one of them made and shown as studying shows it, without studying it. For
 // looking at what a store holds, and at how a kind's cards look.
 
-type List = { kind: 'loading' } | { kind: 'ready'; cards: FoundCard[] } | { kind: 'error'; message: string };
+// While loading, the cards found before, if any: the chosen card stays shown
+// as it was until the new cards say whether it is among them.
+type List =
+  | { kind: 'loading'; before: FoundCard[] }
+  | { kind: 'ready'; cards: FoundCard[] }
+  | { kind: 'error'; message: string };
 
 // A card being made, made (with how long it took), or that couldn't be.
 type Made =
@@ -52,7 +57,7 @@ const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }
 
 export function Browse({ active, submitted, onSelector }: ViewProps) {
   const { selector } = submitted;
-  const [list, setList] = useState<List>({ kind: 'loading' });
+  const [list, setList] = useState<List>({ kind: 'loading', before: [] });
   const [selected, setSelected] = useState<string | null>(() => browsePath().card);
   const [made, setMade] = useState<Record<string, Made>>({});
   const [side, setSide] = useState<Side>(() => browsePath().side);
@@ -69,7 +74,7 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
   const find = useCallback(async (sel: string) => {
     making.current?.abort.abort();
     setMade({});
-    setList({ kind: 'loading' });
+    setList((l) => ({ kind: 'loading', before: l.kind === 'ready' ? l.cards : l.kind === 'loading' ? l.before : [] }));
     try {
       setList({ kind: 'ready', cards: await api.find(sel) });
     } catch (error) {
@@ -171,12 +176,14 @@ export function Browse({ active, submitted, onSelector }: ViewProps) {
         <div className="overflow-y-auto px-4 py-6 [scrollbar-gutter:stable] sm:px-6">
           {/* Until the cards are found, a card the address names may or may
               not be among them: the preview waits, with its sides but not
-              the card's details. */}
+              the card's details. A card chosen among the cards found before
+              stays as it was meanwhile, so that its Edit form isn't read
+              again, nor its edits lost, when another selector is submitted. */}
           {(selected === null || list.kind !== 'error') && (
             <Preview
               loading={selected !== null && list.kind === 'loading'}
               missing={selected !== null && list.kind === 'ready' && !listed ? selected : null}
-              found={cards.find((c) => c.id === selected) ?? null}
+              found={(list.kind === 'loading' ? list.before : cards).find((c) => c.id === selected) ?? null}
               made={selected === null ? undefined : made[selected]}
               side={side}
               onSide={setSide}

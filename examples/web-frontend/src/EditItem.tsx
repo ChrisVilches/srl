@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { api, fieldLabel, type KindDescription } from './api';
 import { DraftCheckbox, ErrorView, Label, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
@@ -9,7 +9,12 @@ import { Modal, ResultBox } from './Modal';
 // page knows no source: srl finds the item by its ID and its source writes
 // it, so an item kept in a database is edited as a note's item is.
 
-type Loaded = { kind: 'loading' } | { kind: 'ready'; item: Record<string, unknown> } | { kind: 'error'; message: string };
+// What was read, with the ID of the item it was read for, so that the form
+// never shows an item read for another ID.
+type Loaded =
+  | { kind: 'loading' }
+  | { kind: 'ready'; id: string; item: Record<string, unknown> }
+  | { kind: 'error'; id: string; message: string };
 
 // What became of the last save: shown in a modal until it is closed. Save
 // and Reset wait until then, so they stay dimmed under it.
@@ -29,7 +34,9 @@ const isField = (key: string) => /^[A-Z][A-Z0-9_]*$/.test(key);
 //
 // While ID is null, the item isn't known yet, as while Browse finds the
 // cards: the form waits, and reads the item once given its ID. The skeleton
-// stays the same one throughout, so that its pulse doesn't start over.
+// stays the same one throughout, so that its pulse doesn't start over. Only
+// the item read for the ID given is shown: a read for an earlier ID that
+// ends later is dropped.
 export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: string) => Promise<void> }) {
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [texts, setTexts] = useState<Record<string, string>>({});
@@ -46,23 +53,30 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
     setDraft(item.draft === true);
   };
 
+  // The ID given at the last render, to drop a read for another.
+  const current = useRef(id);
+  current.current = id;
+
   const load = () => {
     if (id === null) return;
     setLoaded({ kind: 'loading' });
     setSaving({ kind: 'idle' });
     Promise.all([api.item(id), api.kinds().catch((): KindDescription[] => [])]).then(
       ([item, kinds]) => {
+        if (current.current !== id) return;
         const fields = kinds.find((k) => k.name === item.kind)?.fields ?? [];
         setLabels(Object.fromEntries(fields.map((field) => [field.name, fieldLabel(field)])));
-        setLoaded({ kind: 'ready', item });
+        setLoaded({ kind: 'ready', id, item });
         fill(item);
       },
-      (error: Error) => setLoaded({ kind: 'error', message: error.message }),
+      (error: Error) => {
+        if (current.current === id) setLoaded({ kind: 'error', id, message: error.message });
+      },
     );
   };
   useEffect(load, [id]);
 
-  if (id === null || loaded.kind === 'loading') return <ItemSkeleton />;
+  if (id === null || loaded.kind === 'loading' || loaded.id !== id) return <ItemSkeleton />;
   if (loaded.kind === 'error') return <ErrorView message={loaded.message} onRetry={load} />;
 
   const save = () => {
@@ -72,7 +86,7 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
     setSaving({ kind: 'busy' });
     api.edit(item).then(
       () => {
-        setLoaded({ kind: 'ready', item });
+        setLoaded({ kind: 'ready', id, item });
         return onSaved(id).then(
           () => setSaving({ kind: 'saved' }),
           (error: Error) =>
