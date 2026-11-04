@@ -278,6 +278,7 @@ function CardView({
       <CardFace
         card={card}
         revealed={phase.kind === 'answer'}
+        scrollToAnswer
         badges={(card.schedule === 'new' || card.leech) && <CardBadges schedule={card.schedule} leech={card.leech} />}
         start={
           <button
@@ -328,8 +329,8 @@ function CardView({
 }
 
 // Asks why the card is suspended, so that it can be fixed later: srl keeps
-// the reason, and srl find --json gives it. Enter suspends, Shift+Enter
-// starts a new line, Escape cancels.
+// the reason, and srl find --json gives it. Enter starts a new line, as in
+// any text box, Ctrl+Enter (or ⌘+Enter) suspends, Escape cancels.
 function SuspendDialog({
   open,
   onSuspend,
@@ -353,7 +354,7 @@ function SuspendDialog({
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
               event.preventDefault();
               onSuspend(reason);
             }
@@ -364,7 +365,7 @@ function SuspendDialog({
         />
       </label>
       <button onClick={() => onSuspend(reason)} className={`self-start px-5 py-2.5 ${MAIN_BUTTON}`}>
-        Suspend <Key>Enter</Key>
+        Suspend <Key>ctrl+enter</Key>
       </button>
     </Modal>
   );

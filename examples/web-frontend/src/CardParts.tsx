@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import type { FoundCard, ShownCard } from './api';
 import { Markdown } from './Markdown';
@@ -23,17 +23,26 @@ export const WITH_KEY = 'inline-flex items-center justify-center gap-1';
 // A card as studying shows it: its kind, and the prompt, or, once revealed,
 // the revealed prompt, the answer and the context. BADGES go after the kind,
 // and START before it, at the left. Its ID and the rest are in CardDetails.
+// With SCROLL_TO_ANSWER, as when studying, revealing the card scrolls
+// smoothly to put the answer in the middle of the window.
 export function CardFace({
   card,
   revealed,
   badges,
   start,
+  scrollToAnswer = false,
 }: {
   card: ShownCard;
   revealed: boolean;
   badges?: ReactNode;
   start?: ReactNode;
+  scrollToAnswer?: boolean;
 }) {
+  const answer = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (scrollToAnswer && revealed) answer.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [scrollToAnswer, revealed, card]);
+
   return (
     <>
       <article className="rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
@@ -49,7 +58,7 @@ export function CardFace({
           <Markdown text={revealed ? (card.prompt_revealed ?? card.prompt) : card.prompt} className="prose-lg" />
         </section>
         {revealed && card.answer !== null && (
-          <section className="border-t border-dashed border-stone-200 px-6 py-6 dark:border-stone-700">
+          <section ref={answer} className="border-t border-dashed border-stone-200 px-6 py-6 dark:border-stone-700">
             <Label>Answer</Label>
             <Markdown text={card.answer} className="prose-lg" />
           </section>

@@ -33,6 +33,9 @@ macOS and Windows (it is tried on Linux only).
   review's rating, who recorded it, the response if there is one and the
   hash of its question). They are `src/CardDetails.tsx`, which Browse's
   Details side shows too.
+- Showing the answer scrolls smoothly to put it in the middle of the
+  window. Browse doesn't: turning a card to its answer there leaves the
+  page where it is.
 - After the answer it shows the context in `prose` mode, under the
   address of its collection; `CONTEXT` in `server/server.js` chooses the
   mode. A context from anything but a Markdown note (by the extension of
@@ -45,8 +48,9 @@ macOS and Windows (it is tried on Linux only).
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `i` shows the
   card's details, `s` suspends the
   card without recording a review, after asking why in a dialog: what to
-  fix before studying it again. The reason may be left empty; Enter
-  suspends, Shift+Enter starts a new line, Escape cancels. Buttons name
+  fix before studying it again. The reason may be left empty, or take
+  several lines, kept as they are: Enter starts a new line, Ctrl+Enter
+  (or ⌘+Enter) suspends, Escape cancels. Buttons name
   their key, as **Make again** `r` does, everywhere on the page, but not
   on a touch screen (a coarse primary pointer, as on a phone), which has
   no keys to press.
