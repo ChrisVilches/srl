@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // The page's selector, with the number of selectors submitted in any view,
 // so that submitting the same selector again counts as a new submission.
@@ -7,12 +7,9 @@ import { useEffect, useRef, useState } from 'react';
 export type Submitted = { selector: string; n: number };
 
 // Calls LOAD with the selector when the view is shown, and with each new one
-// while it is.
+// while it is. LOAD stays the same function, so that it runs only then.
 export function useSubmitted(submitted: Submitted, load: (selector: string) => void) {
-  const loaded = useRef<Submitted | null>(null);
   useEffect(() => {
-    if (loaded.current === submitted) return;
-    loaded.current = submitted;
     load(submitted.selector);
   }, [submitted, load]);
 }

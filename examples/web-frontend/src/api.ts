@@ -127,8 +127,8 @@ export const api = {
   // Whether srl-web was started with --on-change.
   hasOnChange: async () => (await call<{ on_change: boolean }>('/api/config')).on_change,
   onChangeStatus: () => call<OnChangeStatus>('/api/on-change'),
-  next: async (selector: string) =>
-    (await call<{ card: Card | null }>(`/api/next?${new URLSearchParams({ sel: selector })}`)).card,
+  next: async (selector: string, signal: AbortSignal) =>
+    (await call<{ card: Card | null }>(`/api/next?${new URLSearchParams({ sel: selector })}`, undefined, signal)).card,
   review: (card: string, rating: Rating) => change<object>('/api/review', { card, rating }),
   // An empty REASON is no reason.
   suspend: (card: string, reason: string) => change<object>('/api/suspend', { card, reason }),

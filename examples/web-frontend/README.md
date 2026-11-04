@@ -93,8 +93,10 @@ macOS and Windows (it is tried on Linux only).
   to the list, with no card chosen. A view starts anew each time it is
   shown, and what it had is gone once it is left (see "Routing the
   usual way"); leaving with text typed and not saved, in Add or in
-  Browse's Edit, asks first, in a dialog, whether to leave and lose it.
-  The name
+  Browse's Edit, asks first, in a dialog, whether to leave and lose it,
+  and reloading or closing the page then asks too, in the browser's own
+  dialog. Leaving Study while `srl next` makes a card, or Browse while a
+  card is made, stops `srl` and the kind program making it. The name
   srl at the left of the top bar links to the root, loading the page
   anew on the study view with the selector cleared.
 - Dark, or light with the button at the right of the top bar, which
@@ -294,9 +296,10 @@ scheduling here; that belongs to `srl`.
 
 `/api/find` gives `srl show` at most 500 item IDs at a time, to keep its
 command line short enough for Windows. When the page stops waiting for
-`/api/card`, the server kills `srl`; the kind program `srl` started is not
-killed with it, and runs until it ends on its own (an LLM's answer, say,
-is still paid for).
+`/api/next` or `/api/card`, the server kills `srl`, which stops the kind
+program making the card, with every process it started (see
+[docs/cards.md](../../docs/cards.md), "Stopping a program"): an LLM's
+answer no longer wanted stops being made.
 
 When `srl` fails, the route answers with `{"error": MESSAGE}`, `MESSAGE`
 being what `srl` printed, and the page shows it. Under every error about
@@ -381,7 +384,8 @@ Browse does for its card and side).
 What leaving a view would lose that can't be made again, text typed and
 not yet saved, is guarded with `UnsavedGuard` (`src/Modal.tsx`, with the
 router's `useBlocker`): going to another path while there is any asks
-first. Add uses it for the item being written, and Edit for the item's
+first, and so does reloading or closing the page, which the router never
+sees, through the browser's `beforeunload`. Add uses it for the item being written, and Edit for the item's
 edits. A new form that holds work the user typed uses it too.
 
 ### Where the page is: the address, through the router

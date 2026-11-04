@@ -19,8 +19,9 @@
 //                          --context CONTEXT           → { card }
 //   GET  /api/log?id=…     srl log id:ID --json        → { events: [event…] }
 //
-// /api/card makes the card, so a kind program runs and may take a while (an
-// LLM, say). When the page stops waiting, srl is killed.
+// /api/next and /api/card make the card, so a kind program runs and may take
+// a while (an LLM, say). When the page stops waiting, srl is killed, and
+// stops the kind program with it (docs/cards.md, "Stopping a program").
 //
 // Adding items, one at a time:
 //
@@ -110,8 +111,8 @@ export function createSrlServer({ dir, staticDir, onChange }) {
 
     'GET /api/on-change': async () => hook?.status() ?? { busy: false, last: null },
 
-    'GET /api/next': async (url) => {
-      const { found, stdout } = await srl(['next', '--json', '--context', CONTEXT, ...selectorArgs(url)]);
+    'GET /api/next': async (url, _body, signal) => {
+      const { found, stdout } = await srl(['next', '--json', '--context', CONTEXT, ...selectorArgs(url)], undefined, signal);
       return { card: found ? JSON.parse(stdout) : null };
     },
 

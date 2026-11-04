@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router';
 
 import { queryOfSelector, selectorOfQuery } from './address';
@@ -43,8 +43,8 @@ const RATINGS: { rating: Rating; name: string; style: string }[] = [
 const WAIT_SHOWN_AFTER_MS = 300;
 
 // The phase after getting the next card: its prompt, or done if none is left.
-async function nextPhase(selector: string): Promise<Phase> {
-  const card = await api.next(selector);
+async function nextPhase(selector: string, signal: AbortSignal): Promise<Phase> {
+  const card = await api.next(selector, signal);
   return card ? { kind: 'prompt', card } : { kind: 'done' };
 }
 
@@ -98,12 +98,24 @@ export function Study() {
     }
   }, []);
 
+  // The request for the next card, stopped when another is asked for or
+  // Study is left: the server then stops srl, and srl the kind program
+  // making the card.
+  const asking = useRef<AbortController | null>(null);
+  useEffect(() => () => asking.current?.abort(), []);
+
   // Shows the next card, or, if srl takes a while to make it, that it waits.
+  // A request stopped shows nothing.
   const toNext = useCallback(async (sel: string) => {
+    asking.current?.abort();
+    const abort = new AbortController();
+    asking.current = abort;
     const since = performance.now();
     const timer = setTimeout(() => setPhase({ kind: 'loading', since }), WAIT_SHOWN_AFTER_MS);
     try {
-      setPhase(await nextPhase(sel));
+      setPhase(await nextPhase(sel, abort.signal));
+    } catch (error) {
+      if (!abort.signal.aborted) throw error;
     } finally {
       clearTimeout(timer);
     }

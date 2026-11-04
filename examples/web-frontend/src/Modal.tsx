@@ -55,12 +55,18 @@ export function Modal({
 // Asks before going to another path while UNSAVED, since the form showing
 // it goes with its view: Leave goes on, and closing the modal stays.
 // WHAT says what would be lost. Another selector, which keeps the path,
-// isn't asked about. Reloading or closing the page isn't either: the router
-// never sees it.
+// isn't asked about. Reloading or closing the page, which the router never
+// sees, is asked about by the browser, in its own words (beforeunload).
 export function UnsavedGuard({ unsaved, what }: { unsaved: boolean; what: string }) {
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) => unsaved && currentLocation.pathname !== nextLocation.pathname,
   );
+  useEffect(() => {
+    if (!unsaved) return;
+    const ask = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', ask);
+    return () => window.removeEventListener('beforeunload', ask);
+  }, [unsaved]);
   return (
     <Modal open={blocker.state === 'blocked'} title="Leave without saving?" onClose={() => blocker.reset?.()}>
       <p className="text-sm text-stone-500">{what}</p>
