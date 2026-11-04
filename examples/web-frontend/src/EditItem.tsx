@@ -53,24 +53,25 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
     setDraft(item.draft === true);
   };
 
-  // The ID given at the last render, to drop a read for another.
-  const current = useRef(id);
-  current.current = id;
+  // Counts the calls of load, so that a read is dropped once load has been
+  // called again, for another ID or none.
+  const reads = useRef(0);
 
   const load = () => {
+    const read = ++reads.current;
     if (id === null) return;
     setLoaded({ kind: 'loading' });
     setSaving({ kind: 'idle' });
     Promise.all([api.item(id), api.kinds().catch((): KindDescription[] => [])]).then(
       ([item, kinds]) => {
-        if (current.current !== id) return;
+        if (read !== reads.current) return;
         const fields = kinds.find((k) => k.name === item.kind)?.fields ?? [];
         setLabels(Object.fromEntries(fields.map((field) => [field.name, fieldLabel(field)])));
         setLoaded({ kind: 'ready', id, item });
         fill(item);
       },
       (error: Error) => {
-        if (current.current === id) setLoaded({ kind: 'error', id, message: error.message });
+        if (read === reads.current) setLoaded({ kind: 'error', id, message: error.message });
       },
     );
   };
