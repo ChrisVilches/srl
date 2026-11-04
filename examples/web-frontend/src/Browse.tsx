@@ -28,10 +28,14 @@ type Made =
   | { kind: 'error'; message: string };
 
 // How the chosen card is shown: as studying shows its prompt, as it shows it
-// once revealed (with the context), as srl cards --json prints it, or its
-// item in a form to edit it.
-type Side = 'prompt' | 'revealed' | 'json' | 'edit';
-const SIDES: Side[] = ['prompt', 'revealed', 'json', 'edit'];
+// once revealed (with the context), as srl cards --json prints it, its item
+// in a form to edit it, or its details (src/CardDetails.tsx).
+type Side = 'prompt' | 'revealed' | 'json' | 'edit' | 'details';
+const SIDES: Side[] = ['prompt', 'revealed', 'json', 'edit', 'details'];
+
+// The sides that show the card made from the item, and so make it: Edit
+// shows the item, and Details what srl find and srl log say about the card.
+const MADE_SIDES: Side[] = ['prompt', 'revealed', 'json'];
 
 // The chosen card and side are kept in the address's path, and only there,
 // as /browse/CARD/SIDE, with the side left out when it is the prompt:
@@ -128,28 +132,29 @@ export function Browse({ active, path, submitted, onSelector }: ViewProps) {
   // Choosing another card stops the one being made. The chosen card is made
   // once it has stayed chosen for MAKE_DELAY, so that moving through the
   // list with the keys runs no kind program for the cards passed by. It is
-  // made only on a side that shows it: Edit shows the item, so choosing a
-  // card or saving its item there makes nothing until another side is shown.
-  // Only a card of the list is made: one named by the address that isn't
-  // among the selector's cards is never asked for.
+  // made only on a side that shows it (MADE_SIDES), so choosing a card on
+  // Edit or Details, or saving its item, makes nothing until another side is
+  // shown. Only a card of the list is made: one named by the address that
+  // isn't among the selector's cards is never asked for.
   const cards = list.kind === 'ready' ? list.cards : [];
   const listed = cards.some((c) => c.id === selected);
+  const showsMade = MADE_SIDES.includes(side);
   useEffect(() => {
     if (making.current && making.current.id !== selected) making.current.abort.abort();
-    if (side === 'edit' || selected === null || !listed || made[selected] !== undefined) return;
+    if (!showsMade || selected === null || !listed || made[selected] !== undefined) return;
     const timer = setTimeout(() => make(selected), MAKE_DELAY);
     return () => clearTimeout(timer);
-  }, [side, selected, listed, made, make]);
+  }, [showsMade, selected, listed, made, make]);
 
   // Keys: ↑/↓ (or k/j) choose a card, r makes it again once it has been made
-  // (but on the edit side).
+  // (on a side that shows it).
   useKeys(active, (event) => {
     const at = cards.findIndex((c) => c.id === selected);
     const move = MOVES[event.key];
     if (move !== undefined) {
       event.preventDefault();
       if (cards.length > 0) setSelected(cards[Math.max(0, Math.min(at + move, cards.length - 1))].id);
-    } else if (event.key === 'r' && side !== 'edit' && selected !== null && made[selected] !== undefined && made[selected].kind !== 'making') {
+    } else if (event.key === 'r' && showsMade && selected !== null && made[selected] !== undefined && made[selected].kind !== 'making') {
       make(selected);
     }
   });
@@ -280,9 +285,9 @@ function CardList({
 }
 
 // The chosen card, on the chosen side. While LOADING, the cards being found,
-// the sides are shown, with a skeleton for the card's details, above the
-// card on every side, and for the form on Edit; the other sides show nothing
-// until the card is made, which Making shows.
+// the sides are shown, with a skeleton for the form on Edit and for the
+// details on Details; the other sides show nothing until the card is made,
+// which Making shows.
 // TODO: Prompt, Revealed and JSON are blank under the sides until Making
 // shows, while the cards are found and for MAKE_DELAY after; they should
 // show something from the start. See the README's TODO.
@@ -329,8 +334,9 @@ function Preview({
     { side: 'revealed', name: 'Revealed' },
     { side: 'json', name: 'JSON' },
     { side: 'edit', name: 'Edit' },
+    { side: 'details', name: 'Details' },
   ];
-  const editing = side === 'edit';
+  const showsMade = MADE_SIDES.includes(side);
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
@@ -347,10 +353,11 @@ function Preview({
             </button>
           ))}
         </div>
-        {/* Edit shows the item, not the card made from it. The button stays
-            disabled until the card has been made once, rather than turning
-            on while the card waits for MAKE_DELAY and off as it is made. */}
-        {!editing && (
+        {/* Edit and Details don't show the card made from the item. The
+            button stays disabled until the card has been made once, rather
+            than turning on while the card waits for MAKE_DELAY and off as
+            it is made. */}
+        {showsMade && (
           <button
             onClick={onMake}
             disabled={found === null || made === undefined || made.kind === 'making'}
@@ -362,17 +369,18 @@ function Preview({
         )}
       </div>
 
-      {/* The card's details, on every side, above the card and not in it. */}
-      <section className="rounded-2xl border border-stone-200 px-5 py-4 dark:border-stone-800">
-        {found === null ? <CardDetailsSkeleton /> : <CardDetails card={found} />}
-      </section>
+      {side === 'details' && (
+        <section className="rounded-2xl border border-stone-200 px-5 py-4 dark:border-stone-800">
+          {found === null ? <CardDetailsSkeleton /> : <CardDetails card={found} />}
+        </section>
+      )}
       {/* Until the cards are found, the form waits for the card's item, as
           one skeleton from the page's opening to the form. */}
-      {editing && <EditItem id={found === null ? null : found.item} onSaved={onSaved} />}
-      {found !== null && !editing && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
-      {!editing && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
+      {side === 'edit' && <EditItem id={found === null ? null : found.item} onSaved={onSaved} />}
+      {found !== null && showsMade && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
+      {showsMade && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
       {found !== null &&
-        !editing &&
+        showsMade &&
         made?.kind === 'ready' &&
         (side === 'json' ? (
           <JsonView

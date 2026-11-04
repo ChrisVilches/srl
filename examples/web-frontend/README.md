@@ -31,8 +31,8 @@ macOS and Windows (it is tried on Linux only).
   due, whether it is a leech, and its history: every event of the log
   for it, newest first, each with its time, as `srl log` gives them (a
   review's rating, who recorded it, the response if there is one and the
-  hash of its question). They are `src/CardDetails.tsx`, which Browse
-  shows too.
+  hash of its question). They are `src/CardDetails.tsx`, which Browse's
+  Details side shows too.
 - After the answer it shows the context in `prose` mode, under the
   address of its collection; `CONTEXT` in `server/server.js` chooses the
   mode. A context from anything but a Markdown note (by the extension of
@@ -107,8 +107,8 @@ as how `ja_word` marks words, without studying:
   shows it as studying does: the prompt, or, turned, the revealed prompt,
   the answer and the context. The JSON side shows the card as `srl cards
   --json` prints it, in colors.
-- Above the card, on every side, are its details, the same as Study's
-  modal shows, in a box of their own and not in the card. A suspended
+- The **Details** side, after Edit, shows the card's details, the same
+  as Study's modal, and is the only side that shows them. A suspended
   card says so at their top, with the reason if it was given one, so
   `is:suspended` lists the cards to fix, and what to fix. They come from
   the list, so they show at once; only the history is read, with `srl
@@ -119,16 +119,18 @@ as how `ja_word` marks words, without studying:
   for a moment, so moving through the list makes no card on the way, and
   choosing another card stops the one being made (see "How it works").
   It is made only on a side that shows it, Prompt, Revealed or JSON:
-  on Edit, choosing a card or saving its item makes nothing until
-  another side is shown.
+  on Edit or Details, choosing a card or saving its item makes nothing
+  until another side is shown.
 - Each card is made once and kept; **Make again** (`r`) runs its kind
-  program again once the card has been made, on every side but Edit, which shows the item and not
-  the card made from it, and submitting the selector forgets every card made.
+  program again once the card has been made, on Prompt, Revealed and
+  JSON only, since Edit shows the item and Details what srl says about
+  the card, not the card made from it; submitting the selector forgets
+  every card made.
 - Keys: ↑/↓ (or `k`/`j`) choose a card. Turning it is done with the
   mouse only, so that space and Enter stay free for typing.
 - The chosen card and side are kept in the address, as
   `/browse/CARD/SIDE`, the side left out for Prompt: `/browse/x7k2m9`,
-  `/browse/x7k2m9/edit`, before the selector's query if there is one. Reloading
+  `/browse/x7k2m9/edit`, `/browse/x7k2m9/details`, before the selector's query if there is one. Reloading
   the page opens the same card on the same side, and scrolls the list to
   it once the cards are found. Back turns the card back to the side it
   was on before, and back to the card it was on before another selector
