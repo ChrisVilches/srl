@@ -10,17 +10,19 @@ export function useStartWhenShown(active: boolean, start: () => void) {
   }, [active, start]);
 }
 
-// A selector submitted in any view, numbered so that submitting the same
-// selector again counts as a new submission.
+// The page's selector, with the number of selectors submitted in any view,
+// so that submitting the same selector again counts as a new submission.
+// A new one is made only when either changes: by submitting, or by back or
+// forward coming to an address with another selector.
 export type Submitted = { selector: string; n: number };
 
-// Calls LOAD with each selector submitted, once ACTIVE is true: a view
-// applies the page's selector when shown, so a hidden view runs no srl.
+// Calls LOAD with each new selector, once ACTIVE is true: a view applies
+// the page's selector when shown, so a hidden view runs no srl.
 export function useSubmitted(active: boolean, submitted: Submitted, load: (selector: string) => void) {
-  const loaded = useRef<number | null>(null);
+  const loaded = useRef<Submitted | null>(null);
   useEffect(() => {
-    if (!active || loaded.current === submitted.n) return;
-    loaded.current = submitted.n;
+    if (!active || loaded.current === submitted) return;
+    loaded.current = submitted;
     load(submitted.selector);
   }, [active, submitted, load]);
 }

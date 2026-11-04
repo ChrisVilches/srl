@@ -1,9 +1,13 @@
 import { MoonIcon, SunIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, useLocation } from 'react-router';
 
-import { go, type View } from './address';
+import { VIEW_PATHS, type View } from './address';
 import { QUIET_BUTTON } from './CardParts';
 import { currentTheme, setTheme } from './theme';
+
+// The last path of each view, which its tab goes back to (see App).
+export const ViewPaths = createContext<Record<View, string>>(VIEW_PATHS);
 
 // The bar at the top of each view: the switch between views, then the
 // view's own controls. It spans the whole window in every view, however
@@ -11,18 +15,16 @@ import { currentTheme, setTheme } from './theme';
 // name links to the root, the study view with no selector in the address,
 // and loads the page anew.
 //
-// A tab switches views in the page, keeping the selector, and opens the
-// view in a new tab when clicked with a modifier or the middle button. The
-// tab of the view shown does nothing, so Browse keeps its card in the address.
+// A tab goes to the view's last address, keeping the selector, so Browse
+// comes back to its card, and opens it in a new tab when clicked with a
+// modifier or the middle button. The tab of the view shown stays on its
+// address, adding nothing to the browser's history.
 export function TopBar({ view, children }: { view: View; children: ReactNode }) {
-  const tab = (target: View, path: string, name: string) => (
-    <a
-      href={path + window.location.search}
-      onClick={(event) => {
-        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-        event.preventDefault();
-        if (target !== view) go(path);
-      }}
+  const paths = useContext(ViewPaths);
+  const { search } = useLocation();
+  const tab = (target: View, name: string) => (
+    <Link
+      to={{ pathname: paths[target], search }}
       className={
         view === target
           ? 'rounded-md bg-stone-200 px-2.5 py-1 font-medium dark:bg-stone-800'
@@ -30,7 +32,7 @@ export function TopBar({ view, children }: { view: View; children: ReactNode }) 
       }
     >
       {name}
-    </a>
+    </Link>
   );
   return (
     <header className="border-b border-stone-200 bg-white/70 backdrop-blur dark:border-stone-800 dark:bg-stone-900/70">
@@ -39,9 +41,9 @@ export function TopBar({ view, children }: { view: View; children: ReactNode }) 
           srl
         </a>
         <nav className="flex gap-1 text-sm">
-          {tab('study', '/', 'Study')}
-          {tab('browse', '/browse', 'Browse')}
-          {tab('add', '/add', 'Add')}
+          {tab('study', 'Study')}
+          {tab('browse', 'Browse')}
+          {tab('add', 'Add')}
         </nav>
         {children}
         <ThemeButton />

@@ -1,18 +1,25 @@
-import { useCallback, useEffect, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 
 import { Add } from './Add';
-import { isUrlSelector, setUrlSelector, urlSelector, viewOfPath, type View } from './address';
+import { queryOfSelector, selectorOfQuery, VIEW_PATHS, viewOfPath, type View } from './address';
 import { api, type Card, type Rating } from './api';
 import { Browse } from './Browse';
 import { CardBadges, CardFace, Counts, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
-import { SelectorInput, TopBar } from './TopBar';
+import { SelectorInput, TopBar, ViewPaths } from './TopBar';
 
-// What every view is given: whether it is shown, and the page's selector,
-// one for every view, with how to submit another.
-export type ViewProps = { active: boolean; submitted: Submitted; onSelector: (selector: string) => void };
+// What every view is given: whether it is shown, its path in the address
+// (the last one while hidden), and the page's selector, one for every view,
+// with how to submit another.
+export type ViewProps = {
+  active: boolean;
+  path: string;
+  submitted: Submitted;
+  onSelector: (selector: string) => void;
+};
 
 const VIEWS: Record<View, ComponentType<ViewProps>> = {
   study: Study,
@@ -52,42 +59,44 @@ async function nextPhase(selector: string): Promise<Phase> {
 // browser and the item being written where they were; only the one shown
 // takes keys.
 export default function App() {
-  const [view, setView] = useState<View>(viewOfPath);
+  const { pathname, search } = useLocation();
+  const view = viewOfPath(pathname);
 
-  // The selector in the address, or else none, which is every card. It is
-  // read before the first render, so the selector box is drawn with it.
-  const [submitted, setSubmitted] = useState<Submitted>(() => ({ selector: urlSelector(), n: 0 }));
-  const onSelector = useCallback((selector: string) => {
-    setUrlSelector(selector);
-    setSubmitted((s) => ({ selector, n: s.n + 1 }));
-  }, []);
+  // The selector in the address, or else none, which is every card, with
+  // the number of selectors submitted, so that submitting the same one
+  // again finds its cards again.
+  const selector = selectorOfQuery(search);
+  const [n, setN] = useState(0);
+  const submitted = useMemo<Submitted>(() => ({ selector, n }), [selector, n]);
+  // Submitting another selector goes to its address, a new entry of the
+  // browser's history; submitting the one there again stays on it.
+  const navigate = useNavigate();
+  const onSelector = useCallback(
+    (next: string) => {
+      const search = queryOfSelector(next);
+      navigate({ pathname, search }, { replace: search === queryOfSelector(selector) });
+      setN((n) => n + 1);
+    },
+    [navigate, pathname, selector],
+  );
 
-  // The view and the selector follow the address: the tabs, and back and
-  // forward. Coming back to another selector applies it as submitting it
-  // does, but without adding to the browser's history.
-  useEffect(() => {
-    const follow = () => {
-      setView(viewOfPath());
-      setSubmitted((s) => (isUrlSelector(s.selector) ? s : { selector: urlSelector(), n: s.n + 1 }));
-    };
-    window.addEventListener('popstate', follow);
-    window.addEventListener('go', follow);
-    return () => {
-      window.removeEventListener('popstate', follow);
-      window.removeEventListener('go', follow);
-    };
-  }, []);
+  // The last path of each view: a hidden view keeps showing it, as Browse
+  // keeps its card, and the view's tab goes back to it.
+  const [paths, setPaths] = useState<Record<View, string>>(() => ({ ...VIEW_PATHS, [view]: pathname }));
+  if (paths[view] !== pathname) setPaths({ ...paths, [view]: pathname });
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      {(Object.keys(VIEWS) as View[]).map((v) => {
-        const Pane = VIEWS[v];
-        return (
-          <div key={v} className={view === v ? 'contents' : 'hidden'}>
-            <Pane active={view === v} submitted={submitted} onSelector={onSelector} />
-          </div>
-        );
-      })}
+      <ViewPaths.Provider value={paths}>
+        {(Object.keys(VIEWS) as View[]).map((v) => {
+          const Pane = VIEWS[v];
+          return (
+            <div key={v} className={view === v ? 'contents' : 'hidden'}>
+              <Pane active={view === v} path={paths[v]} submitted={submitted} onSelector={onSelector} />
+            </div>
+          );
+        })}
+      </ViewPaths.Provider>
       <OnChangeError />
     </div>
   );

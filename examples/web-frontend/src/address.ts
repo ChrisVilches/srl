@@ -7,26 +7,22 @@
 // The query holds the selector last submitted, one parameter per term, so
 // that reloading the page keeps it: in:a,b -kind:qa "two words" is
 // ?in=a,b&-kind=qa&text=two%20words. Switching views keeps the query.
-// Submitting another selector adds to the browser's history, as switching
-// views does, so back and forward go through both, and the page follows
-// the address they come to.
+//
+// The address is the only place this state is kept: the page reads it from
+// the address on every render, through the router (react-router), and
+// changes it by going to another address. So back and forward go through
+// all of it, and the page shows whatever address they come to.
 
 // The views: studying (the page's start), the card browser and adding items.
 export type View = 'study' | 'browse' | 'add';
 
-// The view is the path's first part; any other path is study.
-export function viewOfPath(): View {
-  const view = window.location.pathname.split('/')[1];
-  return view === 'browse' || view === 'add' ? view : 'study';
-}
+// The path each view starts at.
+export const VIEW_PATHS: Record<View, string> = { study: '/', browse: '/browse', add: '/add' };
 
-// Shows PATH, keeping the query, as a new entry of the browser's history.
-// App follows the address on go as on popstate, which pushState doesn't
-// fire. It is an event of its own so that Browse, which reads its card from
-// the address on popstate, keeps its card when its tab is clicked.
-export function go(path: string) {
-  window.history.pushState(null, '', path + window.location.search);
-  window.dispatchEvent(new Event('go'));
+// The view is the path's first part; any other path is study.
+export function viewOfPath(pathname: string): View {
+  const view = pathname.split('/')[1];
+  return view === 'browse' || view === 'add' ? view : 'study';
 }
 
 // A term as a parameter: key:value is key=value, and text, quoted or not, is
@@ -70,21 +66,4 @@ export function queryOfSelector(selector: string): string {
     .map(termParam)
     .map(([name, value]) => `${encode(name)}=${encode(value)}`)
     .join('&');
-}
-
-// The selector in the address.
-export const urlSelector = () => selectorOfQuery(window.location.search);
-
-// Whether SELECTOR is the one in the address, both written as queries, so
-// that spaces, or an address written by hand with %2C for its commas, make
-// no difference.
-export const isUrlSelector = (selector: string) => queryOfSelector(selector) === queryOfSelector(urlSelector());
-
-// Writes SELECTOR in the address as a new entry of the browser's history,
-// unless it is the one there already.
-export function setUrlSelector(selector: string) {
-  if (isUrlSelector(selector)) return;
-  const url = new URL(window.location.href);
-  url.search = queryOfSelector(selector);
-  window.history.pushState(null, '', url);
 }

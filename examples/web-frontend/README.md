@@ -59,13 +59,19 @@ macOS and Windows (it is tried on Linux only).
   one, the page starts with no selector, every card. The address is the
   only place a selector comes from: `srl-web` takes none.
 - Each view has its own path: `/` for Study, `/browse` and `/add`. The
-  tabs switch views in the page, keeping the selector, and add to the
-  browser's history, so back and forward switch views too. Submitting
-  another selector, or emptying the box with its X, adds to that history
-  too; submitting the one in the address again doesn't. Back and forward
-  follow the address they come to: its view, and its selector, applied
-  as if submitted, so the box shows it and the cards are found or asked
-  for again, without adding to the history. The name
+  address is the only place the view, the selector and Browse's card and
+  side are kept: the page shows whatever address it is on, and changing
+  any of them goes to another address. So back and forward go through
+  them all, and the page follows: coming back to another selector applies
+  it as if submitted, so the box shows it and the cards are found or
+  asked for again. Switching views with the tabs, submitting another
+  selector (or emptying the box with its X) and turning Browse's card to
+  another side each add to the browser's history; choosing another card
+  replaces the address instead, so moving through the list doesn't fill
+  the history. Doing again what the address already shows, such as
+  submitting its selector or clicking the tab or side shown, adds
+  nothing. A tab goes back to its view's last address, keeping the
+  selector, so Browse comes back to its card and side. The name
   srl at the left of the top bar links to the root, loading the page
   anew on the study view with the selector cleared.
 - Dark, or light with the button at the right of the top bar, which
@@ -105,10 +111,9 @@ as how `ja_word` marks words, without studying:
   `/browse/CARD/SIDE`, the side left out for Prompt: `/browse/x7k2m9`,
   `/browse/x7k2m9/edit`, before the selector's query if there is one. Reloading
   the page opens the same card on the same side, and scrolls the list to
-  it once the cards are found. The address is read when the page opens
-  and when back or forward comes to an address of Browse, which then
-  shows that address's card and side, and rewritten (without adding to the browser's history) whenever the
-  card or side changes. The list always scrolls the chosen card to its
+  it once the cards are found. Back turns the card back to the side it
+  was on before, and back to the card it was on before another selector
+  was submitted. The list always scrolls the chosen card to its
   middle, whether after a reload or when choosing another with the keys. A card that isn't among the selector's cards,
   such as one whose item was deleted, is said so in place of the card,
   and an unknown side is Prompt.
@@ -224,7 +229,7 @@ bin/srl-web.js      the command: options, starting the server, opening the brows
 server/server.js    the server: the API below, and the built frontend from dist/
 server/srl.js       running srl and reading its exit codes
 server/on-change.js running the --on-change program
-src/                the frontend: React, Tailwind CSS, markdown-it, Heroicons
+src/                the frontend: React, React Router, Tailwind CSS, markdown-it, Heroicons
 ```
 
 Icons come from Heroicons (`@heroicons/react`): a small set of general UI

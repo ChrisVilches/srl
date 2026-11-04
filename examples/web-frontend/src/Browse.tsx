@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 
-import { viewOfPath } from './address';
 import { api, type FoundCard, type ShownCard } from './api';
 import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, Waiting, WITH_KEY } from './CardParts';
 import { EditItem } from './EditItem';
@@ -32,24 +32,18 @@ type Made =
 type Side = 'prompt' | 'revealed' | 'json' | 'edit';
 const SIDES: Side[] = ['prompt', 'revealed', 'json', 'edit'];
 
-// The chosen card and side are kept in the address's path, as
-// /browse/CARD/SIDE, with the side left out when it is the prompt: /browse,
-// /browse/x7k2m9, /browse/x7k2m9/edit (see src/address.ts). They are read
-// when the page opens and when back or forward comes to an address of
-// Browse, and written whenever they change while Browse is shown, so
-// reloading the page, or going back to an address, comes back to them. An
+// The chosen card and side are kept in the address's path, and only there,
+// as /browse/CARD/SIDE, with the side left out when it is the prompt:
+// /browse, /browse/x7k2m9, /browse/x7k2m9/edit (see src/address.ts). An
 // unknown side is the prompt.
-function browsePath(): { card: string | null; side: Side } {
-  const [, , card, side] = window.location.pathname.split('/').map(decodeURIComponent);
+function parseBrowsePath(path: string): { card: string | null; side: Side } {
+  const [, , card, side] = path.split('/').map(decodeURIComponent);
   return { card: card || null, side: SIDES.find((s) => s === side) ?? 'prompt' };
 }
 
-function setBrowsePath(card: string | null, side: Side) {
+function browsePath(card: string | null, side: Side): string {
   const parts = ['browse', ...(card === null ? [] : [card, ...(side === 'prompt' ? [] : [side])])];
-  const url = new URL(window.location.href);
-  url.pathname = '/' + parts.map(encodeURIComponent).join('/');
-  // replaceState keeps moving through the list out of the browser's history.
-  window.history.replaceState(null, '', url);
+  return '/' + parts.map(encodeURIComponent).join('/');
 }
 
 const MAKE_DELAY = 300; // ms
@@ -57,27 +51,21 @@ const MAKE_DELAY = 300; // ms
 // The keys that choose the card below or above.
 const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 };
 
-export function Browse({ active, submitted, onSelector }: ViewProps) {
+export function Browse({ active, path, submitted, onSelector }: ViewProps) {
   const { selector } = submitted;
   const [list, setList] = useState<List>({ kind: 'loading', before: [] });
-  const [selected, setSelected] = useState<string | null>(() => browsePath().card);
   const [made, setMade] = useState<Record<string, Made>>({});
-  const [side, setSide] = useState<Side>(() => browsePath().side);
-  // Written again when Browse is shown, since switching to it by its tab
-  // sets the address to /browse alone.
-  useEffect(() => {
-    if (active) setBrowsePath(selected, side);
-  }, [active, selected, side]);
-  useEffect(() => {
-    const onPop = () => {
-      if (viewOfPath() !== 'browse') return;
-      const path = browsePath();
-      setSelected(path.card);
-      setSide(path.side);
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
+
+  // Choosing a card replaces the address, so that moving through the list
+  // stays out of the browser's history; turning to another side adds to
+  // it, so back turns back.
+  const { card: selected, side } = parseBrowsePath(path);
+  const navigate = useNavigate();
+  const { search } = useLocation();
+  const setSelected = (card: string) => navigate({ pathname: browsePath(card, side), search }, { replace: true });
+  const setSide = (s: Side) => {
+    if (s !== side) navigate({ pathname: browsePath(selected, s), search });
+  };
   // The card being made, to stop when another is chosen.
   const making = useRef<{ id: string; abort: AbortController } | null>(null);
 
