@@ -38,7 +38,6 @@ include = ["generated/**/*.jsonl"]
 [sources.vocab]
 program = ["python3", "sources/tinydb_source.py"]
 database = "vocab/vocab.json"    # every key but program is the program's
-folder = "vocab"                 # its tables are collections vocab/TABLE
 ```
 
 Each table of `[sources]` is a source, and its key is the source's name:
@@ -133,7 +132,6 @@ written in Markdown notes. It is configured like a kind program (see
 [sources.vocab]
 program = ["python3", "sources/tinydb_source.py"]
 database = "vocab/vocab.json"    # every key but program is the program's
-folder = "vocab"                 # its tables are collections vocab/TABLE
 ```
 
 - **`program` is a command**, as in `[kinds]`: the same rules for paths,
@@ -164,9 +162,9 @@ with every process it started, when `srl` is stopped (see
 | Call | Input | Output |
 |---|---|---|
 | `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "creates": ["*"]}`: what the source is, in a sentence, and the globs of the collections `srl add` may create in it (`[]` for none), which `srl sources` shows as its `include` |
-| `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "vocab/words"}` |
-| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "vocab/words", "handle": "17", "written": null, "item": {…}}`; one line per problem: `{"collection": "vocab/words", "error": "…"}` |
-| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "vocab/words", "item": {…}}`, or `{…, "op": "replace", "collection": "vocab/words", "handle": "17", "before": {…}, "after": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
+| `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words"}` |
+| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "written": null, "item": {…}}`; one line per problem: `{"collection": "words", "error": "…"}` |
+| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, or `{…, "op": "replace", "collection": "words", "handle": "17", "before": {…}, "after": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
 
 - **`read`** gives every item with its collection; its `handle`, what
   names it when it is changed, unique in the source, such as a key of a

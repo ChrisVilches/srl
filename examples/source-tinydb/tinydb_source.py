@@ -15,9 +15,9 @@ instead of in files of the store. Name it in `[sources]` of the store's
 Needs uv, which installs TinyDB for it. Meant for Linux, macOS and
 Windows, but tried on Linux only.
 
-- Each table of the database is a collection, named by the table under
-  the folder `folder` (by default `db`): the table `words` is the
-  collection `db/words`. `srl add` may create any new one there.
+- Each table of the database is a collection, named by the table: the
+  table `words` is the collection `words`. `srl add` may create any new
+  one.
 - Each item is a document `{"item": {...}}` holding its item object, and
   its handle is TinyDB's document ID.
 
@@ -32,7 +32,7 @@ from pathlib import Path
 from tinydb import TinyDB
 
 # The settings this source takes, in `[sources]` of .srl/config.toml.
-SETTINGS = {"database", "folder"}
+SETTINGS = {"database"}
 
 
 class SourceError(Exception):
@@ -40,41 +40,29 @@ class SourceError(Exception):
 
 
 class Source:
-    """The database the source's settings name, relative to the store, and
-    the folder its tables are collections under."""
+    """The database the source's settings name, relative to the store."""
 
     def __init__(self, config):
         unknown = sorted(set(config) - SETTINGS)
         if unknown:
-            raise SourceError(f"unknown setting `{unknown[0]}`; the settings are `database` and `folder`")
+            raise SourceError(f"unknown setting `{unknown[0]}`; the only setting is `database`")
         name = config.get("database")
         if not isinstance(name, str) or not name:
             raise SourceError("the setting `database` is missing; give the database's file, such as vocab/vocab.json")
-        folder = config.get("folder", "db")
-        if not isinstance(folder, str) or not folder or folder.startswith(".") or "\\" in folder:
-            raise SourceError("the setting `folder` must be a folder name, such as db or vocab")
-        self.folder = folder.strip("/")
         Path(name).parent.mkdir(parents=True, exist_ok=True)
         self.db = TinyDB(name, ensure_ascii=False)
-
-    def collection(self, table):
-        return f"{self.folder}/{table}"
-
-    def table(self, collection):
-        """The table of COLLECTION, which srl gave as one of this source's."""
-        return self.db.table(collection.removeprefix(f"{self.folder}/"))
 
     def close(self):
         self.db.close()
 
 
-def describe(source, inputs):
+def describe(_source, inputs):
     return [{"description": "Items kept in a TinyDB database, one table per collection.",
-             "creates": [f"{source.folder}/*"]} for _ in inputs]
+             "creates": ["*"]} for _ in inputs]
 
 
 def collections(source, _inputs):
-    return [{"collection": source.collection(name)} for name in sorted(source.db.tables())]
+    return [{"collection": name} for name in sorted(source.db.tables())]
 
 
 def read(source, _inputs):
@@ -83,7 +71,7 @@ def read(source, _inputs):
         for document in source.db.table(name).all():
             if "item" not in document:
                 continue
-            lines.append({"collection": source.collection(name), "handle": str(document.doc_id),
+            lines.append({"collection": name, "handle": str(document.doc_id),
                           "written": None, "item": document["item"]})
     return lines
 
@@ -92,7 +80,7 @@ def write(source, inputs):
     """Every change, or none: a change that can't be made refuses them all."""
     answers = []
     for change in inputs:
-        table = source.table(change["collection"])
+        table = source.db.table(change["collection"])
         if change["op"] == "replace":
             document = table.get(doc_id=int(change["handle"]))
             if document is None or document.get("item") != change["before"]:
@@ -101,7 +89,7 @@ def write(source, inputs):
     if not inputs or inputs[0]["dry_run"]:
         return answers
     for change in inputs:
-        table = source.table(change["collection"])
+        table = source.db.table(change["collection"])
         if change["op"] == "add":
             table.insert({"item": change["item"]})
         else:

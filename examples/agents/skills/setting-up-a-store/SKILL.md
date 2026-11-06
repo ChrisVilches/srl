@@ -82,8 +82,7 @@ its README says how to add it:
 ```toml
 [sources.vocab]
 program = ["uv", "run", "--quiet", "--script", "sources/tinydb_source.py"]
-database = "vocab/vocab.json"    # the program's own settings
-folder = "vocab"                 # the table words is the collection vocab/words
+database = "vocab/vocab.json"    # the program's own setting; each table is a collection
 ```
 
 ## Configuration

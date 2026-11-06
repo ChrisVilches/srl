@@ -29,24 +29,18 @@ driver = "filesystem"
 [sources.vocab]
 program = ["uv", "run", "--quiet", "--script", "sources/tinydb_source.py"]
 database = "vocab/vocab.json"
-folder = "vocab"
 ```
 
-Its settings, every key of the source but `program`, which `srl` passes
-on as they are and the program checks, refusing any other:
-
-- `database`: the database's file, relative to the store's folder,
-  created on the first item added.
-- `folder`: the folder its tables are collections under, by default
-  `db`. The table `words` is the collection `vocab/words`, an address no
-  file of the store has (see [docs/sources.md](../../docs/sources.md),
-  "Addresses"). The `filesystem` source doesn't read the database file,
-  a `.json` file, unless its `include` says so.
+Its one setting, `database`, is the database's file, relative to the
+store's folder, created on the first item added. `srl` passes every key
+of the source but `program` on as it is, and the program refuses any
+other. The `filesystem` source doesn't read the database file, a `.json`
+file, unless its `include` says so.
 
 Then add items to a table, which is created if it doesn't exist:
 
 ```sh
-srl add vocab/words --stdin <<'JSONL'
+srl add words --stdin <<'JSONL'
 {"see": "japanese/animals.md", "Q": "What does 猫 mean?", "A": "Cat."}
 JSONL
 srl find source:vocab
@@ -57,8 +51,13 @@ Items of the database may name a note with `see`, as any item may.
 
 ## How it keeps items
 
-- **Each table is a collection**, named under `folder`, and `srl add`
-  may create any new one there (`describe` gives `folder/*`).
+- **Each table is a collection**, and its name is the collection's
+  address: the table `words` is the collection `words`. A source has one
+  database, so a table's name is enough to tell its collections apart.
+  `srl add` may create any new one (`describe` gives `*`). A table named
+  as a file of the store, such as `notes.jsonl`, would be an address two
+  sources give, which is an error (see
+  [docs/sources.md](../../docs/sources.md), "Addresses").
 - **Each item is a document `{"item": {...}}`**, holding its item object
   as `srl` writes one. Its handle is TinyDB's document ID. Other
   documents of a table are left alone.
@@ -75,7 +74,7 @@ Each call reads JSON lines on standard input, each with `config`, the
 source's settings:
 
 ```sh
-echo '{"config": {"database": "vocab/vocab.json", "folder": "vocab"}}' | uv run --script tinydb_source.py read
+echo '{"config": {"database": "vocab/vocab.json"}}' | uv run --script tinydb_source.py read
 ```
 
 The tests run with `uv run --with tinydb python -m unittest` in this

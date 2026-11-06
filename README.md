@@ -72,9 +72,9 @@ A store is a folder with a `.srl/` folder in it, which holds its
 configuration and its review log. Everything else is yours: your
 **notes**, the study material you write, in any format, and your
 **collections**, files of items, read by the store's **sources**. Every
-collection is reached by an address, such as `japanese/grammar.jsonl` or
-`vocab/words`. A store without configuration has one source, which reads
-every `.jsonl` and `.xml` file in it.
+collection is reached by an address, such as `japanese/grammar.jsonl`,
+or `words` for a table of a database. A store without configuration has
+one source, which reads every `.jsonl` and `.xml` file in it.
 
 ### Notes are notes, items are data
 
@@ -141,13 +141,12 @@ know, even in Markdown notes.
 ```toml
 [sources.vocab]
 program = ["python3", "sources/tinydb_source.py"]
-database = "vocab/vocab.json"    # the program's own settings
-folder = "vocab"                 # its tables are collections vocab/TABLE
+database = "vocab/vocab.json"    # the program's own setting
 ```
 
 Its items are then added, found, edited and studied with the same
-commands as any other: `srl add vocab/words --stdin` adds items to the
-collection `vocab/words`, `srl next source:vocab` studies only its cards,
+commands as any other: `srl add words --stdin` adds items to the
+table `words`, `srl next source:vocab` studies only its cards,
 and an item in the database can name a note with `see` to show it as
 context. `srl sources` and `srl collections` describe what a store reads.
 
