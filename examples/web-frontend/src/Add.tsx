@@ -27,9 +27,8 @@ type Result =
 
 // Where the collection last added to is remembered, in this browser, for
 // this address. It is offered again only while srl collections still lists
-// it. The key keeps its old name, from when srl added to notes only, so that
-// a choice remembered before is still found.
-const LAST_COLLECTION = 'srl-web:last-note';
+// it.
+const LAST_COLLECTION = 'srl-web:last-collection';
 
 function rememberedCollection(collections: string[]): string | null {
   try {
@@ -188,8 +187,8 @@ export function Add() {
               label="Collection"
               hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its address, where a source of the store can create it (srl sources)."
             >
-              <CollectionPicker
-                collections={collections}
+              <PathPicker
+                paths={collections}
                 value={collection}
                 onChange={setCollection}
                 placeholder={
@@ -203,8 +202,8 @@ export function Add() {
               label="Context"
               hint={'Optional: the note shown for context along with the answer (the item\'s "see" entry), one of your study notes (srl notes). Default: no context.'}
             >
-              <CollectionPicker
-                collections={notes}
+              <PathPicker
+                paths={notes}
                 value={see}
                 onChange={setSee}
                 placeholder={notes.length === 0 ? 'The store has no notes' : 'Find a note…'}
@@ -353,19 +352,19 @@ function fuzzy(addresses: string[], query: string): string[] {
   return scored.sort((a, b) => a[0] - b[0] || a[1].length - b[1].length).map(([, address]) => address);
 }
 
-// A path chosen from COLLECTIONS, the addresses `srl collections` lists or
-// the notes `srl notes` lists, by typing part of it. Only a listed one can be chosen,
-// and, with CREATABLE, a new one. With CLEARABLE, the choice can be taken
-// back.
-function CollectionPicker({
-  collections,
+// A path chosen from PATHS, the addresses `srl collections` lists or the
+// notes `srl notes` lists, by typing part of it. Only a listed one can be
+// chosen, and, with CREATABLE, a new one. With CLEARABLE, the choice can be
+// taken back.
+function PathPicker({
+  paths,
   value,
   onChange,
   placeholder,
   clearable,
   creatable,
 }: {
-  collections: string[];
+  paths: string[];
   value: string | null;
   onChange: (address: string | null) => void;
   placeholder: string;
@@ -378,9 +377,9 @@ function CollectionPicker({
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState(0);
   const input = useRef<HTMLInputElement>(null);
-  const matches = useMemo(() => fuzzy(collections, query).slice(0, SHOWN), [collections, query]);
+  const matches = useMemo(() => fuzzy(paths, query).slice(0, SHOWN), [paths, query]);
   const typed = query.trim();
-  const fresh = typed !== '' && !collections.includes(typed) && creatable?.(typed) === true ? typed : null;
+  const fresh = typed !== '' && !paths.includes(typed) && creatable?.(typed) === true ? typed : null;
   const options = fresh === null ? matches : [...matches, fresh];
 
   const choose = (address: string) => {

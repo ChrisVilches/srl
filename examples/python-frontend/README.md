@@ -23,7 +23,9 @@ screen needs a modern terminal such as Windows Terminal.
 - The context, the note the item names with `see`, is shown under the
   answer, titled with the note's path. A note in anything but Markdown
   (by the extension of `see`), such as a text file, is shown as a code
-  block. An item without `see` has no context.
+  block. A note srl gives no text for, such as a PDF or an image, is
+  named by its path alone, saying there is no text to show. An item
+  without `see` has no context.
 - The screen never scrolls: the card and its context each scroll inside
   their own panel. When both are too long for the screen, each gets half
   of it; when one is shorter than half, the other takes the rest. A panel

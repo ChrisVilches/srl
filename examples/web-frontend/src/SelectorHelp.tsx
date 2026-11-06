@@ -15,7 +15,7 @@ const RULES: [string, string][] = [
 ];
 
 const EXAMPLES: [string, string][] = [
-  ['in:grammar', 'Cards whose address has a part named grammar, its extension aside, such as japanese/grammar/ or grammar.md'],
+  ['in:grammar', 'Cards whose collection has a part named grammar, its extension aside, such as japanese/grammar/ or grammar.jsonl'],
   ['in:grammar,kanji', 'Cards in grammar or in kanji'],
   ['in:japanese -in:kanji', 'Cards in japanese, but not in kanji'],
   ['path:japanese/*', 'Cards of the collections directly in japanese/; path:japanese/** for everything below it'],
@@ -25,7 +25,7 @@ const EXAMPLES: [string, string][] = [
   ['is:suspended', 'Suspended cards: in Browse, the cards to fix, each with why'],
   ['is:leech', 'Cards forgotten again and again, whose question likely needs rewriting'],
   ['kind:qa', 'Cards of items of a kind: qa, or a kind of the store'],
-  ['source:notes', 'Cards whose items come from a source of the store'],
+  ['source:items', 'Cards whose items come from a source of the store'],
   ['id:k3m9q1', 'The cards of an item, or a card, by its ID'],
   ['verb', 'Cards whose item contains the text, in any field, ignoring case'],
   ['"std::move"', 'Text with a colon or a space, in double quotes'],

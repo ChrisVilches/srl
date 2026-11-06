@@ -39,8 +39,9 @@ macOS and Windows (it is tried on Linux only).
 - After the answer it shows the context, the note the item names with
   `see`, under the note's path. A note in anything but Markdown (by the
   extension of `see`), such as a text file, is shown as a code block, a
-  JSON or JSONL one in colors. A note srl gives no text for, such as one
-  that isn't UTF-8, isn't shown. A table
+  JSON or JSONL one in colors. A note srl gives no text for, such as a
+  PDF or an image, which isn't UTF-8, is shown by its path alone, saying
+  there is no text to show. An item without `see` has no context. A table
   wider than the page scrolls sideways in its own box, leaving the text
   around it in place. A long kind is cut short in the card's header, a
   long address over the context and a long value in the details, whole
@@ -477,8 +478,8 @@ the modal give the focus back to the form when it closes.
   every side was tried and removed: it vanished, then "Making the card…"
   replaced it, which looked odd.)
 
-- The collection picker of the Add tab (`CollectionPicker` in `src/Add.tsx`) is
-  written by hand, a plain `<input>` and a `<ul>` under it, and is not
+- The collection and note pickers of the Add tab (`PathPicker` in
+  `src/Add.tsx`) are written by hand, a plain `<input>` and a `<ul>` under it, and are not
   accessible: it has no `role="combobox"`, `listbox` or `option`, no
   `aria-expanded`, `aria-controls` or `aria-activedescendant`, so a
   screen reader announces neither the list nor the chosen row, and moving

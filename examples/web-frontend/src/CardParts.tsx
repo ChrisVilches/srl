@@ -132,22 +132,27 @@ export function CardBadges({
 }
 
 // The item's context: the note its see: names, under its path. Nothing
-// when the item has none, or the note has no text to show.
+// when the item has none; only the path when srl gives no text for the
+// note, such as a PDF or an image.
 function ContextView({ card }: { card: ShownCard }) {
-  if (card.context === null) {
+  if (card.see === null) {
     return null;
   }
   return (
     <section className="rounded-2xl bg-stone-100 px-6 py-5 dark:bg-stone-900/50">
-      <div className="mb-3 truncate font-mono text-xs text-stone-500" title={card.see ?? undefined}>
+      <div className="truncate font-mono text-xs text-stone-500" title={card.see}>
         {card.see}
       </div>
-      <Markdown text={contextMarkdown(card.context, card.see)} className="prose-sm prose-stone" />
+      {card.context === null ? (
+        <p className="mt-3 text-sm text-stone-500">No text to show: open the note to see it.</p>
+      ) : (
+        <Markdown text={contextMarkdown(card.context, card.see)} className="mt-3 prose-sm prose-stone" />
+      )}
     </section>
   );
 }
 
-const MARKDOWN_EXTENSIONS =['.md', '.markdown', '.mdx', '.qmd'];
+const MARKDOWN_EXTENSIONS = ['.md', '.markdown', '.mdx', '.qmd'];
 
 // The context as Markdown to render, by the extension of the note's path
 // (see). A note in anything but Markdown, such as a text file, goes in a

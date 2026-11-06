@@ -1,6 +1,6 @@
 // JSON in colors: keys, strings, numbers, and true, false and null, each in
 // its own color in both themes. Used for the JSON side of the card browser,
-// and for ```json code blocks, such as a JSON note shown as context.
+// and for ```json code blocks, such as a context whose note is a .json file.
 
 // A string (a key when a colon follows it), a number, or a literal.
 const TOKEN = /("(?:[^"\\]|\\.)*")(\s*:)?|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\b(?:true|false|null)\b/g;

@@ -297,8 +297,9 @@ class Session:
         card_lines = console.render_lines(Group(*body), options)
         # What is left of the screen once the header (1 line), and the blank
         # line and the keys at the bottom (2) are drawn. The card's panel
-        # takes 4 lines more than its text, the context's 2, and "no
-        # context" 1.
+        # takes 4 lines more than its text, the context's 2, and a context
+        # without text 1: "no context", or the note's path when srl gives
+        # no text for it, such as a PDF.
         height = console.height - 1 - 2
         with_context = answered and card["context"] is not None
         card_height = min(height - (answered and not with_context), len(card_lines) + 4)
@@ -319,7 +320,8 @@ class Session:
                 border_style="white" if focus == "context" else "dim", padding=(0, 2))
             screen.append(context)
         elif answered:
-            screen.append(Padding(Text("no context", "dim"), (0, 2)))
+            line = "no context" if card["see"] is None else f"{card['see']}: no text to show"
+            screen.append(Padding(Text(line, "dim", no_wrap=True, overflow="ellipsis"), (0, 2)))
         if answered:
             keys = Text("  ")
             for number, (name, color) in enumerate(RATINGS, 1):

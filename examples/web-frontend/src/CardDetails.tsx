@@ -5,8 +5,9 @@ import { Label, Loading, Skeleton } from './CardParts';
 import { Modal } from './Modal';
 
 // Everything srl says about a card, to trace it back to where it comes from
-// and what happened to it: its IDs and kind, its collection, source and
-// file, where it is in its schedule, and its history in the log. Study shows
+// and what happened to it: its IDs and kind, its collection and source,
+// the note it names as its context, where it is in its schedule, and its
+// history in the log. Study shows
 // it in a modal (CardDetailsDialog), Browse above the chosen card.
 
 const RATING_NAMES: Record<Rating, { name: string; color: string }> = {
