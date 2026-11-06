@@ -7,7 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 readme = "../../README.md"
-keywords = ["spaced-repetition", "flashcards", "fsrs", "markdown", "cli"]
+keywords = ["spaced-repetition", "flashcards", "fsrs", "cli"]
 categories = ["command-line-utilities"]
 
 [[bin]]
