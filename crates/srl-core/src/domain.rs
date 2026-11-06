@@ -3,7 +3,6 @@
 //! starts a process or knows the clock: it is given what it needs.
 
 pub(crate) mod card;
-pub(crate) mod context;
 pub(crate) mod item;
 pub(crate) mod random;
 pub(crate) mod schedule;

@@ -11,14 +11,21 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use srl_core::{
-    By, Card, CardId, CollectionInfo, Context, Event, Item, KindDescription, Lint,
-    SourceDescription, Stats, Written, at,
+    By, Card, CardId, CollectionInfo, Event, Item, KindDescription, SourceDescription, Stats,
+    Warning, Written,
 };
 
 /// Prints one path per line.
 pub(crate) fn paths(paths: &[PathBuf]) {
     for path in paths {
         println!("{}", path.display());
+    }
+}
+
+/// Prints one path of the store per line.
+pub(crate) fn store_paths(paths: &[String]) {
+    for path in paths {
+        println!("{path}");
     }
 }
 
@@ -36,41 +43,40 @@ pub(crate) fn addresses(collections: &[CollectionInfo]) {
     }
 }
 
-/// Prints one line per changed item: its ID and `ADDRESS:LINE`, separated by
-/// two spaces.
+/// Prints one line per changed item: its ID and the address of its
+/// collection, separated by two spaces.
 pub(crate) fn written(written: &[Written]) {
     for done in written {
-        println!("{}  {}", done.id, at(&done.address, done.line));
+        println!("{}  {}", done.id, done.address);
     }
 }
 
-/// Prints one line per card: its ID, `ADDRESS:LINE` of its item, and the
-/// first line of the item's first field, separated by two spaces.
+/// Prints one line per card: its ID, the address of its item's
+/// collection, and the first line of the item's first field, separated by
+/// two spaces.
 pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
     for (item, card) in cards {
-        let line = format!(
-            "{}  {}  {}",
-            card,
-            at(item.address(), item.line()),
-            item.label()
-        );
+        let line = format!("{}  {}  {}", card, item.address(), item.label());
         println!("{}", line.trim_end());
     }
 }
 
-/// Prints items for people: for each, a line `ADDRESS:LINE`, the item as
-/// written, and the context after a line `---` if there is one. Items are
-/// separated by blank lines.
-pub(crate) fn items(items: &[(&Item, Option<Context>)]) {
-    for (index, (item, context)) in items.iter().enumerate() {
+/// Prints items for people: for each, a line with the address of its
+/// collection, the item as written, and, with `context`, if the item
+/// names a note with `see`, a line `---` with the note's path, then its
+/// text, if it has any. Items are separated by blank lines.
+pub(crate) fn items(items: &[(&Item, Option<String>)], context: bool) {
+    for (index, (item, text)) in items.iter().enumerate() {
         if index > 0 {
             println!();
         }
-        println!("{}", at(item.address(), item.line()));
+        println!("{}", item.address());
         println!("{}", item.text());
-        if let Some(context) = context {
-            println!("---");
-            print!("{}", context.text);
+        if let (true, Some(see)) = (context, item.see()) {
+            println!("--- {see}");
+            if let Some(text) = text {
+                print!("{text}");
+            }
         }
     }
 }
@@ -163,16 +169,12 @@ pub(crate) fn kinds(kinds: &[KindDescription]) {
 }
 
 /// Prints sources for people: for each, a line with its name and
-/// description, then a line for its driver, its prefix if it has one, and
-/// its globs, indented by two spaces, each name and value separated by two
-/// spaces.
+/// description, then a line for its driver and its globs, indented by two
+/// spaces, each name and value separated by two spaces.
 pub(crate) fn sources(sources: &[SourceDescription]) {
     for source in sources {
         println!("{}  {}", source.name, source.description);
         println!("  driver  {}", source.driver);
-        if !source.prefix.is_empty() {
-            println!("  prefix  {}", source.prefix);
-        }
         println!("  include  {}", source.creates.include.join(" "));
         if !source.creates.exclude.is_empty() {
             println!("  exclude  {}", source.creates.exclude.join(" "));
@@ -180,11 +182,13 @@ pub(crate) fn sources(sources: &[SourceDescription]) {
     }
 }
 
-/// Prints what `srl lint` found, as `ADDRESS:LINE: message`.
-pub(crate) fn lints(found: &[Lint]) {
-    for lint in found {
-        println!("{}: {}", at(&lint.address, lint.line), lint.message);
-    }
+/// Reports a likely mistake `srl check` found, on standard error, as
+/// `warning: ADDRESS: item ID: message`.
+pub(crate) fn warning(warning: &Warning) {
+    eprintln!(
+        "srl: warning: {}: item {}: {}",
+        warning.address, warning.id, warning.message
+    );
 }
 
 /// Prints text as it is.

@@ -13,8 +13,8 @@ use jiff::Zoned;
 use jiff::civil::Date;
 use serde::Serialize;
 use srl_core::{
-    Card, CardId, Catalog, Config, ContextMode, Error, Index, Item, Log, Lookup, Memories, Place,
-    ReviewRequest, Selector, Status, Store,
+    Card, CardId, Catalog, Config, Error, Index, Item, Log, Lookup, Memories, Place, ReviewRequest,
+    Selector, Status, Store,
 };
 
 use crate::args::{AddArgs, By, Cli, Command, ReviewArgs};
@@ -31,9 +31,9 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
     match cli.command {
         Command::Init { dir, dry_run } => init(cli.dir, dir, dry_run.dry_run),
         Command::Check => check(&store()?),
-        Command::Lint => lint(&store()?),
         Command::Id { dry_run } => id(&store()?, dry_run.dry_run),
         Command::Collections { json } => collections(&store()?, json.json),
+        Command::Notes { json } => notes(&store()?, json.json),
         Command::Kinds { json } => kinds(&store()?, json.json),
         Command::Sources { json } => sources(&store()?, json.json),
         Command::Find {
@@ -41,7 +41,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             json,
         } => find(&store()?, &selector(&terms.terms)?, json.json),
         Command::Show { ids, context, json } => {
-            show(&store()?, &ids, context_mode(context.context), json.json)
+            show(&store()?, &ids, !context.no_context, json.json)
         }
         Command::Cards { ids, json } => cards(&store()?, &ids, json.json),
         Command::Add(args) => add(&store()?, &args),
@@ -72,7 +72,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         } => next(
             &store()?,
             &selector(&terms.terms)?,
-            context_mode(context.context),
+            !context.no_context,
             json.json,
         ),
         Command::Review(args) => review(&store()?, &args),
@@ -174,9 +174,9 @@ fn init(flag: Option<PathBuf>, dir: Option<PathBuf>, dry_run: bool) -> anyhow::R
     Ok(Outcome::Done)
 }
 
-/// `srl check`: reports every problem, and orphans as notices. Fails if
-/// there is any problem. It asks kind programs about every item, rather
-/// than using the answers kept in the index cache.
+/// `srl check`: reports every problem, and orphans and likely mistakes as
+/// notices. Fails if there is any problem. It asks kind programs about
+/// every item, rather than using the answers kept in the index cache.
 fn check(store: &Store) -> anyhow::Result<Outcome> {
     let config = Config::load(store)?;
     let mut index = Index::open(store);
@@ -193,19 +193,14 @@ fn check(store: &Store) -> anyhow::Result<Outcome> {
     srl_core::orphans(&catalog, &memories)
         .iter()
         .for_each(output::problem);
+    srl_core::warnings(&catalog)
+        .iter()
+        .for_each(output::warning);
     Ok(if problems.is_empty() {
         Outcome::Done
     } else {
         Outcome::Failed
     })
-}
-
-/// `srl lint`: prints what looks like a mistake. Exit 0 if it found
-/// something, 1 if not.
-fn lint(store: &Store) -> anyhow::Result<Outcome> {
-    let found = srl_core::lint(store, &Config::load(store)?)?;
-    output::lints(&found);
-    Ok(found_anything(!found.is_empty()))
 }
 
 /// `srl id`: gives an ID to every item without one, and prints them. Exit
@@ -234,6 +229,22 @@ fn collections(store: &Store, json: bool) -> anyhow::Result<Outcome> {
         output::json_lines(&found)?;
     } else {
         output::addresses(&found);
+    }
+    Ok(found_anything(!found.is_empty()))
+}
+
+/// `srl notes`: lists every file of study material, which items may name
+/// with `see`. Exit 1 if the store has none.
+fn notes(store: &Store, json: bool) -> anyhow::Result<Outcome> {
+    let found = srl_core::notes(store, &Config::load(store)?)?;
+    if json {
+        let lines = found
+            .iter()
+            .map(|path| serde_json::json!({ "path": path }))
+            .collect::<Vec<_>>();
+        output::json_lines(&lines)?;
+    } else {
+        output::store_paths(&found);
     }
     Ok(found_anything(!found.is_empty()))
 }
@@ -280,8 +291,6 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
                     "item": item.id(),
                     "address": item.address(),
                     "source": item.source(),
-                    "file": item.file(),
-                    "line": item.line(),
                     "status": Status::of(item, card, memories),
                     "schedule": place_name(memories.place(card)),
                     "leech": memories.is_leech(card),
@@ -335,29 +344,25 @@ fn reported(problems: &[Error]) -> Outcome {
     }
 }
 
-/// The core's context mode for the one given with `--context`.
-fn context_mode(mode: crate::args::ContextMode) -> ContextMode {
-    match mode {
-        crate::args::ContextMode::Prose => ContextMode::Prose,
-        crate::args::ContextMode::Full => ContextMode::Full,
-        crate::args::ContextMode::None => ContextMode::None,
-    }
-}
-
-/// `srl show ID…`: prints each item with its context in `mode`.
-fn show(store: &Store, ids: &[String], mode: ContextMode, json: bool) -> anyhow::Result<Outcome> {
+/// `srl show ID…`: prints each item, with its context unless `context` is
+/// false.
+fn show(store: &Store, ids: &[String], context: bool, json: bool) -> anyhow::Result<Outcome> {
     let (_, catalog) = load(store)?;
     let (items, problems) = items_of(&catalog, ids);
-    let contexts = catalog.contexts(&items, mode)?;
+    let contexts = if context {
+        catalog.contexts(&items)?
+    } else {
+        vec![None; items.len()]
+    };
     let shown = items.into_iter().zip(contexts).collect::<Vec<_>>();
     if json {
         let lines = shown
             .iter()
-            .map(|(item, context)| item.json(context.as_ref()))
+            .map(|(item, context)| item.json(context.as_deref()))
             .collect::<Vec<_>>();
         output::json_lines(&lines)?;
     } else {
-        output::items(&shown);
+        output::items(&shown, context);
     }
     Ok(reported(&problems))
 }
@@ -490,13 +495,9 @@ fn move_history(store: &Store, from: &str, to: &str, dry_run: bool) -> anyhow::R
 
 /// `srl next`: the next card, if there is one. With `--json`, the card
 /// with what a frontend shows around it: its state, and its item's kind,
-/// collection and context in `mode` (see `docs/cli.md`, "Studying").
-fn next(
-    store: &Store,
-    selector: &Selector,
-    mode: ContextMode,
-    json: bool,
-) -> anyhow::Result<Outcome> {
+/// collection and its context, unless `context` is false (see
+/// `docs/cli.md`, "Studying").
+fn next(store: &Store, selector: &Selector, context: bool, json: bool) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
     let next = srl_core::next(
         &loaded.catalog,
@@ -520,12 +521,14 @@ fn next(
             kind: &'a str,
             address: &'a str,
             source: &'a str,
-            file: Option<&'a str>,
             see: Option<&'a str>,
             context: Option<String>,
-            context_address: Option<String>,
         }
-        let context = loaded.catalog.context(item, mode)?;
+        let context = if context {
+            loaded.catalog.context(item)?
+        } else {
+            None
+        };
         output::json_lines(&[Next {
             card: &card,
             schedule: place_name(loaded.memories.place(card.id())),
@@ -533,10 +536,8 @@ fn next(
             kind: item.kind().as_str(),
             address: item.address(),
             source: item.source(),
-            file: item.file(),
             see: item.see(),
-            context_address: context.as_ref().map(|context| context.address.clone()),
-            context: context.map(|context| context.text),
+            context,
         }])?;
     } else {
         output::cards(&[card]);

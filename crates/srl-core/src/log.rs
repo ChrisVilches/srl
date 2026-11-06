@@ -402,8 +402,8 @@ mod tests {
     fn the_hash_is_the_start_of_the_sha256_of_the_kind_and_fields() {
         let programs = crate::kind::Programs::default();
         let (items, _) = crate::app::catalog::read_items(
-            "a.md",
-            "Prose.\n````srl id:abc draft see:b.md\nQ: q\nA: a\n````\n\nMore.\n",
+            "a.jsonl",
+            "{\"id\": \"abc\", \"draft\": true, \"see\": \"b.md\", \"Q\": \"q\", \"A\": \"a\"}\n",
             &programs,
         );
         // `printf '%s' '{"A":"a","Q":"q"}' | sha256sum | cut -c1-12`

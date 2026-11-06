@@ -1,6 +1,6 @@
 //! The item object: an item as one JSON object, its header entries and its
 //! fields side by side (see `docs/items.md`, "The item object"). It is a
-//! line of a JSONL note, a line of `srl add --stdin` and `srl edit
+//! line of a JSONL collection, a line of `srl add --stdin` and `srl edit
 //! --stdin`, what a source program is given and gives for an item, and,
 //! with the keys only `srl` gives, what `srl show --json` prints.
 
@@ -14,15 +14,7 @@ use crate::domain::item::{Entries, Field, ItemId, is_field_key};
 
 /// The keys that `srl show --json` prints and nothing reads: they are
 /// ignored wherever an item object is read.
-pub(crate) const READ_ONLY: [&str; 7] = [
-    "address",
-    "source",
-    "file",
-    "line",
-    "cards",
-    "context",
-    "context_address",
-];
+pub(crate) const READ_ONLY: [&str; 4] = ["address", "source", "cards", "context"];
 
 /// An item object as read: its entries and its fields, in order.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -33,8 +25,8 @@ pub(crate) struct Object {
 
 /// Reads `text` as an item object. `"kind": "qa"`, `"see": null` and
 /// `"draft": false` mean the same as leaving the key out. Whether the kind
-/// exists, the fields suit it and `see` names a collection is checked later.
-/// Errors are plain reasons.
+/// exists, the fields suit it and `see` names a file of study material is
+/// checked later. Errors are plain reasons.
 pub(crate) fn read(text: &str) -> Result<Object, String> {
     let Pairs(pairs) = serde_json::from_str::<Pairs>(text)
         .map_err(|error| format!("it is not a JSON object ({error})"))?;
@@ -84,7 +76,7 @@ pub(crate) fn read(text: &str) -> Result<Object, String> {
                 return Err(format!(
                     "`{key}` is neither a header entry (`id`, `kind`, `see`, `draft`), a field \
                      name (uppercase letters, digits and _, starting with a letter), nor a key \
-                     only srl gives (`address`, `source`, `file`, `line`, `cards`, `context`, `context_address`)"
+                     only srl gives (`address`, `source`, `cards`, `context`)"
                 ));
             }
         }
@@ -107,7 +99,7 @@ fn text_of(key: &str, value: Value) -> Result<String, String> {
 }
 
 /// The item object of `entries` and `fields` as `srl` writes it, into a
-/// JSONL note or for a source program: the entries that differ from their
+/// collection or for a source program: the entries that differ from their
 /// defaults, then the fields.
 pub(crate) fn written(entries: &Entries, fields: &[Field]) -> Map<String, Value> {
     let mut object = Map::new();
@@ -164,7 +156,7 @@ mod tests {
     #[test]
     fn entries_and_fields_are_read_in_order() {
         let object = read(
-            r#"{"id": "abc", "kind": "words", "see": "a b.md", "draft": true, "Q": "q", "A": "a", "address": "x", "line": 3, "cards": [], "context": null, "context_address": null}"#,
+            r#"{"id": "abc", "kind": "words", "see": "a b.md", "draft": true, "Q": "q", "A": "a", "address": "x", "source": "items", "cards": [], "context": null}"#,
         )
         .unwrap();
         assert_eq!(object.entries.id.unwrap().as_str(), "abc");

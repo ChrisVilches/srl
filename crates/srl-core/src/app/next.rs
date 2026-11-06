@@ -133,7 +133,7 @@ mod tests {
         })
         .unwrap();
         for (path, text) in notes {
-            std::fs::write(store.note_file(path), text).unwrap();
+            std::fs::write(store.file(path), text).unwrap();
         }
         let catalog = Catalog::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();
         assert!(catalog.problems().is_empty(), "{:?}", catalog.problems());
@@ -238,10 +238,13 @@ mod tests {
     fn store() -> (TempDir, Catalog) {
         catalog_of(&[
             (
-                "a.md",
-                "```srl\n@ id:aaa1\nQ: {{c1::x}} {{c2::y}} {{c10::z}}\n\n@ id:aaa2\nQ: b\nA: c\n```\n",
+                "a.jsonl",
+                "{\"id\": \"aaa1\", \"Q\": \"{{c1::x}} {{c2::y}} {{c10::z}}\"}\n{\"id\": \"aaa2\", \"Q\": \"b\", \"A\": \"c\"}\n",
             ),
-            ("b.md", "```srl id:aaa3 draft\nQ: c\nA: d\n```\n"),
+            (
+                "b.jsonl",
+                "{\"id\": \"aaa3\", \"draft\": true, \"Q\": \"c\", \"A\": \"d\"}\n",
+            ),
         ])
     }
 

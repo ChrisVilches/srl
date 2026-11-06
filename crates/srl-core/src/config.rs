@@ -20,6 +20,9 @@ use crate::{Error, Result, Store};
 pub struct Config {
     /// The sources of items, by name (see `docs/sources.md`).
     pub sources: BTreeMap<String, SourceConfig>,
+    /// The files items may name with `see` (see `docs/items.md`,
+    /// "Context").
+    pub context: ContextConfig,
     pub schedule: Schedule,
     /// The kinds that are programs: each name with its command, the
     /// program and then its arguments (see `docs/cards.md`, "Kind
@@ -31,13 +34,17 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            sources: BTreeMap::from([("notes".to_owned(), SourceConfig::default())]),
+            sources: BTreeMap::from([(DEFAULT_SOURCE.to_owned(), SourceConfig::default())]),
+            context: ContextConfig::default(),
             schedule: Schedule::default(),
             kinds: BTreeMap::new(),
             kind_programs: KindPrograms::default(),
         }
     }
 }
+
+/// The name of the one source of a store without `[sources]`.
+pub(crate) const DEFAULT_SOURCE: &str = "items";
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -52,19 +59,56 @@ impl Default for KindPrograms {
     }
 }
 
-/// What a source is: one of the built-in drivers, or a program.
+/// `[context]`: the files of the store that items may name with `see`,
+/// its study material, as globs relative to the store's folder.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ContextConfig {
+    pub include: Vec<String>,
+    /// They win over `include`.
+    pub exclude: Vec<String>,
+}
+
+impl Default for ContextConfig {
+    fn default() -> Self {
+        Self {
+            include: vec!["**/*.md".to_owned(), "**/*.txt".to_owned()],
+            exclude: Vec::new(),
+        }
+    }
+}
+
+impl ContextConfig {
+    /// The `include` globs, compiled. They were checked when the
+    /// configuration was read.
+    pub fn include_set(&self) -> GlobSet {
+        globs(&self.include).expect("the context globs should have been checked when read")
+    }
+
+    /// The `exclude` globs, compiled. They were checked when the
+    /// configuration was read.
+    pub fn exclude_set(&self) -> GlobSet {
+        globs(&self.exclude).expect("the context globs should have been checked when read")
+    }
+}
+
+/// What a source is: the built-in driver, or a program.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Driver {
-    /// Notes of srl blocks (see `docs/notes.md`, "The srl block syntax").
-    Markdown,
-    /// Notes of JSON lines (see `docs/notes.md`, "The JSONL syntax").
-    Jsonl,
+    /// Collections that are files of the store, in the formats of
+    /// `docs/formats.md`.
+    Filesystem {
+        /// Globs of the files, relative to the store's folder.
+        include: Vec<String>,
+        /// Globs of the files to ignore. They win over `include`.
+        exclude: Vec<String>,
+    },
     /// A source program (see `docs/sources.md`, "Source programs").
     Program {
         /// The program, then its arguments.
         command: Vec<String>,
-        /// Every key of the source but `program` and `prefix`: the
-        /// program's own, given to it as they are.
+        /// Every key of the source but `program`: the program's own,
+        /// given to it as they are.
         settings: serde_json::Map<String, serde_json::Value>,
     },
 }
@@ -72,88 +116,78 @@ pub enum Driver {
 impl Driver {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Markdown => "markdown",
-            Self::Jsonl => "jsonl",
+            Self::Filesystem { .. } => "filesystem",
             Self::Program { .. } => "program",
         }
     }
-
-    /// The globs of the notes a source of this driver reads when it gives
-    /// no `include`.
-    fn default_include(&self) -> &'static str {
-        match self {
-            Self::Markdown => "**/*.md",
-            Self::Jsonl | Self::Program { .. } => "**/*.jsonl",
-        }
-    }
 }
+
+/// The globs of the files a `filesystem` source reads when it gives no
+/// `include`.
+pub(crate) const DEFAULT_INCLUDE: &[&str] = &["**/*.jsonl"];
 
 /// One source of `[sources]`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceConfig {
     pub driver: Driver,
-    /// Where the source's collections are among the store's addresses:
-    /// `""`, or folders ending in `/`, such as `vocab/`.
-    pub prefix: String,
-    /// Globs of notes, relative to the store's folder; the driver's own
-    /// when not given. Only for the notes' drivers.
-    include: Option<Vec<String>>,
-    /// Globs of notes to ignore, relative to the store's folder. They win
-    /// over `include`. Only for the notes' drivers.
-    pub exclude: Vec<String>,
 }
 
 impl Default for SourceConfig {
     fn default() -> Self {
-        Self {
-            driver: Driver::Markdown,
-            prefix: String::new(),
-            include: None,
-            exclude: Vec::new(),
-        }
+        Self::filesystem(DEFAULT_INCLUDE)
     }
 }
 
-/// A source as written in `config.toml`, before its keys are sorted out.
+/// A `filesystem` source as written in `config.toml`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct NotesSource {
+struct FilesystemSource {
     driver: String,
-    #[serde(default)]
-    prefix: String,
     include: Option<Vec<String>>,
     #[serde(default)]
     exclude: Vec<String>,
 }
 
 impl<'de> Deserialize<'de> for SourceConfig {
-    /// A source of a notes' driver has `driver`, and may have `prefix`,
-    /// `include` and `exclude`, nothing else. A source program has
-    /// `program`, and may have `prefix`; every other key is the program's.
+    /// A `filesystem` source has `driver`, and may have `include` and
+    /// `exclude`, nothing else. A source program has `program`; every
+    /// other key is the program's, which checks them itself.
     fn deserialize<D: serde::Deserializer<'de>>(
         deserializer: D,
     ) -> std::result::Result<Self, D::Error> {
         use serde::de::Error as _;
         let mut table = toml::Table::deserialize(deserializer)?;
+        if table.contains_key("prefix") {
+            return Err(D::Error::custom(
+                "`prefix` is not read: sources are not mounted under prefixes; the address of a \
+                 collection is its name, as its source gives it",
+            ));
+        }
         let Some(program) = table.remove("program") else {
-            let source =
-                NotesSource::deserialize(toml::Value::Table(table)).map_err(D::Error::custom)?;
-            let driver = match source.driver.as_str() {
-                "markdown" => Driver::Markdown,
-                "jsonl" => Driver::Jsonl,
-                other => {
-                    return Err(D::Error::custom(format!(
-                        "unknown driver `{other}`; use markdown or jsonl, or name a program \
-                         with `program`"
-                    )));
-                }
+            let source = FilesystemSource::deserialize(toml::Value::Table(table))
+                .map_err(D::Error::custom)?;
+            return match source.driver.as_str() {
+                "filesystem" => Ok(Self {
+                    driver: Driver::Filesystem {
+                        include: source.include.unwrap_or_else(|| {
+                            DEFAULT_INCLUDE
+                                .iter()
+                                .map(|glob| (*glob).to_owned())
+                                .collect()
+                        }),
+                        exclude: source.exclude,
+                    },
+                }),
+                "markdown" | "jsonl" => Err(D::Error::custom(format!(
+                    "the driver `{}` is gone: items are kept in structured files, which \
+                     `driver = \"filesystem\"` reads (see docs/formats.md), and Markdown is \
+                     study material that items name with `see`",
+                    source.driver
+                ))),
+                other => Err(D::Error::custom(format!(
+                    "unknown driver `{other}`; use filesystem, or name a program with `program`"
+                ))),
             };
-            return Ok(Self {
-                driver,
-                prefix: source.prefix,
-                include: source.include,
-                exclude: source.exclude,
-            });
         };
         if table.contains_key("driver") {
             return Err(D::Error::custom(
@@ -165,11 +199,6 @@ impl<'de> Deserialize<'de> for SourceConfig {
                 "`program` must be a list of the program and its arguments ({error})"
             ))
         })?;
-        let prefix = match table.remove("prefix") {
-            None => String::new(),
-            Some(prefix) => String::deserialize(prefix)
-                .map_err(|error| D::Error::custom(format!("`prefix` must be text ({error})")))?,
-        };
         let settings = serde_json::to_value(&table)
             .map_err(D::Error::custom)?
             .as_object()
@@ -177,48 +206,19 @@ impl<'de> Deserialize<'de> for SourceConfig {
             .unwrap_or_default();
         Ok(Self {
             driver: Driver::Program { command, settings },
-            prefix,
-            include: None,
-            exclude: Vec::new(),
         })
     }
 }
 
 impl SourceConfig {
-    /// A source of `driver`, with its default globs and no prefix.
-    pub fn of(driver: Driver) -> Self {
+    /// A `filesystem` source of the files `include` matches.
+    pub fn filesystem(include: &[&str]) -> Self {
         Self {
-            driver,
-            ..Self::default()
+            driver: Driver::Filesystem {
+                include: include.iter().map(|glob| (*glob).to_owned()).collect(),
+                exclude: Vec::new(),
+            },
         }
-    }
-
-    /// This source with `include` as its globs of notes.
-    #[must_use]
-    pub fn including(self, include: &[&str]) -> Self {
-        Self {
-            include: Some(include.iter().map(|glob| (*glob).to_owned()).collect()),
-            ..self
-        }
-    }
-
-    /// The globs of notes: those given, or the driver's.
-    pub fn include(&self) -> Vec<String> {
-        self.include
-            .clone()
-            .unwrap_or_else(|| vec![self.driver.default_include().to_owned()])
-    }
-
-    /// The `include` globs, compiled. They were checked when the
-    /// configuration was read.
-    pub fn include_set(&self) -> GlobSet {
-        globs(&self.include()).expect("the include globs should have been checked when read")
-    }
-
-    /// The `exclude` globs, compiled. They were checked when the
-    /// configuration was read.
-    pub fn exclude_set(&self) -> GlobSet {
-        globs(&self.exclude).expect("the exclude globs should have been checked when read")
     }
 }
 
@@ -309,6 +309,8 @@ impl Config {
         for (name, source) in &config.sources {
             check_source(name, source)?;
         }
+        globs(&config.context.include).map_err(|reason| format!("`context.include`: {reason}"))?;
+        globs(&config.context.exclude).map_err(|reason| format!("`context.exclude`: {reason}"))?;
         if config.kinds.contains_key("qa") {
             return Err("`kinds.qa`: qa is built in, so it can't be a program".to_owned());
         }
@@ -326,73 +328,38 @@ impl Config {
 }
 
 /// What `[notes]` became, for a configuration that still has it.
-const NOTES_MOVED: &str = "`[notes]` is not read: notes are a source of items now; write \
-    `[sources.notes]` with `driver = \"markdown\"` and the same `include` and `exclude`, and \
-    give JSONL notes a source of their own, such as `[sources.data]` with `driver = \"jsonl\"` \
-    and `include = [\"**/*.jsonl\"]` (see docs/sources.md)";
+const NOTES_MOVED: &str = "`[notes]` is not read: items are kept in sources, such as \
+    `[sources.items]` with `driver = \"filesystem\"` and its `include` and `exclude`, and the \
+    files items name with `see` are set in `[context]` (see docs/sources.md)";
 
-/// Checks the source `name` of `[sources]`: its name, prefix and globs.
-/// Errors are plain reasons.
+/// Checks the source `name` of `[sources]`: its name and globs. Errors are
+/// plain reasons.
 fn check_source(name: &str, source: &SourceConfig) -> std::result::Result<(), String> {
     if !is_id_text(name) {
         return Err(format!(
             "`sources.{name}`: a source's name is made of words of a-z and 0-9 joined by -, \
-             such as notes or jp-vocab"
+             such as items or jp-vocab"
         ));
     }
-    let prefix = &source.prefix;
-    if !prefix.is_empty() {
-        let folders = prefix.strip_suffix('/').unwrap_or_default();
-        let invalid = folders.is_empty()
-            || prefix.contains('\\')
-            || prefix.contains(':')
-            || folders.split('/').any(|part| {
-                part.is_empty() || part == "." || part == ".." || part.starts_with('.')
-            });
-        if invalid {
-            return Err(format!(
-                "`sources.{name}.prefix`: a prefix is \"\" or folders ending in /, such as \
-                 \"vocab/\", without empty parts, . or .., or a folder starting with ."
-            ));
-        }
-    }
-    if let Driver::Program { command, .. } = &source.driver
-        && command.is_empty()
-    {
-        return Err(format!(
+    match &source.driver {
+        Driver::Program { command, .. } if command.is_empty() => Err(format!(
             "`sources.{name}.program` is empty; give the program and its arguments, such as \
              [\"python3\", \"sources/{name}.py\"]"
-        ));
+        )),
+        Driver::Program { .. } => Ok(()),
+        Driver::Filesystem { include, exclude } => {
+            globs(include).map_err(|reason| format!("`sources.{name}.include`: {reason}"))?;
+            globs(exclude).map_err(|reason| format!("`sources.{name}.exclude`: {reason}"))?;
+            Ok(())
+        }
     }
-    globs(&source.include()).map_err(|reason| format!("`sources.{name}.include`: {reason}"))?;
-    globs(&source.exclude).map_err(|reason| format!("`sources.{name}.exclude`: {reason}"))?;
-    Ok(())
 }
 
-/// Sources that read the notes `include` matches as the extension of each
-/// glob says: those ending with `.jsonl` in a `jsonl` source named `data`,
-/// the others in a `markdown` source named `notes`. For tests.
+/// One `filesystem` source, named `items`, of the files `include` matches.
+/// For tests.
 #[cfg(test)]
 pub(crate) fn sources_of(include: &[&str]) -> BTreeMap<String, SourceConfig> {
-    let (jsonl, markdown): (Vec<&str>, Vec<&str>) = include.iter().partition(|glob| {
-        std::path::Path::new(glob)
-            .extension()
-            .is_some_and(|ext| ext == "jsonl")
-    });
-    let mut sources = BTreeMap::new();
-    if !markdown.is_empty() {
-        sources.insert(
-            "notes".to_owned(),
-            SourceConfig::of(Driver::Markdown).including(&markdown),
-        );
-    }
-    if !jsonl.is_empty() {
-        sources.insert(
-            "data".to_owned(),
-            SourceConfig::of(Driver::Jsonl).including(&jsonl),
-        );
-    }
-    sources
+    BTreeMap::from([(DEFAULT_SOURCE.to_owned(), SourceConfig::filesystem(include))])
 }
 
 #[cfg(test)]
@@ -409,16 +376,21 @@ mod tests {
 
     #[test]
     fn given_keys_replace_defaults() {
-        let config =
-            Config::parse("[sources.notes]\ndriver = \"markdown\"\nexclude = [\"templates/**\"]\n")
-                .unwrap();
-        let notes = &config.sources["notes"];
-        assert_eq!(notes.exclude, ["templates/**"]);
+        let config = Config::parse(
+            "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"templates/**\"]\n",
+        )
+        .unwrap();
+        assert_eq!(
+            config.sources["items"].driver,
+            Driver::Filesystem {
+                include: vec!["**/*.jsonl".to_owned()],
+                exclude: vec!["templates/**".to_owned()],
+            }
+        );
         assert_eq!(config.schedule, Schedule::default());
-        assert!(notes.exclude_set().is_match("templates/a/b.md"));
-        assert_eq!(notes.include(), ["**/*.md"]);
-        assert_eq!(notes.prefix, "");
+        assert_eq!(config.context, ContextConfig::default());
     }
+
     #[test]
     fn kinds_name_commands() {
         let config = Config::parse(
@@ -433,27 +405,44 @@ mod tests {
     #[test]
     fn sources_replace_the_default_source() {
         let config = Config::parse(
-            "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"**/*.txt\"]\n\n[sources.data]\ndriver = \"jsonl\"\nprefix = \"data/\"\n",
+            "[sources.cards]\ndriver = \"filesystem\"\ninclude = [\"cards/**/*.jsonl\"]\n",
         )
         .unwrap();
         let names = config.sources.keys().map(String::as_str);
-        assert_eq!(names.collect::<Vec<_>>(), ["data", "notes"]);
-        let notes = &config.sources["notes"];
-        assert!(notes.include_set().is_match("a/b.txt"));
-        assert!(!notes.include_set().is_match("a/b.md"));
-        assert_eq!(config.sources["data"].include(), ["**/*.jsonl"]);
-        assert_eq!(config.sources["data"].prefix, "data/");
-        assert_eq!(Config::default().sources["notes"], SourceConfig::default());
+        assert_eq!(names.collect::<Vec<_>>(), ["cards"]);
+        assert_eq!(
+            Config::default().sources["items"],
+            SourceConfig::filesystem(&["**/*.jsonl"])
+        );
+    }
+
+    #[test]
+    fn context_globs_are_read_and_checked() {
+        let config =
+            Config::parse("[context]\ninclude = [\"notes/**\"]\nexclude = [\"**/*.jsonl\"]\n")
+                .unwrap();
+        assert!(config.context.include_set().is_match("notes/a.pdf"));
+        assert!(config.context.exclude_set().is_match("notes/a.jsonl"));
+        let defaults = ContextConfig::default();
+        assert!(defaults.include_set().is_match("a/b.md"));
+        assert!(defaults.include_set().is_match("b.txt"));
+        assert!(!defaults.include_set().is_match("b.jsonl"));
+        for text in [
+            "[context]\ninclude = [\"[\"]\n",
+            "[context]\nexclude = [\"[\"]\n",
+            "[context]\nglobs = []\n",
+        ] {
+            assert!(Config::parse(text).is_err(), "accepted {text}");
+        }
     }
 
     #[test]
     fn a_program_source_keeps_its_own_keys_as_its_settings() {
         let config = Config::parse(
-            "[sources.vocab]\nprogram = [\"python3\", \"vocab.py\"]\nprefix = \"vocab/\"\ndatabase = \"vocab.json\"\nretries = 3\n",
+            "[sources.vocab]\nprogram = [\"python3\", \"vocab.py\"]\ndatabase = \"vocab.json\"\nretries = 3\n",
         )
         .unwrap();
         let vocab = &config.sources["vocab"];
-        assert_eq!(vocab.prefix, "vocab/");
         let Driver::Program { command, settings } = &vocab.driver else {
             panic!("not a program: {vocab:?}");
         };
@@ -465,42 +454,53 @@ mod tests {
         for text in [
             "[sources.vocab]\nprogram = []\n",
             "[sources.vocab]\nprogram = \"vocab.py\"\n",
-            "[sources.vocab]\nprogram = [\"vocab.py\"]\ndriver = \"jsonl\"\n",
+            "[sources.vocab]\nprogram = [\"vocab.py\"]\ndriver = \"filesystem\"\n",
+            "[sources.vocab]\nprogram = [\"vocab.py\"]\nprefix = \"vocab/\"\n",
         ] {
             assert!(Config::parse(text).is_err(), "accepted {text}");
         }
     }
+
     #[test]
     fn notes_is_refused_with_how_to_write_it_as_a_source() {
         let error = Config::parse("[notes]\ninclude = [\"**/*.md\"]\n").unwrap_err();
-        assert!(error.contains("[sources.notes]"), "{error}");
+        assert!(error.contains("[sources.items]"), "{error}");
     }
 
     #[test]
-    fn source_names_prefixes_and_globs_are_checked() {
+    fn the_drivers_that_are_gone_say_what_replaced_them() {
+        for driver in ["markdown", "jsonl"] {
+            let error =
+                Config::parse(&format!("[sources.notes]\ndriver = \"{driver}\"\n")).unwrap_err();
+            assert!(error.contains("filesystem"), "{error}");
+        }
+        let error =
+            Config::parse("[sources.items]\ndriver = \"filesystem\"\nprefix = \"\"\n").unwrap_err();
+        assert!(error.contains("prefix"), "{error}");
+    }
+
+    #[test]
+    fn source_names_and_globs_are_checked() {
         let source = |name: &str, rest: &str| {
             Config::parse(&format!(
-                "[sources.{name}]\ndriver = \"markdown\"\n{rest}\n"
+                "[sources.{name}]\ndriver = \"filesystem\"\n{rest}\n"
             ))
         };
-        assert!(source("jp-vocab", "prefix = \"vocab/n5/\"").is_ok());
+        assert!(source("jp-vocab", "include = [\"vocab/**/*.jsonl\"]").is_ok());
         for (name, rest) in [
-            ("Notes", ""),
+            ("Items", ""),
             ("a_b", ""),
-            ("notes", "prefix = \"vocab\""),
-            ("notes", "prefix = \"/\""),
-            ("notes", "prefix = \"a//\""),
-            ("notes", "prefix = \"../a/\""),
-            ("notes", "prefix = \".hidden/\""),
-            ("notes", "include = [\"[\"]"),
-            ("notes", "exclude = [\"[\"]"),
-            ("notes", "drvier = \"markdown\""),
+            ("items", "include = [\"[\"]"),
+            ("items", "exclude = [\"[\"]"),
+            ("items", "inclde = [\"**\"]"),
+            ("items", "database = \"db.json\""),
         ] {
             assert!(source(name, rest).is_err(), "accepted {name}: {rest}");
         }
-        assert!(Config::parse("[sources.notes]\ndriver = \"org\"\n").is_err());
-        assert!(Config::parse("[sources.notes]\ninclude = []\n").is_err());
+        assert!(Config::parse("[sources.items]\ndriver = \"org\"\n").is_err());
+        assert!(Config::parse("[sources.items]\ninclude = []\n").is_err());
     }
+
     #[test]
     fn a_study_day_starts_at_day_starts_at() {
         let schedule = Schedule::default();
@@ -522,7 +522,7 @@ mod tests {
             "[schedule]\ndesired_retention = 1.5\n",
             "[schedule]\nnew_per_day = \"ten\"\n",
             "[study]\ncontext = \"prose\"\n",
-            "[sources.notes]\ndriver = \"markdown\"\nexclude = [\"[\"]\n",
+            "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"[\"]\n",
             "[kinds]\nqa = [\"python3\", \"qa.py\"]\n",
             "[kinds]\nconj = []\n",
             "[kinds]\nconj = \"conj.py\"\n",

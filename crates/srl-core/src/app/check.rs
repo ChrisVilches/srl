@@ -1,13 +1,12 @@
-//! `srl check` and `srl lint` (see `docs/cli.md`, "Checking").
+//! What `srl check` finds besides the problems of the catalog: orphans
+//! and likely mistakes (see `docs/cli.md`, "Checking").
 
 use std::collections::HashSet;
 
 use serde::Serialize;
 
-use crate::kind::{has_near_deletion, has_revealing_hint};
-use crate::source::{Finding, Read, Sources};
-use crate::store::nfc;
-use crate::{CardId, Catalog, Config, Error, Memories, Result, Store};
+use crate::kind::{Kind, has_near_deletion, has_revealing_hint};
+use crate::{CardId, Catalog, Error, Memories};
 
 /// Every orphan: an ID with reviews in the log, not moved away, but no
 /// card in the store. When it is the only orphan of an item that still
@@ -58,35 +57,39 @@ pub fn orphans(catalog: &Catalog, memories: &Memories) -> Vec<Error> {
         .collect()
 }
 
-/// Something `srl lint` found: a likely mistake, never an error.
+/// A likely mistake in an item, which `srl check` reports as a warning,
+/// never an error.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct Lint {
-    /// The address of the collection it is in.
+pub struct Warning {
+    /// The address of the collection the item is in.
     pub address: String,
-    pub line: Option<usize>,
+    pub id: String,
     pub message: String,
 }
 
-/// `srl lint`: asks every source for likely mistakes, adds those of the
-/// `qa` kind in the items they read, and gives them in
-/// the order of their addresses and lines (see `docs/cli.md`,
+/// The likely mistakes in the items of `catalog`, in their order: those
+/// the `qa` kind finds in the `Q` of its items (see `docs/cli.md`,
 /// "Checking"). These are guesses, so they are never errors.
-pub fn lint(store: &Store, config: &Config) -> Result<Vec<Lint>> {
-    let mut found = Vec::new();
-    for mounted in Sources::new(store, config).all() {
-        let findings = mounted
-            .source
-            .lint()?
-            .into_iter()
-            .chain(qa_lints(&mounted.source.read()?));
-        found.extend(findings.map(|finding| Lint {
-            address: mounted.address(&finding.collection),
-            line: finding.line,
-            message: finding.message,
-        }));
-    }
-    found.sort_by_cached_key(|lint| (nfc(&lint.address), lint.address.clone(), lint.line));
-    Ok(found)
+pub fn warnings(catalog: &Catalog) -> Vec<Warning> {
+    catalog
+        .items()
+        .iter()
+        .filter(|item| matches!(item.kind(), Kind::Qa))
+        .flat_map(|item| {
+            let question = item
+                .fields()
+                .iter()
+                .find(|field| field.key == "Q")
+                .map_or("", |field| field.text.as_str());
+            question_suspicions(question)
+                .into_iter()
+                .map(|message| Warning {
+                    address: item.address().to_owned(),
+                    id: item.id().to_string(),
+                    message: message.to_owned(),
+                })
+        })
+        .collect()
 }
 
 /// The likely mistakes in the `Q` of a `qa` item, each once, in the order
@@ -116,70 +119,21 @@ fn question_suspicions(question: &str) -> Vec<&'static str> {
     found
 }
 
-/// The likely mistakes the `qa` kind finds in the items read from a
-/// source, at each item's line: in the `Q` of its items whose kind is `qa`
-/// (see `docs/cli.md`, "Checking").
-fn qa_lints(read: &Read) -> Vec<Finding> {
-    read.items
-        .iter()
-        .filter(|item| {
-            item.item
-                .entries
-                .kind
-                .as_deref()
-                .is_none_or(|kind| kind == "qa")
-        })
-        .flat_map(|item| {
-            let question = item
-                .item
-                .fields
-                .iter()
-                .find(|field| field.key == "Q")
-                .map_or("", |field| field.text.as_str());
-            question_suspicions(question)
-                .into_iter()
-                .map(|message| Finding {
-                    collection: item.collection.clone(),
-                    line: item.line,
-                    message: message.to_owned(),
-                })
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::source::ReadItem;
-
-    fn read(text: &str) -> Read {
-        let parsed = crate::source::parse("n.md", text);
-        Read {
-            items: parsed
-                .items
-                .into_iter()
-                .map(|item| ReadItem {
-                    collection: "n.md".to_owned(),
-                    handle: String::new(),
-                    line: Some(item.line),
-                    written: Some(item.text),
-                    item: crate::domain::item::object::Object {
-                        entries: item.entries,
-                        fields: item.fields,
-                    },
-                })
-                .collect(),
-            problems: Vec::new(),
-        }
-    }
 
     #[test]
-    fn mistaken_deletions_in_questions_are_found_once_each_at_their_item() {
-        let text = "```srl\n@ id:abc\nQ: {{C1::upper}}\n  {{c1:one colon}}\n  {{c1::Paris::Paris}}\nA: {{C1::in the answer}}\n@ id:abd kind:words\nQ: {{C1::other kind}}\n```\n";
-        let found = qa_lints(&read(text));
-        let lines = found.iter().map(|finding| finding.line).collect::<Vec<_>>();
-        assert_eq!(lines, [Some(2), Some(2)]);
-        assert!(found[0].message.contains("looks like a cloze deletion"));
-        assert!(found[1].message.contains("hint that is the text it hides"));
+    fn mistaken_deletions_in_questions_are_found_once_each() {
+        let found = question_suspicions(
+            "{{C1::upper}}\n{{c1:one colon}}\n{{c1::Paris::Paris}}\n{{c1::fine}}",
+        );
+        assert_eq!(found.len(), 2);
+        assert!(found[0].contains("looks like a cloze deletion"));
+        assert!(found[1].contains("hint that is the text it hides"));
+        assert_eq!(
+            question_suspicions("{{c1::fine}} and plain text"),
+            [] as [&str; 0]
+        );
     }
 }

@@ -51,9 +51,9 @@ pub(crate) struct Json {
 
 #[derive(Debug, Args)]
 pub(crate) struct Context {
-    /// How to show the context: the collection without its items, with them, or nothing.
-    #[arg(long, value_enum, value_name = "MODE", default_value_t = ContextMode::Prose)]
-    pub(crate) context: ContextMode,
+    /// Don't read or show the context, the file each item names with `see`.
+    #[arg(long)]
+    pub(crate) no_context: bool,
 }
 
 #[derive(Debug, Args)]
@@ -73,17 +73,20 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Check the sources, the configuration and the log.
+    /// Check the sources, the configuration and the log, and warn of items probably not written as meant.
     Check,
-    /// Look for likely mistakes: text probably meant to be an item, and items probably not written as meant.
-    Lint,
     /// Give an ID to every item without one.
     Id {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// List the collections of the store, such as its notes, without reading them.
+    /// List the collections of the store, which hold its items, without reading them.
     Collections {
+        #[command(flatten)]
+        json: Json,
+    },
+    /// List the study material of the store: the files items may name with `see`.
+    Notes {
         #[command(flatten)]
         json: Json,
     },
@@ -127,7 +130,7 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Add new items (JSONL of item objects from standard input) to a collection, such as a note.
+    /// Add new items (JSONL of item objects from standard input) to a collection.
     Add(AddArgs),
     /// Replace items with standard input (JSONL of items, each naming the item it replaces by `id`).
     Edit {
@@ -211,7 +214,7 @@ pub(crate) enum Command {
 
 #[derive(Debug, Args)]
 pub(crate) struct AddArgs {
-    /// The address of the collection, such as a note's path; created if it doesn't exist.
+    /// The address of the collection, such as a file's path; created if it doesn't exist.
     pub(crate) address: String,
     /// Read the items from standard input: one item object per line, of
     /// fields and the header entries `id` (new if left out), `kind`, `see`
@@ -244,13 +247,6 @@ pub(crate) struct ReviewArgs {
 pub(crate) enum By {
     Human,
     Agent,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum ContextMode {
-    Prose,
-    Full,
-    None,
 }
 
 #[cfg(test)]
@@ -301,9 +297,9 @@ mod tests {
 
     #[test]
     fn add_needs_stdin() {
-        assert!(parse(&["add", "a.md"]).is_err());
-        assert!(parse(&["add", "a.md", "--stdin", "--dry-run"]).is_ok());
-        assert!(parse(&["add", "a.md", "--stdin", "--draft"]).is_err());
+        assert!(parse(&["add", "a.jsonl"]).is_err());
+        assert!(parse(&["add", "a.jsonl", "--stdin", "--dry-run"]).is_ok());
+        assert!(parse(&["add", "a.jsonl", "--stdin", "--draft"]).is_err());
     }
 
     #[test]
@@ -319,10 +315,13 @@ mod tests {
     }
 
     #[test]
-    fn context_is_prose_unless_given() {
+    fn context_is_shown_unless_no_context() {
         let Command::Next { context, .. } = parse(&["next"]).unwrap().command else {
             panic!("expected next");
         };
-        assert_eq!(context.context, ContextMode::Prose);
+        assert!(!context.no_context);
+        assert!(parse(&["show", "a7f3k2", "--no-context"]).is_ok());
+        assert!(parse(&["show", "a7f3k2", "--context", "prose"]).is_err());
+        assert!(parse(&["lint"]).is_err());
     }
 }

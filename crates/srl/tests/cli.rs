@@ -71,6 +71,8 @@ fn help_succeeds_and_lists_commands() {
     let stdout = stdout(&output);
     assert!(stdout.contains("next"));
     assert!(stdout.contains("review"));
+    assert!(stdout.contains("notes"));
+    assert!(!stdout.contains("lint"));
 }
 
 #[test]
@@ -88,12 +90,12 @@ fn unknown_commands_exit_with_2_and_explain() {
     assert_eq!(output.stdout, b"");
 }
 
-/// A temporary directory with a fresh store in it, and `notes` written.
+/// A temporary directory with a fresh store in it, and `files` written.
 #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
-fn store(notes: &[(&str, &str)]) -> TempDir {
+fn store(files: &[(&str, &str)]) -> TempDir {
     let tmp = TempDir::new().unwrap();
     assert_eq!(srl(&["init", dir(&tmp)]).status.code(), Some(0));
-    for (path, text) in notes {
+    for (path, text) in files {
         write(&tmp, path, text);
     }
     tmp
@@ -116,34 +118,32 @@ fn dir(tmp: &TempDir) -> &str {
     tmp.path().to_str().unwrap()
 }
 
-const GRAMMAR: &str = "# 〜をものともせず
+/// Study material: what the items of [`GRAMMAR`] name with `see`.
+const GRAMMAR_NOTE: &str = "# 〜をものともせず
 
 Undeterred by (adversity). Admiring tone.
-
-```srl id:x7k2m9
-Q: What does 〜をものともせず mean?
-A: Undeterred by (adversity), braving.
-```
-
-```srl id:k3m9q1
-Q: {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。
-A: Despite everyone's opposition, she started a company.
-```
 ";
 
-const FISH: &str = "```srl
-@ id:tuna01
-Q: 鮪
-A: まぐろ — tuna
+const GRAMMAR: &str = r#"{"id":"x7k2m9","see":"japanese/grammar/wo.md","Q":"What does 〜をものともせず mean?","A":"Undeterred by (adversity), braving."}
+{"id":"k3m9q1","see":"japanese/grammar/wo.md","Q":"{{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。","A":"Despite everyone's opposition, she started a company."}
+"#;
 
-@ id:saba01 draft
-Q: 鯖
-A: さば — mackerel
-```
-";
+const FISH: &str = r#"{"id":"tuna01","Q":"鮪","A":"まぐろ — tuna"}
+{"id":"saba01","draft":true,"Q":"鯖","A":"さば — mackerel"}
+"#;
 
 fn japanese() -> TempDir {
-    store(&[("japanese/grammar/wo.md", GRAMMAR), ("kanji/fish.md", FISH)])
+    store(&[
+        ("japanese/grammar/wo.md", GRAMMAR_NOTE),
+        ("japanese/grammar/wo.jsonl", GRAMMAR),
+        ("kanji/fish.jsonl", FISH),
+    ])
+}
+
+/// Line `n` (from 0) of `text`, with its line ending.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn line(text: &str, n: usize) -> String {
+    format!("{}\n", text.lines().nth(n).unwrap())
 }
 
 #[test]
@@ -194,11 +194,11 @@ fn find_lists_cards_in_written_order() {
     assert_eq!(
         lines(&output),
         [
-            "x7k2m9  japanese/grammar/wo.md:5  What does 〜をものともせず mean?",
-            "k3m9q1.1  japanese/grammar/wo.md:10  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
-            "k3m9q1.2  japanese/grammar/wo.md:10  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
-            "tuna01  kanji/fish.md:2  鮪",
-            "saba01  kanji/fish.md:6  鯖",
+            "x7k2m9  japanese/grammar/wo.jsonl  What does 〜をものともせず mean?",
+            "k3m9q1.1  japanese/grammar/wo.jsonl  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
+            "k3m9q1.2  japanese/grammar/wo.jsonl  {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。",
+            "tuna01  kanji/fish.jsonl  鮪",
+            "saba01  kanji/fish.jsonl  鯖",
         ]
     );
 }
@@ -206,8 +206,8 @@ fn find_lists_cards_in_written_order() {
 #[test]
 fn ids_written_by_hand_may_have_dashes_and_a_dot_names_the_card() {
     let tmp = store(&[(
-        "grammar.md",
-        "```srl id:jp-grammar-desu\nQ: {{c1::です}} is {{c2::polite}}\n```\n",
+        "grammar.jsonl",
+        "{\"id\": \"jp-grammar-desu\", \"Q\": \"{{c1::です}} is {{c2::polite}}\"}\n",
     )]);
     let d = dir(&tmp);
     assert_eq!(srl(&["check", "--dir", d]).status.code(), Some(0));
@@ -232,13 +232,13 @@ fn ids_written_by_hand_may_have_dashes_and_a_dot_names_the_card() {
     for bad in ["jp.grammar", "-jp", "jp-", "jp--grammar"] {
         write(
             &tmp,
-            "grammar.md",
-            &format!("```srl id:{bad}\nQ: a\nA: b\n```\n"),
+            "grammar.jsonl",
+            &format!("{{\"id\": \"{bad}\", \"Q\": \"a\", \"A\": \"b\"}}\n"),
         );
         let check = srl(&["check", "--dir", d]);
         assert_eq!(check.status.code(), Some(2), "accepted {bad}");
         assert!(
-            stderr(&check).contains("grammar.md:1:"),
+            stderr(&check).contains("grammar.jsonl: line 1:"),
             "{}",
             stderr(&check)
         );
@@ -269,18 +269,35 @@ fn find_takes_in_and_negated_terms_and_exits_1_when_nothing_matches() {
 }
 
 #[test]
+fn in_names_collections_not_study_material() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(&tmp, "notes/fish.md", "# Fish\n");
+    write(&tmp, "notes/sushi.md", "# Sushi\n");
+    // `in:fish` is the collection kanji/fish.jsonl, not the note beside it.
+    assert_eq!(lines(&srl(&["find", "in:fish", "--dir", d])).len(), 2);
+    // A note holds no items, whatever its name.
+    assert_eq!(
+        srl(&["find", "in:sushi", "--dir", d]).status.code(),
+        Some(1)
+    );
+    assert_eq!(
+        srl(&["find", "in:notes", "--dir", d]).status.code(),
+        Some(1)
+    );
+}
+
+#[test]
 fn find_json_prints_one_card_per_line() {
     let tmp = japanese();
     let output = srl(&["find", "id:k3m9q1.2,saba01", "--json", "--dir", dir(&tmp)]);
     assert_eq!(
         json_lines(&output),
         [
-            serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo.md",
-                "source": "notes", "file": "japanese/grammar/wo.md",
-                "line": 10, "status": "active", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
-            serde_json::json!({"id": "saba01", "item": "saba01", "address": "kanji/fish.md",
-                "source": "notes", "file": "kanji/fish.md",
-                "line": 6, "status": "draft", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
+            serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo.jsonl",
+                "source": "items", "status": "active", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
+            serde_json::json!({"id": "saba01", "item": "saba01", "address": "kanji/fish.jsonl",
+                "source": "items", "status": "draft", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
         ]
     );
 }
@@ -294,13 +311,13 @@ fn bad_selectors_exit_with_2_and_explain() {
 }
 
 #[test]
-fn errors_in_notes_stop_commands_until_fixed() {
+fn errors_in_collections_stop_commands_until_fixed() {
     let tmp = japanese();
     let d = dir(&tmp);
     write(
         &tmp,
-        "broken.md",
-        "```srl id:bad1 darft\nQ: a\n```\n```srl\nQ: no id\nA: x\n```\n",
+        "broken.jsonl",
+        "{\"id\": \"bad1\", \"darft\": true, \"Q\": \"a\"}\n{\"Q\": \"no id\", \"A\": \"x\"}\n",
     );
     for args in [
         &["find"][..],
@@ -312,31 +329,31 @@ fn errors_in_notes_stop_commands_until_fixed() {
         assert_eq!(output.status.code(), Some(2), "{args:?}");
         let stderr = stderr(&output);
         assert!(
-            stderr.contains("broken.md:1: `darft` is not a header entry"),
+            stderr.contains("broken.jsonl: line 1: `darft` is neither a header entry"),
             "{stderr}"
         );
         assert!(
-            stderr.contains("broken.md:4: this item has no ID"),
+            stderr.contains("broken.jsonl: item 1 has no ID; run `srl id` to give it one"),
             "{stderr}"
         );
     }
     let check = srl(&["check", "--dir", d]);
     assert_eq!(check.status.code(), Some(2));
-    assert!(stderr(&check).contains("broken.md:1:"));
+    assert!(stderr(&check).contains("broken.jsonl: line 1:"));
     // srl id refuses while another problem remains.
-    let before = read(&tmp, "broken.md");
+    let before = read(&tmp, "broken.jsonl");
     let refused = srl(&["id", "--dir", d]);
     assert_eq!(refused.status.code(), Some(2));
-    assert_eq!(read(&tmp, "broken.md"), before);
-    write(&tmp, "broken.md", "```srl\nQ: no id\nA: x\n```\n");
+    assert_eq!(read(&tmp, "broken.jsonl"), before);
+    write(&tmp, "broken.jsonl", "{\"Q\": \"no id\", \"A\": \"x\"}\n");
     let assigned = srl(&["id", "--dir", d]);
     assert_eq!(assigned.status.code(), Some(0), "{}", stderr(&assigned));
     let line = stdout(&assigned);
     let id = line.split_whitespace().next().unwrap();
-    assert!(line.trim_end().ends_with("broken.md:1"), "{line}");
+    assert_eq!(line, format!("{id}  broken.jsonl\n"));
     assert_eq!(
-        read(&tmp, "broken.md"),
-        format!("```srl id:{id}\nQ: no id\nA: x\n```\n")
+        read(&tmp, "broken.jsonl"),
+        format!("{{\"id\":\"{id}\",\"Q\":\"no id\",\"A\":\"x\"}}\n")
     );
     assert_eq!(srl(&["id", "--dir", d]).status.code(), Some(1));
     assert_eq!(srl(&["check", "--dir", d]).status.code(), Some(0));
@@ -344,21 +361,39 @@ fn errors_in_notes_stop_commands_until_fixed() {
 }
 
 #[test]
-fn show_prints_the_item_and_its_context() {
+fn show_prints_the_item_and_the_file_its_see_names() {
     let tmp = japanese();
     let d = dir(&tmp);
     let output = srl(&["show", "k3m9q1.2", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(
         stdout(&output),
-        "japanese/grammar/wo.md:10\n```srl id:k3m9q1\nQ: {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。\nA: Despite everyone's opposition, she started a company.\n```\n---\n# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n"
+        format!(
+            "japanese/grammar/wo.jsonl\n{}--- japanese/grammar/wo.md\n{GRAMMAR_NOTE}",
+            line(GRAMMAR, 1)
+        )
     );
-    let full = srl(&["show", "x7k2m9", "--context", "full", "--json", "--dir", d]);
-    let shown = &json_lines(&full)[0];
+    let shown = srl(&["show", "x7k2m9", "--json", "--dir", d]);
+    let shown = &json_lines(&shown)[0];
     assert_eq!(shown["kind"], "qa");
     assert_eq!(shown["Q"], "What does 〜をものともせず mean?");
     assert_eq!(shown["cards"], serde_json::json!(["x7k2m9"]));
-    assert!(shown["context"].as_str().unwrap().contains("Q: {{c1::"));
+    assert_eq!(shown["see"], "japanese/grammar/wo.md");
+    assert_eq!(shown["context"], GRAMMAR_NOTE);
+    assert!(shown.get("file").is_none() && shown.get("line").is_none());
+    assert!(shown.get("context_address").is_none());
+    // --no-context leaves it out.
+    let plain = srl(&["show", "x7k2m9", "--no-context", "--dir", d]);
+    assert_eq!(
+        stdout(&plain),
+        format!("japanese/grammar/wo.jsonl\n{}", line(GRAMMAR, 0))
+    );
+    let none = srl(&["show", "x7k2m9", "--no-context", "--json", "--dir", d]);
+    assert_eq!(json_lines(&none)[0]["context"], serde_json::Value::Null);
+    // Context modes are gone.
+    let mode = srl(&["show", "x7k2m9", "--context", "full", "--dir", d]);
+    assert_eq!(mode.status.code(), Some(2));
+    // An item without `see` has no context.
     let none = srl(&["show", "tuna01", "--json", "--dir", d]);
     assert_eq!(json_lines(&none)[0]["context"], serde_json::Value::Null);
 }
@@ -401,13 +436,17 @@ fn add_writes_items_with_their_header_entries() {
     let tmp = japanese();
     let d = dir(&tmp);
     let input = "{\"Q\": \"Use 〜をものともせず\\nabout football.\", \"A\": \"…\", \"see\": \"japanese/grammar/wo.md\", \"draft\": true}\n{\"Q\": \"{{c1::嵐}}をものともせず\", \"draft\": true}\n";
-    let args = ["add", "generated/wo.md", "--stdin", "--dir", d];
+    let args = ["add", "generated/wo.jsonl", "--stdin", "--dir", d];
     let dry = srl_with_input(&[&args[..], &["--dry-run"]].concat(), input);
     assert_eq!(dry.status.code(), Some(0), "{}", stderr(&dry));
-    assert!(stdout(&dry).contains(
-        "see:japanese/grammar/wo.md draft\nQ: Use 〜をものともせず\n  about football.\n"
-    ));
-    assert_eq!(stdout(&dry).matches("see:").count(), 1);
+    assert!(
+        stdout(&dry).contains(
+            "\"see\":\"japanese/grammar/wo.md\",\"draft\":true,\"Q\":\"Use 〜をものともせず\\nabout football.\""
+        ),
+        "{}",
+        stdout(&dry)
+    );
+    assert_eq!(stdout(&dry).matches("\"see\":").count(), 1);
     assert!(!tmp.path().join("generated").exists());
     let added = srl_with_input(&args, input);
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
@@ -428,12 +467,12 @@ fn add_writes_items_with_their_header_entries() {
 fn one_bad_line_adds_nothing() {
     let tmp = japanese();
     let output = srl_with_input(
-        &["add", "a.md", "--stdin", "--dir", dir(&tmp)],
+        &["add", "a.jsonl", "--stdin", "--dir", dir(&tmp)],
         "{\"Q\": \"q\", \"A\": \"a\"}\n{\"Q\": \"no answer\"}\n",
     );
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("line 2"), "{}", stderr(&output));
-    assert!(!tmp.path().join("a.md").exists());
+    assert!(!tmp.path().join("a.jsonl").exists());
 }
 
 #[test]
@@ -443,7 +482,10 @@ fn drafts_move_through_accept_and_cards_through_suspend() {
     assert_eq!(srl(&["next", "id:saba01", "--dir", d]).stdout, b"");
     let accepted = srl(&["accept", "in:fish", "--dir", d]);
     assert_eq!(lines(&accepted), ["saba01"]);
-    assert!(read(&tmp, "kanji/fish.md").contains("\n@ id:saba01\n"));
+    assert_eq!(
+        read(&tmp, "kanji/fish.jsonl"),
+        FISH.replace("\"draft\":true,", "")
+    );
     assert_eq!(
         srl(&["accept", "in:fish", "--dir", d]).status.code(),
         Some(1)
@@ -454,8 +496,8 @@ fn drafts_move_through_accept_and_cards_through_suspend() {
     assert_eq!(lines(&found).len(), 2);
     let back = srl(&["unsuspend", "--dir", d]);
     assert_eq!(lines(&back), ["k3m9q1.2", "tuna01"]);
-    // Suspending never changes a note.
-    assert!(!read(&tmp, "kanji/fish.md").contains("suspend"));
+    // Suspending never changes a collection.
+    assert!(!read(&tmp, "kanji/fish.jsonl").contains("suspend"));
 }
 
 #[test]
@@ -500,20 +542,22 @@ fn edit_stdin_replaces_the_items_in_place() {
     );
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(lines(&output), ["x7k2m9"]);
-    let text = read(&tmp, "japanese/grammar/wo.md");
-    assert!(
-        text.contains("```srl id:x7k2m9\nQ: What does 〜をものともせず mean?\nA: Braving.\n```\n\n```srl id:k3m9q1\n"),
-        "{text}"
+    assert_eq!(
+        read(&tmp, "japanese/grammar/wo.jsonl"),
+        format!(
+            "{{\"id\":\"x7k2m9\",\"Q\":\"What does 〜をものともせず mean?\",\"A\":\"Braving.\"}}\n{}",
+            line(GRAMMAR, 1)
+        )
     );
-    // What `srl show --json` prints goes back as it is, and an item that
-    // starts with an `@` line keeps its place in its block.
+    // What `srl show --json` prints goes back as it is, and the item keeps
+    // its place.
     let shown = stdout(&srl(&["show", "tuna01", "--json", "--dir", d]));
     let changed = shown.replace("まぐろ — tuna", "まぐろ");
     let output = srl_with_input(&["edit", "--stdin", "--dir", d], &changed);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(
-        read(&tmp, "kanji/fish.md"),
-        FISH.replace("A: まぐろ — tuna", "A: まぐろ")
+        read(&tmp, "kanji/fish.jsonl"),
+        FISH.replace("まぐろ — tuna", "まぐろ")
     );
     let wrong = srl_with_input(
         &["edit", "--stdin", "--dir", d],
@@ -524,168 +568,144 @@ fn edit_stdin_replaces_the_items_in_place() {
 }
 
 #[test]
-fn jsonl_notes_hold_one_item_per_line_and_no_context() {
+fn see_names_study_material_and_items_without_it_have_no_context() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(
-        &tmp,
-        ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.data]\ndriver = \"jsonl\"\n",
-    );
     let items = "{\"Q\": \"鯛\", \"A\": \"たい — sea bream\"}\n{\"id\": \"wo0001\", \"see\": \"japanese/grammar/wo.md\", \"Q\": \"{{c1::嵐}}をものともせず\"}\n";
     write(&tmp, "generated/items.jsonl", items);
     let ids = srl(&["id", "--dir", d]);
     assert_eq!(ids.status.code(), Some(0), "{}", stderr(&ids));
-    assert!(stdout(&ids).contains("generated/items.jsonl:1"));
+    assert!(stdout(&ids).ends_with("  generated/items.jsonl\n"));
     let found = srl(&["find", "in:generated", "--dir", d]);
     let found = lines(&found);
     assert_eq!(found.len(), 2);
-    assert!(found[1].starts_with("wo0001.1  generated/items.jsonl:2  "));
+    assert!(found[1].starts_with("wo0001.1  generated/items.jsonl  "));
     let id = found[0].split_whitespace().next().unwrap().to_owned();
-    // Without `see`, an item of a JSONL note has no context.
-    let own = srl(&["show", &id, "--json", "--context", "full", "--dir", d]);
+    // Without `see`, an item has no context: its collection is data.
+    let own = srl(&["show", &id, "--json", "--dir", d]);
     assert_eq!(json_lines(&own)[0]["context"], serde_json::Value::Null);
-    let seen = srl(&["show", "wo0001", "--json", "--dir", d]);
-    assert!(
-        json_lines(&seen)[0]["context"]
-            .as_str()
-            .unwrap()
-            .contains("Admiring tone")
-    );
-    // A `see` naming a JSONL note gives it as it is, in mode `full`.
-    let input =
-        "{\"Q\": \"Which fish?\", \"A\": \"Sea bream.\", \"see\": \"generated/items.jsonl\"}\n";
-    let added = srl_with_input(&["add", "fish.md", "--stdin", "--dir", d], input);
-    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
-    let shown = srl(&[
-        "show",
-        &lines(&added)[0],
-        "--json",
-        "--context",
-        "full",
-        "--dir",
-        d,
-    ]);
-    assert_eq!(
-        json_lines(&shown)[0]["context"],
-        read(&tmp, "generated/items.jsonl")
-    );
-    // Without --json, the item is printed as its line.
-    let plain = srl(&["show", "wo0001", "--context", "none", "--dir", d]);
-    assert_eq!(
-        stdout(&plain),
-        format!(
-            "generated/items.jsonl:2\n{}\n",
-            items.lines().nth(1).unwrap()
-        )
-    );
-    // An invalid line stops every command that reads items.
-    write(&tmp, "generated/items.jsonl", "{\"Q\": \"q\", \"B\": 1}\n");
-    let broken = srl(&["find", "--dir", d]);
-    assert_eq!(broken.status.code(), Some(2));
-    assert!(stderr(&broken).contains("generated/items.jsonl:1:"));
-}
-
-/// A store that reads JSONL notes too, with `notes`.
-fn store_with_jsonl(notes: &[(&str, &str)]) -> TempDir {
-    let tmp = store(notes);
+    let own = next_card(d, &[&format!("id:{id}")]);
+    assert_eq!(own["address"], "generated/items.jsonl");
+    assert_eq!(own["see"], serde_json::Value::Null);
+    assert_eq!(own["context"], serde_json::Value::Null);
+    let seen = next_card(d, &["id:wo0001"]);
+    assert_eq!(seen["see"], "japanese/grammar/wo.md");
+    assert_eq!(seen["context"], GRAMMAR_NOTE);
+    // A collection is no study material: `see` can't name it, and neither
+    // a file that isn't there or a file outside `[context]`.
+    write(&tmp, "notes/table.csv", "a,b\n");
+    for (see, reason) in [
+        ("generated/items.jsonl", "is not study material"),
+        ("notes/table.csv", "is not study material"),
+        ("notes/missing.md", "names no file of the store"),
+        ("../wo.md", "is not a path relative to the store's folder"),
+    ] {
+        let input =
+            format!("{{\"Q\": \"Which fish?\", \"A\": \"Sea bream.\", \"see\": \"{see}\"}}\n");
+        let added = srl_with_input(&["add", "fish.jsonl", "--stdin", "--dir", d], &input);
+        assert_eq!(added.status.code(), Some(2), "accepted {see}");
+        assert!(stderr(&added).contains(reason), "{see}: {}", stderr(&added));
+    }
+    assert!(!tmp.path().join("fish.jsonl").exists());
+    // `[context]` chooses the files of study material.
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.data]\ndriver = \"jsonl\"\n",
+        "[context]\ninclude = [\"**/*.md\", \"notes/*.csv\"]\n",
     );
-    tmp
-}
-
-#[test]
-fn a_jsonl_note_is_a_context_as_it_is_in_mode_full_only() {
-    let items = "\n{\"id\": \"own001\", \"Q\": \"q\", \"A\": \"a\"}\n\n";
-    let tmp = store_with_jsonl(&[
-        ("items.jsonl", items),
-        ("blank.jsonl", "\n  \n"),
-        (
-            "a.md",
-            "```srl id:see001 see:items.jsonl\nQ: q\nA: a\n```\n\n```srl id:see002 see:blank.jsonl\nQ: q\nA: a\n```\n",
-        ),
-    ]);
-    let d = dir(&tmp);
-    // The context and the address of its collection.
-    let context = |id: &str, mode: &str| {
-        let output = srl(&["show", id, "--json", "--context", mode, "--dir", d]);
-        assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-        let shown = &json_lines(&output)[0];
-        (shown["context"].clone(), shown["context_address"].clone())
-    };
-    let nothing = (serde_json::Value::Null, serde_json::Value::Null);
-    assert_eq!(
-        context("see001", "full"),
-        (items.into(), "items.jsonl".into())
-    );
-    for mode in ["prose", "full"] {
-        assert_eq!(context("own001", mode), nothing, "{mode}");
-        assert_eq!(context("see002", mode), nothing, "{mode}");
-    }
-    // `prose` never shows items, and a JSONL note is nothing but items.
-    assert_eq!(context("see001", "prose"), nothing);
-    assert_eq!(context("see001", "none"), nothing);
-    // The frontend contract gives the same.
-    let next = next_card(d, &["id:own001"]);
-    assert_eq!(next["address"], "items.jsonl");
-    assert_eq!(next["see"], serde_json::Value::Null);
-    assert_eq!(next["context"], serde_json::Value::Null);
-    assert_eq!(next["context_address"], serde_json::Value::Null);
-    let seen = next_card(d, &["id:see001", "--context", "full"]);
-    assert_eq!(seen["context"], items);
-    assert_eq!(seen["context_address"], "items.jsonl");
-}
-
-#[test]
-fn a_markdown_note_named_by_see_from_a_jsonl_note_is_the_context_address() {
-    let tmp = store_with_jsonl(&[
-        (
-            "items.jsonl",
-            "{\"id\": \"see001\", \"see\": \"a.md\", \"Q\": \"q\", \"A\": \"a\"}\n",
-        ),
-        ("a.md", "# A\n\nProse.\n"),
-    ]);
-    let d = dir(&tmp);
-    let shown = srl(&["show", "see001", "--json", "--dir", d]);
+    let input = "{\"Q\": \"Which fish?\", \"A\": \"Sea bream.\", \"see\": \"notes/table.csv\"}\n";
+    let added = srl_with_input(&["add", "fish.jsonl", "--stdin", "--dir", d], input);
+    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+    let shown = srl(&["show", &lines(&added)[0], "--json", "--dir", d]);
+    assert_eq!(json_lines(&shown)[0]["context"], "a,b\n");
+    // A file that is not UTF-8 is study material with no text to show.
+    fs::write(tmp.path().join("notes/table.csv"), [0xff, 0xfe, 0x00]).unwrap();
+    let shown = srl(&["show", &lines(&added)[0], "--json", "--dir", d]);
     assert_eq!(shown.status.code(), Some(0), "{}", stderr(&shown));
-    let shown = &json_lines(&shown)[0];
-    assert_eq!(shown["context"], "# A\n\nProse.\n");
-    assert_eq!(shown["context_address"], "a.md");
+    assert_eq!(json_lines(&shown)[0]["context"], serde_json::Value::Null);
+    // A `see` whose file is gone is an error in the store.
+    fs::remove_file(tmp.path().join("notes/table.csv")).unwrap();
+    let broken = srl(&["find", "--dir", d]);
+    assert_eq!(broken.status.code(), Some(2));
+    assert!(
+        stderr(&broken).contains("fish.jsonl: item "),
+        "{}",
+        stderr(&broken)
+    );
+    assert!(
+        stderr(&broken).contains("`see` notes/table.csv names no file of the store"),
+        "{}",
+        stderr(&broken)
+    );
+    // An invalid line stops every command that reads items.
+    write(&tmp, "fish.jsonl", "");
+    write(&tmp, "generated/items.jsonl", "{\"Q\": \"q\", \"B\": 1}\n");
+    let broken = srl(&["find", "--dir", d]);
+    assert_eq!(broken.status.code(), Some(2));
+    assert!(
+        stderr(&broken).contains("generated/items.jsonl: line 1:"),
+        "{}",
+        stderr(&broken)
+    );
 }
 
 #[test]
-fn lint_and_check_read_jsonl_notes_by_their_syntax() {
-    let tmp = store_with_jsonl(&[
-        (
-            "items.jsonl",
-            "{\"id\": \"abc\", \"Q\": \"{{C1::upper}}\", \"A\": \"Q: not a field\"}\n",
-        ),
-        ("a.md", "Q: bare\n"),
-    ]);
+fn notes_lists_the_study_material_without_reading_any_item() {
+    let tmp = japanese();
     let d = dir(&tmp);
-    let lint = srl(&["lint", "--dir", d]);
-    assert_eq!(lint.status.code(), Some(0), "{}", stderr(&lint));
-    let found = lines(&lint);
-    assert_eq!(found.len(), 2, "{found:?}");
-    assert!(found[0].starts_with("a.md:1: "), "{found:?}");
-    assert!(
-        found[1].starts_with("items.jsonl:1: a line of Q looks like a cloze"),
-        "{found:?}"
+    write(&tmp, "notes/b.txt", "Text.\n");
+    write(&tmp, "notes/c.pdf", "%PDF");
+    write(&tmp, ".obsidian/x.md", "Hidden.\n");
+    write(&tmp, "broken.jsonl", "not json\n");
+    let output = srl(&["notes", "--dir", d]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(lines(&output), ["japanese/grammar/wo.md", "notes/b.txt"]);
+    let output = srl(&["notes", "--json", "--dir", d]);
+    assert_eq!(
+        json_lines(&output),
+        [
+            serde_json::json!({"path": "japanese/grammar/wo.md"}),
+            serde_json::json!({"path": "notes/b.txt"}),
+        ]
     );
     write(
         &tmp,
+        ".srl/config.toml",
+        "[context]\ninclude = [\"notes/**\"]\nexclude = [\"**/*.txt\"]\n",
+    );
+    assert_eq!(lines(&srl(&["notes", "--dir", d])), ["notes/c.pdf"]);
+    let empty = store(&[]);
+    assert_eq!(srl(&["notes", "--dir", dir(&empty)]).status.code(), Some(1));
+}
+
+#[test]
+fn check_warns_of_likely_mistakes_and_reports_errors_in_lines() {
+    let tmp = store(&[(
         "items.jsonl",
-        "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\n\n{\"id\": \"abc\", \"Q\": \"q\", \"Q\": \"r\"}\n[1]\n",
+        "{\"id\": \"abc\", \"Q\": \"{{C1::upper}}\", \"A\": \"a\"}\n",
+    )]);
+    let d = dir(&tmp);
+    let check = srl(&["check", "--dir", d]);
+    assert_eq!(check.status.code(), Some(0), "{}", stderr(&check));
+    assert!(
+        stderr(&check)
+            .starts_with("srl: warning: items.jsonl: item abc: a line of Q looks like a cloze"),
+        "{}",
+        stderr(&check)
+    );
+    // lint is gone: check finds what it found.
+    assert_eq!(srl(&["lint", "--dir", d]).status.code(), Some(2));
+    write(
+        &tmp,
+        "items.jsonl",
+        "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\n\n{\"id\": \"abd\", \"Q\": \"q\", \"Q\": \"r\"}\n[1]\n",
     );
     let check = srl(&["check", "--dir", d]);
     assert_eq!(check.status.code(), Some(2));
     let problems = stderr(&check);
-    assert!(problems.contains("items.jsonl:3: "), "{problems}");
+    assert!(problems.contains("items.jsonl: line 3: "), "{problems}");
     assert!(problems.contains("appears twice"), "{problems}");
-    assert!(problems.contains("items.jsonl:4: "), "{problems}");
+    assert!(problems.contains("items.jsonl: line 4: "), "{problems}");
 }
 
 #[test]
@@ -696,7 +716,7 @@ fn edit_dry_run_prints_the_ids_and_empty_input_finds_nothing() {
     let dry = srl_with_input(&["edit", "--stdin", "--dry-run", "--dir", d], input);
     assert_eq!(dry.status.code(), Some(0), "{}", stderr(&dry));
     assert_eq!(lines(&dry), ["tuna01", "x7k2m9"]);
-    assert_eq!(read(&tmp, "kanji/fish.md"), FISH);
+    assert_eq!(read(&tmp, "kanji/fish.jsonl"), FISH);
     let empty = srl_with_input(&["edit", "--stdin", "--dir", d], "\n");
     assert_eq!(empty.status.code(), Some(1), "{}", stderr(&empty));
 }
@@ -757,23 +777,15 @@ fn next_json_gives_the_card_with_its_state_collection_and_context() {
             "schedule": "new",
             "leech": false,
             "kind": "qa",
-            "address": "japanese/grammar/wo.md",
-            "source": "notes",
-            "file": "japanese/grammar/wo.md",
-            "see": null,
-            "context": "# 〜をものともせず\n\nUndeterred by (adversity). Admiring tone.\n",
-            "context_address": "japanese/grammar/wo.md",
+            "address": "japanese/grammar/wo.jsonl",
+            "source": "items",
+            "see": "japanese/grammar/wo.md",
+            "context": GRAMMAR_NOTE,
         })
     );
-    let none = next_card(d, &["--context", "none"]);
+    let none = next_card(d, &["--no-context"]);
+    assert_eq!(none["see"], "japanese/grammar/wo.md");
     assert_eq!(none["context"], serde_json::Value::Null);
-    assert_eq!(none["context_address"], serde_json::Value::Null);
-    assert!(
-        next_card(d, &["--context", "full"])["context"]
-            .as_str()
-            .unwrap()
-            .contains("Q: What does")
-    );
 }
 
 #[test]
@@ -876,11 +888,11 @@ fn orphans_are_reported_and_their_history_moves() {
     let d = dir(&tmp);
     record(d, &next_card(d, &[]), 3);
     // The question gets its first cloze deletion: x7k2m9 becomes x7k2m9.1.
-    let text = read(&tmp, "japanese/grammar/wo.md").replace(
-        "Q: What does 〜をものともせず mean?",
-        "Q: What does 〜を{{c1::ものともせず}} mean?",
+    let text = read(&tmp, "japanese/grammar/wo.jsonl").replace(
+        "\"Q\":\"What does 〜をものともせず mean?\"",
+        "\"Q\":\"What does 〜を{{c1::ものともせず}} mean?\"",
     );
-    write(&tmp, "japanese/grammar/wo.md", &text);
+    write(&tmp, "japanese/grammar/wo.jsonl", &text);
     let check = srl(&["check", "--dir", d]);
     assert_eq!(check.status.code(), Some(0), "{}", stderr(&check));
     assert!(
@@ -914,10 +926,10 @@ fn a_move_is_suggested_only_for_an_item_with_one_orphan() {
     ]);
     assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
     // Both clozes become c3: two orphans, and one new card k3m9q1.3.
-    let text = read(&tmp, "japanese/grammar/wo.md")
+    let text = read(&tmp, "japanese/grammar/wo.jsonl")
         .replace("{{c1::", "{{c3::")
         .replace("{{c2::", "{{c3::");
-    write(&tmp, "japanese/grammar/wo.md", &text);
+    write(&tmp, "japanese/grammar/wo.jsonl", &text);
     let check = srl(&["check", "--dir", d]);
     assert_eq!(check.status.code(), Some(0), "{}", stderr(&check));
     assert_eq!(stderr(&check).lines().count(), 2, "{}", stderr(&check));
@@ -929,69 +941,48 @@ fn a_move_is_suggested_only_for_an_item_with_one_orphan() {
 }
 
 #[test]
-fn lint_finds_questions_without_headers() {
+fn excluded_files_and_dot_folders_are_not_read() {
     let tmp = japanese();
     let d = dir(&tmp);
-    assert_eq!(srl(&["lint", "--dir", d]).status.code(), Some(1));
-    write(
-        &tmp,
-        "inbox.md",
-        "Notes.\n\nQ: forgot the header\nA: here\n",
-    );
-    let output = srl(&["lint", "--dir", d]);
-    assert_eq!(output.status.code(), Some(0));
-    assert!(
-        stdout(&output).starts_with("inbox.md:3: "),
-        "{}",
-        stdout(&output)
-    );
-    assert_eq!(lines(&output).len(), 1);
-}
-
-#[test]
-fn excluded_notes_and_dot_folders_are_not_read() {
-    let tmp = japanese();
-    let d = dir(&tmp);
-    write(&tmp, "templates/t.md", "```srl\nbroken\n```\n");
-    write(&tmp, ".obsidian/x.md", "```srl\nbroken\n```\n");
+    write(&tmp, "templates/t.jsonl", "broken\n");
+    write(&tmp, ".obsidian/x.jsonl", "broken\n");
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(2));
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\nexclude = [\"templates/**\"]\n",
+        "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"templates/**\"]\n",
     );
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(0));
 }
 
 #[test]
-fn collections_lists_every_note_without_reading_it() {
+fn collections_lists_every_collection_without_reading_it() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "prose.md", "Only prose, no items.\n");
-    write(&tmp, "broken.md", "```srl\nbroken\n```\n");
-    write(&tmp, "plain.txt", "Not a note.\n");
-    write(&tmp, ".obsidian/x.md", "Not a note.\n");
-    write(&tmp, "templates/t.md", "Excluded.\n");
+    write(&tmp, "prose.md", "Study material, no collection.\n");
+    write(&tmp, "broken.jsonl", "broken\n");
+    write(&tmp, "plain.txt", "Not a collection.\n");
+    write(&tmp, ".obsidian/x.jsonl", "Not a collection.\n");
+    write(&tmp, "templates/t.jsonl", "Excluded.\n");
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\nexclude = [\"templates/**\"]\n",
+        "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"templates/**\"]\n",
     );
     let output = srl(&["collections", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(
         lines(&output),
         [
-            "broken.md",
-            "japanese/grammar/wo.md",
-            "kanji/fish.md",
-            "prose.md"
+            "broken.jsonl",
+            "japanese/grammar/wo.jsonl",
+            "kanji/fish.jsonl"
         ]
     );
     let output = srl(&["collections", "--json", "--dir", d]);
     assert_eq!(
         json_lines(&output)[1],
-        serde_json::json!({"address": "japanese/grammar/wo.md", "source": "notes", "file": "japanese/grammar/wo.md"})
+        serde_json::json!({"address": "japanese/grammar/wo.jsonl", "source": "items"})
     );
     let empty = store(&[]);
     assert_eq!(
@@ -1004,7 +995,7 @@ fn collections_lists_every_note_without_reading_it() {
 fn kinds_describes_qa_without_reading_any_item() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "broken.md", "```srl\nbroken\n```\n");
+    write(&tmp, "broken.jsonl", "broken\n");
     let output = srl(&["kinds", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let lines = lines(&output);
@@ -1020,79 +1011,68 @@ fn kinds_describes_qa_without_reading_any_item() {
     assert_eq!(kinds[0]["fields"][1]["label"], "Answer");
 }
 
-const TEXT_NOTE: &str = "```srl id:txt001\nQ: From a text file?\nA: Yes.\n```\n";
+const EXTRA: &str = "{\"id\": \"ext001\", \"Q\": \"From another folder?\", \"A\": \"Yes.\"}\n";
 
 #[test]
-fn only_md_files_are_notes_by_default() {
+fn only_jsonl_files_are_collections_by_default() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "plain.txt", "```srl\nbroken\n```\n");
-    write(&tmp, "page.html", "```srl\nbroken\n```\n");
+    write(&tmp, "plain.txt", "broken\n");
+    write(&tmp, "page.html", "broken\n");
+    write(&tmp, "data.json", "broken\n");
     let output = srl(&["find", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert!(!stdout(&output).contains("plain.txt"));
 }
 
 #[test]
-fn include_makes_other_files_notes() {
+fn a_file_include_matches_in_a_format_srl_doesnt_read_is_an_error() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "kanji/extra.txt", TEXT_NOTE);
-    write(&tmp, "lint.txt", "Q: forgot the header\nA: here\n");
+    write(&tmp, "kanji/extra.txt", EXTRA);
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"**/*.md\", \"**/*.txt\"]\n",
+        "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"**/*.jsonl\", \"**/*.txt\"]\n",
     );
-    let output = srl(&["find", "--json", "--dir", d]);
-    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-    let paths: Vec<_> = json_lines(&output)
-        .iter()
-        .map(|card| card["address"].as_str().unwrap_or_default().to_owned())
-        .collect();
-    assert!(paths.contains(&"kanji/extra.txt".to_owned()), "{paths:?}");
+    let output = srl(&["find", "--dir", d]);
+    assert_eq!(output.status.code(), Some(2));
     assert!(
-        paths.contains(&"japanese/grammar/wo.md".to_owned()),
-        "{paths:?}"
+        stderr(&output).contains("kanji/extra.txt: srl reads collections in the formats"),
+        "{}",
+        stderr(&output)
     );
-    // in: drops the .txt extension like any other.
-    assert_eq!(lines(&srl(&["find", "in:extra", "--dir", d])).len(), 1);
-    // srl lint reads the same files as every other command.
-    assert!(stdout(&srl(&["lint", "--dir", d])).starts_with("lint.txt:1: "));
 }
 
 #[test]
 fn include_replaces_the_default_rather_than_adding_to_it() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "extra.txt", TEXT_NOTE);
+    write(&tmp, "cards/extra.jsonl", EXTRA);
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"*.txt\"]\n",
+        "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"cards/*.jsonl\"]\n",
     );
     let output = srl(&["find", "--json", "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let cards = json_lines(&output);
     assert_eq!(cards.len(), 1);
-    assert_eq!(cards[0]["address"], "extra.txt");
+    assert_eq!(cards[0]["address"], "cards/extra.jsonl");
+    // in: drops the extension like any other.
+    assert_eq!(lines(&srl(&["find", "in:extra", "--dir", d])).len(), 1);
 }
 
 #[test]
 fn exclude_wins_over_include() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(&tmp, "drafts/broken.txt", "```srl\nbroken\n```\n");
-    write(
-        &tmp,
-        ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"**/*.md\", \"**/*.txt\"]\n",
-    );
+    write(&tmp, "drafts/broken.jsonl", "broken\n");
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(2));
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"**/*.md\", \"**/*.txt\"]\nexclude = [\"drafts/**\"]\n",
+        "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"**/*.jsonl\"]\nexclude = [\"drafts/**\"]\n",
     );
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(0));
 }
@@ -1101,19 +1081,52 @@ fn exclude_wins_over_include() {
 fn an_invalid_include_glob_is_a_configuration_error() {
     let tmp = japanese();
     let d = dir(&tmp);
-    write(
-        &tmp,
-        ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"[\"]\n",
-    );
-    let output = srl(&["find", "--dir", d]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(
-        stderr(&output).contains("notes.include"),
-        "{}",
-        stderr(&output)
-    );
-    assert_eq!(output.stdout, b"");
+    for (config, key) in [
+        (
+            "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"[\"]\n",
+            "items.include",
+        ),
+        ("[context]\nexclude = [\"[\"]\n", "context.exclude"),
+    ] {
+        write(&tmp, ".srl/config.toml", config);
+        let output = srl(&["find", "--dir", d]);
+        assert_eq!(output.status.code(), Some(2));
+        assert!(stderr(&output).contains(key), "{}", stderr(&output));
+        assert_eq!(output.stdout, b"");
+    }
+}
+
+#[test]
+fn prefixes_the_old_drivers_and_unknown_keys_are_configuration_errors() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    for (config, expected) in [
+        (
+            "[sources.items]\ndriver = \"filesystem\"\nprefix = \"words/\"\n",
+            "`prefix` is not read",
+        ),
+        (
+            "[sources.notes]\ndriver = \"markdown\"\n",
+            "the driver `markdown` is gone",
+        ),
+        (
+            "[sources.data]\ndriver = \"jsonl\"\n",
+            "the driver `jsonl` is gone",
+        ),
+        (
+            "[sources.items]\ndriver = \"filesystem\"\ndatabase = \"db.json\"\n",
+            "database",
+        ),
+    ] {
+        write(&tmp, ".srl/config.toml", config);
+        let output = srl(&["find", "--dir", d]);
+        assert_eq!(output.status.code(), Some(2), "{config}");
+        assert!(
+            stderr(&output).contains(expected),
+            "{config}: {}",
+            stderr(&output)
+        );
+    }
 }
 
 #[test]
@@ -1130,18 +1143,32 @@ fn add_takes_paths_that_include_matches_and_exclude_does_not() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\ninclude = [\"**/*.md\", \"**/*.txt\"]\nexclude = [\"drafts/**\"]\n",
+        "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"drafts/**\"]\n",
     );
-    let output = srl_with_input(&["add", "drafts/a.txt", "--stdin", "--dir", d], item);
+    let output = srl_with_input(&["add", "drafts/a.jsonl", "--stdin", "--dir", d], item);
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("`exclude`"), "{}", stderr(&output));
     assert!(!tmp.path().join("drafts").exists());
 
-    let output = srl_with_input(&["add", "new.txt", "--stdin", "--dir", d], item);
+    let output = srl_with_input(&["add", "new.jsonl", "--stdin", "--dir", d], item);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let id = stdout(&output).trim().to_owned();
-    assert!(read(&tmp, "new.txt").contains(&format!("```srl id:{id}\n")));
+    assert!(read(&tmp, "new.jsonl").starts_with(&format!("{{\"id\":\"{id}\"")));
     assert_eq!(lines(&srl(&["find", "in:new", "--dir", d])).len(), 1);
+
+    // A path include matches is refused in a format srl doesn't write.
+    let other = store(&[]);
+    write(
+        &other,
+        ".srl/config.toml",
+        "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"cards/**\"]\n",
+    );
+    let output = srl_with_input(
+        &["add", "cards/a.md", "--stdin", "--dir", dir(&other)],
+        item,
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("extension"), "{}", stderr(&output));
 }
 
 /// What every command that reads memories prints: standard output,
@@ -1265,7 +1292,7 @@ fn concurrent_srl_processes_share_the_log_and_the_cache() {
 }
 
 #[test]
-fn notes_can_live_anywhere_under_the_store() {
+fn the_store_is_found_from_anywhere_under_it() {
     let tmp = japanese();
     fs::create_dir_all(tmp.path().join("deep").join("er")).unwrap();
     let cwd = tmp.path().join("deep").join("er");
@@ -1281,9 +1308,9 @@ fn notes_can_live_anywhere_under_the_store() {
 
 /// A store whose kind `fake` is the test kind program of
 /// `crates/srl-test-kind`, which `cargo test --workspace` builds next to
-/// `srl`, with `notes`.
+/// `srl`, with `files`.
 #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
-fn store_with_kind(notes: &[(&str, &str)]) -> TempDir {
+fn store_with_kind(files: &[(&str, &str)]) -> TempDir {
     let program = Path::new(env!("CARGO_BIN_EXE_srl"))
         .with_file_name(format!("srl-test-kind{}", std::env::consts::EXE_SUFFIX));
     assert!(
@@ -1291,7 +1318,7 @@ fn store_with_kind(notes: &[(&str, &str)]) -> TempDir {
         "{} isn't built; run `cargo test --workspace`",
         program.display()
     );
-    let tmp = store(notes);
+    let tmp = store(files);
     write(
         &tmp,
         ".srl/config.toml",
@@ -1302,7 +1329,10 @@ fn store_with_kind(notes: &[(&str, &str)]) -> TempDir {
 
 #[test]
 fn cards_of_a_kind_program_in_their_own_groups_are_not_siblings() {
-    let tmp = store_with_kind(&[("a.md", "```srl id:abc kind:fake\nGROUPS: a|b c\n```\n")]);
+    let tmp = store_with_kind(&[(
+        "a.jsonl",
+        "{\"id\": \"abc\", \"kind\": \"fake\", \"GROUPS\": \"a|b c\"}\n",
+    )]);
     let d = dir(&tmp);
     let first = next_card(d, &[]);
     assert_eq!(
@@ -1319,10 +1349,31 @@ fn cards_of_a_kind_program_in_their_own_groups_are_not_siblings() {
 }
 
 #[test]
+fn a_kind_program_gets_the_file_see_names_and_its_text() {
+    let tmp = store_with_kind(&[
+        ("a.md", "# A\n"),
+        (
+            "a.jsonl",
+            "{\"id\": \"abc\", \"kind\": \"fake\", \"see\": \"a.md\", \"GROUPS\": \"a\"}\n",
+        ),
+    ]);
+    let output = srl(&["cards", "abc.a", "--json", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let answer = json_lines(&output)[0]["answer"].clone();
+    assert!(
+        answer
+            .as_str()
+            .unwrap()
+            .contains("context \"# A\\n\" (\"a.md\")"),
+        "{answer}"
+    );
+}
+
+#[test]
 fn kind_selects_items_by_their_kind() {
     let tmp = store_with_kind(&[(
-        "a.md",
-        "```srl\n@ id:abc kind:fake\nGROUPS: a|b\n\n@ id:def\nQ: q\nA: a\n```\n",
+        "a.jsonl",
+        "{\"id\": \"abc\", \"kind\": \"fake\", \"GROUPS\": \"a|b\"}\n{\"id\": \"def\", \"Q\": \"q\", \"A\": \"a\"}\n",
     )]);
     let d = dir(&tmp);
     let ids = |selector: &[&str]| -> Vec<String> {
@@ -1345,8 +1396,8 @@ fn kind_selects_items_by_their_kind() {
 /// process appending to `ticks` in the store's folder, then waits a minute.
 fn store_with_ticking_kind() -> TempDir {
     store_with_kind(&[(
-        "a.md",
-        "```srl id:abc kind:fake\nSPAWN_MAKE: ticks\nSLEEP_MAKE: 60\n```\n",
+        "a.jsonl",
+        "{\"id\": \"abc\", \"kind\": \"fake\", \"SPAWN_MAKE\": \"ticks\", \"SLEEP_MAKE\": \"60\"}\n",
     )])
 }
 
@@ -1414,8 +1465,8 @@ fn srl_stopped_by_a_signal_stops_its_kind_program_with_what_it_started() {
 #[test]
 fn next_fails_if_its_kind_program_fails_to_make_the_card() {
     let tmp = store_with_kind(&[(
-        "a.md",
-        "```srl id:abc kind:fake\nGROUPS: a|b\nFAIL_MAKE: a\n```\n",
+        "a.jsonl",
+        "{\"id\": \"abc\", \"kind\": \"fake\", \"GROUPS\": \"a|b\", \"FAIL_MAKE\": \"a\"}\n",
     )]);
     let d = dir(&tmp);
     // The same failure every time, and abc.b is never tried in its place.
@@ -1442,8 +1493,8 @@ fn next_fails_if_its_kind_program_fails_to_make_the_card() {
 #[test]
 fn cards_fails_at_once_if_a_kind_program_fails() {
     let tmp = store_with_kind(&[(
-        "a.md",
-        "```srl id:abc kind:fake\nGROUPS: a|b\nFAIL_MAKE: b\n```\n",
+        "a.jsonl",
+        "{\"id\": \"abc\", \"kind\": \"fake\", \"GROUPS\": \"a|b\", \"FAIL_MAKE\": \"b\"}\n",
     )]);
     let d = dir(&tmp);
     let output = srl(&["cards", "abc", "--dir", d]);
@@ -1458,13 +1509,14 @@ fn cards_fails_at_once_if_a_kind_program_fails() {
 #[test]
 fn an_item_validate_rejects_is_reported_like_any_error_in_a_source() {
     let tmp = store_with_kind(&[(
-        "a.md",
-        "```srl id:abc kind:fake\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}]}\n```\n",
+        "a.jsonl",
+        r#"{"id": "abc", "kind": "fake", "ERRORS": "{\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}]}"}
+"#,
     )]);
     let output = srl(&["check", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
-        stderr(&output).contains("a.md:1: VERB: is missing"),
+        stderr(&output).contains("a.jsonl: item abc: VERB: is missing"),
         "{}",
         stderr(&output)
     );
@@ -1473,8 +1525,8 @@ fn an_item_validate_rejects_is_reported_like_any_error_in_a_source() {
 #[test]
 fn a_kind_program_that_fails_is_reported_once_and_stops_commands() {
     let tmp = store_with_kind(&[(
-        "a.md",
-        "```srl id:abc kind:fake\nBREAK_GROUPS: on purpose\n```\n\n```srl id:abd kind:fake\nX: y\n```\n",
+        "a.jsonl",
+        "{\"id\": \"abc\", \"kind\": \"fake\", \"BREAK_GROUPS\": \"on purpose\"}\n{\"id\": \"abd\", \"kind\": \"fake\", \"X\": \"y\"}\n",
     )]);
     let d = dir(&tmp);
     let output = srl(&["check", "--dir", d]);
@@ -1490,8 +1542,8 @@ fn a_kind_program_that_fails_is_reported_once_and_stops_commands() {
 #[test]
 fn kind_answers_are_kept_until_check_asks_again_or_the_cache_is_deleted() {
     let tmp = store_with_kind(&[(
-        "a.md",
-        "```srl id:abc kind:fake\nGROUPS: a b\nLOG: calls.log\n```\n",
+        "a.jsonl",
+        "{\"id\": \"abc\", \"kind\": \"fake\", \"GROUPS\": \"a b\", \"LOG\": \"calls.log\"}\n",
     )]);
     let d = dir(&tmp);
     let calls_after = |args: &[&str]| {
@@ -1516,7 +1568,7 @@ fn add_checks_every_new_item_at_once_and_names_the_line_at_fault() {
     let d = dir(&tmp);
     let input = "{\"kind\": \"fake\", \"X\": \"a\", \"LOG\": \"calls.log\"}\n\n{\"kind\": \"fake\", \"GROUPS\": \"a b\", \"LOG\": \"calls.log\"}\n{\"kind\": \"fake\", \"INVALID\": \"no good\"}\n";
     let output = srl_with_input(
-        &["add", "new.md", "--stdin", "--dry-run", "--dir", d],
+        &["add", "new.jsonl", "--stdin", "--dry-run", "--dir", d],
         input,
     );
     assert_eq!(output.status.code(), Some(2));
@@ -1531,11 +1583,11 @@ fn add_checks_every_new_item_at_once_and_names_the_line_at_fault() {
 #[test]
 fn edit_checks_every_new_item_at_once_and_names_the_line_at_fault() {
     let tmp = store_with_kind(&[(
-        "a.md",
-        "```srl id:aaa1 kind:fake\nX: a\n```\n\n```srl id:aaa2 kind:fake\nX: b\n```\n\n```srl id:aaa3 kind:fake\nX: c\n```\n",
+        "a.jsonl",
+        "{\"id\": \"aaa1\", \"kind\": \"fake\", \"X\": \"a\"}\n{\"id\": \"aaa2\", \"kind\": \"fake\", \"X\": \"b\"}\n{\"id\": \"aaa3\", \"kind\": \"fake\", \"X\": \"c\"}\n",
     )]);
     let d = dir(&tmp);
-    let before = read(&tmp, "a.md");
+    let before = read(&tmp, "a.jsonl");
     let input = "{\"id\": \"aaa1\", \"kind\": \"fake\", \"X\": \"a\", \"LOG\": \"calls.log\"}\n\n{\"id\": \"aaa2\", \"kind\": \"fake\", \"GROUPS\": \"a b\", \"LOG\": \"calls.log\"}\n{\"id\": \"aaa3\", \"kind\": \"fake\", \"INVALID\": \"no good\"}\n";
     let output = srl_with_input(&["edit", "--stdin", "--dir", d], input);
     assert_eq!(output.status.code(), Some(2));
@@ -1545,7 +1597,7 @@ fn edit_checks_every_new_item_at_once_and_names_the_line_at_fault() {
         stderr(&output)
     );
     assert_eq!(read(&tmp, "calls.log"), "validate 3\ngroups 2\n");
-    assert_eq!(read(&tmp, "a.md"), before);
+    assert_eq!(read(&tmp, "a.jsonl"), before);
 }
 
 /// Runs `srl` as if it were `now`, in UTC.
@@ -1577,17 +1629,20 @@ fn srl_now_is_the_time_of_reviews_and_of_the_study_day() {
 #[test]
 fn srl_seed_makes_new_ids_repeatable() {
     let ids = || {
-        let tmp = store(&[("n.md", "```srl\n@\nQ: a\nA: b\n\n@\nQ: c\nA: d\n```\n")]);
+        let tmp = store(&[(
+            "n.jsonl",
+            "{\"Q\": \"a\", \"A\": \"b\"}\n{\"Q\": \"c\", \"A\": \"d\"}\n",
+        )]);
         let output = srl_command()
             .args(["id", "--dir", dir(&tmp)])
             .env("SRL_SEED", "7")
             .output()
             .unwrap();
         assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
-        read(&tmp, "n.md")
+        read(&tmp, "n.jsonl")
     };
     let first = ids();
-    assert!(first.contains("id:"), "{first}");
+    assert!(first.contains("\"id\""), "{first}");
     assert_eq!(ids(), first);
 }
 
@@ -1608,11 +1663,12 @@ fn invalid_srl_now_and_srl_seed_exit_with_2_and_explain() {
 }
 
 #[test]
-fn sources_read_their_notes_each_with_its_driver_and_prefix() {
+fn sources_read_their_collections_each_with_its_driver() {
     let tmp = store(&[
+        ("japanese/wo.md", "Prose.\n"),
         (
-            "japanese/wo.md",
-            "Prose.\n\n```srl id:aaa1\nQ: q\nA: a\n```\n",
+            "japanese/wo.jsonl",
+            "{\"id\": \"aaa1\", \"see\": \"japanese/wo.md\", \"Q\": \"q\", \"A\": \"a\"}\n",
         ),
         (
             "vocab/words.jsonl",
@@ -1623,29 +1679,26 @@ fn sources_read_their_notes_each_with_its_driver_and_prefix() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.vocab]\ndriver = \"jsonl\"\nprefix = \"words/\"\ninclude = [\"vocab/**/*.jsonl\"]\n",
+        "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"japanese/**/*.jsonl\"]\n\n[sources.vocab]\ndriver = \"filesystem\"\ninclude = [\"vocab/**/*.jsonl\"]\n",
     );
     let collections = srl(&["collections", "--json", "--dir", d]);
     assert_eq!(
         json_lines(&collections),
         [
-            serde_json::json!({"address": "japanese/wo.md", "source": "notes", "file": "japanese/wo.md"}),
-            serde_json::json!({"address": "words/vocab/words.jsonl", "source": "vocab", "file": "vocab/words.jsonl"}),
+            serde_json::json!({"address": "japanese/wo.jsonl", "source": "items"}),
+            serde_json::json!({"address": "vocab/words.jsonl", "source": "vocab"}),
         ]
     );
     let found = srl(&["find", "--dir", d]);
     assert_eq!(found.status.code(), Some(0), "{}", stderr(&found));
-    assert!(lines(&found)[1].starts_with("bbb1  words/vocab/words.jsonl:1  "));
-    // A `see` and `srl add` name collections by their address.
+    assert!(lines(&found)[1].starts_with("bbb1  vocab/words.jsonl  "));
+    // Study material is the same for every source.
     let shown = srl(&["show", "bbb1", "--json", "--dir", d]);
     let shown = &json_lines(&shown)[0];
     assert_eq!(shown["source"], "vocab");
-    assert_eq!(shown["context_address"], "japanese/wo.md");
+    assert_eq!(shown["context"], "Prose.\n");
     let item = "{\"Q\": \"r\", \"A\": \"b\"}";
-    let added = srl_with_input(
-        &["add", "words/vocab/new.jsonl", "--stdin", "--dir", d],
-        item,
-    );
+    let added = srl_with_input(&["add", "vocab/new.jsonl", "--stdin", "--dir", d], item);
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
     assert!(read(&tmp, "vocab/new.jsonl").contains("\"Q\":\"r\""));
     let found = srl(&["find", "source:vocab", "--dir", d]);
@@ -1653,12 +1706,14 @@ fn sources_read_their_notes_each_with_its_driver_and_prefix() {
     let sources = srl(&["sources", "--json", "--dir", d]);
     let sources = json_lines(&sources);
     assert_eq!(sources[1]["name"], "vocab");
-    assert_eq!(sources[1]["driver"], "jsonl");
-    assert_eq!(sources[1]["prefix"], "words/");
+    assert_eq!(sources[1]["driver"], "filesystem");
+    assert!(sources[1].get("prefix").is_none(), "{}", sources[1]);
     assert_eq!(
         sources[1]["creates"]["include"],
         serde_json::json!(["vocab/**/*.jsonl"])
     );
+    let plain = srl(&["sources", "--dir", d]);
+    assert!(!stdout(&plain).contains("prefix"), "{}", stdout(&plain));
 }
 
 #[test]
@@ -1672,46 +1727,31 @@ fn notes_in_the_config_are_refused_with_how_to_write_them_as_sources() {
     let output = srl(&["find", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
-        stderr(&output).contains("[sources.notes]"),
+        stderr(&output).contains("[sources.items]"),
         "{}",
         stderr(&output)
     );
 }
 
 #[test]
-fn a_file_two_sources_read_and_an_address_under_a_deeper_prefix_are_errors() {
-    let tmp = store(&[
-        ("a.md", "```srl id:aaa1\nQ: q\nA: a\n```\n"),
-        ("deep/b.md", "Prose.\n"),
-    ]);
+fn an_address_two_sources_give_is_an_error() {
+    let tmp = store(&[(
+        "a.jsonl",
+        "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n",
+    )]);
     let d = dir(&tmp);
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.again]\ndriver = \"markdown\"\ninclude = [\"a.md\"]\n",
+        "[sources.items]\ndriver = \"filesystem\"\n\n[sources.again]\ndriver = \"filesystem\"\ninclude = [\"a.jsonl\"]\n",
     );
     let output = srl(&["find", "--dir", d]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
-        stderr(&output).contains("a.md: the sources again and notes both give it"),
+        stderr(&output).contains("a.jsonl: the sources again and items both give it"),
         "{}",
         stderr(&output)
     );
-    write(
-        &tmp,
-        ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.deep]\ndriver = \"markdown\"\nprefix = \"deep/\"\ninclude = [\"deep/*.md\"]\n",
-    );
-    let output = srl(&["check", "--dir", d]);
-    assert_eq!(output.status.code(), Some(2));
-    let errors = stderr(&output);
-    // `deep/b.md` of notes is under the prefix of deep; deep gives
-    // `deep/deep/b.md`, and both are the same file.
-    assert!(
-        errors.contains("deep/b.md: the source notes gives it, but it is under the prefix deep/"),
-        "{errors}"
-    );
-    assert!(errors.contains("it is the file deep/b.md"), "{errors}");
 }
 
 #[test]
@@ -1721,16 +1761,16 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.texts]\ndriver = \"markdown\"\ninclude = [\"**/*.txt\"]\n\n[sources.data]\ndriver = \"jsonl\"\nprefix = \"data/\"\n",
+        "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"data/**\"]\n\n[sources.data]\ndriver = \"filesystem\"\ninclude = [\"data/**/*.jsonl\"]\n",
     );
     let item = "{\"Q\": \"q\", \"A\": \"a\"}";
     let add = |address: &str| srl_with_input(&["add", address, "--stdin", "--dir", d], item);
-    assert_eq!(add("a.txt").status.code(), Some(0));
-    assert!(read(&tmp, "a.txt").contains("```srl"));
+    assert_eq!(add("a.jsonl").status.code(), Some(0));
     assert_eq!(add("data/b.jsonl").status.code(), Some(0));
-    assert!(read(&tmp, "b.jsonl").starts_with("{\"id\""));
-    // Under the prefix data/, only the jsonl source is asked.
-    let refused = add("data/c.md");
+    assert!(read(&tmp, "data/b.jsonl").starts_with("{\"id\""));
+    let found = srl(&["find", "source:data", "--json", "--dir", d]);
+    assert_eq!(json_lines(&found)[0]["address"], "data/b.jsonl");
+    let refused = add("c.txt");
     assert_eq!(refused.status.code(), Some(2));
     assert!(
         stderr(&refused).contains("not matched by `include`"),
@@ -1740,9 +1780,9 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
     write(
         &tmp,
         ".srl/config.toml",
-        "[sources.notes]\ndriver = \"markdown\"\n\n[sources.more]\ndriver = \"markdown\"\ninclude = [\"more/**/*.md\"]\n",
+        "[sources.items]\ndriver = \"filesystem\"\n\n[sources.more]\ndriver = \"filesystem\"\ninclude = [\"more/**/*.jsonl\"]\n",
     );
-    let both = add("more/d.md");
+    let both = add("more/d.jsonl");
     assert_eq!(both.status.code(), Some(2));
     assert!(
         stderr(&both).contains("more than one source"),
@@ -1751,12 +1791,12 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
     );
 }
 
-/// A store with `notes`, the notes of a source `notes`, and a source
-/// `vocab` at the prefix `vocab/` that is the test source program of
-/// `crates/srl-test-source`, keeping its items in `vocab.json` (holding
-/// `data`), logging its calls in `calls.log`, and with the settings `more`.
+/// A store with `files`, whose one source `vocab` is the test source
+/// program of `crates/srl-test-source`, keeping its items in `vocab.json`
+/// (holding `data`), logging its calls in `calls.log`, and with the
+/// settings `more`.
 #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
-fn store_with_program(notes: &[(&str, &str)], data: &str, more: &str) -> TempDir {
+fn store_with_program(files: &[(&str, &str)], data: &str, more: &str) -> TempDir {
     let program = Path::new(env!("CARGO_BIN_EXE_srl"))
         .with_file_name(format!("srl-test-source{}", std::env::consts::EXE_SUFFIX));
     assert!(
@@ -1764,28 +1804,28 @@ fn store_with_program(notes: &[(&str, &str)], data: &str, more: &str) -> TempDir
         "{} isn't built; run `cargo test --workspace`",
         program.display()
     );
-    let tmp = store(notes);
+    let tmp = store(files);
     write(&tmp, "vocab.json", data);
     write(
         &tmp,
         ".srl/config.toml",
         &format!(
-            "[sources.notes]\ndriver = \"markdown\"\n\n[sources.vocab]\nprogram = ['{}']\nprefix = \"vocab/\"\ndata = \"vocab.json\"\nlog = \"calls.log\"\n{more}",
+            "[sources.vocab]\nprogram = ['{}']\ndata = \"vocab.json\"\nlog = \"calls.log\"\n{more}",
             program.to_str().unwrap()
         ),
     );
     tmp
 }
 
-/// The data of the test source: a collection `words` with a context, an
-/// item without an ID that names `lesson.md`, and a draft.
-const VOCAB: &str = r#"{"next": 3, "collections": {"words": {"context": "Words of the lesson.", "items": [
+/// The data of the test source: a collection `vocab/words` with an item
+/// without an ID that names `lesson.md`, and a draft.
+const VOCAB: &str = r#"{"next": 3, "collections": {"vocab/words": {"items": [
   {"handle": "h1", "item": {"see": "lesson.md", "Q": "犬", "A": "dog"}},
   {"handle": "h2", "item": {"id": "cat001", "draft": true, "Q": "猫", "A": "cat"}}]}}}"#;
 
-/// Valid data of the test source: a collection `words` with a context and
-/// two items.
-const WORDS: &str = r#"{"next": 3, "collections": {"words": {"context": "Words.", "items": [
+/// Valid data of the test source: a collection `vocab/words` with two
+/// items.
+const WORDS: &str = r#"{"next": 3, "collections": {"vocab/words": {"items": [
   {"handle": "h1", "item": {"id": "dog001", "Q": "犬", "A": "dog"}},
   {"handle": "h2", "item": {"id": "cat001", "Q": "猫", "A": "cat"}}]}}}"#;
 
@@ -1803,12 +1843,9 @@ fn calls(tmp: &TempDir) -> Vec<String> {
 #[test]
 fn a_source_program_s_items_are_given_ids_studied_changed_and_shown() {
     let tmp = store_with_program(
-        &[(
-            "lesson.md",
-            "# Lesson\n\nAnimals.\n\n```srl id:les001 see:vocab/words\nQ: q\nA: a\n```\n",
-        )],
+        &[("lesson.md", "# Lesson\n\nAnimals.\n")],
         VOCAB,
-        "",
+        "creates = [\"vocab/*\"]\n",
     );
     let d = dir(&tmp);
     let ids = srl(&["id", "--dir", d]);
@@ -1820,20 +1857,14 @@ fn a_source_program_s_items_are_given_ids_studied_changed_and_shown() {
     let found = json_lines(&found);
     assert_eq!(found.len(), 2);
     assert_eq!(found[0]["address"], "vocab/words");
-    assert_eq!(found[0]["file"], serde_json::Value::Null);
-    assert_eq!(found[0]["line"], serde_json::Value::Null);
-    // An item of the program names a note; a note names the program's
-    // collection; each context is its own source's.
-    let shown = srl(&["show", "les001", "cat001", "--json", "--dir", d]);
-    let shown = json_lines(&shown);
-    assert_eq!(shown[0]["context"], "Words of the lesson.");
-    assert_eq!(shown[0]["context_address"], "vocab/words");
+    assert!(found[0].get("file").is_none() && found[0].get("line").is_none());
+    // An item of the program names study material, as any item does.
     let dog = &json_lines(&srl(&["find", "犬", "--json", "--dir", d]))[0]["item"];
     let dog = dog.as_str().unwrap().to_owned();
     let shown = &json_lines(&srl(&["show", &dog, "--json", "--dir", d]))[0];
     assert_eq!(shown["context"], "# Lesson\n\nAnimals.\n");
     // Without a text of its own, an item is shown as its item object.
-    let plain = srl(&["show", "cat001", "--context", "none", "--dir", d]);
+    let plain = srl(&["show", "cat001", "--no-context", "--dir", d]);
     assert_eq!(
         stdout(&plain),
         "vocab/words\n{\"id\":\"cat001\",\"draft\":true,\"Q\":\"猫\",\"A\":\"cat\"}\n"
@@ -1859,7 +1890,7 @@ fn a_source_program_s_items_are_given_ids_studied_changed_and_shown() {
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
     let data = read(&tmp, "vocab.json");
     assert!(
-        data.contains("a cat") && data.contains("birds") && !data.contains("draft"),
+        data.contains("a cat") && data.contains("vocab/birds") && !data.contains("draft"),
         "{data}"
     );
     assert!(srl(&["check", "--dir", d]).status.success());
@@ -1871,10 +1902,11 @@ fn a_command_calls_a_source_program_a_fixed_number_of_times() {
     let d = dir(&tmp);
     assert!(srl(&["find", "--dir", d]).status.success());
     assert_eq!(calls(&tmp), ["collections 1", "read 1"]);
+    // Context is never asked of a source.
     assert!(srl(&["next", "--json", "--dir", d]).status.success());
-    assert_eq!(calls(&tmp), ["collections 1", "read 1", "context 1"]);
+    assert_eq!(calls(&tmp), ["collections 1", "read 1"]);
     assert!(
-        srl(&["show", "cat001", "--json", "--context", "none", "--dir", d])
+        srl(&["show", "cat001", "--json", "--dir", d])
             .status
             .success()
     );
@@ -1899,21 +1931,20 @@ fn a_source_program_that_fails_or_breaks_the_protocol_stops_commands() {
             "the key `extra`",
         ),
         (
+            "raw_call = \"read\"\nraw_output = '{\"collection\": \"words\", \"handle\": \"a\", \"line\": null, \"item\": {\"Q\": \"q\"}}'\n",
+            "the key `line`",
+        ),
+        (
+            "raw_call = \"collections\"\nraw_output = '{\"collection\": \"words\", \"file\": null}'\n",
+            "the key `file`",
+        ),
+        (
             "raw_call = \"read\"\nraw_output = '{\"collection\": \"../x\", \"handle\": \"a\", \"item\": {\"Q\": \"q\"}}'\n",
             "is not a collection's name",
         ),
-        (
-            "raw_call = \"context\"\nraw_output = \"\"\n",
-            "it printed 0 lines for 1 input lines",
-        ),
     ] {
         let tmp = store_with_program(&[], WORDS, more);
-        let d = dir(&tmp);
-        let output = if more.contains("context") {
-            srl(&["next", "--json", "--dir", d])
-        } else {
-            srl(&["find", "--dir", d])
-        };
+        let output = srl(&["find", "--dir", dir(&tmp)]);
         assert_eq!(output.status.code(), Some(2), "{more}");
         assert!(
             stderr(&output).contains(expected),
@@ -1952,7 +1983,7 @@ fn a_change_a_source_program_refuses_or_doesn_t_make_fails_the_command() {
     );
     // A collection the program doesn't create is refused before it is asked
     // to write.
-    let tmp = store_with_program(&[], WORDS, "creates = [\"words\"]\n");
+    let tmp = store_with_program(&[], WORDS, "creates = [\"vocab/words\"]\n");
     let d = dir(&tmp);
     let added = srl_with_input(
         &["add", "vocab/fish", "--stdin", "--dir", d],
@@ -1960,7 +1991,7 @@ fn a_change_a_source_program_refuses_or_doesn_t_make_fails_the_command() {
     );
     assert_eq!(added.status.code(), Some(2));
     assert!(
-        stderr(&added).contains("creates no collection named fish"),
+        stderr(&added).contains("creates no collection named vocab/fish"),
         "{}",
         stderr(&added)
     );

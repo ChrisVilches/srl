@@ -3,40 +3,32 @@
 //! "Sources").
 //!
 //! A source is read whole, into the catalog, and everything else in `srl`
-//! works on the catalog. A source is asked again only to show a context, to
-//! change items and to look for likely mistakes. Nothing outside a source's
-//! own module knows how it keeps its items: a source names its collections
-//! and its items, and `srl` names them back to it.
+//! works on the catalog. A source is asked again only to change items.
+//! Nothing outside a source's own module knows how it keeps its items: a
+//! source names its collections and its items, and `srl` names them back
+//! to it.
 
 pub(crate) mod files;
-mod jsonl;
-mod markdown;
+mod filesystem;
 mod program;
 
 use std::fmt;
 
 use crate::config::Driver;
-use crate::domain::context::ContextMode;
 use crate::domain::item::object::Object;
 use crate::{Config, Error, Result, Store};
-use files::NoteFiles;
-use jsonl::Jsonl;
-use markdown::Markdown;
+use filesystem::Filesystem;
 use program::Program;
 
 /// The operations every source answers.
 pub(crate) trait Source: fmt::Debug {
-    /// Every collection of the source, including those without items, in
-    /// order.
-    fn collections(&self) -> Result<Vec<Collection>>;
+    /// The name of every collection of the source, including those without
+    /// items, in order.
+    fn collections(&self) -> Result<Vec<String>>;
 
     /// Every item of the source, and every problem found in it. Only
     /// failing to read the source at all is an error.
     fn read(&self) -> Result<Read>;
-
-    /// What each requested collection shows as context, in order: `None`
-    /// when there is nothing to show. Never asked for mode `none`.
-    fn context(&self, requests: &[ContextRequest<'_>]) -> Result<Vec<Option<String>>>;
 
     /// Why `collection`, which doesn't exist yet, can't be created by `srl
     /// add`, or `None` if it can.
@@ -46,20 +38,8 @@ pub(crate) trait Source: fmt::Debug {
     /// text of the items added, as they appear in their collections.
     fn write(&self, changes: &[Change], dry_run: bool) -> std::result::Result<String, Refusal>;
 
-    /// The likely mistakes in the source (see `docs/cli.md`, "Checking").
-    fn lint(&self) -> Result<Vec<Finding>>;
-
     /// What the source is, for `srl sources`.
     fn describe(&self) -> Result<Description>;
-}
-
-/// A collection of a source: a group of items, named by the source.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Collection {
-    pub(crate) name: String,
-    /// The file it is kept in, relative to the store's folder, if it is a
-    /// file of its own.
-    pub(crate) file: Option<String>,
 }
 
 /// What a source read: its items, and the problems it found.
@@ -76,9 +56,6 @@ pub(crate) struct ReadItem {
     pub(crate) collection: String,
     /// What names the item to its source when it is changed.
     pub(crate) handle: String,
-    /// The line where the item starts, if the source can say: only for
-    /// people.
-    pub(crate) line: Option<usize>,
     /// The item as written, for `srl show`, if the source gives it.
     pub(crate) written: Option<String>,
     pub(crate) item: Object,
@@ -88,7 +65,6 @@ pub(crate) struct ReadItem {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Problem {
     pub(crate) collection: String,
-    pub(crate) line: Option<usize>,
     pub(crate) reason: String,
 }
 
@@ -97,28 +73,10 @@ pub(crate) struct Problem {
 pub(crate) struct Description {
     /// What the source is, in a sentence.
     pub(crate) summary: String,
-    /// The globs of the collections `srl add` may create in it, relative
-    /// to its prefix: those a glob of `include` matches and none of
-    /// `exclude` does.
+    /// The globs of the collections `srl add` may create in it: those a
+    /// glob of `include` matches and none of `exclude` does.
     pub(crate) include: Vec<String>,
     pub(crate) exclude: Vec<String>,
-}
-
-/// A likely mistake a source found in a collection.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Finding {
-    pub(crate) collection: String,
-    pub(crate) line: Option<usize>,
-    pub(crate) message: String,
-}
-
-/// The context of a collection, wanted in `mode`, for its own items or
-/// for items that name it with `see`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ContextRequest<'a> {
-    pub(crate) collection: &'a str,
-    pub(crate) mode: ContextMode,
-    pub(crate) own: bool,
 }
 
 /// A change to the items of a source.
@@ -152,26 +110,18 @@ impl From<Error> for Refusal {
     }
 }
 
-/// Every source of a store, each mounted at its prefix.
+/// Every source of a store.
 #[derive(Debug)]
 pub(crate) struct Sources {
-    mounted: Vec<Mounted>,
+    named: Vec<Named>,
 }
 
-/// A source, with its prefix.
+/// A source, with its name and driver.
 #[derive(Debug)]
-pub(crate) struct Mounted {
+pub(crate) struct Named {
     pub(crate) name: String,
     pub(crate) driver: Driver,
-    pub(crate) prefix: String,
     pub(crate) source: Box<dyn Source>,
-}
-
-impl Mounted {
-    /// The address of `collection` of this source.
-    pub(crate) fn address(&self, collection: &str) -> String {
-        format!("{}{collection}", self.prefix)
-    }
 }
 
 impl Sources {
@@ -179,22 +129,21 @@ impl Sources {
     /// their names.
     pub(crate) fn new(store: &Store, config: &Config) -> Self {
         Self {
-            mounted: config
+            named: config
                 .sources
                 .iter()
                 .map(|(name, source)| {
-                    let files = NoteFiles::new(store, source);
                     let driver: Box<dyn Source> = match &source.driver {
-                        Driver::Markdown => Box::new(Markdown::new(files)),
-                        Driver::Jsonl => Box::new(Jsonl::new(files)),
+                        Driver::Filesystem { include, exclude } => {
+                            Box::new(Filesystem::new(store, include, exclude))
+                        }
                         Driver::Program { command, settings } => {
                             Box::new(Program::new(store, name, command, settings))
                         }
                     };
-                    Mounted {
+                    Named {
                         name: name.clone(),
                         driver: source.driver.clone(),
-                        prefix: source.prefix.clone(),
                         source: driver,
                     }
                 })
@@ -203,32 +152,19 @@ impl Sources {
     }
 
     /// The sources, in order; an item names its source by its place here.
-    pub(crate) fn all(&self) -> &[Mounted] {
-        &self.mounted
+    pub(crate) fn all(&self) -> &[Named] {
+        &self.named
     }
 
     /// The source that `address`, of a collection that doesn't exist yet,
-    /// would be created in, with the collection's name in it; or why it
-    /// can't be created. Of the sources mounted deepest above the address,
-    /// exactly one must accept it (see `docs/sources.md`,
-    /// "Addresses").
-    pub(crate) fn for_new(&self, address: &str) -> std::result::Result<(usize, String), String> {
-        let deepest = self
-            .mounted
-            .iter()
-            .filter(|mounted| address.starts_with(&mounted.prefix))
-            .map(|mounted| mounted.prefix.len())
-            .max()
-            .ok_or_else(|| "no source of the store holds it".to_owned())?;
-        let collection = address.get(deepest..).unwrap_or_default();
+    /// would be created in, or why it can't be created: exactly one source
+    /// must accept it (see `docs/sources.md`, "Addresses").
+    pub(crate) fn for_new(&self, address: &str) -> std::result::Result<usize, String> {
         let answers = self
-            .mounted
+            .named
             .iter()
             .enumerate()
-            .filter(|(_, mounted)| {
-                mounted.prefix.len() == deepest && address.starts_with(&mounted.prefix)
-            })
-            .map(|(index, mounted)| (index, mounted.source.refuses(collection)))
+            .map(|(index, named)| (index, named.source.refuses(address)))
             .collect::<Vec<_>>();
         let accepting = answers
             .iter()
@@ -236,26 +172,20 @@ impl Sources {
             .map(|(index, _)| *index)
             .collect::<Vec<_>>();
         match accepting.as_slice() {
-            [index] => Ok((*index, collection.to_owned())),
+            [index] => Ok(*index),
             [] => Err(answers
                 .into_iter()
                 .find_map(|(_, refusal)| refusal)
-                .expect("a source that accepts nothing should say why")),
+                .unwrap_or_else(|| "the store has no source to hold it".to_owned())),
             _ => Err("more than one source of the store would hold it".to_owned()),
         }
     }
 }
 
-/// The items of a note at `path` whose text is `text`, read by the source
-/// its extension chooses: for tests that need items without a store.
+/// The items of a collection file at `path` whose text is `text`, read in
+/// the format its extension chooses: for tests that need items without a
+/// store.
 #[cfg(test)]
 pub(crate) fn parse(path: &str, text: &str) -> files::Parsed {
-    if std::path::Path::new(path)
-        .extension()
-        .is_some_and(|ext| ext == "jsonl")
-    {
-        jsonl::parse(text)
-    } else {
-        markdown::parse(text)
-    }
+    filesystem::parse(path, text)
 }

@@ -1,8 +1,8 @@
-//! What the sources whose collections are files of the store share,
-//! without knowing any format: which files they read, reading them as
-//! lines, and writing them safely (see `docs/rust.md`, "Note editing"): a
-//! file must not have changed since it was read, and it is replaced
-//! atomically, through `.srl/tmp/`.
+//! What the formats of the `filesystem` source share, without knowing any
+//! of them: which files it reads, reading them as lines, and writing them
+//! safely (see `docs/rust.md`, "Collection editing"): a file must not have
+//! changed since it was read, and it is replaced atomically, through
+//! `.srl/tmp/`.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -11,31 +11,33 @@ use std::path::Path;
 
 use globset::GlobSet;
 
-use crate::config::SourceConfig;
+use crate::config::globs;
 use crate::domain::item::object::Object;
 use crate::domain::item::{Entries, Field};
-use crate::source::{Change, Collection, Description, Problem, Read, ReadItem, Refusal};
+use crate::source::{Change, Description, Problem, Read, ReadItem, Refusal};
 use crate::store::nfc;
 use crate::{Error, Result, Store};
 
 /// The files of a store a source reads: those `include` matches and
 /// `exclude` doesn't.
 #[derive(Debug)]
-pub(super) struct NoteFiles {
+pub(super) struct CollectionFiles {
     store: Store,
     include: GlobSet,
     exclude: GlobSet,
-    /// The globs as given, for [`NoteFiles::describe`].
+    /// The globs as given, for [`CollectionFiles::describe`].
     globs: (Vec<String>, Vec<String>),
 }
 
-impl NoteFiles {
-    pub(super) fn new(store: &Store, source: &SourceConfig) -> Self {
+impl CollectionFiles {
+    /// The files `include` matches and `exclude` doesn't. The globs were
+    /// checked when the configuration was read.
+    pub(super) fn new(store: &Store, include: &[String], exclude: &[String]) -> Self {
         Self {
             store: store.clone(),
-            include: source.include_set(),
-            exclude: source.exclude_set(),
-            globs: (source.include(), source.exclude.clone()),
+            include: globs(include).expect("the include globs should have been checked when read"),
+            exclude: globs(exclude).expect("the exclude globs should have been checked when read"),
+            globs: (include.to_vec(), exclude.to_vec()),
         }
     }
 
@@ -49,32 +51,20 @@ impl NoteFiles {
         }
     }
 
-    /// The paths of the files, in order (see [`Store::note_paths`]).
+    /// The paths of the files, in order (see [`Store::files`]).
     pub(super) fn paths(&self) -> Result<Vec<String>> {
-        self.store.note_paths(&self.include, &self.exclude)
-    }
-
-    /// The files as collections: each named by its path.
-    pub(super) fn collections(&self) -> Result<Vec<Collection>> {
-        Ok(self
-            .paths()?
-            .into_iter()
-            .map(|path| Collection {
-                file: Some(path.clone()),
-                name: path,
-            })
-            .collect())
+        self.store.files(&self.include, &self.exclude)
     }
 
     /// The text of the file at `path`.
     pub(super) fn text(&self, path: &str) -> Result<String> {
-        let file = self.store.note_file(path);
+        let file = self.store.file(path);
         fs::read_to_string(&file).map_err(Error::io(file))
     }
 
     /// The text of the file at `path`, or `None` if it doesn't exist.
     pub(super) fn text_if_exists(&self, path: &str) -> Result<Option<String>> {
-        read_if_exists(&self.store.note_file(path))
+        read_if_exists(&self.store.file(path))
     }
 
     /// Why a new file can't be at `path`: `include` doesn't match it, or
@@ -127,9 +117,6 @@ pub(crate) fn lines(text: &str) -> Vec<&str> {
 pub(crate) struct ParsedItem {
     pub(crate) entries: Entries,
     pub(crate) fields: Vec<Field>,
-    /// The line that names the item in messages and in `ADDRESS:LINE`:
-    /// where it starts, as near as the format can say. Only for people.
-    pub(crate) line: usize,
     /// The item written on its own, lines joined with `\n`: what `srl show`
     /// prints.
     pub(crate) text: String,
@@ -141,8 +128,8 @@ pub(crate) struct Parsed {
     /// The items, in the order they are written: an item's position here
     /// is its handle.
     pub(crate) items: Vec<ParsedItem>,
-    /// Each problem, with its line.
-    pub(crate) errors: Vec<(usize, String)>,
+    /// Each problem, saying where in the file it is when the format can.
+    pub(crate) errors: Vec<String>,
 }
 
 /// An item as verification compares it: its entries and fields.
@@ -155,33 +142,6 @@ pub(super) fn keyed(parsed: Parsed) -> Vec<Keyed> {
         .into_iter()
         .map(|item| (item.entries, item.fields))
         .collect()
-}
-
-/// A change to a file: lines `first` to `last` (counting from 1) replaced
-/// by `lines`. The line endings and a byte order mark are left to
-/// [`apply`].
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Edit {
-    pub(crate) first: usize,
-    pub(crate) last: usize,
-    pub(crate) lines: Vec<String>,
-}
-
-impl Edit {
-    /// The edit that replaces line `line` with `content`.
-    pub(crate) fn one(line: usize, content: String) -> Self {
-        Self {
-            first: line,
-            last: line,
-            lines: vec![content],
-        }
-    }
-}
-
-/// `text`, unless it holds nothing but blank space, which is no context
-/// (see `docs/notes.md`, "Context").
-pub(crate) fn unless_blank(text: String) -> Option<String> {
-    (!text.trim().is_empty()).then_some(text)
 }
 
 /// The position among `items`, the items of the file at `path` as it is
@@ -224,60 +184,19 @@ pub(super) fn verified(path: &str, as_intended: bool) -> Result<()> {
     } else {
         Err(Error::CannotWrite {
             path: path.to_owned(),
-            reason: "the changed note did not read back as intended (a bug in srl; please \
+            reason: "the changed collection did not read back as intended (a bug in srl; please \
                      report it)"
                 .to_owned(),
         })
     }
 }
 
-/// `text` with `added` appended after `gap`, in the line endings of
-/// `text`.
-pub(super) fn append(text: &str, added: &str, gap: &str) -> String {
-    if added.is_empty() {
-        return text.to_owned();
-    }
-    let ending = line_ending(text);
-    let tail = added.replace('\n', ending);
-    if text.is_empty() {
-        return tail;
-    }
-    // The file's last line ending is the first of the gap.
-    let separator = if text.ends_with('\n') {
-        gap.get(1..).unwrap_or_default()
-    } else {
-        gap
-    };
-    format!("{text}{}{tail}", separator.replace('\n', ending))
-}
-
 /// The line ending of a file: that of its first line, or `\n`.
-fn line_ending(text: &str) -> &'static str {
+pub(super) fn line_ending(text: &str) -> &'static str {
     match text.split_once('\n') {
         Some((first, _)) if first.ends_with('\r') => "\r\n",
         _ => "\n",
     }
-}
-
-/// `text` with `edit` made: its lines joined with the file's line ending,
-/// the last one getting the ending of the last line replaced, and a byte
-/// order mark kept.
-pub(super) fn apply(text: &str, edit: &Edit) -> String {
-    let (first, last) = (edit.first, edit.last);
-    let replacement = edit.lines.join(line_ending(text));
-    let raw = text.split_inclusive('\n').collect::<Vec<_>>();
-    let before = raw.get(..first - 1).unwrap_or_default().concat();
-    let last_line = raw.get(last - 1).copied().unwrap_or_default();
-    let ending = last_line
-        .get(last_line.trim_end_matches(['\n', '\r']).len()..)
-        .unwrap_or_default();
-    let bom = if first == 1 && text.starts_with('\u{feff}') {
-        "\u{feff}"
-    } else {
-        ""
-    };
-    let after = raw.get(last..).unwrap_or_default().concat();
-    format!("{before}{bom}{replacement}{ending}{after}")
 }
 
 /// The text of `file`, or `None` if it doesn't exist.
@@ -296,10 +215,10 @@ fn read_if_exists(file: &Path) -> Result<Option<String>> {
 ///
 // TODO(platform): Not run on Windows yet. Windows refuses to rename over a
 // file that another program holds open without sharing it; the error is
-// then reported and the file left as it was. See docs/notes.md, "How srl
-// writes to notes", and docs/rust.md, "Platform independence".
+// then reported and the file left as it was. See docs/formats.md, "How srl
+// writes to collections", and docs/rust.md, "Platform independence".
 fn replace_file(store: &Store, path: &str, old: Option<&str>, new: &str) -> Result<()> {
-    let file = store.note_file(path);
+    let file = store.file(path);
     if read_if_exists(&file)?.as_deref() != old {
         return Err(Error::ChangedMeanwhile {
             path: path.to_owned(),
@@ -324,12 +243,12 @@ fn replace_file(store: &Store, path: &str, old: Option<&str>, new: &str) -> Resu
     Ok(())
 }
 
-/// Adds the items and problems of `parsed`, the note at `path`, to `read`.
+/// Adds the items and problems of `parsed`, the collection at `path`, to
+/// `read`.
 pub(super) fn add_read(read: &mut Read, path: &str, parsed: Parsed) {
     read.problems
-        .extend(parsed.errors.into_iter().map(|(line, reason)| Problem {
+        .extend(parsed.errors.into_iter().map(|reason| Problem {
             collection: path.to_owned(),
-            line: Some(line),
             reason,
         }));
     read.items.extend(
@@ -340,7 +259,6 @@ pub(super) fn add_read(read: &mut Read, path: &str, parsed: Parsed) {
             .map(|(position, item)| ReadItem {
                 collection: path.to_owned(),
                 handle: position.to_string(),
-                line: Some(item.line),
                 written: Some(item.text),
                 item: Object {
                     entries: item.entries,
@@ -352,12 +270,12 @@ pub(super) fn add_read(read: &mut Read, path: &str, parsed: Parsed) {
 
 /// `changes` by the collection they are about, each with its place.
 pub(super) fn by_collection(changes: &[Change]) -> BTreeMap<&str, Vec<(usize, &Change)>> {
-    let mut by_note = BTreeMap::<&str, Vec<(usize, &Change)>>::new();
+    let mut by_file = BTreeMap::<&str, Vec<(usize, &Change)>>::new();
     for (at, change) in changes.iter().enumerate() {
         let (Change::Add { collection, .. } | Change::Replace { collection, .. }) = change;
-        by_note.entry(collection).or_default().push((at, change));
+        by_file.entry(collection).or_default().push((at, change));
     }
-    by_note
+    by_file
 }
 
 #[cfg(test)]
@@ -373,15 +291,15 @@ mod tests {
             ..crate::Lookup::default()
         })
         .unwrap();
-        fs::write(store.note_file("a.md"), "old").unwrap();
+        fs::write(store.file("a.jsonl"), "old").unwrap();
         assert!(matches!(
-            replace_file(&store, "a.md", Some("something else"), "new"),
+            replace_file(&store, "a.jsonl", Some("something else"), "new"),
             Err(Error::ChangedMeanwhile { .. })
         ));
         assert!(matches!(
-            replace_file(&store, "b.md", Some("x"), "new"),
+            replace_file(&store, "b.jsonl", Some("x"), "new"),
             Err(Error::ChangedMeanwhile { .. })
         ));
-        assert_eq!(fs::read_to_string(store.note_file("a.md")).unwrap(), "old");
+        assert_eq!(fs::read_to_string(store.file("a.jsonl")).unwrap(), "old");
     }
 }

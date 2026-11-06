@@ -225,8 +225,8 @@ mod tests {
         })
         .unwrap();
         std::fs::write(
-            store.note_file("a.md"),
-            "```srl\n@ id:aaa1\nQ: q\nA: a\n\n@ id:aaa2\nQ: {{c1::x}} {{c2::y}}\n\n@ id:aaa3 draft\nQ: d\nA: e\n```\n",
+            store.file("a.jsonl"),
+            "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"aaa2\", \"Q\": \"{{c1::x}} {{c2::y}}\"}\n{\"id\": \"aaa3\", \"draft\": true, \"Q\": \"d\", \"A\": \"e\"}\n",
         )
         .unwrap();
         let catalog = Catalog::load(&store, &Config::default(), &mut Index::open(&store)).unwrap();

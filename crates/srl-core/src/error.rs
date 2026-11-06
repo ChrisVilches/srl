@@ -43,22 +43,20 @@ pub enum Error {
     )]
     InvalidCardId { text: String },
 
-    /// A problem in a source, at an item or a line of a collection.
-    #[error("{}: {reason}", at(address, *line))]
+    /// A problem in a source, at an item of a collection, or in the
+    /// collection when `spot` is `None`.
+    #[error("{}: {reason}", at(address, spot.as_ref()))]
     At {
         address: String,
-        line: Option<usize>,
+        spot: Option<Spot>,
         reason: String,
     },
 
     #[error("{address}: {reason}")]
     Collection { address: String, reason: String },
 
-    #[error("{}: this item has no ID; run `srl id` to give it one", at(address, *line))]
-    MissingId {
-        address: String,
-        line: Option<usize>,
-    },
+    #[error("{address}: item {position} has no ID; run `srl id` to give it one")]
+    MissingId { address: String, position: usize },
 
     #[error(
         "{count} problem(s) in the store's sources, listed above; fix them first, since srl \
@@ -175,26 +173,49 @@ impl Error {
         move |source| Self::Io { path, source }
     }
 
-    /// The address and line a problem in a source is about, line 0 for a
-    /// collection as a whole or a problem whose source gives no line (see
-    /// `docs/items.md`, "Errors").
+    /// The address a problem in a source is about, and the position of its
+    /// item, 0 for a collection as a whole (see `docs/items.md`,
+    /// "Errors").
     pub(crate) fn place(&self) -> Option<(&str, usize)> {
         if let Self::Collection { address, .. } = self {
             return Some((address.as_str(), 0));
         }
-        if let Self::At { address, line, .. } | Self::MissingId { address, line } = self {
-            Some((address.as_str(), line.unwrap_or(0)))
-        } else {
-            None
+        if let Self::At { address, spot, .. } = self {
+            return Some((
+                address.as_str(),
+                spot.as_ref().map_or(0, |spot| spot.position),
+            ));
+        }
+        if let Self::MissingId { address, position } = self {
+            return Some((address.as_str(), *position));
+        }
+        None
+    }
+}
+
+/// Which item of a collection a problem is about: its position among the
+/// items its source read there, counting from 1, and its ID, if it has
+/// one, which names it to people (see `docs/items.md`, "Errors").
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Spot {
+    pub position: usize,
+    pub id: Option<String>,
+}
+
+impl std::fmt::Display for Spot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.id {
+            Some(id) => write!(f, "item {id}"),
+            None => write!(f, "item {}", self.position),
         }
     }
 }
 
-/// Where something is, for people: `ADDRESS:LINE`, or `ADDRESS` alone when
-/// there is no line (see `docs/sources.md`, "Addresses").
-pub fn at(address: &str, line: Option<usize>) -> String {
-    match line {
-        Some(line) => format!("{address}:{line}"),
+/// Where something is, for people: `ADDRESS: item ID`, or `ADDRESS` alone
+/// for a collection as a whole.
+pub(crate) fn at(address: &str, spot: Option<&Spot>) -> String {
+    match spot {
+        Some(spot) => format!("{address}: {spot}"),
         None => address.to_owned(),
     }
 }

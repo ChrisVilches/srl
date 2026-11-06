@@ -3,7 +3,7 @@
 //!
 //! This module decides what changes, and checks every change before
 //! anything is written: item objects valid, IDs unique in the store, kinds
-//! accepting the fields, `see` naming a collection of the store. Making a
+//! accepting the fields, `see` naming a file of study material. Making a
 //! change is the business of the item's source, which is given each item
 //! as it was read, and refuses to change an item that is no longer as it
 //! was (see [`Source::write`](crate::source::Source::write)).
@@ -23,7 +23,6 @@ pub struct Written {
     pub id: ItemId,
     /// The address of the item's collection.
     pub address: String,
-    pub line: Option<usize>,
 }
 
 /// What `srl add` did, or would do.
@@ -66,7 +65,6 @@ pub fn assign_ids(catalog: &Catalog, seed: u64, dry_run: bool) -> Result<Vec<Wri
         .map(|(origin, id)| Written {
             id,
             address: origin.address.clone(),
-            line: origin.line,
         })
         .collect())
 }
@@ -98,7 +96,6 @@ pub fn accept(catalog: &Catalog, items: &[&Item], dry_run: bool) -> Result<Vec<W
         .map(|item| Written {
             id: item.id().clone(),
             address: item.address().to_owned(),
-            line: item.line(),
         })
         .collect())
 }
@@ -116,14 +113,17 @@ pub fn add(
     refuse_problems(catalog, false)?;
     check_address(address)?;
     let (source, collection) = match catalog.located(address) {
-        Some(located) => (located.source, located.collection.clone()),
-        None => catalog
-            .sources()
-            .for_new(address)
-            .map_err(|reason| Error::CannotAdd {
-                address: address.to_owned(),
-                reason,
-            })?,
+        Some(located) => (located.source, located.address.clone()),
+        None => (
+            catalog
+                .sources()
+                .for_new(address)
+                .map_err(|reason| Error::CannotAdd {
+                    address: address.to_owned(),
+                    reason,
+                })?,
+            address.to_owned(),
+        ),
     };
     let lines = read_input(catalog, input)?;
     let mut given = HashSet::new();
@@ -230,7 +230,7 @@ pub fn edit(catalog: &Catalog, input: &str, dry_run: bool) -> Result<Vec<ItemId>
 /// The change that replaces the item read at `origin` with `after`.
 fn replacement(origin: &Origin, after: Object) -> Change {
     Change::Replace {
-        collection: origin.collection.clone(),
+        collection: origin.address.clone(),
         handle: origin.handle.clone(),
         before: origin.read.clone(),
         after,
@@ -296,8 +296,8 @@ fn unexpected(refusal: Refusal) -> Error {
 }
 
 /// The item objects of `input`, one per line, each with its line, counting
-/// from 1; blank lines are skipped. A `see` must name a collection of
-/// `catalog`.
+/// from 1; blank lines are skipped. A `see` must name a file of study
+/// material.
 fn read_input(catalog: &Catalog, input: &str) -> Result<Vec<(usize, Object)>> {
     input
         .lines()
@@ -388,17 +388,17 @@ fn check_address(address: &str) -> Result<()> {
 }
 
 /// One line of `srl add --stdin` or `srl edit --stdin`: an item object
-/// whose `see`, if any, names a collection of `catalog`. Errors are plain
+/// whose `see`, if any, names a file of study material. Errors are plain
 /// reasons.
 fn item_of(catalog: &Catalog, line: &str) -> std::result::Result<Object, String> {
     let object = object::read(line)?;
-    if let Some(see) = &object.entries.see
-        && catalog.located(see).is_none()
+    if let Some(refusal) = object
+        .entries
+        .see
+        .as_deref()
+        .and_then(|see| catalog.refuses_see(see))
     {
-        return Err(format!(
-            "`see` {see} doesn't name a collection of the store; give its address, as `srl \
-             collections` lists it"
-        ));
+        return Err(refusal);
     }
     Ok(object)
 }
@@ -423,7 +423,7 @@ mod tests {
         })
         .unwrap();
         for (path, text) in files {
-            let file = store.note_file(path);
+            let file = store.file(path);
             fs::create_dir_all(file.parent().unwrap()).unwrap();
             fs::write(file, text).unwrap();
         }
@@ -439,22 +439,22 @@ mod tests {
     }
 
     fn read(store: &Store, path: &str) -> String {
-        fs::read_to_string(store.note_file(path)).unwrap()
+        fs::read_to_string(store.file(path)).unwrap()
     }
 
     #[test]
-    fn ids_are_added_to_headers_without_one_and_nothing_else_changes() {
-        let text = "\u{feff}```srl\r\nQ: a\r\nA: b\r\n```\r\n\r\nProse.\r\n~~~  srl\r\n@  draft\r\nQ: c\r\nA: d\r\n@ id:keep\r\nQ: e\r\nA: f\r\n~~~";
-        let (_tmp, store) = store(&[("a.md", text)]);
+    fn ids_are_added_to_items_without_one_and_nothing_else_changes() {
+        let text = "\u{feff}{\"Q\": \"a\", \"A\": \"b\"}\r\n\r\n{\"draft\":true,  \"Q\": \"c\", \"A\": \"d\"}\r\n{\"id\": \"keep\", \"Q\": \"e\", \"A\": \"f\"}";
+        let (_tmp, store) = store(&[("a.jsonl", text)]);
         let written = assign_ids(&catalog(&store), 7, false).unwrap();
         assert_eq!(written.len(), 2);
-        assert_eq!((written[0].line, written[1].line), (Some(1), Some(8)));
         assert!(written.iter().all(|done| is_id(done.id.as_str())));
+        assert!(written.iter().all(|done| done.address == "a.jsonl"));
         let (one, two) = (&written[0].id, &written[1].id);
         assert_eq!(
-            read(&store, "a.md"),
+            read(&store, "a.jsonl"),
             format!(
-                "\u{feff}```srl id:{one}\r\nQ: a\r\nA: b\r\n```\r\n\r\nProse.\r\n~~~  srl\r\n@ id:{two}  draft\r\nQ: c\r\nA: d\r\n@ id:keep\r\nQ: e\r\nA: f\r\n~~~"
+                "\u{feff}{{\"id\":\"{one}\",\"Q\":\"a\",\"A\":\"b\"}}\r\n\r\n{{\"id\":\"{two}\",\"draft\":true,\"Q\":\"c\",\"A\":\"d\"}}\r\n{{\"id\": \"keep\", \"Q\": \"e\", \"A\": \"f\"}}"
             )
         );
         assert!(catalog(&store).problems().is_empty());
@@ -466,63 +466,66 @@ mod tests {
 
     #[test]
     fn ids_are_not_added_while_other_problems_remain() {
-        let (_tmp, store) =
-            store(&[("a.md", "```srl\nQ: a\nA: b\n```\n```srl darft\nQ: c\n```\n")]);
-        let before = read(&store, "a.md");
+        let text = "{\"Q\": \"a\", \"A\": \"b\"}\n{\"darft\": true, \"Q\": \"c\"}\n";
+        let (_tmp, store) = store(&[("a.jsonl", text)]);
         assert!(matches!(
             assign_ids(&catalog(&store), 7, false),
             Err(Error::ItemsInvalid { count: 1 })
         ));
-        assert_eq!(read(&store, "a.md"), before);
+        assert_eq!(read(&store, "a.jsonl"), text);
     }
 
     #[test]
     fn dry_runs_write_nothing() {
-        let (_tmp, store) = store(&[("a.md", "```srl\nQ: a\nA: b\n```\n")]);
-        let before = read(&store, "a.md");
+        let text = "{\"Q\": \"a\", \"A\": \"b\"}\n";
+        let (_tmp, store) = store(&[("a.jsonl", text)]);
         assert_eq!(assign_ids(&catalog(&store), 7, true).unwrap().len(), 1);
-        assert_eq!(read(&store, "a.md"), before);
+        assert_eq!(read(&store, "a.jsonl"), text);
     }
 
     #[test]
     fn accept_removes_draft_only() {
-        let text = "```srl draft id:aaa1\nQ: a\nA: b\n```\n\n```srl\n@ id:aaa2 draft see:a.md\nQ: c\nA: d\n\n@ id:aaa3 draft\nQ: e\nA: f\n```\n";
-        let (_tmp, store) = store(&[("a.md", text)]);
+        let text = "{\"id\": \"aaa1\", \"draft\": true, \"Q\": \"a\", \"A\": \"b\"}\n{\"id\": \"aaa2\", \"draft\": true, \"see\": \"a.md\", \"Q\": \"c\", \"A\": \"d\"}\n{\"id\": \"aaa3\", \"draft\": true, \"Q\": \"e\", \"A\": \"f\"}\n";
+        let (_tmp, store) = store(&[("a.jsonl", text), ("a.md", "# A\n")]);
         let catalog = catalog(&store);
         let chosen = catalog.items().iter().take(2).collect::<Vec<_>>();
         let written = accept(&catalog, &chosen, false).unwrap();
         assert_eq!(written.len(), 2);
         assert_eq!(
-            read(&store, "a.md"),
-            "```srl id:aaa1\nQ: a\nA: b\n```\n\n```srl\n@ id:aaa2 see:a.md\nQ: c\nA: d\n\n@ id:aaa3 draft\nQ: e\nA: f\n```\n"
+            read(&store, "a.jsonl"),
+            "{\"id\":\"aaa1\",\"Q\":\"a\",\"A\":\"b\"}\n{\"id\":\"aaa2\",\"see\":\"a.md\",\"Q\":\"c\",\"A\":\"d\"}\n{\"id\": \"aaa3\", \"draft\": true, \"Q\": \"e\", \"A\": \"f\"}\n"
         );
     }
 
     #[test]
-    fn add_appends_items_after_a_blank_line_or_creates_the_note() {
-        let (_tmp, store) = store(&[("a.md", "Prose.\r\n"), ("my notes/b c.md", "")]);
-        let input = "{\"Q\": \"Two\\nlines\\n\\nand more\", \"see\": \"my notes/b c.md\", \"A\": \"x\", \"draft\": true}\n\n{\"kind\": \"qa\", \"Q\": \"{{c1::y}}\\n```\\n````rust\", \"draft\": false}\n";
-        let added = add(&catalog(&store), "a.md", input, 3, false).unwrap();
+    fn add_appends_items_or_creates_the_collection() {
+        let (_tmp, store) = store(&[
+            ("a.jsonl", "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}"),
+            ("my notes/b c.md", "Prose.\n"),
+        ]);
+        let input = "{\"id\": \"mine\", \"Q\": \"Two\\nlines\", \"see\": \"my notes/b c.md\", \"A\": \"x\", \"kind\": \"qa\"}\n\n{\"draft\": true, \"Q\": \"{{c1::y}}\"}\n";
+        let added = add(&catalog(&store), "a.jsonl", input, 3, false).unwrap();
         let [one, two] = added.ids.as_slice() else {
             panic!("expected two IDs");
         };
+        assert_eq!(one.as_str(), "mine");
         let expected = format!(
-            "```srl id:{one} see:\"my notes/b c.md\" draft\nQ: Two\n  lines\n\n  and more\nA: x\n```\n\n`````srl id:{two}\nQ: {{{{c1::y}}}}\n  ```\n  ````rust\n`````\n"
+            "{{\"id\":\"mine\",\"see\":\"my notes/b c.md\",\"Q\":\"Two\\nlines\",\"A\":\"x\"}}\n{{\"id\":\"{two}\",\"draft\":true,\"Q\":\"{{{{c1::y}}}}\"}}\n"
         );
         assert_eq!(added.text, expected);
         assert_eq!(
-            read(&store, "a.md"),
-            format!("Prose.\r\n\r\n{}", expected.replace('\n', "\r\n"))
+            read(&store, "a.jsonl"),
+            format!("{{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}}\n{expected}")
         );
         let created = add(
             &catalog(&store),
-            "new/b.md",
+            "new/b.jsonl",
             "{\"Q\": \"q\", \"A\": \"a\"}",
             4,
             false,
         )
         .unwrap();
-        assert_eq!(read(&store, "new/b.md"), created.text);
+        assert_eq!(read(&store, "new/b.jsonl"), created.text);
         // The temporary files were in `.srl/tmp/`, and are gone.
         let names = |dir: &Path| {
             fs::read_dir(dir)
@@ -530,13 +533,18 @@ mod tests {
                 .map(|entry| entry.unwrap().file_name())
                 .collect::<Vec<_>>()
         };
-        assert_eq!(names(&store.root().join("new")), ["b.md"]);
+        assert_eq!(names(&store.root().join("new")), ["b.jsonl"]);
         assert_eq!(names(&store.tmp_dir()), [] as [&str; 0]);
+        let catalog = catalog(&store);
+        assert!(catalog.problems().is_empty(), "{:?}", catalog.problems());
+        let taken = "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}";
+        assert!(add(&catalog, "a.jsonl", taken, 3, false).is_err());
     }
 
     #[test]
     fn add_checks_every_line_first() {
-        let (_tmp, store) = store(&[("a.md", "Prose.\n")]);
+        let text = "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}\n";
+        let (_tmp, store) = store(&[("a.jsonl", text), ("a.md", "# A\n"), ("data.json", "{}")]);
         for input in [
             "{\"Q\": \"q\"}",
             "{\"q\": \"q\", \"A\": \"a\"}",
@@ -545,6 +553,9 @@ mod tests {
             "{}",
             "{\"see\": \"a.md\"}",
             "{\"Q\": \"q\", \"A\": \"a\", \"see\": \"nowhere.md\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"see\": \"a.jsonl\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"see\": \"data.json\"}",
+            "{\"Q\": \"q\", \"A\": \"a\", \"see\": \"../a.md\"}",
             "{\"Q\": \"q\", \"A\": \"a\", \"see\": 1}",
             "{\"Q\": \"q\", \"A\": \"a\", \"kind\": \"nope\"}",
             "{\"Q\": \"q\", \"A\": \"a\", \"kind\": \"\"}",
@@ -554,17 +565,18 @@ mod tests {
             "{\"Q\": \"q\", \"A\": \"a\"}\nnot json",
         ] {
             assert!(
-                add(&catalog(&store), "a.md", input, 3, false).is_err(),
+                add(&catalog(&store), "a.jsonl", input, 3, false).is_err(),
                 "accepted {input}"
             );
         }
         for path in [
+            "a.md",
             "a.txt",
-            "/a.md",
-            "../a.md",
-            ".hidden/a.md",
-            "a//b.md",
-            "a\\b.md",
+            "/a.jsonl",
+            "../a.jsonl",
+            ".hidden/a.jsonl",
+            "a//b.jsonl",
+            "a\\b.jsonl",
         ] {
             assert!(
                 add(
@@ -578,52 +590,72 @@ mod tests {
                 "accepted {path}"
             );
         }
-        assert_eq!(read(&store, "a.md"), "Prose.\n");
+        assert_eq!(read(&store, "a.jsonl"), text);
+        assert_eq!(read(&store, "a.md"), "# A\n");
     }
 
     #[test]
-    fn add_takes_any_path_include_matches() {
+    fn add_takes_any_path_include_matches_in_a_format_srl_reads() {
         let (_tmp, store) = store(&[]);
         let mut config = Config::default();
-        config.sources = crate::config::sources_of(&["**/*.txt"]);
+        config.sources = crate::config::sources_of(&["cards/**"]);
         let item = "{\"Q\": \"q\", \"A\": \"a\"}";
-        assert!(add(&catalog_with(&store, &config), "a.md", item, 3, false).is_err());
-        add(&catalog_with(&store, &config), "new/a.txt", item, 3, false).unwrap();
-        assert!(read(&store, "new/a.txt").contains("Q: q"));
+        assert!(add(&catalog_with(&store, &config), "a.jsonl", item, 3, false).is_err());
+        let error = add(&catalog_with(&store, &config), "cards/a.md", item, 3, false)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("extension"), "{error}");
+        add(
+            &catalog_with(&store, &config),
+            "cards/new/a.jsonl",
+            item,
+            3,
+            false,
+        )
+        .unwrap();
+        assert!(read(&store, "cards/new/a.jsonl").contains("\"Q\":\"q\""));
     }
 
     #[test]
-    fn add_writes_json_lines_to_a_jsonl_note_and_keeps_given_ids() {
+    fn see_names_study_material_as_context_chooses_it() {
+        let (_tmp, store) = store(&[
+            (
+                "a.jsonl",
+                "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n",
+            ),
+            ("notes/a.pdf", "%PDF"),
+            ("notes/b.md", "# B\n"),
+        ]);
         let mut config = Config::default();
-        config.sources = crate::config::sources_of(&["**/*.md", "**/*.jsonl"]);
-        let (_tmp, store) = store(&[("a.jsonl", "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}")]);
-        let catalog = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
-        let input = "{\"id\": \"mine\", \"Q\": \"r\", \"A\": \"b\", \"kind\": \"qa\", \"see\": \"a.jsonl\"}\n{\"draft\": true, \"Q\": \"{{c1::s}}\"}\n";
-        let added = add(&catalog, "a.jsonl", input, 3, false).unwrap();
-        assert_eq!(added.ids[0].as_str(), "mine");
-        let two = &added.ids[1];
-        assert_eq!(
-            read(&store, "a.jsonl"),
-            format!(
-                "{{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}}\n{{\"id\":\"mine\",\"see\":\"a.jsonl\",\"Q\":\"r\",\"A\":\"b\"}}\n{{\"id\":\"{two}\",\"draft\":true,\"Q\":\"{{{{c1::s}}}}\"}}\n"
-            )
-        );
-        let catalog = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
+        config.context.include = vec!["notes/**".to_owned()];
+        config.context.exclude = vec!["**/*.md".to_owned()];
+        let catalog = catalog_with(&store, &config);
+        let see = |path: &str| {
+            format!("{{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\", \"see\": \"{path}\"}}")
+        };
+        assert!(edit(&catalog, &see("notes/b.md"), true).is_err());
+        assert!(edit(&catalog, &see("notes/c.pdf"), true).is_err());
+        edit(&catalog, &see("notes/a.pdf"), false).unwrap();
+        let catalog = catalog_with(&store, &config);
         assert!(catalog.problems().is_empty(), "{:?}", catalog.problems());
-        let taken = "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}";
-        assert!(add(&catalog, "a.jsonl", taken, 3, false).is_err());
+        // A file that is not UTF-8 is no context to show.
+        fs::write(store.file("notes/a.pdf"), [0xff, 0xfe, 0x00]).unwrap();
+        let item = &catalog.items()[0];
+        assert_eq!(catalog.context(item).unwrap(), None);
+        fs::write(store.file("notes/a.pdf"), "\u{feff}Text.\n").unwrap();
+        assert_eq!(catalog.context(item).unwrap().as_deref(), Some("Text.\n"));
+        // An item whose file is gone, or no longer included, is a problem.
+        fs::remove_file(store.file("notes/a.pdf")).unwrap();
+        assert_eq!(catalog_with(&store, &config).problems().len(), 1);
     }
 
     #[test]
     fn ids_and_accept_write_json_lines_again() {
-        let mut config = Config::default();
-        config.sources = crate::config::sources_of(&["*.jsonl"]);
         let text = "{\"Q\": \"q\", \"A\": \"a\", \"draft\": true}\r\n\r\n{\"id\": \"keep\", \"Q\": \"r\", \"A\": \"b\"}\r\n";
         let (_tmp, store) = store(&[("a.jsonl", text)]);
-        let load = || Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
-        let written = assign_ids(&load(), 7, false).unwrap();
+        let written = assign_ids(&catalog(&store), 7, false).unwrap();
         let id = &written[0].id;
-        let catalog = load();
+        let catalog = catalog(&store);
         let drafts = catalog.items().iter().collect::<Vec<_>>();
         accept(&catalog, &drafts, false).unwrap();
         assert_eq!(
@@ -635,46 +667,36 @@ mod tests {
     }
 
     #[test]
-    fn edit_replaces_items_in_any_syntax_and_keeps_the_rest() {
-        let mut config = Config::default();
-        config.sources = crate::config::sources_of(&["*.md", "*.jsonl"]);
-        let text = "Before.\n```srl id:aaa1\nQ: old\nA: old\n```\n\n````srl\n@ id:aaa2\nQ: old\nA: old\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n";
-        let lines = "{\"id\": \"bbb1\", \"Q\": \"old\", \"A\": \"old\"}\n";
-        let (_tmp, store) = store(&[("a.md", text), ("b.jsonl", lines)]);
-        let catalog = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
-        let input = "{\"id\": \"aaa2\", \"Q\": \"new\\n```\\ncode\\n```\", \"A\": \"a\", \"address\": \"x\", \"cards\": []}\n{\"id\": \"aaa1\", \"draft\": true, \"Q\": \"new\", \"A\": \"new\\n\\nmore\"}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\", \"see\": \"a.md\"}\n";
-        let ids = edit(&catalog, input, false).unwrap();
+    fn edit_replaces_items_and_keeps_the_rest() {
+        let lines = "{\"id\": \"aaa1\", \"Q\": \"old\", \"A\": \"old\"}\n{\"id\": \"aaa2\", \"Q\": \"old\", \"A\": \"old\"}\n";
+        let (_tmp, store) = store(&[
+            ("a.jsonl", lines),
+            (
+                "b.jsonl",
+                "{\"id\": \"bbb1\", \"Q\": \"old\", \"A\": \"old\"}\n",
+            ),
+            ("a.md", "# A\n"),
+        ]);
+        let input = "{\"id\": \"aaa2\", \"Q\": \"new\\n```\\ncode\\n```\", \"A\": \"a\", \"address\": \"x\", \"cards\": []}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\", \"see\": \"a.md\"}\n";
+        let ids = edit(&catalog(&store), input, false).unwrap();
         let ids = ids.iter().map(ItemId::as_str).collect::<Vec<_>>();
-        assert_eq!(ids, ["aaa2", "aaa1", "bbb1"]);
+        assert_eq!(ids, ["aaa2", "bbb1"]);
         assert_eq!(
-            read(&store, "a.md"),
-            "Before.\n```srl id:aaa1 draft\nQ: new\nA: new\n\n  more\n```\n\n````srl\n@ id:aaa2\nQ: new\n  ```\n  code\n  ```\nA: a\n\n@ id:aaa3\nQ: old\nA: old\n````\nAfter.\n"
+            read(&store, "a.jsonl"),
+            "{\"id\": \"aaa1\", \"Q\": \"old\", \"A\": \"old\"}\n{\"id\":\"aaa2\",\"Q\":\"new\\n```\\ncode\\n```\",\"A\":\"a\"}\n"
         );
         assert_eq!(
             read(&store, "b.jsonl"),
             "{\"id\":\"bbb1\",\"see\":\"a.md\",\"Q\":\"new\",\"A\":\"a\"}\n"
         );
-        let catalog = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
-        let closing = "{\"id\": \"aaa3\", \"Q\": \"q\\n````\"}";
-        assert!(edit(&catalog, closing, false).is_err());
     }
 
     #[test]
-    fn several_edits_in_one_block_or_one_jsonl_note_each_find_their_item() {
-        let mut config = Config::default();
-        config.sources = crate::config::sources_of(&["*.md", "*.jsonl"]);
-        let text = "```srl\n@ id:aaa1\nQ: one\nA: a\n\n@ id:aaa2\nQ: two\nA: a\n\n@ id:aaa3\nQ: three\nA: a\n```\n";
+    fn several_edits_in_one_file_each_find_their_item() {
         let lines = "{\"id\": \"bbb1\", \"Q\": \"one\", \"A\": \"a\"}\n{\"id\": \"bbb2\", \"Q\": \"two\", \"A\": \"a\"}\n{\"id\": \"bbb3\", \"Q\": \"three\", \"A\": \"a\"}\n";
-        let (_tmp, store) = store(&[("a.md", text), ("b.jsonl", lines)]);
-        let catalog = Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
-        // The first items given grow by a line, so that a later edit made
-        // from the top down would miss its item.
-        let input = "{\"id\": \"aaa1\", \"Q\": \"one\\nmore\", \"A\": \"a\"}\n{\"id\": \"bbb1\", \"Q\": \"1\", \"A\": \"a\"}\n{\"id\": \"aaa3\", \"Q\": \"three\\nmore\", \"A\": \"a\"}\n{\"id\": \"bbb3\", \"Q\": \"3\", \"A\": \"a\"}\n";
-        edit(&catalog, input, false).unwrap();
-        assert_eq!(
-            read(&store, "a.md"),
-            "```srl\n@ id:aaa1\nQ: one\n  more\nA: a\n\n@ id:aaa2\nQ: two\nA: a\n\n@ id:aaa3\nQ: three\n  more\nA: a\n```\n"
-        );
+        let (_tmp, store) = store(&[("b.jsonl", lines)]);
+        let input = "{\"id\": \"bbb3\", \"Q\": \"3\", \"A\": \"a\"}\n{\"id\": \"bbb1\", \"Q\": \"1\", \"A\": \"a\"}\n";
+        edit(&catalog(&store), input, false).unwrap();
         assert_eq!(
             read(&store, "b.jsonl"),
             "{\"id\":\"bbb1\",\"Q\":\"1\",\"A\":\"a\"}\n{\"id\": \"bbb2\", \"Q\": \"two\", \"A\": \"a\"}\n{\"id\":\"bbb3\",\"Q\":\"3\",\"A\":\"a\"}\n"
@@ -682,56 +704,50 @@ mod tests {
     }
 
     #[test]
-    fn writes_find_items_by_id_in_the_note_as_it_is_now() {
-        let (_tmp, store) = store(&[
-            ("a.md", "```srl id:aaa1\nQ: q\nA: a\n```\n"),
-            ("b.md", "```srl id:bbb1\nQ: q\nA: a\n```\n"),
-        ]);
+    fn writes_find_items_by_id_in_the_file_as_it_is_now() {
+        let a = "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n";
+        let b = "{\"id\": \"bbb1\", \"Q\": \"q\", \"A\": \"a\"}\n";
+        let (_tmp, store) = store(&[("a.jsonl", a), ("b.jsonl", b)]);
         let catalog = catalog(&store);
         let input = "{\"id\": \"aaa1\", \"Q\": \"new\", \"A\": \"a\"}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\"}\n";
-        // An item that moved since the notes were read is found where it
+        // An item that moved since the files were read is found where it
         // is now.
         fs::write(
-            store.note_file("b.md"),
-            "Prose.\n```srl id:bbb1\nQ: q\nA: a\n```\n",
+            store.file("b.jsonl"),
+            format!("{{\"id\": \"bbb0\", \"Q\": \"q\", \"A\": \"a\"}}\n{b}"),
         )
         .unwrap();
         edit(&catalog, input, true).unwrap();
-        // An item that is gone, or a note that has an error now, stops the
-        // command, and no note is written.
-        for changed in ["Prose.\n", "```srl id:bbb1\nQ: q\nA: a\n```\n```srl\n"] {
-            fs::write(store.note_file("b.md"), changed).unwrap();
+        // An item that is gone, or a file that has an error now, stops the
+        // command, and no file is written.
+        for changed in ["\n", &format!("{b}not json\n")] {
+            fs::write(store.file("b.jsonl"), changed).unwrap();
             assert!(matches!(
                 edit(&catalog, input, false),
                 Err(Error::ChangedMeanwhile { .. })
             ));
-            assert_eq!(read(&store, "a.md"), "```srl id:aaa1\nQ: q\nA: a\n```\n");
+            assert_eq!(read(&store, "a.jsonl"), a);
         }
         assert_eq!(edit(&catalog, "\n\n", false).unwrap(), [] as [ItemId; 0]);
     }
 
     #[test]
     fn ids_go_to_the_items_without_one_by_their_position() {
-        let mut config = Config::default();
-        config.sources = crate::config::sources_of(&["*.jsonl"]);
         // Two items alike in everything, but where they are, are told apart
         // by their position.
         let (_tmp, store) = store(&[(
             "a.jsonl",
             "{\"Q\": \"q\", \"A\": \"a\"}\n{\"Q\": \"q\", \"A\": \"a\"}\n",
         )]);
-        let load = || Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
-        let written = assign_ids(&load(), 7, false).unwrap();
-        let lines = written.iter().map(|done| done.line).collect::<Vec<_>>();
-        assert_eq!(lines, [Some(1), Some(2)]);
-        assert_eq!(load().items().len(), 2);
-        assert!(load().problems().is_empty());
+        let written = assign_ids(&catalog(&store), 7, false).unwrap();
+        assert_eq!(written.len(), 2);
+        assert_ne!(written[0].id, written[1].id);
+        assert_eq!(catalog(&store).items().len(), 2);
+        assert!(catalog(&store).problems().is_empty());
     }
 
     #[test]
-    fn add_to_a_jsonl_note_starts_a_new_line_and_keeps_its_line_endings() {
-        let mut config = Config::default();
-        config.sources = crate::config::sources_of(&["**/*.jsonl"]);
+    fn add_to_a_jsonl_file_starts_a_new_line_and_keeps_its_line_endings() {
         let (_tmp, store) = store(&[
             ("a.jsonl", "{\"id\": \"old1\", \"Q\": \"q\", \"A\": \"a\"}"),
             (
@@ -739,9 +755,8 @@ mod tests {
                 "{\"id\": \"old2\", \"Q\": \"q\", \"A\": \"a\"}\r\n",
             ),
         ]);
-        let load = || Catalog::load(&store, &config, &mut Index::open(&store)).unwrap();
         let item = "{\"id\": \"new1\", \"Q\": \"r\", \"A\": \"a\"}\n{\"id\": \"new2\", \"Q\": \"s\", \"A\": \"a\"}";
-        let added = add(&load(), "a.jsonl", item, 3, false).unwrap();
+        let added = add(&catalog(&store), "a.jsonl", item, 3, false).unwrap();
         assert_eq!(
             added.text,
             "{\"id\":\"new1\",\"Q\":\"r\",\"A\":\"a\"}\n{\"id\":\"new2\",\"Q\":\"s\",\"A\":\"a\"}\n"
@@ -754,23 +769,28 @@ mod tests {
             )
         );
         let item = "{\"id\": \"new3\", \"Q\": \"t\", \"A\": \"a\"}";
-        add(&load(), "b.jsonl", item, 3, false).unwrap();
+        add(&catalog(&store), "b.jsonl", item, 3, false).unwrap();
         assert_eq!(
             read(&store, "b.jsonl"),
             "{\"id\": \"old2\", \"Q\": \"q\", \"A\": \"a\"}\r\n{\"id\":\"new3\",\"Q\":\"t\",\"A\":\"a\"}\r\n"
         );
         let item = "{\"id\": \"new4\", \"Q\": \"u\", \"A\": \"a\"}";
-        add(&load(), "c/new.jsonl", item, 3, false).unwrap();
+        add(&catalog(&store), "c/new.jsonl", item, 3, false).unwrap();
         assert_eq!(
             read(&store, "c/new.jsonl"),
             "{\"id\":\"new4\",\"Q\":\"u\",\"A\":\"a\"}\n"
         );
-        assert!(load().problems().is_empty(), "{:?}", load().problems());
+        assert!(
+            catalog(&store).problems().is_empty(),
+            "{:?}",
+            catalog(&store).problems()
+        );
     }
 
     #[test]
     fn edit_checks_every_line_first() {
-        let (_tmp, store) = store(&[("a.md", "```srl id:aaa1\nQ: q\nA: a\n```\n")]);
+        let text = "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n";
+        let (_tmp, store) = store(&[("a.jsonl", text)]);
         let catalog = catalog(&store);
         for input in [
             "{\"Q\": \"q\", \"A\": \"a\"}",
@@ -781,25 +801,22 @@ mod tests {
         ] {
             assert!(edit(&catalog, input, false).is_err(), "accepted {input:?}");
         }
-        assert_eq!(read(&store, "a.md"), "```srl id:aaa1\nQ: q\nA: a\n```\n");
+        assert_eq!(read(&store, "a.jsonl"), text);
         edit(
             &catalog,
             "{\"id\": \"aaa1\", \"Q\": \"new\", \"A\": \"a\"}",
             true,
         )
         .unwrap();
-        assert_eq!(read(&store, "a.md"), "```srl id:aaa1\nQ: q\nA: a\n```\n");
+        assert_eq!(read(&store, "a.jsonl"), text);
     }
 
     #[test]
-    fn an_edit_that_only_removes_draft_or_changes_nothing_keeps_the_block() {
-        let text = "````srl id:aaa1 draft\nQ: q\nA: a\n````\n\n````srl id:aaa2\nQ: r\nA: b\n````\n";
-        let (_tmp, store) = store(&[("a.md", text)]);
-        let input = "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"aaa2\", \"Q\": \"r\", \"A\": \"b\"}\n";
+    fn an_edit_that_changes_nothing_keeps_the_line() {
+        let text = "{\"id\": \"aaa1\",  \"Q\": \"q\", \"A\": \"a\"}\n";
+        let (_tmp, store) = store(&[("a.jsonl", text)]);
+        let input = "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n";
         edit(&catalog(&store), input, false).unwrap();
-        assert_eq!(
-            read(&store, "a.md"),
-            "````srl id:aaa1\nQ: q\nA: a\n````\n\n````srl id:aaa2\nQ: r\nA: b\n````\n"
-        );
+        assert_eq!(read(&store, "a.jsonl"), text);
     }
 }

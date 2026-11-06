@@ -488,10 +488,36 @@ mod tests {
         store_in(TempDir::new().unwrap(), config, notes)
     }
 
-    /// A store with `config` and one note `a.md` holding `note`, and its
-    /// items as read.
-    fn store(config: &str, note: &str) -> (TempDir, Store, Catalog) {
-        store_with(config, &[("a.md", note)])
+    /// A store with `config` and one collection `a.jsonl` holding `items`,
+    /// and its items as read.
+    fn store(config: &str, items: &str) -> (TempDir, Store, Catalog) {
+        store_with(config, &[("a.jsonl", items)])
+    }
+
+    /// The JSON line of an item with `id`, if not empty, `kind`, if any,
+    /// and `fields`.
+    fn line(id: &str, kind: Option<&str>, fields: &[(&str, &str)]) -> String {
+        let mut object = Map::new();
+        if !id.is_empty() {
+            object.insert("id".to_owned(), Value::from(id));
+        }
+        if let Some(kind) = kind {
+            object.insert("kind".to_owned(), Value::from(kind));
+        }
+        for (key, text) in fields {
+            object.insert((*key).to_owned(), Value::from(*text));
+        }
+        format!("{}\n", Value::Object(object))
+    }
+
+    /// The JSON line of an item of kind `fake`.
+    fn fake(id: &str, fields: &[(&str, &str)]) -> String {
+        line(id, Some("fake"), fields)
+    }
+
+    /// The JSON line of a `qa` item.
+    fn qa(id: &str) -> String {
+        line(id, None, &[("Q", "q"), ("A", "a")])
     }
 
     /// [`store_with`], in `tmp`.
@@ -504,7 +530,7 @@ mod tests {
         .unwrap();
         fs::write(store.config_file(), config).unwrap();
         for (path, text) in notes {
-            fs::write(store.note_file(path), text).unwrap();
+            fs::write(store.file(path), text).unwrap();
         }
         let catalog = Catalog::load(
             &store,
@@ -550,7 +576,7 @@ mod tests {
     fn a_kind_program_gives_the_cards_of_its_items_in_groups() {
         let (_tmp, _store, catalog) = store(
             &config(""),
-            "```srl id:abc kind:fake\nGROUPS: te past|negative\n```\n\n```srl id:abd kind:fake\nX: y\n```\n",
+            &(fake("abc", &[("GROUPS", "te past|negative")]) + &fake("abd", &[("X", "y")])),
         );
         assert_eq!(problems(&catalog), Vec::<String>::new());
         assert_eq!(ids(&catalog), ["abc.negative", "abc.past", "abc.te", "abd"]);
@@ -563,22 +589,19 @@ mod tests {
 
     #[test]
     fn validate_and_groups_run_once_for_every_item_of_the_kind() {
-        let log = "```srl id:{} kind:fake\nLOG: calls.log\n```\n";
+        let log = |id: &str| fake(id, &[("LOG", "calls.log")]);
         let (tmp, _store, catalog) = store_with(
             &config(""),
             &[
-                ("a.md", &log.replace("{}", "aaa")),
+                ("a.jsonl", &log("aaa")),
                 (
-                    "b.md",
-                    &format!(
-                        "{}\n```srl id:bbb kind:fake\nLOG: calls.log\nINVALID: no\n```\n",
-                        log.replace("{}", "bab")
-                    ),
+                    "b.jsonl",
+                    &(log("bab") + &fake("bbb", &[("LOG", "calls.log"), ("INVALID", "no")])),
                 ),
             ],
         );
         assert_eq!(ids(&catalog), ["aaa", "bab"]);
-        assert_eq!(problems(&catalog), ["b.md:5: no"]);
+        assert_eq!(problems(&catalog), ["b.jsonl: item bbb: no"]);
         // groups is asked only about the items validate accepted.
         let calls = fs::read_to_string(tmp.path().join("calls.log")).unwrap();
         assert_eq!(calls, "validate 3\ngroups 2\n");
@@ -605,27 +628,26 @@ mod tests {
 
     #[test]
     fn kept_answers_are_not_asked_for_again() {
-        let item = |id: &str, more: &str| {
-            format!("```srl id:{id} kind:fake\nLOG: calls.log\n{more}\n```\n")
-        };
+        let item =
+            |id: &str, more: &[(&str, &str)]| fake(id, &[&[("LOG", "calls.log")], more].concat());
         let (_tmp, store, _) = store(
             &config(""),
             &[
-                item("aaa", "GROUPS: x y"),
-                item("bbb", ""),
-                item("ccc", "INVALID: no"),
+                item("aaa", &[("GROUPS", "x y")]),
+                item("bbb", &[]),
+                item("ccc", &[("INVALID", "no")]),
             ]
-            .join("\n"),
+            .concat(),
         );
         fs::write(store.root().join("calls.log"), "").unwrap();
         let (catalog, calls) = reload(&store, false);
         assert_eq!(calls, "");
         assert_eq!(ids(&catalog), ["aaa.x", "aaa.y", "bbb"]);
         // A kept answer that says the item is invalid says it again.
-        assert_eq!(problems(&catalog), ["a.md:11: no"]);
+        assert_eq!(problems(&catalog), ["a.jsonl: item ccc: no"]);
         // Only the item that changed is asked about.
-        let note = fs::read_to_string(store.note_file("a.md")).unwrap();
-        fs::write(store.note_file("a.md"), note.replace("x y", "x z")).unwrap();
+        let items = fs::read_to_string(store.file("a.jsonl")).unwrap();
+        fs::write(store.file("a.jsonl"), items.replace("x y", "x z")).unwrap();
         let (catalog, calls) = reload(&store, false);
         assert_eq!(calls, "validate 1\ngroups 1\n");
         assert_eq!(ids(&catalog), ["aaa.x", "aaa.z", "bbb"]);
@@ -638,10 +660,7 @@ mod tests {
 
     #[test]
     fn answers_are_kept_for_the_kinds_name_and_command_as_written() {
-        let (_tmp, store, _) = store(
-            &config(""),
-            "```srl id:aaa kind:fake\nLOG: calls.log\n```\n",
-        );
+        let (_tmp, store, _) = store(&config(""), &fake("aaa", &[("LOG", "calls.log")]));
         fs::write(store.root().join("calls.log"), "").unwrap();
         let (_, calls) = reload(&store, false);
         assert_eq!(calls, "");
@@ -659,10 +678,10 @@ mod tests {
             format!("[kinds]\nother = ['{}', 'more']\n", test_kind().display()),
         )
         .unwrap();
-        let note = fs::read_to_string(store.note_file("a.md")).unwrap();
+        let items = fs::read_to_string(store.file("a.jsonl")).unwrap();
         fs::write(
-            store.note_file("a.md"),
-            note.replace("kind:fake", "kind:other"),
+            store.file("a.jsonl"),
+            items.replace("\"kind\":\"fake\"", "\"kind\":\"other\""),
         )
         .unwrap();
         let (_, calls) = reload(&store, false);
@@ -673,11 +692,11 @@ mod tests {
     fn answers_of_a_call_that_failed_are_not_kept() {
         let (_tmp, store, catalog) = store(
             &config(""),
-            "```srl id:aaa kind:fake\nLOG: calls.log\n```\n\n```srl id:bbb kind:fake\nBREAK_VALIDATE: down\n```\n",
+            &(fake("aaa", &[("LOG", "calls.log")]) + &fake("bbb", &[("BREAK_VALIDATE", "down")])),
         );
         assert_eq!(ids(&catalog), [] as [String; 0]);
-        let note = fs::read_to_string(store.note_file("a.md")).unwrap();
-        fs::write(store.note_file("a.md"), note.replace("BREAK_VALIDATE", "X")).unwrap();
+        let items = fs::read_to_string(store.file("a.jsonl")).unwrap();
+        fs::write(store.file("a.jsonl"), items.replace("BREAK_VALIDATE", "X")).unwrap();
         fs::write(store.root().join("calls.log"), "").unwrap();
         let (catalog, calls) = reload(&store, false);
         assert_eq!(calls, "validate 2\ngroups 2\n");
@@ -686,10 +705,7 @@ mod tests {
 
     #[test]
     fn without_a_usable_cache_every_item_is_asked_about() {
-        let (_tmp, store, _) = store(
-            &config(""),
-            "```srl id:aaa kind:fake\nLOG: calls.log\n```\n",
-        );
+        let (_tmp, store, _) = store(&config(""), &fake("aaa", &[("LOG", "calls.log")]));
         fs::remove_dir_all(store.cache_dir()).unwrap();
         fs::write(store.cache_dir(), "not a folder").unwrap();
         fs::write(store.root().join("calls.log"), "").unwrap();
@@ -706,19 +722,23 @@ mod tests {
 
     #[test]
     fn validate_errors_are_errors_of_the_item_naming_their_field() {
+        let errors = r#"{"errors": [{"field": "VERB", "message": "is missing"}, {"field": null, "message": "also wrong"}]}"#;
         let (_tmp, _store, catalog) = store(
             &config(""),
-            "```srl id:abc kind:fake\nERRORS: {\"errors\": [{\"field\": \"VERB\", \"message\": \"is missing\"}, {\"field\": null, \"message\": \"also wrong\"}]}\n```\n\n```srl id:abd kind:fake\nERRORS: not json\n```\n",
+            &(fake("abc", &[("ERRORS", errors)]) + &fake("abd", &[("ERRORS", "not json")])),
         );
         assert_eq!(ids(&catalog), [] as [String; 0]);
         let reasons = problems(&catalog);
         assert_eq!(
             reasons[..2],
-            ["a.md:1: VERB: is missing", "a.md:1: also wrong"]
+            [
+                "a.jsonl: item abc: VERB: is missing",
+                "a.jsonl: item abc: also wrong"
+            ]
         );
         assert!(
             reasons[2].starts_with(
-                "a.md:5: the program of kind fake printed invalid output for `validate`"
+                "a.jsonl: item abd: the program of kind fake printed invalid output for `validate`"
             ),
             "{reasons:?}"
         );
@@ -747,12 +767,12 @@ mod tests {
     fn invalid_groups_for_an_item_are_an_error_of_the_item() {
         let (_tmp, _store, catalog) = store(
             &config(""),
-            "```srl id:abc kind:fake\nGROUPS_RAW: {\"groups\": []}\n```\n\n```srl id:abd kind:fake\nX: y\n```\n",
+            &(fake("abc", &[("GROUPS_RAW", r#"{"groups": []}"#)]) + &fake("abd", &[("X", "y")])),
         );
         assert_eq!(ids(&catalog), ["abd"]);
         let reasons = problems(&catalog);
         assert!(
-            reasons[0].starts_with("a.md:1: the program of kind fake printed invalid output for `groups`: it has no group"),
+            reasons[0].starts_with("a.jsonl: item abc: the program of kind fake printed invalid output for `groups`: it has no group"),
             "{reasons:?}"
         );
     }
@@ -788,25 +808,30 @@ mod tests {
     }
 
     #[test]
-    fn problems_come_by_address_and_line_and_failing_programs_last() {
+    fn problems_come_by_address_and_item_and_failing_programs_last() {
         let (_tmp, _store, catalog) = store_with(
             &config("broken = ['srl-no-such-program-anywhere']\n"),
             &[
                 (
-                    "a.md",
-                    "```srl id:aaa kind:fake\nINVALID: in a\n```\n\n```srl id:aab kind:broken\nX: y\n```\n\n```srl\nQ: no id\nA: a\n```\n",
+                    "a.jsonl",
+                    &[
+                        fake("aaa", &[("INVALID", "in a")]),
+                        line("aab", Some("broken"), &[("X", "y")]),
+                        line("", None, &[("Q", "no id"), ("A", "a")]),
+                    ]
+                    .concat(),
                 ),
-                ("b.md", "```srl id:bbb kind:fake\nINVALID: in b\n```\n"),
+                ("b.jsonl", &fake("bbb", &[("INVALID", "in b")])),
             ],
         );
         let problems = problems(&catalog);
         assert_eq!(problems.len(), 4, "{problems:?}");
-        assert_eq!(problems[0], "a.md:1: in a");
+        assert_eq!(problems[0], "a.jsonl: item aaa: in a");
         assert!(
-            problems[1].starts_with("a.md:9: this item has no ID"),
+            problems[1].starts_with("a.jsonl: item 3 has no ID"),
             "{problems:?}"
         );
-        assert_eq!(problems[2], "b.md:1: in b");
+        assert_eq!(problems[2], "b.jsonl: item bbb: in b");
         assert!(
             problems[3].contains("cannot find the program `srl-no-such-program-anywhere`"),
             "{problems:?}"
@@ -816,20 +841,18 @@ mod tests {
     #[test]
     fn a_failing_call_is_a_problem_of_the_program_not_of_its_items() {
         for field in [
-            "BREAK_VALIDATE: on purpose",
-            "BREAK_GROUPS: on purpose",
-            "SHORT: yes",
+            ("BREAK_VALIDATE", "on purpose"),
+            ("BREAK_GROUPS", "on purpose"),
+            ("SHORT", "yes"),
         ] {
             let (_tmp, _store, catalog) = store(
                 &config(""),
-                &format!(
-                    "```srl id:abc kind:fake\n{field}\n```\n\n```srl id:abd kind:fake\nX: y\n```\n\n```srl id:qqq\nQ: q\nA: a\n```\n"
-                ),
+                &[fake("abc", &[field]), fake("abd", &[("X", "y")]), qa("qqq")].concat(),
             );
             // Items of other kinds are read as always.
-            assert_eq!(ids(&catalog), ["qqq"], "{field}");
+            assert_eq!(ids(&catalog), ["qqq"], "{field:?}");
             let reasons = problems(&catalog);
-            assert_eq!(reasons.len(), 1, "{field}: {reasons:?}");
+            assert_eq!(reasons.len(), 1, "{field:?}: {reasons:?}");
             assert!(
                 reasons[0].starts_with("the program of kind fake "),
                 "{reasons:?}"
@@ -839,8 +862,7 @@ mod tests {
                 "{reasons:?}"
             );
         }
-        let (_tmp, _store, catalog) =
-            store(&config(""), "```srl id:abc kind:fake\nSHORT: yes\n```\n");
+        let (_tmp, _store, catalog) = store(&config(""), &fake("abc", &[("SHORT", "yes")]));
         assert!(
             problems(&catalog)[0].contains("it printed 0 lines for 1 input lines"),
             "{:?}",
@@ -925,9 +947,16 @@ mod tests {
 
     #[test]
     fn a_card_gets_its_suffix_context_and_day_and_runs_in_the_store() {
-        let (tmp, _store, catalog) = store(
+        let (tmp, _store, catalog) = store_with(
             &config(""),
-            "# Verbs\n\n```srl id:abc kind:fake\nGROUPS: te\n```\n",
+            &[
+                ("a.md", "# Verbs\n"),
+                (
+                    "a.jsonl",
+                    &line("abc", Some("fake"), &[("GROUPS", "te")])
+                        .replace("\"kind\"", "\"see\":\"a.md\",\"kind\""),
+                ),
+            ],
         );
         let folder = tmp.path().file_name().unwrap().to_string_lossy();
         assert_eq!(
@@ -947,7 +976,7 @@ mod tests {
     fn the_cards_of_a_kind_are_made_in_one_call_in_order() {
         let (tmp, _store, catalog) = store(
             &config(""),
-            "```srl id:abc kind:fake\nGROUPS: a b\nLOG: calls.log\n```\n\n```srl id:qqq\nQ: q\nA: a\n```\n",
+            &(fake("abc", &[("GROUPS", "a b"), ("LOG", "calls.log")]) + &qa("qqq")),
         );
         let made = make(&catalog, &["abc.b", "qqq", "abc.a"]).unwrap();
         let ids = made
@@ -963,7 +992,14 @@ mod tests {
     fn a_card_may_leave_out_its_revealed_prompt_and_answer() {
         let (_tmp, _store, catalog) = store(
             &config(""),
-            "```srl id:abc kind:fake\nMAKE_RAW: {\"prompt\": \"p\"}\n```\n\n```srl id:abd kind:fake\nMAKE_RAW: {\"prompt\": \"p\", \"prompt_revealed\": null, \"answer\": null}\n```\n",
+            &(fake("abc", &[("MAKE_RAW", r#"{"prompt": "p"}"#)])
+                + &fake(
+                    "abd",
+                    &[(
+                        "MAKE_RAW",
+                        r#"{"prompt": "p", "prompt_revealed": null, "answer": null}"#,
+                    )],
+                )),
         );
         for id in ["abc", "abd"] {
             assert_eq!(
@@ -979,7 +1015,17 @@ mod tests {
     fn a_card_the_program_cant_make_slow_or_invalid_is_an_error() {
         let (_tmp, _store, catalog) = store(
             &config("[kind_programs]\ncard_timeout = 1\n"),
-            "```srl\n@ id:aaa kind:fake\nFAIL_MAKE: _\n\n@ id:aab kind:fake\nSLEEP_MAKE: 5\n\n@ id:aac kind:fake\nMAKE_RAW: {\"prompt_revealed\": \"p\", \"answer\": \"a\"}\n\n@ id:aad kind:fake\nBREAK_MAKE: on purpose\n\n@ id:aae kind:fake\nMAKE_RAW: {\"error\": \" \"}\n```\n",
+            &[
+                fake("aaa", &[("FAIL_MAKE", "_")]),
+                fake("aab", &[("SLEEP_MAKE", "5")]),
+                fake(
+                    "aac",
+                    &[("MAKE_RAW", r#"{"prompt_revealed": "p", "answer": "a"}"#)],
+                ),
+                fake("aad", &[("BREAK_MAKE", "on purpose")]),
+                fake("aae", &[("MAKE_RAW", r#"{"error": " "}"#)]),
+            ]
+            .concat(),
         );
         let made = |id: &str| make(&catalog, &[id]).unwrap_err();
         assert_eq!(
@@ -997,7 +1043,7 @@ mod tests {
     fn the_time_limit_grows_with_the_cards_made_at_once() {
         let (_tmp, _store, catalog) = store(
             &config("[kind_programs]\ncard_timeout = 1\n"),
-            "```srl id:abc kind:fake\nGROUPS: a b c\nSLEEP_MAKE: 2\n```\n",
+            &fake("abc", &[("GROUPS", "a b c"), ("SLEEP_MAKE", "2")]),
         );
         // Three cards may take three seconds: two seconds is in time.
         assert_eq!(
@@ -1020,7 +1066,7 @@ mod tests {
         let (_tmp, _store, catalog) = store_in(
             tmp,
             &format!("[kinds]\nfake = ['kinds/{name}']\n"),
-            &[("a.md", "```srl id:abc kind:fake\nX: y\n```\n")],
+            &[("a.jsonl", &fake("abc", &[("X", "y")]))],
         );
         assert_eq!(problems(&catalog), Vec::<String>::new());
         assert_eq!(ids(&catalog), ["abc"]);
@@ -1028,11 +1074,11 @@ mod tests {
 
     #[test]
     fn a_kind_that_is_neither_qa_nor_configured_is_unknown() {
-        let (_tmp, _store, catalog) = store(&config(""), "```srl id:abc kind:conj\nX: y\n```\n");
+        let (_tmp, _store, catalog) = store(&config(""), &line("abc", Some("conj"), &[("X", "y")]));
         assert!(problems(&catalog)[0].contains("there is no kind `conj`"));
         let (_tmp, _store, catalog) = store(
             "[kinds]\nfake = ['srl-no-such-program-anywhere']\n",
-            "```srl id:abc kind:fake\nX: y\n```\n",
+            &fake("abc", &[("X", "y")]),
         );
         assert!(
             problems(&catalog)[0]
@@ -1044,7 +1090,7 @@ mod tests {
     fn a_card_that_fails_fails_next_without_trying_another() {
         let (_tmp, _store, catalog) = store(
             &config(""),
-            "```srl id:abc kind:fake\nGROUPS: a b\nFAIL_MAKE: a\n```\n",
+            &fake("abc", &[("GROUPS", "a b"), ("FAIL_MAKE", "a")]),
         );
         let log = Log {
             entries: Vec::new(),

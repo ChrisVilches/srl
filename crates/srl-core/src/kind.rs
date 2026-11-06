@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::domain::card::{Card, CardId};
-use crate::domain::context::Context;
 use crate::domain::item::{Field, ItemId};
 use crate::{Config, Error, Index, Store};
 
@@ -145,12 +144,14 @@ pub(crate) fn check(
 }
 
 /// A card to make: its ID, and its item's kind and fields, which [`check`]
-/// accepted and gave the card for, and the item's context in mode `prose`.
+/// accepted and gave the card for, and the file its item names with `see`
+/// and that file's text, its context.
 pub(crate) struct ToMake<'a> {
     pub(crate) card: &'a CardId,
     pub(crate) kind: &'a Kind,
     pub(crate) fields: &'a [Field],
-    pub(crate) context: Option<&'a Context>,
+    pub(crate) see: Option<&'a str>,
+    pub(crate) context: Option<&'a str>,
 }
 
 /// Makes each card of `cards` for the study day `day`: `qa` here, and each
@@ -178,14 +179,8 @@ pub(crate) fn make(
             .map(|(_, wanted)| {
                 let mut input = input(wanted.card.item(), wanted.fields);
                 input.insert("suffix".to_owned(), Value::from(wanted.card.suffix()));
-                input.insert(
-                    "context".to_owned(),
-                    Value::from(wanted.context.map(|context| context.text.as_str())),
-                );
-                input.insert(
-                    "context_address".to_owned(),
-                    Value::from(wanted.context.map(|context| context.address.as_str())),
-                );
+                input.insert("see".to_owned(), Value::from(wanted.see));
+                input.insert("context".to_owned(), Value::from(wanted.context));
                 input.insert("day".to_owned(), Value::from(day.to_string()));
                 Value::Object(input)
             })
@@ -425,6 +420,7 @@ mod tests {
                 card,
                 kind: &Kind::Qa,
                 fields: &fields,
+                see: None,
                 context: None,
             })
             .collect::<Vec<_>>();

@@ -11,13 +11,9 @@ use std::path::PathBuf;
 use serde_json::{Map, Value};
 
 use crate::config::globs;
-use crate::domain::context::ContextMode;
 use crate::domain::item::object::{self, Object};
 use crate::process;
-use crate::source::{
-    Change, Collection, ContextRequest, Description, Finding, Problem, Read, ReadItem, Refusal,
-    Source,
-};
+use crate::source::{Change, Description, Problem, Read, ReadItem, Refusal, Source};
 use crate::{Error, Result, Store};
 
 /// A source program, as `[sources]` names it.
@@ -123,17 +119,14 @@ impl Program {
 }
 
 impl Source for Program {
-    fn collections(&self) -> Result<Vec<Collection>> {
+    fn collections(&self) -> Result<Vec<String>> {
         let call = "collections";
         self.call(call, vec![Map::new()])?
             .into_iter()
             .map(|line| {
                 let reason = |reason: String| self.invalid(call, &reason);
-                only(&line, &["collection", "file"]).map_err(reason)?;
-                Ok(Collection {
-                    name: collection(&line).map_err(reason)?,
-                    file: optional_text(&line, "file").map_err(reason)?,
-                })
+                only(&line, &["collection"]).map_err(reason)?;
+                collection(&line).map_err(reason)
             })
             .collect()
     }
@@ -145,15 +138,14 @@ impl Source for Program {
         for line in self.call(call, vec![Map::new()])? {
             let reason = |reason: String| self.invalid(call, &reason);
             if line.contains_key("error") {
-                only(&line, &["collection", "line", "error"]).map_err(reason)?;
+                only(&line, &["collection", "error"]).map_err(reason)?;
                 read.problems.push(Problem {
                     collection: collection(&line).map_err(reason)?,
-                    line: line_number(&line).map_err(reason)?,
                     reason: text(&line, "error").map_err(reason)?,
                 });
                 continue;
             }
-            only(&line, &["collection", "handle", "line", "written", "item"]).map_err(reason)?;
+            only(&line, &["collection", "handle", "written", "item"]).map_err(reason)?;
             let handle = text(&line, "handle").map_err(reason)?;
             if !handles.insert(handle.clone()) {
                 return Err(reason(format!("the handle `{handle}` is given twice")));
@@ -166,39 +158,11 @@ impl Source for Program {
             read.items.push(ReadItem {
                 collection: collection(&line).map_err(reason)?,
                 handle,
-                line: line_number(&line).map_err(reason)?,
                 written: optional_text(&line, "written").map_err(reason)?,
                 item,
             });
         }
         Ok(read)
-    }
-
-    fn context(&self, requests: &[ContextRequest<'_>]) -> Result<Vec<Option<String>>> {
-        let call = "context";
-        let inputs = requests
-            .iter()
-            .map(|request| {
-                let mode = match request.mode {
-                    ContextMode::Prose => "prose",
-                    ContextMode::Full => "full",
-                    ContextMode::None => "none",
-                };
-                Map::from_iter([
-                    ("collection".to_owned(), Value::from(request.collection)),
-                    ("mode".to_owned(), Value::from(mode)),
-                    ("own".to_owned(), Value::Bool(request.own)),
-                ])
-            })
-            .collect();
-        self.call_each(call, inputs)?
-            .into_iter()
-            .map(|line| {
-                let reason = |reason: String| self.invalid(call, &reason);
-                only(&line, &["context"]).map_err(reason)?;
-                optional_text(&line, "context").map_err(reason)
-            })
-            .collect()
     }
 
     /// A program says which collections it creates in `describe`.
@@ -315,11 +279,6 @@ impl Source for Program {
         Ok(previews)
     }
 
-    /// A program reports what it can as problems of `read`.
-    fn lint(&self) -> Result<Vec<Finding>> {
-        Ok(Vec::new())
-    }
-
     fn describe(&self) -> Result<Description> {
         let call = "describe";
         let answer = self
@@ -385,20 +344,6 @@ fn optional_text(
     match line.get(key) {
         None | Some(Value::Null) => Ok(None),
         Some(_) => text(line, key).map(Some),
-    }
-}
-
-/// The line of a line, from 1, or `None` when it is `null` or left out.
-fn line_number(line: &Map<String, Value>) -> std::result::Result<Option<usize>, String> {
-    match line.get("line") {
-        None | Some(Value::Null) => Ok(None),
-        Some(Value::Number(number)) => number
-            .as_u64()
-            .and_then(|number| usize::try_from(number).ok())
-            .filter(|number| *number >= 1)
-            .map(Some)
-            .ok_or_else(|| format!("`line` must be a line number from 1, not {number}")),
-        Some(other) => Err(format!("`line` must be a number, not {other}")),
     }
 }
 

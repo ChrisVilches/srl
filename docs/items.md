@@ -4,23 +4,24 @@ An **item** is a question, with its header entries and fields. Items come
 from the store's **sources** (see [sources.md](sources.md)), each in one of
 its **collections**, named everywhere by an **address**. Everything here
 holds for every item, whatever its source: how a source keeps its items,
-and how it writes them, is its own business. The two built-in drivers
-keep them in **notes**, files of the store (see [notes.md](notes.md)); a
-source program keeps them however it likes, such as in a database or
-behind a web service (see [sources.md](sources.md), "Source programs").
+and how it writes them, is its own business. The built-in `filesystem`
+driver keeps them in structured files of the store, JSONL, JSON or XML
+(see [formats.md](formats.md)); a source program keeps them however it
+likes, such as in a database or behind a web service (see
+[sources.md](sources.md), "Source programs").
 
 An item has:
 
-- **header entries**: its ID, its kind, the collection shown as its
-  context, and whether it is a draft (see "Header entries");
+- **header entries**: its ID, its kind, the note shown as its context,
+  and whether it is a draft (see "Header entries");
 - **fields**: named texts, such as `Q` and `A`, that its kind turns into
   cards (see [cards.md](cards.md), "Kinds").
 
-Each source writes them its own way: on the fence of an srl block in a
-Markdown note, as a line of JSON in a JSONL note (see
-[notes.md](notes.md)), or as a source program keeps them. Everything after
-reading the items (kinds, cards, scheduling, the log, selectors) is the
-same for every source.
+Each source writes them its own way: as a JSON object in a JSONL or JSON
+collection, as attributes and elements in an XML collection (see
+[formats.md](formats.md)), or as a source program keeps them. Everything
+after reading the items (kinds, cards, scheduling, the log, selectors) is
+the same for every source.
 
 ## Header entries
 
@@ -28,14 +29,13 @@ same for every source.
 |---|---|---|
 | `id` | The item's ID (see "Identity"). | none: an item without an ID is an error until `srl id` gives it one |
 | `kind` | How the fields become cards (see [cards.md](cards.md), "Kinds"). | `qa` |
-| `see` | The address of the collection shown as context instead of the one the item is in (see "Context"). | the item's own collection |
+| `see` | The path of the note shown as the item's context (see "Context"). | no context |
 | `draft` | The item is a draft (see "Status"). | not a draft |
 
-How they are written depends on the source: `id:x7k2m9` on a fence or an
-`@` line in a Markdown note (see [notes.md](notes.md), "The srl block
-syntax"), `"id": "x7k2m9"` in an item object (see "The item object"). In
-every source, each entry may be given once, and a misspelled one is an
-error.
+How they are written depends on the source: `"id": "x7k2m9"` in an item
+object (see "The item object"), `id="x7k2m9"` on an `<item>` of an XML
+collection (see [formats.md](formats.md), "XML"). In every source, each
+entry may be given once, and a misspelled one is an error.
 
 ## Fields
 
@@ -65,11 +65,12 @@ kind (see [cards.md](cards.md), "Kinds"). An item has at least one field.
   the item's: `x7k2m9`, or `p4n8d2.1` and `p4n8d2.2` (see
   [cards.md](cards.md), "Card IDs"). Because an item ID never contains `.`,
   a card ID always names its item.
-- **An item's line is for people only.** `ADDRESS:LINE` in listings and
-  messages, and `line` in JSON, say where the item starts, as near as its
-  source can say, or nothing when it can't. `srl` never finds an item by
-  its line: commands that change an item find it by its ID in its
-  collection as it is (see "How srl changes items").
+- **An item is named by its ID and its collection's address**, never by
+  where it is in its collection: listings and messages give the address,
+  and commands that change an item find it by its ID in its collection as
+  it is (see "How srl changes items"). An item without an ID yet is named
+  in messages by its position among its collection's items, counting
+  from 1: `item 3`.
 - **Editing an item never resets its cards.** `srl reset` is the way to
   start over. When an edit makes a card disappear, its history is kept in
   the log, and `srl move` can give it to another card (see
@@ -99,46 +100,33 @@ gives it as `suspend_reason`.
 
 ## Context
 
-An item's **context** is the collection named by `see` if the item has
-one, and otherwise the collection the item is in, **as its source shows
-it**. Frontends show it after the answer of each of the item's cards,
-taking it from `srl next --json`; `srl show` prints it too.
+An item's **context** is the **note** its `see` names: a file of study
+material, such as your Markdown notes on what the item asks about.
+Frontends show it after the answer of each of the item's cards, taking it
+from `srl next --json`; `srl show` prints it too. **An item without `see`
+has no context**: a collection is data, and is never shown as context.
 
-- `see` is the address of a collection of the store, of any source: for
-  a note of a source without a prefix, its path relative to the store's
-  folder. A `see` that names anything else is an error. What a collection
-  shows as context is up to its own source, whatever source the item
-  comes from (see [sources.md](sources.md), "What a source does").
-- `see` is meant for items that ask about another collection, such as
-  items a script imported or generated into a collection of their own.
+**Notes are the files of the store that `[context]` allows** (see
+[store.md](store.md), "Configuration"): by default every Markdown and
+text file (`**/*.md` and `**/*.txt`), outside folders whose name starts
+with `.`. `srl notes` lists them. A note may be a file of any format, and
+holds no items: `srl` never reads items from it, and shows it whole.
 
-The context is given in one of three **modes**. How much of a collection
-to show is a choice of whoever shows it, so the mode is not a setting of
-the store: each frontend chooses it with `--context MODE` on `srl next`,
-and `srl show` takes the same flag. Without it, the mode is `prose`.
+- `see` is a note's path, relative to the store's folder, with `/`
+  between folders: `japanese/grammar/wo-mono-tomo-sezu.md`. **A `see`
+  that names anything else is an error**: a path `[context]` doesn't
+  allow, such as a collection of items, or a file that doesn't exist.
+- The context is the note's text as it is, without a UTF-8 byte order
+  mark, read when it is shown. **A note that isn't UTF-8, or holds
+  nothing but blank space, has no text to give**: `context` is `null` in
+  JSON, and a frontend that wants to show it, such as an image or a PDF,
+  reads the file named by `see` itself.
+- Whoever shows the context chooses whether to: `srl next` and `srl show`
+  take `--no-context`, which leaves it out without reading the note.
 
-| Mode | Shows |
-|---|---|
-| `prose` | The collection without its items: what is written around them, for people. |
-| `full` | The collection with its items. |
-| `none` | Nothing. |
-
-What each mode shows of a collection is up to its source: for the notes
-of the built-in drivers, see [notes.md](notes.md), "Context"; a source
-program gives its own (see [sources.md](sources.md), "Calls"). A source
-may have no context to give for a collection, as a JSONL note has none in
-mode `prose`.
-
-**A context with nothing but blank space left is no context**, exactly as
-in mode `none`: frontends show nothing, and `context` is `null` in JSON. So
-a collection that holds only items has no context in `prose` mode.
-
-**A context comes with the address of its collection**, given as
-`context_address` in JSON: the collection named by `see`, or else the
-item's own collection. It is `null` when `context` is `null`. `srl` doesn't
-say how to read the text: whoever shows it decides that from the address, as
-it likes, with any fallbacks it wants (see [frontends.md](frontends.md),
-"Rendering").
+`srl` doesn't say how to read the text: whoever shows it decides that
+from the path in `see`, as it likes, with any fallbacks it wants (see
+[frontends.md](frontends.md), "Rendering").
 
 ## How srl changes items
 
@@ -166,14 +154,15 @@ Every other command only reads items. The rules, for every source:
    it, the command stops and says so; changes written before stay
    written, and running it again finishes the work.
 3. **Every change is reported.** `srl id` prints one line per item it gave
-   an ID: the ID and `ADDRESS:LINE`, separated by two spaces. `srl accept`,
+   an ID: the ID and the address, separated by two spaces. `srl accept`,
    `srl add` and `srl edit` print the IDs of the items they changed or
    added (see [cli.md](cli.md)). With `--dry-run` they write nothing, and
    print the same (`srl add`: the items as their source would add them).
 
-How a source writes its changes is its own: the built-in drivers change
-only the lines of the items changed, and write atomically (see
-[notes.md](notes.md), "How srl writes to notes"); a source program writes
+How a source writes its changes is its own: the `filesystem` driver keeps
+each file as close to how it was as its format allows, and writes
+atomically (see [formats.md](formats.md), "How srl writes to
+collections"); a source program writes
 its own way, and `srl` reads it again to check the result (see
 [sources.md](sources.md), "What srl checks"). `srl add`, `srl edit` and
 their formats are described in [cli.md](cli.md).
@@ -181,12 +170,15 @@ their formats are described in [cli.md](cli.md).
 ## Errors
 
 Every command that reads items reads every source, and **any error in any
-source stops it**: it reports every error it found, as `ADDRESS:LINE: message`
-(`ADDRESS: message` where there is no line) on standard error, one per
-line, in the order of the addresses and their lines, and exits with
-status 2. The errors are those of each source's format (for the notes of
-the built-in drivers, see [notes.md](notes.md), "Errors"), and, for every
-source:
+source stops it**: it reports every error it found on standard error, one
+per line, in the order of the addresses and the items in them, and exits
+with status 2. An error of an item is `ADDRESS: item ID: message`, or
+`ADDRESS: item N: message` for an item read without a valid ID, by its
+position; an error of a collection is `ADDRESS: message`, where the
+message says where in the collection it is, when its source can, such as
+`ADDRESS: line 3: message`. The errors are those of each source's format
+(for the `filesystem` driver, see [formats.md](formats.md), "Errors"),
+and, for every source:
 
 - an unknown, repeated or empty header entry;
 - an item without an ID (`srl id` fixes it), an invalid ID, or an ID that
@@ -194,13 +186,13 @@ source:
 - a field name written twice in one item, whatever its kind;
 - an unknown kind, or fields that the kind doesn't accept (see
   [cards.md](cards.md));
-- a kind program that fails as a whole, reported once, without a line
-  (see [cards.md](cards.md), "How srl calls them");
+- a kind program that fails as a whole, reported once, without an
+  address (see [cards.md](cards.md), "How srl calls them");
 - a source program that fails as a whole or prints invalid output,
   reported once, as a problem of the source (see [sources.md](sources.md),
   "What srl checks");
 - an item in a collection its source doesn't list;
-- a `see` that doesn't name a collection of the store;
+- a `see` that doesn't name a note (see "Context");
 - a collection that breaks a rule of addresses (see
   [sources.md](sources.md), "Addresses"), reported as `ADDRESS: message`.
 
@@ -217,7 +209,8 @@ fixes. `srl check` reports the same errors and more (see [cli.md](cli.md)).
 The **item object** is an item as one JSON object: its header entries and
 its fields side by side. It is the one JSON form of an item everywhere:
 
-- a line of a JSONL note (see [notes.md](notes.md), "The JSONL syntax");
+- a line of a JSONL collection and an element of a JSON collection (see
+  [formats.md](formats.md));
 - a line of `srl add --stdin` and of `srl edit --stdin` (see
   [cli.md](cli.md));
 - what `srl show --json` prints, with every entry and the keys only `srl`
@@ -229,13 +222,12 @@ So what `srl show --json` prints can be changed and given back to `srl
 edit --stdin` as it is.
 
 ```json
-{"id": "p4n8d2", "kind": "qa", "see": null, "draft": false,
+{"id": "p4n8d2", "kind": "qa",
+ "see": "japanese/grammar/wo-mono-tomo-sezu.md", "draft": false,
  "Q": "嵐を{{c1::ものともせず}}、漁師たちは海へ出た。",
- "address": "japanese/grammar/wo-mono-tomo-sezu.md", "source": "notes",
- "file": "japanese/grammar/wo-mono-tomo-sezu.md", "line": 11,
+ "address": "japanese/grammar.jsonl", "source": "items",
  "cards": ["p4n8d2.1"],
- "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
- "context_address": "japanese/grammar/wo-mono-tomo-sezu.md"}
+ "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
 ```
 
 Its keys:
@@ -244,10 +236,10 @@ Its keys:
 |---|---|
 | `id` | The item's ID, as text. |
 | `kind` | The kind's name, as text. `"qa"` is the same as leaving it out. |
-| `see` | The address of the collection shown as context, as text. `null` is the same as leaving it out. |
+| `see` | The path of the note shown as context, as text. `null` is the same as leaving it out. |
 | `draft` | `true` or `false`. `false` is the same as leaving it out. |
 | a field name (see "Fields") | The field's text. |
-| `address`, `source`, `file`, `line`, `cards`, `context`, `context_address` | Given by `srl` only (see below), and ignored wherever an item object is read. |
+| `address`, `source`, `cards`, `context` | Given by `srl` only (see below), and ignored wherever an item object is read. |
 
 - Header entries are lowercase and field names uppercase, so they never
   clash. Any other key is an error, so a typo such as `drfat` fails
@@ -261,17 +253,9 @@ Its keys:
 `srl show --json` prints every entry, defaults included, its fields, then
 the keys only `srl` gives:
 
-- `address` is the address of the collection the item is in, `source`
-  the name of its source, `file` the file the collection is kept in
-  (`null` when it is no file of its own, as for a table of a database),
-  and `line` the line where the item starts, counting from 1, as its
-  source gives it (for the notes of the built-in drivers, see
-  [notes.md](notes.md), "An item's line"), or `null` for an item of a
-  source that gives no line (see [sources.md](sources.md), "Source
-  programs").
+- `address` is the address of the collection the item is in, and
+  `source` the name of its source.
 - `cards` lists the IDs of the item's cards, in order.
-- `context` is the context in the mode chosen, or `null` when there is
-  none (mode `none`, a collection with nothing to show in that mode, or
-  nothing but blank space left).
-- `context_address` is the address of the collection the context comes
-  from, or `null` when `context` is (see "Context").
+- `context` is the text of the note `see` names, or `null` when there is
+  none: no `see`, `--no-context`, or a note that isn't UTF-8 or holds
+  nothing but blank space (see "Context").

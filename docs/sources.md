@@ -8,131 +8,115 @@ how they are written, is each source's business, and no other part of
 `srl` knows it.
 
 A store has the sources its configuration names. Without any, it has one,
-`notes`, which reads every Markdown file of the store as a note of srl
-blocks: a store of Markdown notes needs no configuration, and the words
-of this document only show once it has more than notes.
+`items`, which reads the structured files of the store, JSONL and XML, as
+collections of items (see [formats.md](formats.md)).
+
+Sources hold items only. The study material items ask about, the notes
+they name with `see`, is not read through sources: it is any file of the
+store that `[context]` allows (see [items.md](items.md), "Context").
 
 ## Terms
 
 | Term | Meaning |
 |---|---|
-| **Source** | A named place items are read from and written to, configured as `[sources.NAME]`: `notes`, `data`, `vocab`. |
-| **Driver** | What a source is: `markdown`, notes of srl blocks, or `jsonl`, notes of JSON lines (see [notes.md](notes.md)), or a **source program** that keeps items its own way (see "Source programs"). A source is a driver with its settings; two sources may use the same driver with different settings. |
-| **Collection** | A group of items inside a source, named by its source: for the notes' drivers, a note, named by its path; for a program, whatever it groups items in, such as a table. Collections are written like paths, with `/` between parts. |
-| **Prefix** | Where a source is mounted in the store's one tree of addresses: `""` by default, or folders ending in `/`, such as `"vocab/"`. |
-| **Address** | The name of a collection everywhere outside its source: its source's prefix followed by the collection's name. `japanese/grammar/wo.md` for a note of a source without a prefix. |
-| **File** | The file a collection is kept in, relative to the store's folder, when it is a file of its own, as a note is. Only for people and editors. |
+| **Source** | A named place items are read from and written to, configured as `[sources.NAME]`: `items`, `generated`, `vocab`. |
+| **Driver** | What a source is: `filesystem`, collections that are files of the store (see [formats.md](formats.md)), or a **source program** that keeps items its own way (see "Source programs"). A source is a driver with its settings; two sources may use the same driver with different settings. |
+| **Collection** | A group of items inside a source, named by its source: for `filesystem`, a file, named by its path; for a program, whatever it groups items in, such as a table. Collections are named like paths, with `/` between parts. |
+| **Address** | The name of a collection everywhere outside its source: the collection's name, as its source gives it. `japanese/grammar.jsonl` for a file of a `filesystem` source. |
 
 ## Configuration
 
 ```toml
-[sources.notes]
-driver = "markdown"
-include = ["**/*.md"]
-exclude = ["templates/**"]
+[sources.items]
+driver = "filesystem"
+exclude = ["generated/**"]
 
-[sources.data]
-driver = "jsonl"
+[sources.generated]
+driver = "filesystem"
 include = ["generated/**/*.jsonl"]
+
+[sources.vocab]
+program = ["python3", "sources/tinydb_source.py"]
+database = "vocab/vocab.json"    # every key but program is the program's
 ```
 
 Each table of `[sources]` is a source, and its key is the source's name:
-words of lowercase letters `a`–`z` and digits, joined by single `-`, as an
-item ID is. A source's keys:
+words of lowercase letters `a`–`z` and digits, joined by single `-`, as
+an item ID is. **Each driver has its own keys**, and a key it doesn't take
+is an error, so a typo fails instead of being ignored:
 
-| Key | Value | Default |
-|---|---|---|
-| `driver` | `markdown` or `jsonl`. | none: every source has a `driver` or a `program` |
-| `program` | Instead of `driver`: the command of a source program, a list of the program and its arguments (see "Source programs"). | none |
-| `include` | Globs of the notes the source reads, relative to the store's folder: `*` matches within one folder, `**` across folders. | `["**/*.md"]` for `markdown`, `["**/*.jsonl"]` for `jsonl` |
-| `exclude` | Globs of notes to leave out; they win over `include`. | `[]` |
-| `prefix` | The source's place among the store's addresses (see "Addresses"). | `""` |
+| Driver | Keys |
+|---|---|
+| `filesystem` | `driver = "filesystem"`; `include`, globs of the files it reads, relative to the store's folder (`*` matches within one folder, `**` across folders), by default `["**/*.jsonl", "**/*.xml"]`; and `exclude`, globs of files to leave out, which win over `include`, by default `[]`. |
+| source program | `program`, the command of the program, a list of the program and its arguments; every other key is the program's, which `srl` gives it and the program checks (see "Source programs"). |
 
-- **Without `[sources]`, a store has one source**, `notes`, with driver
-  `markdown` and the defaults above: every Markdown file is a note.
-  `[sources]` replaces it rather than adding to it, so a store with notes
-  and JSONL notes names both:
-  `[sources.notes]` with `driver = "markdown"`, and `[sources.data]` with
-  `driver = "jsonl"`.
-- **Which files are notes** is said in [notes.md](notes.md), "Which files
-  are notes": those `include` matches and `exclude` doesn't, outside
-  folders whose name starts with `.`.
-- A key that is not listed is an error, so a typo fails instead of being
-  ignored, and so is a glob that isn't valid, a name or prefix that isn't
-  made as above, and a source without a `driver` or a `program`, or with
-  both. A source program's keys are the exception: see "Source programs".
-- A table `[notes]` is an error, whose message says how to write it as
-  `[sources.NAME]` tables.
+- **Without `[sources]`, a store has one source**, `items`, with driver
+  `filesystem` and the defaults above. `[sources]` replaces it rather
+  than adding to it.
+- **Which files a `filesystem` source reads** is said in
+  [formats.md](formats.md), "Which files are collections".
+- A glob that isn't valid is an error, and so is a name that isn't made
+  as above, and a source without a `driver` or a `program`, or with both.
+- **What is gone is refused with what replaced it:** `prefix` (sources
+  are not mounted at prefixes; see "Addresses"), `driver = "markdown"` and
+  `driver = "jsonl"` (one `filesystem` driver reads every format, and
+  Markdown is study material, not items), and a table `[notes]`.
 
 ## Addresses
 
-**A store is one tree of addresses, and each source is mounted in it at
-its prefix**, the way Unix mounts file systems in one tree of folders.
-Every collection is reached by an address, whatever its driver, and
-`srl collections` lists the tree. The default prefix is `""`, so a store
-of notes is mounted at the root and its addresses are the notes' paths.
+**Every collection of the store has an address**: its name, as its source
+gives it. A `filesystem` source names a collection by its path, relative
+to the store's folder, and a source program by whatever it chooses, such
+as the name of a table. `srl collections` lists every address, with the
+source that gives it.
 
 The rules, the same for every source:
 
-1. **A prefix is `""` or folders ending in `/`**: `"vocab/"`,
-   `"db/jp/"`. A prefix that ends inside a name, such as `"voc"`, is an
-   error, so a prefix always names whole folders of the tree.
-2. **An address belongs to the sources mounted deepest above it**: those
-   whose prefix is the longest one the address starts with. **A source
-   that gives an address under another source's deeper prefix is an
-   error**, naming both: with `notes` at `""` and a source at
-   `"vocab/"`, a note `vocab/readme.md` of `notes` is one. Unix would
-   quietly hide the folder under the mount point; `srl` says so instead,
-   and you leave the note out of `notes` with `exclude`, or mount the
-   other source elsewhere.
-3. **Sources may share a prefix**, as two sources of notes at `""` do;
-   they share that part of the tree, and **no address may be given by two
-   sources**. So a file that two sources' globs both match is an error.
-4. **No two collections may be the same file.** It catches two sources
-   reading one note under different prefixes.
-5. **A prefix needs no folder on disk.** A folder with its name may
-   exist, and only matters when a source reads notes in it, which rule 2
-   reports.
-6. **An address never holds a line.** Every item of a collection has the
-   same address, and items are told apart by their IDs. Where `srl`
-   prints `ADDRESS:LINE` for people, the `:LINE` is added for display;
-   `see`, `srl add` and `path:` take addresses alone.
+1. **No address may be given by two sources.** Two `filesystem` sources
+   whose globs match the same file, or a program that names a collection
+   as a file of another source is named, break it; leave the collection
+   out of one of them with `exclude`, or have the program name its
+   collections otherwise, such as under a folder of its own, `vocab/`.
+2. **An address never names an item.** Every item of a collection has the
+   same address, and items are told apart by their IDs. `see`, `srl add`,
+   `in:` and `path:` take addresses alone.
 
-A collection that breaks one of these rules is an error in the store
-(see [items.md](items.md), "Errors"): it stops every command that reads
-items, and `srl check` reports it, as `ADDRESS: message`.
+A collection that breaks a rule is an error in the store (see
+[items.md](items.md), "Errors"): it stops every command that reads items,
+and `srl check` reports it, as `ADDRESS: message`.
 
-**A new collection**, for `srl add`, is created in the source mounted
-deepest above its address that accepts it: for both drivers, a note whose
-path, after the prefix, `include` matches and `exclude` doesn't. Exactly
-one source must accept it; none or several is an error.
+**A new collection**, for `srl add`, is created in the one source that
+accepts its address: for `filesystem`, a path that `include` matches and
+`exclude` doesn't, in a format it knows by its extension; for a program,
+a name that the globs of its `describe` match. Exactly one source must
+accept it; none or several is an error.
 
 ## What a source does
 
 Every source does the same few things, each its own way:
 
-- **It lists its collections**, including those without items: for both
-  drivers, its notes.
-- **It reads its items**, each with its collection, the line where it
-  starts if it can say, and the item as written, and the problems it
-  finds (see [items.md](items.md), "Errors").
-- **It shows a collection as context**, to the collection's own items and
-  to the items that name it with `see`, wherever they come from: the
-  context of an item is always asked of the source that owns the
-  collection shown, found by its address, so each collection is shown by
-  its own source's rules (see [items.md](items.md), "Context").
+- **It lists its collections**, including those without items.
+- **It reads its items**, each with its collection, the item as written,
+  if it gives it, and the item object, and the problems it finds (see
+  [items.md](items.md), "Errors"). A problem is about a collection, and
+  says where in it, as the source can.
 - **It makes changes**: it adds items to a collection, creating it if
   needed, and replaces items. It is given each item to replace as it was
   read, and refuses to change an item that is no longer as it was, since
   someone changed it in between. Every change to a source is made and
   checked before anything is written (see [items.md](items.md), "How srl
   changes items").
-- **It looks for likely mistakes**, for `srl lint`.
 - **It describes itself**, for `srl sources`: what it is, and which
-  collections `srl add` may create in it, as globs: a driver's `include`
-  and `exclude`, or the globs a source program's `describe` gives. `srl
-  sources` gives its driver as `markdown`, `jsonl`, or `program` for a
-  source program.
+  collections `srl add` may create in it, as globs: the `filesystem`
+  source's `include` and `exclude`, or the globs a source program's
+  `describe` gives. `srl sources` gives its driver as `filesystem`, or
+  `program` for a source program.
+
+A source doesn't show its collections as context, and doesn't look for
+likely mistakes in them: context is a file `see` names (see
+[items.md](items.md), "Context"), and a source reports what it finds as
+problems of `read`, which `srl check` lists with the likely mistakes it
+finds in every item (see [cli.md](cli.md), "Checking").
 
 **IDs are unique in the store**, across its sources, and not across
 stores: each store has its own log, which knows card IDs only.
@@ -143,25 +127,29 @@ their collections (see [cli.md](cli.md)).
 ## Source programs
 
 A source can be a program, which keeps items its own way: in a database,
-behind a web service, in a file format `srl` doesn't know. It is
-configured like a kind program (see [cards.md](cards.md), "Kind
-programs"):
+behind a web service, in a file format `srl` doesn't know, such as items
+written in Markdown notes. It is configured like a kind program (see
+[cards.md](cards.md), "Kind programs"):
 
 ```toml
 [sources.vocab]
 program = ["python3", "sources/tinydb_source.py"]
-prefix = "vocab/"
-database = "vocab/vocab.json"    # every key but program and prefix is the program's
+database = "vocab/vocab.json"    # every key but program is the program's
 ```
 
 - **`program` is a command**, as in `[kinds]`: the same rules for paths,
   for finding a program on `PATH`, and the store's folder as the folder it
   runs in. A store runs the programs its configuration names, with your
   rights: read the `[sources]` of a store you copy from someone else.
-- **Every key but `program` and `prefix` is the program's.** `srl` gives
-  them to it, as a JSON object, in every call, and checks nothing in them:
-  the program checks them, and a call that fails because of them is
-  reported with the program's message.
+- **Every key but `program` is the program's.** `srl` gives them to it,
+  as a JSON object, in every call, and checks nothing in them: the
+  program checks them, refusing the keys it doesn't take, and a call that
+  fails because of them is reported with the program's message.
+- **A program names its collections as it likes**, as paths with `/`
+  between parts: those are their addresses. A program that may share a
+  store with files of a `filesystem` source names its collections so that
+  they can't be taken for a file, such as under a folder of its own, or
+  takes the folder in its settings.
 
 ### Calls
 
@@ -177,24 +165,19 @@ with every process it started, when `srl` is stopped (see
 | Call | Input | Output |
 |---|---|---|
 | `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "creates": ["*"]}`: what the source is, in a sentence, and the globs of the collections `srl add` may create in it (`[]` for none), which `srl sources` shows as its `include` |
-| `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words", "file": null}`, `file` being the file it is kept in, relative to the store's folder, or `null` |
-| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "line": null, "written": null, "item": {…}}`; one line per problem: `{"collection": "words", "line": null, "error": "…"}` |
-| `context` | one line per request: `{"config": {…}, "collection": "words", "mode": "prose", "own": true}` | one line per input line: `{"context": "…"}` or `{"context": null}` |
-| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, or `{…, "op": "replace", "collection": "words", "handle": "17", "before": {…}, "after": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
+| `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "vocab/words"}` |
+| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "vocab/words", "handle": "17", "written": null, "item": {…}}`; one line per problem: `{"collection": "vocab/words", "error": "…"}` |
+| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "vocab/words", "item": {…}}`, or `{…, "op": "replace", "collection": "vocab/words", "handle": "17", "before": {…}, "after": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
 
 - **`read`** gives every item with its collection; its `handle`, what
   names it when it is changed, unique in the source, such as a key of a
-  database; its `line`, from 1, or `null`; `written`, the item as the
-  program writes it, for `srl show`, or `null`, which shows its item
-  object; and `item`, its item object (see [items.md](items.md), "The
-  item object"), read as strictly as `srl add` reads one. An item may
-  come without an `id`, for `srl id` to give it one: a program never makes
-  IDs itself. A problem is reported as an error in the store, at its
-  collection and line.
-- **`context`** gives what a collection shows as context, to its own
-  items (`own` is `true`) or to the items that name it with `see`, in
-  mode `prose` or `full` (see [items.md](items.md), "Context"). Mode
-  `prose` never shows items, in any source.
+  database; `written`, the item as the program writes it, for `srl show`,
+  or `null`, which shows its item object; and `item`, its item object
+  (see [items.md](items.md), "The item object"), read as strictly as `srl
+  add` reads one. An item may come without an `id`, for `srl id` to give
+  it one: a program never makes IDs itself. A problem is reported as an
+  error in the store, at its collection; a program says in its message
+  where in the collection it is, if that helps.
 - **`write`** gets every change one command makes to the source, in one
   call. An `item`, `before` or `after` is an item object as `srl` writes
   one. A program refuses a `replace` when the item under the handle is no
@@ -203,11 +186,10 @@ with every process it started, when `srl` is stopped (see
   `srl accept` are `replace`s too, whose `after` adds an `id` or removes
   `draft`.
 - `read` and `collections` answer one input with any number of lines;
-  `describe`, `context` and `write` answer each input line with one line,
-  in order.
+  `describe` and `write` answer each input line with one line, in order.
 
-There is no `lint` call: a program reports what it can as problems of
-`read`.
+There is no call for context, since context is a file of the store, nor
+for likely mistakes: a program reports what it can as problems of `read`.
 
 ### How many calls
 
@@ -217,14 +199,13 @@ many items or cards it handles, never once per item or per card:
 | Command | Calls |
 |---|---|
 | every command that reads items | 1 `collections` and 1 `read` |
-| `next`, `show` and `cards`, when a context is shown | 1 `context`, for every item that needs one |
 | `add`, `edit`, `accept`, `id` | 1 `write` for the changes to the source, with 1 `read` before it and 1 after it, to verify it |
 | `add` to a new collection | 1 `describe` |
 | `collections` | 1 `collections` |
 | `sources` | 1 `describe` |
 
 So studying a card, `srl next` and then `srl review`, starts a program
-about five times. `srl` keeps nothing a program answers: it can't know
+about four times. `srl` keeps nothing a program answers: it can't know
 when a database or a service changed. A program that is slow to answer,
 such as one that asks a web service, may keep a cache of its own,
 wherever it chooses, and is responsible for its freshness.
@@ -234,11 +215,11 @@ wherever it chooses, and is responsible for its freshness.
 - **Every line a program prints is read strictly**: a line that is not a
   JSON object, a key a call doesn't give, a value of the wrong type, an
   item object that isn't valid, a collection's name that isn't parts
-  joined by `/` (none empty or starting with `.`), a line below 1, a
-  handle given twice in one `read`, or a wrong number of lines is a
-  failure of the program. So is a call that fails as a whole. Either is
-  reported once, as a problem of the source, and stops every command that
-  reads items until it is fixed.
+  joined by `/` (none empty or starting with `.`), a handle given twice in
+  one `read`, or a wrong number of lines is a failure of the program. So
+  is a call that fails as a whole. Either is reported once, as a problem
+  of the source, and stops every command that reads items until it is
+  fixed.
 - **An item in a collection the source doesn't list** is an error in the
   store, as is breaking a rule of "Addresses".
 - **After `write`, `srl` reads the source again**: every item not changed

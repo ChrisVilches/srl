@@ -17,19 +17,20 @@ mod process;
 mod source;
 mod store;
 
-pub use app::catalog::{Catalog, CollectionInfo, Creates, SourceDescription, collections, sources};
-pub use app::check::{Lint, lint, orphans};
+pub use app::catalog::{
+    Catalog, CollectionInfo, Creates, SourceDescription, collections, notes, sources,
+};
+pub use app::check::{Warning, orphans, warnings};
 pub use app::next::next;
 pub use app::review::{ReviewRequest, move_history, reset, review, suspend, unsuspend};
 pub use app::write::{Added, Written, accept, add, assign_ids, edit};
 pub use config::Config;
 pub use domain::card::{Card, CardId, SUFFIX_SEPARATOR};
-pub use domain::context::{Context, ContextMode};
 pub use domain::item::{Field, Item, ItemId};
 pub use domain::schedule::{History, Memories, Memory, Place, Reviewed, Seen};
 pub use domain::selector::{Selector, Status};
 pub use domain::stats::{ScheduleCounts, Stats, stats};
-pub use error::{Error, Result, at};
+pub use error::{Error, Result, Spot};
 pub use index::Index;
 pub use kind::{FieldDescription, Kind, KindDescription, kinds};
 pub use log::{By, CardEvent, Entry, Event, Log, Move, Review, Suspend};

@@ -328,24 +328,24 @@ mod tests {
     use crate::app::catalog::read_items;
     use crate::{By, Config, Entry, Event, Log, Review};
 
-    /// The notes of the tests, with their items.
+    /// The collections of the tests, with their items.
     fn items() -> Vec<Item> {
         let notes = [
             (
-                "japanese/Grammar/wo.md",
-                "```srl id:aaa1\nQ: 〜をものともせず?\nA: Undeterred by (adversity).\n```\n",
+                "japanese/Grammar/wo.jsonl",
+                "{\"id\": \"aaa1\", \"Q\": \"〜をものともせず?\", \"A\": \"Undeterred by (adversity).\"}\n",
             ),
             (
-                "japanese/n5.md",
-                "```srl id:aaa2\nQ: {{c1::です}} {{c2::ます}}\n```\n",
+                "japanese/n5.jsonl",
+                "{\"id\": \"aaa2\", \"Q\": \"{{c1::です}} {{c2::ます}}\"}\n",
             ),
             (
-                "kanji/food.md",
-                "```srl id:aaa3 draft\nQ: 鮪\nA: Tuna.\n```\n",
+                "kanji/food.jsonl",
+                "{\"id\": \"aaa3\", \"draft\": true, \"Q\": \"鮪\", \"A\": \"Tuna.\"}\n",
             ),
             (
-                "rust/ownership/move.md",
-                "```srl id:aaa4\nQ: Move semantics?\nA: Ownership MOVES on assignment.\n```\n",
+                "rust/ownership/move.jsonl",
+                "{\"id\": \"aaa4\", \"Q\": \"Move semantics?\", \"A\": \"Ownership MOVES on assignment.\"}\n",
             ),
         ];
         notes
@@ -410,8 +410,8 @@ mod tests {
 
     #[test]
     fn source_matches_the_items_of_named_sources_of_the_store() {
-        assert_eq!(pick("source:notes").len(), 5);
-        assert_eq!(pick("-source:notes"), Vec::<String>::new());
+        assert_eq!(pick("source:items").len(), 5);
+        assert_eq!(pick("-source:items"), Vec::<String>::new());
         assert!(Selector::parse("source:nope", &Config::default()).is_err());
     }
 
@@ -421,7 +421,7 @@ mod tests {
         assert_eq!(pick("in:japanese"), ["aaa1", "aaa2.1", "aaa2.2"]);
         assert_eq!(pick("in:food"), ["aaa3"]);
         assert_eq!(pick("in:foo"), Vec::<String>::new());
-        assert_eq!(pick("in:wo.md"), Vec::<String>::new());
+        assert_eq!(pick("in:wo.jsonl"), Vec::<String>::new());
     }
 
     #[test]
@@ -550,8 +550,8 @@ mod tests {
     #[test]
     fn names_match_whatever_unicode_form_they_are_in() {
         let (items, _) = read_items(
-            "cafe\u{301}/x.md",
-            "```srl id:abc\nQ: q\nA: a\n```\n",
+            "cafe\u{301}/x.jsonl",
+            "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\n",
             &crate::kind::Programs::default(),
         );
         let item = &items[0];

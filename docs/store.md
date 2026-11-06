@@ -1,9 +1,12 @@
 # The store
 
 A **store** is a folder that `srl` studies from, usually your study
-folder, with the sources of its items: by default, its notes, Markdown
-files (see [sources.md](sources.md)). What makes it a store is a `.srl/`
-folder in it, which holds everything that belongs to `srl`. Everything outside `.srl/` is yours.
+folder, with the sources of its items, by default its collections,
+structured files of items (see [sources.md](sources.md)), and your notes,
+the study material items name as their context (see
+[items.md](items.md), "Context"). What makes it a store is a `.srl/`
+folder in it, which holds everything that belongs to `srl`. Everything
+outside `.srl/` is yours.
 
 You can have several stores, for example one per language or one for work.
 
@@ -19,23 +22,34 @@ study/
       .lock                held while an event is appended (see log.md)
     cache/                 derived data, safe to delete
       index.sqlite
-    tmp/                   temporary files of note writes (see notes.md)
+    tmp/                   temporary files of collection writes (see formats.md)
+  japanese/grammar.jsonl                    collections of items, in any folders
   japanese/grammar/wo-mono-tomo-sezu.md     your notes, in any folders
+  rust/ownership.xml
   rust/ownership.md
 ```
 
 | Path | Source of truth? | Written by |
 |---|---|---|
-| notes (`**/*.md` by default) | yes | you, any editor, scripts and other programs; `srl id`, `srl accept`, `srl add` and `srl edit --stdin` (see [notes.md](notes.md), "How srl writes to notes") |
+| collections (`**/*.jsonl` and `**/*.xml` by default) | yes | you, any editor, scripts and other programs; `srl id`, `srl accept`, `srl add` and `srl edit --stdin` (see [formats.md](formats.md), "How srl writes to collections") |
+| notes (`**/*.md` and `**/*.txt` by default) | yes | you, any editor, scripts and other programs; never `srl` |
 | `.srl/config.toml` | yes | you |
 | `.srl/log/` | yes | `srl review`, `srl reset`, `srl move`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |
 | `.srl/.gitignore` | no | `srl init`; yours to change |
 | `.srl/cache/` | no | `srl`, automatically |
-| `.srl/tmp/` | no | `srl`, while it writes a note |
+| `.srl/tmp/` | no | `srl`, while it writes a collection |
 
-Which files are notes is described in [notes.md](notes.md), "Which files
-are notes". Folders that start with `.` are never read for notes, so
-`.srl/` itself, `.git/` and similar folders are left alone.
+### Which files are read
+
+`srl` chooses files of the store by globs, relative to the store's
+folder, in two places: the collections of each `filesystem` source, by
+its `include` and `exclude` (see [formats.md](formats.md), "Which files
+are collections"), and the notes, by the `include` and `exclude` of
+`[context]` (see "Configuration"). Either way, **a file is chosen when a
+glob of `include` matches its path, no glob of `exclude` does, and it is
+not in a folder whose name starts with `.`**, so `.srl/` itself, `.git/`
+and similar folders are left alone. `*` matches within one folder, `**`
+across folders.
 
 ## Finding the store
 
@@ -71,25 +85,28 @@ character) and decomposed (NFD, `e` plus an accent). Most systems name files
 in NFC, but macOS often gives names in NFD, and a store copied between
 systems can hold both.
 
-- `srl` sorts addresses and matches them against `path:` and `in:`, and
-  matches note paths against `include` and `exclude`, in NFC, so the form
-  of a file's name never changes which cards a selector picks or their
-  order. Globs and `in:` values are read in NFC
-  too.
+- `srl` sorts addresses and matches them against `path:` and `in:`,
+  matches paths against `include` and `exclude`, and compares `see` with
+  the paths of notes, in NFC, so the form of a file's name never changes
+  which cards a selector picks or their order. Globs and `in:` values are
+  read in NFC too.
 - Paths are printed as they are on disk (in `--json` output and errors), so
   that they always name the file.
-- A note created by `srl add` gets the path you give it, as given.
+- A collection created by `srl add` gets the path you give it, as given.
 
 ## Configuration: `.srl/config.toml`
 
 Every key is optional. These are the defaults:
 
 ```toml
-[sources.notes]              # the one source of a store without [sources]
-driver = "markdown"          # notes of srl blocks; or "jsonl", notes of JSON lines
-include = ["**/*.md"]        # globs of notes, relative to the store's folder
-exclude = []                 # globs of notes to ignore; they win over include
-prefix = ""                  # where its collections are among the store's addresses
+[sources.items]              # the one source of a store without [sources]
+driver = "filesystem"        # collections that are files of the store; or program = [...]
+include = ["**/*.jsonl", "**/*.xml"]   # globs of collections, relative to the store's folder
+exclude = []                 # globs of files to ignore; they win over include
+
+[context]
+include = ["**/*.md", "**/*.txt"]      # notes: the files items may name with `see`
+exclude = []                 # files to leave out; they win over include
 
 [schedule]
 desired_retention = 0.9      # FSRS target probability of recall
@@ -123,22 +140,30 @@ of the program and its arguments. `qa` can't be one of them. How kind
 programs are run, and what `card_timeout` limits, is in
 [cards.md](cards.md), "Kind programs".
 
-`[sources]` names the sources of items, each with its driver, its
-globs of notes and its prefix, or with the command of a source program;
-without it, the store has the one source
-above. How sources are configured, and what each key means, is in
-[sources.md](sources.md), "Configuration":
+`[sources]` names the sources of items, each with its driver and its
+globs of collections, or with the command of a source program; without
+it, the store has the one source above. How sources are configured, and
+what each key means, is in [sources.md](sources.md), "Configuration".
+
+`[context]` chooses the notes: the files of the store that items may name
+with `see` as their context, your study material (see
+[items.md](items.md), "Context"). It is a setting of the store, not of a
+source, since an item of any source may name any note. `srl notes` lists
+them.
+
+In both, globs choose files as "Which files are read" says:
 
 - `include` replaces the default rather than adding to it:
-  `include = ["**/*.md", "**/*.txt"]` reads Markdown and text files,
-  `include = ["notes/**/*.md"]` only the Markdown files under `notes/`.
-  JSONL notes are read by a source of their own, such as
-  `[sources.data]` with `driver = "jsonl"` and
-  `include = ["items/**/*.jsonl"]` (see [notes.md](notes.md), "Item
-  syntaxes").
+  `include = ["**/*.md", "**/*.pdf"]` in `[context]` makes Markdown and
+  PDF files notes, and `include = ["notes/**"]` every file under
+  `notes/`; in a source, `include = ["items/**/*.jsonl"]` reads only the
+  JSONL collections under `items/`.
 - `exclude` always wins: `exclude = ["templates/**", "inbox.md"]` ignores
   every file under `templates/` and the file `inbox.md`, whatever
   `include` says.
+- The two may choose the same file, though there is rarely a reason to:
+  a collection can be a note, such as a JSONL file shown whole as the
+  context of the items that name it, when `[context]` includes it.
 
 ## The index cache
 
@@ -154,8 +179,9 @@ again.
 - **Every log file is still read on every use**, and compared with the
   cache by a hash of its content (BLAKE3). Modification times are never
   trusted. What the cache saves is replaying, not reading.
-- **Notes are not cached.** They are read and parsed on every use: parsing
-  a note costs about as much as hashing it would.
+- **Collections and notes are not cached.** Collections are read and
+  parsed on every use, since parsing a file costs about as much as hashing
+  it would, and a note is read only when it is shown.
 - **The log:** new lines are replayed on top of the cached memories when
   every log file the cache has read still starts with exactly the bytes it
   read (ending with a newline, unless nothing was added to that file), and
@@ -203,14 +229,15 @@ put the cache outside the store in that case.
 
 The store works well with git or any file syncing tool:
 
-- Item edits show as ordinary line diffs in your notes.
+- Item edits show as small diffs in your collections: a line of a JSONL
+  file, or an element of an XML file (see [formats.md](formats.md), "How
+  srl writes to collections").
 - The log is append-only, so it almost never conflicts on merge.
 - Everything `srl` writes that is not a source of truth is in `.srl/`, and
   `srl init` writes `.srl/.gitignore` to ignore it: the cache, the log's
-  lock (see [log.md](log.md)), and the temporary files of note writes (see
-  [notes.md](notes.md), "How srl writes to notes"). `srl` never writes
-  anything else outside `.srl/` but your notes, so the store needs no
-  `.gitignore` of its own for `srl`:
+  lock (see [log.md](log.md)), and the temporary files of collection
+  writes. `srl` never writes anything else outside `.srl/` but your
+  collections, so the store needs no `.gitignore` of its own for `srl`:
 
   ```gitignore
   cache/
@@ -218,7 +245,7 @@ The store works well with git or any file syncing tool:
   tmp/
   ```
 
-- Commit everything else: your notes, `.srl/config.toml`,
+- Commit everything else: your collections and notes, `.srl/config.toml`,
   `.srl/.gitignore` and `.srl/log/*.jsonl`. The log is your whole review history; without it, a
   clone starts every card as new.
 - Some sync tools skip folders whose names start with `.`. Check that yours

@@ -26,7 +26,7 @@
 //!
 //! The card made for suffix `S` has the prompt `S?`, the revealed prompt
 //! `S!`, and an answer that tells what the program got: the study day, the
-//! context and the address of its collection, and the name of the folder it
+//! context and the file `see` names, and the name of the folder it
 //! ran in.
 //!
 //! `describe` has no item, so an argument before the call decides it
@@ -222,7 +222,7 @@ fn make(input: &Value) -> Result<String, String> {
             "day {}; context {} ({}); in {folder}",
             get("day"),
             get("context"),
-            get("context_address")
+            get("see")
         ),
     })
     .to_string())

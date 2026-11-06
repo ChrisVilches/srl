@@ -31,8 +31,8 @@ fn at(day: i64, hour: u8) -> String {
     format!("{}T{hour:02}:00:00Z", date(day))
 }
 
-/// A person's store, made with `srl init`, with notes written by hand and
-/// given IDs with `srl id`.
+/// A person's store, made with `srl init`, with files written by hand,
+/// items given IDs with `srl id`.
 #[derive(Debug)]
 struct Store {
     tmp: TempDir,
@@ -40,15 +40,15 @@ struct Store {
 
 impl Store {
     #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
-    fn new(notes: &[(&str, &str)]) -> Self {
+    fn new(files: &[(&str, &str)]) -> Self {
         let store = Self {
             tmp: TempDir::new().unwrap(),
         };
         store.ok(&at(1, 9), &["init"]);
-        for (path, text) in notes {
+        for (path, text) in files {
             store.write(path, text);
         }
-        if !notes.is_empty() {
+        if !files.is_empty() {
             store.ok(&at(1, 9), &["id"]);
         }
         store
@@ -176,26 +176,21 @@ impl Store {
     }
 }
 
-const CAPITALS: &str = "# Capitals
+/// Four questions about capitals, about the notes of `NOTES`.
+const CAPITALS: &str = r#"{"see": "geography/capitals.md", "Q": "Capital of France?", "A": "Paris"}
+{"see": "geography/capitals.md", "Q": "Capital of Japan?", "A": "Tokyo"}
+{"see": "geography/capitals.md", "Q": "Capital of Chile?", "A": "Santiago"}
+{"see": "geography/capitals.md", "Q": "Capital of Kenya?", "A": "Nairobi"}
+"#;
 
-```srl
-@
-Q: Capital of France?
-A: Paris
+/// The person's notes about capitals, the context of `CAPITALS`.
+const NOTES: &str = "# Capitals\n\nThe seats of government of the world's countries.\n";
 
-@
-Q: Capital of Japan?
-A: Tokyo
-
-@
-Q: Capital of Chile?
-A: Santiago
-
-@
-Q: Capital of Kenya?
-A: Nairobi
-```
-";
+/// The collection `CAPITALS` and its notes, as a store holds them.
+const GEOGRAPHY: [(&str, &str); 2] = [
+    ("geography/capitals.jsonl", CAPITALS),
+    ("geography/capitals.md", NOTES),
+];
 
 /// The text of `object`'s field `key`, or "" if it has no such text.
 fn text(object: &Value, key: &str) -> String {
@@ -206,17 +201,17 @@ fn text(object: &Value, key: &str) -> String {
         .to_owned()
 }
 
-/// `count` questions, each in a block of its own.
+/// `count` questions, one item per line.
 fn questions(count: usize) -> String {
     (1..=count)
-        .map(|n| format!("```srl\nQ: Question {n}?\nA: Answer {n}\n```\n\n"))
+        .map(|n| format!("{{\"Q\": \"Question {n}?\", \"A\": \"Answer {n}\"}}\n"))
         .collect::<Vec<_>>()
         .concat()
 }
 
 #[test]
 fn a_first_session_studies_every_new_card_once_in_written_order() {
-    let store = Store::new(&[("geography/capitals.md", CAPITALS)]);
+    let store = Store::new(&GEOGRAPHY);
     let now = at(1, 19);
     let written = store
         .cards(&now)
@@ -227,6 +222,8 @@ fn a_first_session_studies_every_new_card_once_in_written_order() {
     let first = store.next(&now, &[]).unwrap();
     assert_eq!(first["prompt"], "Capital of France?");
     assert_eq!(first["answer"], "Paris");
+    assert_eq!(first["see"], "geography/capitals.md");
+    assert_eq!(first["context"], NOTES);
     assert_eq!(store.study(&now, 3), written);
     let stats = store.stats(&now);
     assert_eq!(stats["cards"], 4);
@@ -238,7 +235,7 @@ fn a_first_session_studies_every_new_card_once_in_written_order() {
 
 #[test]
 fn cards_known_well_come_back_at_growing_intervals() {
-    let store = Store::new(&[("geography/capitals.md", CAPITALS)]);
+    let store = Store::new(&GEOGRAPHY);
     let card = store.next(&at(1, 19), &[]).unwrap()["id"]
         .as_str()
         .unwrap()
@@ -266,7 +263,7 @@ fn cards_known_well_come_back_at_growing_intervals() {
 
 #[test]
 fn a_forgotten_card_is_due_the_next_day_before_any_new_card() {
-    let store = Store::new(&[("geography/capitals.md", CAPITALS)]);
+    let store = Store::new(&GEOGRAPHY);
     let now = at(1, 19);
     let france = store.next(&now, &[]).unwrap();
     let france = france["id"].as_str().unwrap();
@@ -283,7 +280,7 @@ fn a_forgotten_card_is_due_the_next_day_before_any_new_card() {
 
 #[test]
 fn new_cards_are_introduced_ten_a_day() {
-    let store = Store::new(&[("deck.md", &questions(15))]);
+    let store = Store::new(&[("deck.jsonl", &questions(15))]);
     assert_eq!(store.study(&at(1, 19), 3).len(), 10);
     assert_eq!(store.stats(&at(1, 19))["schedule"]["new"], 5);
     // The next day brings the other five; the first ten aren't due yet.
@@ -293,7 +290,7 @@ fn new_cards_are_introduced_ten_a_day() {
 
 #[test]
 fn a_session_past_midnight_belongs_to_the_day_it_began() {
-    let store = Store::new(&[("deck.md", &questions(15))]);
+    let store = Store::new(&[("deck.jsonl", &questions(15))]);
     let evening = store.study(&at(1, 23), 3);
     let after_midnight = at(2, 1);
     // Before day_starts_at (4:00), it is still the 1st: the limit is spent
@@ -309,8 +306,8 @@ fn a_session_past_midnight_belongs_to_the_day_it_began() {
 #[test]
 fn cloze_cards_of_one_item_are_introduced_one_a_day() {
     let store = Store::new(&[(
-        "japanese/kanji.md",
-        "```srl\nQ: {{c1::東京}}は{{c2::日本}}の{{c3::首都}}です。\nA: Tokyo is the capital of Japan.\n```\n",
+        "japanese/kanji.jsonl",
+        "{\"Q\": \"{{c1::東京}}は{{c2::日本}}の{{c3::首都}}です。\", \"A\": \"Tokyo is the capital of Japan.\"}\n",
     )]);
     let item = store.cards(&at(1, 19))[0]["item"]
         .as_str()
@@ -324,14 +321,19 @@ fn cloze_cards_of_one_item_are_introduced_one_a_day() {
 
 #[test]
 fn drafts_added_by_a_tool_are_studied_once_accepted() {
-    let store = Store::new(&[("geography/capitals.md", CAPITALS)]);
+    let store = Store::new(&GEOGRAPHY);
     let now = at(1, 19);
     store.study(&now, 3);
     let input = concat!(
         "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Peru?\", \"A\": \"Lima\"}\n",
         "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Egypt?\", \"A\": \"Cairo\"}\n",
     );
-    let added = store.expect(0, &now, &["add", "generated/capitals.md", "--stdin"], input);
+    let added = store.expect(
+        0,
+        &now,
+        &["add", "generated/capitals.jsonl", "--stdin"],
+        input,
+    );
     assert_eq!(added.lines().count(), 2);
     // Drafts wait for a person to look at them.
     assert!(store.next(&now, &[]).is_none());
@@ -342,29 +344,31 @@ fn drafts_added_by_a_tool_are_studied_once_accepted() {
     let studied = store.study(&now, 3);
     assert_eq!(studied.len(), 2);
     assert_eq!(
-        store.ok(&now, &["show", &studied[0], "--context", "none"]),
+        store.ok(&now, &["show", &studied[0], "--no-context"]),
         format!(
-            "generated/capitals.md:1\n```srl id:{} see:geography/capitals.md\nQ: Capital of Peru?\nA: Lima\n```\n",
+            "generated/capitals.jsonl\n{{\"id\":\"{}\",\"see\":\"geography/capitals.md\",\"Q\":\"Capital of Peru?\",\"A\":\"Lima\"}}\n",
             studied[0]
         )
     );
 }
 
 #[test]
-fn an_agents_questions_in_a_jsonl_note_are_studied_like_any_other() {
-    // The person keeps notes in Markdown, and lets the store read the
-    // JSONL notes an agent writes under generated/.
+fn an_agents_questions_are_studied_like_any_other() {
+    // The person keeps items of their own and notes in Markdown, and lets
+    // the store read the items an agent writes under generated/ as a
+    // source of their own.
     let store = Store::new(&[
-        ("geography/capitals.md", CAPITALS),
+        GEOGRAPHY[0],
+        GEOGRAPHY[1],
         (
             ".srl/config.toml",
-            "[sources.notes]\ndriver = \"markdown\"\n\n[sources.generated]\ndriver = \"jsonl\"\ninclude = [\"generated/**/*.jsonl\"]\n",
+            "[sources.mine]\ndriver = \"filesystem\"\nexclude = [\"generated/**\"]\n\n[sources.generated]\ndriver = \"filesystem\"\ninclude = [\"generated/**/*.jsonl\"]\n",
         ),
     ]);
     let now = at(1, 19);
     assert_eq!(store.study(&now, 3).len(), 4);
-    // The agent adds drafts to a JSONL note of its own: two about the
-    // person's note, and one that stands alone.
+    // The agent adds drafts to a collection of its own: two about the
+    // person's notes, and one that stands alone.
     let input = concat!(
         "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Peru?\", \"A\": \"Lima\"}\n",
         "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Egypt?\", \"A\": \"Cairo\"}\n",
@@ -378,19 +382,25 @@ fn an_agents_questions_in_a_jsonl_note_are_studied_like_any_other() {
     );
     let ids = added.lines().map(str::to_owned).collect::<Vec<_>>();
     assert_eq!(ids.len(), 3);
-    let note = store.read("generated/capitals.jsonl");
-    assert_eq!(note.lines().count(), 3);
+    let written = store.read("generated/capitals.jsonl");
+    assert_eq!(written.lines().count(), 3);
     assert!(
-        note.lines().all(|line| line.starts_with("{\"id\":")),
-        "{note}"
+        written.lines().all(|line| line.starts_with("{\"id\":")),
+        "{written}"
+    );
+    assert!(
+        store
+            .ok(&now, &["find", "source:generated"])
+            .lines()
+            .all(|line| line.contains("generated/capitals.jsonl"))
     );
     // Drafts wait for the person, who accepts them all.
     assert!(store.next(&now, &[]).is_none());
     assert_eq!(store.ok(&now, &["find", "is:draft"]).lines().count(), 3);
     store.ok(&now, &["accept", "path:generated/capitals.jsonl"]);
     assert!(!store.read("generated/capitals.jsonl").contains("draft"));
-    // Studied as any card: the person's note is the context of the items
-    // that name it, and the item without `see` has none.
+    // Studied as any card: the person's notes are the context of the items
+    // that name them, and the item without `see` has none.
     let mut contexts = Vec::new();
     while let Some(card) = store.next(&now, &[]) {
         let id = text(&card, "id");
@@ -444,8 +454,8 @@ fn text_of(value: &Value) -> &str {
 #[test]
 fn fixing_a_typo_keeps_the_cards_schedule() {
     let store = Store::new(&[(
-        "geography/capitals.md",
-        "```srl\nQ: Capital of Austrailia?\nA: Canberra\n```\n",
+        "geography/capitals.jsonl",
+        "{\"Q\": \"Capital of Austrailia?\", \"A\": \"Canberra\"}\n",
     )]);
     let now = at(1, 19);
     let card = store.study(&now, 3).remove(0);
@@ -455,7 +465,7 @@ fn fixing_a_typo_keeps_the_cards_schedule() {
     store.expect(0, &at(2, 19), &["edit", "--stdin"], &item);
     assert!(
         store
-            .read("geography/capitals.md")
+            .read("geography/capitals.jsonl")
             .contains("Capital of Australia?")
     );
     assert_eq!(store.due(&at(2, 19), &card), due);
@@ -465,7 +475,8 @@ fn fixing_a_typo_keeps_the_cards_schedule() {
 #[test]
 fn a_card_forgotten_again_and_again_is_a_leech_wherever_it_is_in_its_schedule() {
     let store = Store::new(&[
-        ("geography/capitals.md", CAPITALS),
+        GEOGRAPHY[0],
+        GEOGRAPHY[1],
         (".srl/config.toml", "[schedule]\nleech_lapses = 1\n"),
     ]);
     let now = at(1, 19);

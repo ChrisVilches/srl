@@ -127,8 +127,8 @@ mod tests {
 
     fn items() -> Vec<Item> {
         read_items(
-            "a.md",
-            "```srl\n@ id:aaa1\nQ: q\nA: a\n\n@ id:aaa2\nQ: q\nA: a\n\n@ id:aaa3\nQ: q\nA: a\n```\n",
+            "a.jsonl",
+            "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"aaa2\", \"Q\": \"q\", \"A\": \"a\"}\n{\"id\": \"aaa3\", \"Q\": \"q\", \"A\": \"a\"}\n",
             &crate::kind::Programs::default(),
         )
         .0

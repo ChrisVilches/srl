@@ -38,11 +38,14 @@ const DEFAULT_STORE: &str = "srl";
 pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is optional; these are the defaults.
 
 # The sources of items. Without any, a store has the one below.
-# [sources.notes]
-# driver = "markdown"        # markdown (notes of srl blocks) or jsonl (notes of JSON lines)
-# include = ["**/*.md"]      # globs of notes, relative to the store's folder
-# exclude = []               # globs of notes to ignore; they win over include
-# prefix = ""                # where its collections are among the store's addresses
+# [sources.items]
+# driver = "filesystem"      # collections that are files of the store; or program = [...]
+# include = ["**/*.jsonl"]   # globs of the collections, relative to the store's folder
+# exclude = []               # globs of files to ignore; they win over include
+
+[context]
+# include = ["**/*.md", "**/*.txt"]   # files items may name with `see`: study material
+# exclude = []                        # files to leave out; they win over include
 
 [schedule]
 # desired_retention = 0.9    # FSRS target probability of recall
@@ -179,14 +182,15 @@ impl Store {
         self.srl_dir().join(TMP)
     }
 
-    /// Every note: each file under the store's folder, at any depth,
-    /// outside folders whose name starts with `.`, matched by `include` and
-    /// not by `exclude` (see `docs/notes.md`, "Which files are notes"). Paths are relative to the store's folder, with `/`
-    /// between folders, as named on disk, and sorted by their NFC
+    /// The files of the store that globs choose: each file under the
+    /// store's folder, at any depth, outside folders whose name starts with
+    /// `.`, matched by `include` and not by `exclude` (see `docs/store.md`,
+    /// "Which files are read"). Paths are relative to the store's folder,
+    /// with `/` between folders, as named on disk, and sorted by their NFC
     /// form, so that the Unicode form a file system gives names in never
     /// changes the order (see `docs/store.md`, "File names").
-    pub fn note_paths(&self, include: &GlobSet, exclude: &GlobSet) -> Result<Vec<String>> {
-        let mut paths = files(&self.root, "")?;
+    pub fn files(&self, include: &GlobSet, exclude: &GlobSet) -> Result<Vec<String>> {
+        let mut paths = walk(&self.root, "")?;
         paths.retain(|path| {
             let path = nfc(path);
             include.is_match(&path) && !exclude.is_match(&path)
@@ -195,9 +199,9 @@ impl Store {
         Ok(paths)
     }
 
-    /// The file of a note path, with the platform's separator between
-    /// folders.
-    pub fn note_file(&self, path: &str) -> PathBuf {
+    /// The file at a path relative to the store's folder, with the
+    /// platform's separator between folders.
+    pub fn file(&self, path: &str) -> PathBuf {
         path.split('/')
             .fold(self.root.clone(), |file, part| file.join(part))
     }
@@ -205,7 +209,7 @@ impl Store {
 
 /// The files under `dir`, whose path relative to the store is `prefix`,
 /// skipping folders whose name starts with `.`.
-fn files(dir: &Path, prefix: &str) -> Result<Vec<String>> {
+fn walk(dir: &Path, prefix: &str) -> Result<Vec<String>> {
     let entries = fs::read_dir(dir).map_err(Error::io(dir))?;
     entries
         .map(|entry| {
@@ -219,7 +223,7 @@ fn files(dir: &Path, prefix: &str) -> Result<Vec<String>> {
                 if name.starts_with('.') {
                     Ok(Vec::new())
                 } else {
-                    files(&path, &format!("{relative}/"))
+                    walk(&path, &format!("{relative}/"))
                 }
             } else if path.is_file() {
                 Ok(vec![relative])
@@ -409,26 +413,23 @@ mod tests {
             "templates/e.md",
             "sub/.git/f.md",
         ] {
-            let file = store.note_file(path);
+            let file = store.file(path);
             fs::create_dir_all(file.parent().unwrap()).unwrap();
             fs::write(file, "").unwrap();
         }
         let include = crate::config::globs(&["**/*.md"]).unwrap();
         let exclude = crate::config::globs(&["templates/**"]).unwrap();
         assert_eq!(
-            store.note_paths(&include, &exclude).unwrap(),
+            store.files(&include, &exclude).unwrap(),
             ["a.md", "sub/c.md"]
         );
         let include = crate::config::globs(&["**/*.md", "*.txt"]).unwrap();
         assert_eq!(
-            store.note_paths(&include, &exclude).unwrap(),
+            store.files(&include, &exclude).unwrap(),
             ["a.md", "b.txt", "sub/c.md"]
         );
         // exclude wins over include.
-        assert_eq!(
-            store.note_paths(&include, &include).unwrap(),
-            [] as [String; 0]
-        );
+        assert_eq!(store.files(&include, &include).unwrap(), [] as [String; 0]);
     }
 
     #[test]
@@ -440,11 +441,11 @@ mod tests {
         // before "f", composed it sorts after.
         let decomposed = "e\u{301}.md";
         for name in ["ea.md", "f.md", decomposed] {
-            fs::write(store.note_file(name), "").unwrap();
+            fs::write(store.file(name), "").unwrap();
         }
         assert_eq!(
             store
-                .note_paths(&crate::config::globs(&["*.md"]).unwrap(), &GlobSet::empty())
+                .files(&crate::config::globs(&["*.md"]).unwrap(), &GlobSet::empty())
                 .unwrap(),
             ["ea.md", "f.md", decomposed]
         );

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::domain::card::CardId;
-use crate::domain::context::Context;
+use crate::error::Spot;
 use crate::kind::Kind;
 use crate::{Error, Result};
 use object::Object;
@@ -137,18 +137,15 @@ pub(crate) struct Origin {
     pub(crate) source: usize,
     /// The source's name.
     pub(crate) source_name: String,
-    /// The collection the item is in, named by its source.
-    pub(crate) collection: String,
-    /// The collection's address: the source's prefix, then the collection.
+    /// The address of the collection the item is in: the collection's
+    /// name, as its source gives it.
     pub(crate) address: String,
-    /// The file the collection is kept in, relative to the store's folder,
-    /// if it is a file of its own: only for people and editors.
-    pub(crate) file: Option<String>,
     /// What names the item to its source when it is changed.
     pub(crate) handle: String,
-    /// The line where the item starts, counting from 1, as near as its
-    /// source can say: only for people.
-    pub(crate) line: Option<usize>,
+    /// The item's position among the items its source read in its
+    /// collection, counting from 1: for messages about an item without an
+    /// ID, and to keep problems in order.
+    pub(crate) position: usize,
     /// The item as its source read it, which a change gives back as what
     /// it replaces.
     pub(crate) read: Object,
@@ -175,9 +172,9 @@ impl Item {
         &self.id
     }
 
-    /// The address of the item's collection: for a note of a source
-    /// without a prefix, its path relative to the store's folder, with `/`
-    /// between folders.
+    /// The address of the item's collection: for a collection of the
+    /// `filesystem` source, its path relative to the store's folder, with
+    /// `/` between folders.
     pub fn address(&self) -> &str {
         &self.origin.address
     }
@@ -187,24 +184,19 @@ impl Item {
         &self.origin.source_name
     }
 
-    /// The file the item's collection is kept in, relative to the store's
-    /// folder, if it is a file of its own: only for people and editors.
-    pub fn file(&self) -> Option<&str> {
-        self.origin.file.as_deref()
-    }
-
-    /// The line where the item starts, counting from 1, as near as its
-    /// source can say: only for people, in `ADDRESS:LINE`. Nothing finds an
-    /// item by it (see `docs/rust.md`, "Lines are for people").
-    pub fn line(&self) -> Option<usize> {
-        self.origin.line
+    /// Which item of its collection this is, for messages.
+    pub(crate) fn spot(&self) -> Spot {
+        Spot {
+            position: self.origin.position,
+            id: Some(self.id.to_string()),
+        }
     }
 
     pub fn kind(&self) -> &Kind {
         &self.kind
     }
 
-    /// The address `see` gives, if any.
+    /// The path of the file `see` names as the item's context, if any.
     pub fn see(&self) -> Option<&str> {
         self.see.as_deref()
     }
@@ -262,9 +254,9 @@ impl Item {
     }
 
     /// The item object, with every entry and the keys only `srl` gives
-    /// (see `docs/items.md`, "The item object"), with its context and
-    /// where it comes from.
-    pub fn json(&self, context: Option<&Context>) -> Value {
+    /// (see `docs/items.md`, "The item object"), with the text of its
+    /// context and where it comes from.
+    pub fn json(&self, context: Option<&str>) -> Value {
         let mut object = Map::new();
         object.insert("id".to_owned(), Value::from(self.id.as_str()));
         object.insert("kind".to_owned(), Value::from(self.kind.as_str()));
@@ -281,17 +273,8 @@ impl Item {
             "source".to_owned(),
             Value::from(self.origin.source_name.as_str()),
         );
-        object.insert("file".to_owned(), Value::from(self.origin.file.clone()));
-        object.insert("line".to_owned(), Value::from(self.origin.line));
         object.insert("cards".to_owned(), serde_json::json!(self.cards));
-        object.insert(
-            "context".to_owned(),
-            Value::from(context.map(|context| context.text.as_str())),
-        );
-        object.insert(
-            "context_address".to_owned(),
-            Value::from(context.map(|context| context.address.as_str())),
-        );
+        object.insert("context".to_owned(), Value::from(context));
         Value::Object(object)
     }
 }

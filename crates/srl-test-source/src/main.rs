@@ -4,9 +4,9 @@
 //! of its source in `[sources]`, decide what it does:
 //!
 //! - `data`: the file, relative to the folder it runs in:
-//!   `{"next": 1, "collections": {"words": {"context": "…", "items":
-//!   [{"handle": "h1", "item": {…}}]}}}`. A file that doesn't exist is a
-//!   source without collections.
+//!   `{"next": 1, "collections": {"vocab/words": {"items": [{"handle": "h1",
+//!   "item": {…}}]}}}`. A file that doesn't exist is a source without
+//!   collections.
 //! - `creates`: the globs `describe` gives; `["*"]` without it.
 //! - `log`: each call appends a line to this file: its name and how many
 //!   lines it got.
@@ -23,9 +23,7 @@
 //!   it changed. `token` is sent as a bearer token, and `cache` names a
 //!   file that keeps the last answer, asked again with `If-None-Match`.
 //!
-//! An item's line is `null`, and its text as written is `null` too, so
-//! `srl` shows its item object. A collection's context is its `context`,
-//! in modes `prose` and `full`, to its own items and to those that name it.
+//! An item's text as written is `null`, so `srl` shows its item object.
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, BufRead as _, Write as _};
@@ -126,7 +124,7 @@ fn answer(
         })]),
         "collections" => Ok(collections
             .keys()
-            .map(|name| json!({"collection": name, "file": null}))
+            .map(|name| json!({"collection": name}))
             .collect()),
         "read" => Ok(collections
             .iter()
@@ -137,18 +135,9 @@ fn answer(
                     .unwrap_or_default()
                     .into_iter()
                     .map(move |item| {
-                        json!({"collection": name, "handle": at(&item, "handle"), "line": null,
+                        json!({"collection": name, "handle": at(&item, "handle"),
                                "written": null, "item": at(&item, "item")})
                     })
-            })
-            .collect()),
-        "context" => Ok(inputs
-            .iter()
-            .map(|input| {
-                let context = collections
-                    .get(text(input, "collection"))
-                    .map_or(&Value::Null, |collection| at(collection, "context"));
-                json!({"context": context})
             })
             .collect()),
         "write" => write(config, inputs, &mut data, &place, version.as_deref()),
