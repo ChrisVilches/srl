@@ -321,7 +321,5 @@ mod tests {
         };
         assert!(!context.no_context);
         assert!(parse(&["show", "a7f3k2", "--no-context"]).is_ok());
-        assert!(parse(&["show", "a7f3k2", "--context", "prose"]).is_err());
-        assert!(parse(&["lint"]).is_err());
     }
 }

@@ -54,30 +54,29 @@ them.
 
 ## Why items are data, apart from notes
 
-Questions used to live inside Markdown notes, in fenced blocks. In
-practice they were almost never written there by hand: they were added
-through a frontend or by an agent, and for those a note is the wrong
-place, since a program has to find a spot in prose written for people,
-and the questions then sit in the middle of what you read, looking and
+Questions could live inside notes, next to what they ask about. In
+practice they are rarely written there by hand: they are added through a
+frontend or by an agent, and for those a note is the wrong place, since a
+program would have to find a spot in prose written for people, and the
+questions would then sit in the middle of what you read, looking and
 placed as nobody chose. So items are data, kept in structured
 collections, and notes are study material, kept as you write them.
 
 - **A note holds no items**, so `srl` never parses prose, never writes to
   a note, and never has to hide items when a note is shown as context:
   the note is shown whole.
-- **An item names its note with `see`**, as items written by programs
-  always did. Any number of items, of any collection or source, can ask
-  about one note, and a note can be any file: Markdown, plain text, a
-  PDF.
+- **An item names its note with `see`.** Any number of items, of any
+  collection or source, can ask about one note, and a note can be any
+  file: Markdown, plain text, a PDF.
 - **Collections are made for programs** (JSONL, JSON), with one format
-  made for people who still write items by hand (XML; see "Why three
+  made for people who write items by hand (XML; see "Why three
   formats").
 
-Trade-off: a question is no longer next to the knowledge in the same
-file, so writing one by hand means two files, or a frontend. Keeping
-items in Markdown is still possible, as a source program (see "Why
-source programs"), but `srl` offers nothing for it, such as hiding the
-items of a note shown as context.
+Trade-off: a question is not next to the knowledge in the same file, so
+writing one by hand means two files, or a frontend. Keeping items in
+Markdown is possible, as a source program (see "Why source programs"),
+but `srl` offers nothing for it, such as hiding the items of a note shown
+as context.
 
 ## Why text files, not SQLite, as the source of truth
 
@@ -164,13 +163,12 @@ does"), and nothing else in `srl` knows how any of them keeps its items.
   globs, and a program takes whatever keys it checks itself. No key means
   something for one source and nothing for another.
 - **An address is the collection's name, as its source gives it**, so
-  that `srl add`, messages and selectors need no case for any source. An
-  earlier design mounted each source at a prefix in one tree of
-  addresses, as Unix mounts file systems; it needed rules for prefixes
-  inside prefixes, for files that two sources read under different
-  prefixes, and for addresses hidden under a mount, and gave nothing a
-  program can't do by naming its collections under a folder of its own.
-  One rule is left: no address is given by two sources.
+  that `srl add`, messages and selectors need no case for any source.
+  Mounting each source under a prefix of its own, as Unix mounts file
+  systems, would need rules for prefixes inside prefixes and for
+  addresses hidden under a mount, and gives nothing a program can't do
+  by naming its collections under a folder of its own. So there is one
+  rule: no address is given by two sources.
 - **Sources hold items, and nothing else.** Context is a file of the
   store, which `srl` reads itself (see "Why context is a file"), so a
   source never shows anything, and never needs to know what to hide.
@@ -222,11 +220,9 @@ of the store: not a collection as its source shows it, and not something
 a source computes. `srl` reads the file and gives its text whole, and the
 frontend renders it by its extension.
 
-- **No modes, no stripping.** When notes held items, a note shown as
-  context had to be shown without them, in a mode a frontend chose, and
-  every source had to know how to hide its items. Notes hold no items
-  now, so there is nothing to hide: the only choice left to a frontend is
-  whether to get the context at all (`--no-context`).
+- **Nothing to hide.** Notes hold no items, so a note is shown whole,
+  and no source needs to know what to leave out of it: the only choice a
+  frontend makes is whether to get the context at all (`--no-context`).
 - **An item without `see` has no context.** A collection is data; showing
   a JSONL file after an answer helps no one.
 - **Which files are notes is a setting of the store, `[context]`**, not

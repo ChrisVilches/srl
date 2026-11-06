@@ -157,12 +157,6 @@ impl<'de> Deserialize<'de> for SourceConfig {
     ) -> std::result::Result<Self, D::Error> {
         use serde::de::Error as _;
         let mut table = toml::Table::deserialize(deserializer)?;
-        if table.contains_key("prefix") {
-            return Err(D::Error::custom(
-                "`prefix` is not read: sources are not mounted under prefixes; the address of a \
-                 collection is its name, as its source gives it",
-            ));
-        }
         let Some(program) = table.remove("program") else {
             let source = FilesystemSource::deserialize(toml::Value::Table(table))
                 .map_err(D::Error::custom)?;
@@ -178,12 +172,6 @@ impl<'de> Deserialize<'de> for SourceConfig {
                         exclude: source.exclude,
                     },
                 }),
-                "markdown" | "jsonl" => Err(D::Error::custom(format!(
-                    "the driver `{}` is gone: items are kept in structured files, which \
-                     `driver = \"filesystem\"` reads (see docs/formats.md), and Markdown is \
-                     study material that items name with `see`",
-                    source.driver
-                ))),
                 other => Err(D::Error::custom(format!(
                     "unknown driver `{other}`; use filesystem, or name a program with `program`"
                 ))),
@@ -293,11 +281,6 @@ impl Config {
 
     /// Parses the text of `config.toml`. Errors are plain reasons.
     fn parse(text: &str) -> std::result::Result<Self, String> {
-        let table =
-            toml::from_str::<toml::Table>(text).map_err(|error| error.message().to_owned())?;
-        if table.contains_key("notes") {
-            return Err(NOTES_MOVED.to_owned());
-        }
         let config = toml::from_str::<Self>(text).map_err(|error| error.message().to_owned())?;
         let schedule = &config.schedule;
         if !(schedule.desired_retention > 0.0 && schedule.desired_retention < 1.0) {
@@ -326,11 +309,6 @@ impl Config {
         Ok(config)
     }
 }
-
-/// What `[notes]` became, for a configuration that still has it.
-const NOTES_MOVED: &str = "`[notes]` is not read: items are kept in sources, such as \
-    `[sources.items]` with `driver = \"filesystem\"` and its `include` and `exclude`, and the \
-    files items name with `see` are set in `[context]` (see docs/sources.md)";
 
 /// Checks the source `name` of `[sources]`: its name and globs. Errors are
 /// plain reasons.
@@ -455,28 +433,9 @@ mod tests {
             "[sources.vocab]\nprogram = []\n",
             "[sources.vocab]\nprogram = \"vocab.py\"\n",
             "[sources.vocab]\nprogram = [\"vocab.py\"]\ndriver = \"filesystem\"\n",
-            "[sources.vocab]\nprogram = [\"vocab.py\"]\nprefix = \"vocab/\"\n",
         ] {
             assert!(Config::parse(text).is_err(), "accepted {text}");
         }
-    }
-
-    #[test]
-    fn notes_is_refused_with_how_to_write_it_as_a_source() {
-        let error = Config::parse("[notes]\ninclude = [\"**/*.md\"]\n").unwrap_err();
-        assert!(error.contains("[sources.items]"), "{error}");
-    }
-
-    #[test]
-    fn the_drivers_that_are_gone_say_what_replaced_them() {
-        for driver in ["markdown", "jsonl"] {
-            let error =
-                Config::parse(&format!("[sources.notes]\ndriver = \"{driver}\"\n")).unwrap_err();
-            assert!(error.contains("filesystem"), "{error}");
-        }
-        let error =
-            Config::parse("[sources.items]\ndriver = \"filesystem\"\nprefix = \"\"\n").unwrap_err();
-        assert!(error.contains("prefix"), "{error}");
     }
 
     #[test]
@@ -521,7 +480,7 @@ mod tests {
             "[schedule]\nday_starts_at = 24\n",
             "[schedule]\ndesired_retention = 1.5\n",
             "[schedule]\nnew_per_day = \"ten\"\n",
-            "[study]\ncontext = \"prose\"\n",
+            "[contexts]\ninclude = [\"**/*.md\"]\n",
             "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"[\"]\n",
             "[kinds]\nqa = [\"python3\", \"qa.py\"]\n",
             "[kinds]\nconj = []\n",

@@ -210,7 +210,7 @@ questions", once it is planned.
   program that needs it.
 - **What the TinyDB example is for.** `examples/source-tinydb` keeps
   items in a JSON file through TinyDB, which a JSON collection of the
-  `filesystem` driver now does without a program. It stays as the
+  `filesystem` driver does without a program. It stays as the
   example of a source program, and may become one that shows what only a
   program can do, such as a database file of another format, or items
   behind a web service.

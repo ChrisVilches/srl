@@ -33,7 +33,6 @@ log can't be read without it. Fix it and run `srl check` again.
 | `the program of kind X printed invalid output …` | a bug in the program | Report it to its author; the item is fine as written. |
 | `` `see` … is not study material `` or `` `see` … names no file of the store `` | the note was moved, renamed or deleted, or `see` names a collection or a file `[context]` doesn't include | Name a note `srl notes` lists, or widen `[context]` in `.srl/config.toml`. |
 | invalid configuration | a typo or out-of-range value in `.srl/config.toml` | Fix the named setting. |
-| `the driver markdown is gone …`, `` `prefix` is not read …``, or ``[notes]` is not read …`` | a configuration written for an older srl, whose items lived in Markdown notes | Use `driver = "filesystem"` and drop `prefix` (see the `setting-up-a-store` skill); the items must move from the notes into collections, which the person decides. |
 | `ADDRESS: the sources X and Y both give it …` | two sources' globs match the same file, or a source program names a collection as a file is named | Leave it out of one of them with `exclude`, or have the program name its collections under a folder of its own. |
 | `the source X failed: …; no item can be read or written until it works` | a source program is broken: not installed, a missing dependency, a bug, a wrong setting of its own in `[sources.X]`, or a service it needs is down; not your items | Fix what the reason says, or the program's command and settings in `[sources.X]`; run `srl check` again. |
 | `cannot add to ADDRESS: …; nothing was added`, from `srl add` | no source can create a collection at that address (its `include` doesn't match it, or the extension names no format), or more than one would | Pick an address a source can create (`srl sources` says where), or an existing one (`srl collections`). |
@@ -161,14 +160,7 @@ why, and come back later to fix them. When asked to:
   srl keeps the answers of `validate` and `groups` per item, and can't see
   that the program changed. Run `srl check` so it asks again about every
   item.
-- **unrecognized subcommand `study`, `web`, `tui` or `lint`**: `srl` has
-  no built-in frontend, and doesn't run other programs. Study with a
+- **unrecognized subcommand `study`, `web` or `tui`**: `srl` has no
+  built-in frontend, and doesn't run other programs. Study with a
   frontend run by its own name, such as `srl-web` or `srl-tui` (see the
-  `studying` skill); scripts use `srl next` and `srl review`. `srl lint`
-  is gone: `srl check` gives its warnings.
-- **`--context` is not an option**: the context is shown unless
-  `--no-context` is given; there are no modes.
-- **An invalid configuration naming `study`**: `.srl/config.toml` has a
-  `[study]` section, which stores made by older versions have. It is no
-  longer a setting. Delete the `[study]` line and the `context` line
-  under it, telling the person why.
+  `studying` skill); scripts use `srl next` and `srl review`.

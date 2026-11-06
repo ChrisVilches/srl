@@ -50,7 +50,7 @@ class Tests(unittest.TestCase):
 
     def test_settings_are_checked(self):
         database = str(Path(self.folder.name) / "other.json")
-        for config in [{}, {"database": database, "prefix": "vocab/"}, {"database": database, "folder": ".hidden"}]:
+        for config in [{}, {"database": database, "table": "words"}, {"database": database, "folder": ".hidden"}]:
             with self.assertRaises(SourceError):
                 Source(config)
         source = Source({"database": database})

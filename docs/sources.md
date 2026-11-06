@@ -57,11 +57,8 @@ is an error, so a typo fails instead of being ignored:
 - **Which files a `filesystem` source reads** is said in
   [formats.md](formats.md), "Which files are collections".
 - A glob that isn't valid is an error, and so is a name that isn't made
-  as above, and a source without a `driver` or a `program`, or with both.
-- **What is gone is refused with what replaced it:** `prefix` (sources
-  are not mounted at prefixes; see "Addresses"), `driver = "markdown"` and
-  `driver = "jsonl"` (one `filesystem` driver reads every format, and
-  Markdown is study material, not items), and a table `[notes]`.
+  as above, an unknown driver, and a source without a `driver` or a
+  `program`, or with both.
 
 ## Addresses
 

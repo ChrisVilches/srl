@@ -297,10 +297,8 @@ skip silently only a last line without its final newline, which is the
 sentence" ([overview.md](overview.md)). Kind programs have four calls, a
 batch protocol, cache keys and error attribution; the cache's incremental
 replay is a paragraph of conditions; the XML format has six numbered rules
-and a layout rule for fields of many lines. Removing items from Markdown
-took out the largest set of rules (srl blocks, their context modes and the
-heuristics of `srl lint`), but the documents of the specification are
-still several thousand lines, much of them cross-references.
+and a layout rule for fields of many lines. The documents of the
+specification are several thousand lines, much of them cross-references.
 
 This matters because the docs are declared the source of truth and must be
 updated with every change ([AGENTS.md](../AGENTS.md)). Their size and redundancy make

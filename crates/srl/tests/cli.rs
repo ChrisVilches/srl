@@ -72,7 +72,6 @@ fn help_succeeds_and_lists_commands() {
     assert!(stdout.contains("next"));
     assert!(stdout.contains("review"));
     assert!(stdout.contains("notes"));
-    assert!(!stdout.contains("lint"));
 }
 
 #[test]
@@ -483,9 +482,6 @@ fn show_prints_the_item_and_the_file_its_see_names() {
     );
     let none = srl(&["show", "x7k2m9", "--no-context", "--json", "--dir", d]);
     assert_eq!(json_lines(&none)[0]["context"], serde_json::Value::Null);
-    // Context modes are gone.
-    let mode = srl(&["show", "x7k2m9", "--context", "full", "--dir", d]);
-    assert_eq!(mode.status.code(), Some(2));
     // An item without `see` has no context.
     let none = srl(&["show", "tuna01", "--json", "--dir", d]);
     assert_eq!(json_lines(&none)[0]["context"], serde_json::Value::Null);
@@ -786,8 +782,6 @@ fn check_warns_of_likely_mistakes_and_reports_errors_in_lines() {
         "{}",
         stderr(&check)
     );
-    // lint is gone: check finds what it found.
-    assert_eq!(srl(&["lint", "--dir", d]).status.code(), Some(2));
     write(
         &tmp,
         "items.jsonl",
@@ -1190,21 +1184,13 @@ fn an_invalid_include_glob_is_a_configuration_error() {
 }
 
 #[test]
-fn prefixes_the_old_drivers_and_unknown_keys_are_configuration_errors() {
+fn unknown_drivers_and_keys_are_configuration_errors() {
     let tmp = japanese();
     let d = dir(&tmp);
     for (config, expected) in [
         (
-            "[sources.items]\ndriver = \"filesystem\"\nprefix = \"words/\"\n",
-            "`prefix` is not read",
-        ),
-        (
-            "[sources.notes]\ndriver = \"markdown\"\n",
-            "the driver `markdown` is gone",
-        ),
-        (
-            "[sources.data]\ndriver = \"jsonl\"\n",
-            "the driver `jsonl` is gone",
+            "[sources.items]\ndriver = \"org\"\n",
+            "unknown driver `org`",
         ),
         (
             "[sources.items]\ndriver = \"filesystem\"\ndatabase = \"db.json\"\n",
@@ -1800,29 +1786,9 @@ fn sources_read_their_collections_each_with_its_driver() {
     let sources = json_lines(&sources);
     assert_eq!(sources[1]["name"], "vocab");
     assert_eq!(sources[1]["driver"], "filesystem");
-    assert!(sources[1].get("prefix").is_none(), "{}", sources[1]);
     assert_eq!(
         sources[1]["creates"]["include"],
         serde_json::json!(["vocab/**/*.jsonl"])
-    );
-    let plain = srl(&["sources", "--dir", d]);
-    assert!(!stdout(&plain).contains("prefix"), "{}", stdout(&plain));
-}
-
-#[test]
-fn notes_in_the_config_are_refused_with_how_to_write_them_as_sources() {
-    let tmp = store(&[]);
-    write(
-        &tmp,
-        ".srl/config.toml",
-        "[notes]\ninclude = [\"**/*.md\"]\n",
-    );
-    let output = srl(&["find", "--dir", dir(&tmp)]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(
-        stderr(&output).contains("[sources.items]"),
-        "{}",
-        stderr(&output)
     );
 }
 
