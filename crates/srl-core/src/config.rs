@@ -124,7 +124,7 @@ impl Driver {
 
 /// The globs of the files a `filesystem` source reads when it gives no
 /// `include`.
-pub(crate) const DEFAULT_INCLUDE: &[&str] = &["**/*.jsonl"];
+pub(crate) const DEFAULT_INCLUDE: &[&str] = &["**/*.jsonl", "**/*.xml"];
 
 /// One source of `[sources]`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -383,7 +383,7 @@ mod tests {
         assert_eq!(
             config.sources["items"].driver,
             Driver::Filesystem {
-                include: vec!["**/*.jsonl".to_owned()],
+                include: vec!["**/*.jsonl".to_owned(), "**/*.xml".to_owned()],
                 exclude: vec!["templates/**".to_owned()],
             }
         );
@@ -412,7 +412,7 @@ mod tests {
         assert_eq!(names.collect::<Vec<_>>(), ["cards"]);
         assert_eq!(
             Config::default().sources["items"],
-            SourceConfig::filesystem(&["**/*.jsonl"])
+            SourceConfig::filesystem(&["**/*.jsonl", "**/*.xml"])
         );
     }
 

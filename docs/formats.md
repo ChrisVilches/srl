@@ -95,7 +95,8 @@ object, laid out as you like:
 ```
 
 - **A file that is not a JSON array is an error** of the whole
-  collection, as is an empty file: an empty collection is `[]`.
+  collection. A file that holds nothing but blank space holds no items,
+  as `[]` does.
 - **An element that is not a valid item object is an error** of that
   element, by its position from 1; the other elements are read as
   always.

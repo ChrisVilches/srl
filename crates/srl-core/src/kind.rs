@@ -339,7 +339,7 @@ fn qa(id: &ItemId, fields: &[Field]) -> Result<Vec<Card>, String> {
     };
     let question = text("Q")
         .filter(|text| !text.trim().is_empty())
-        .ok_or_else(|| "a qa item needs a question in `Q:`".to_owned())?;
+        .ok_or_else(|| "a qa item needs a question in its field Q".to_owned())?;
     let answer = text("A").filter(|text| !text.trim().is_empty());
     if answer.is_some_and(has_deletion) {
         return Err(
@@ -356,7 +356,7 @@ fn qa(id: &ItemId, fields: &[Field]) -> Result<Vec<Card>, String> {
         .collect::<BTreeSet<_>>();
     if numbers.is_empty() {
         let answer = answer.ok_or_else(|| {
-            "a qa item needs an answer in `A:`, unless Q has cloze deletions".to_owned()
+            "a qa item needs an answer in its field A, unless Q has cloze deletions".to_owned()
         })?;
         return Ok(vec![Card {
             id: CardId::new(id.clone(), None),

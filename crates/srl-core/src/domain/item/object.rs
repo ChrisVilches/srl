@@ -30,6 +30,13 @@ pub(crate) struct Object {
 pub(crate) fn read(text: &str) -> Result<Object, String> {
     let Pairs(pairs) = serde_json::from_str::<Pairs>(text)
         .map_err(|error| format!("it is not a JSON object ({error})"))?;
+    from_pairs(pairs)
+}
+
+/// The item object of `pairs`, the keys and values of a JSON object as
+/// written, or of an item in any other format given as one, as [`read`]
+/// reads it. Errors are plain reasons.
+pub(crate) fn from_pairs(pairs: Vec<(String, Value)>) -> Result<Object, String> {
     let mut seen = Vec::new();
     let mut object = Object::default();
     for (key, value) in pairs {
@@ -123,7 +130,7 @@ pub(crate) fn written(entries: &Entries, fields: &[Field]) -> Map<String, Value>
 
 /// A JSON object's keys and values as written, repeated keys included,
 /// which a [`Map`] would quietly merge.
-struct Pairs(Vec<(String, Value)>);
+pub(crate) struct Pairs(pub(crate) Vec<(String, Value)>);
 
 impl<'de> Deserialize<'de> for Pairs {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -140,13 +147,20 @@ impl<'de> Visitor<'de> for PairsVisitor {
         formatter.write_str("a JSON object")
     }
 
-    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Pairs, A::Error> {
-        let mut pairs = Vec::new();
-        while let Some(pair) = map.next_entry::<String, Value>()? {
-            pairs.push(pair);
-        }
-        Ok(Pairs(pairs))
+    fn visit_map<A: MapAccess<'de>>(self, map: A) -> Result<Pairs, A::Error> {
+        pairs_of(map).map(Pairs)
     }
+}
+
+/// The keys and values of `map`, as written.
+pub(crate) fn pairs_of<'de, A: MapAccess<'de>>(
+    mut map: A,
+) -> Result<Vec<(String, Value)>, A::Error> {
+    let mut pairs = Vec::new();
+    while let Some(pair) = map.next_entry::<String, Value>()? {
+        pairs.push(pair);
+    }
+    Ok(pairs)
 }
 
 #[cfg(test)]

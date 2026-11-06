@@ -1,4 +1,4 @@
-//! Finding and creating a store, and listing its notes (see
+//! Finding and creating a store, and listing its files (see
 //! `docs/store.md`).
 
 use std::fs;
@@ -22,7 +22,7 @@ const LOG: &str = "log";
 /// The folder of derived data, in `.srl/`.
 const CACHE: &str = "cache";
 
-/// The folder of the temporary files of note writes, in `.srl/`.
+/// The folder of the temporary files of collection writes, in `.srl/`.
 const TMP: &str = "tmp";
 
 /// The `.gitignore` that `srl init` writes in `.srl/`: everything there that
@@ -40,7 +40,7 @@ pub(crate) const DEFAULT_CONFIG: &str = r#"# srl configuration. Every key is opt
 # The sources of items. Without any, a store has the one below.
 # [sources.items]
 # driver = "filesystem"      # collections that are files of the store; or program = [...]
-# include = ["**/*.jsonl"]   # globs of the collections, relative to the store's folder
+# include = ["**/*.jsonl", "**/*.xml"]   # globs of the collections, relative to the store's folder
 # exclude = []               # globs of files to ignore; they win over include
 
 [context]
@@ -83,7 +83,7 @@ pub struct Lookup {
 }
 
 /// One `srl` store: a folder with a `.srl/` folder in it, and the sources
-/// of its items, by default its notes.
+/// of its items, by default its collections.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Store {
     root: PathBuf,
@@ -129,9 +129,9 @@ impl Store {
             .map_or_else(|| lookup.cwd.clone(), |dir| lookup.cwd.join(dir))
     }
 
-    /// Creates a store in `root`, which may already exist and hold notes
-    /// and other files, and returns the paths it creates. With `dry_run`,
-    /// only returns them.
+    /// Creates a store in `root`, which may already exist and hold
+    /// collections, notes and other files, and returns the paths it
+    /// creates. With `dry_run`, only returns them.
     pub fn init(root: &Path, dry_run: bool) -> Result<Vec<PathBuf>> {
         let store = Self {
             root: root.to_path_buf(),
@@ -177,7 +177,7 @@ impl Store {
         self.srl_dir().join(CACHE)
     }
 
-    /// The folder of the temporary files of note writes, `.srl/tmp/`.
+    /// The folder of the temporary files of collection writes, `.srl/tmp/`.
     pub fn tmp_dir(&self) -> PathBuf {
         self.srl_dir().join(TMP)
     }

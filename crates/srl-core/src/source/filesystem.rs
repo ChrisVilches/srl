@@ -3,7 +3,9 @@
 //! nothing but items; the study material items name with `see` is not
 //! read here (see `docs/items.md`, "Context").
 
+mod json;
 mod jsonl;
+mod xml;
 
 use std::path::Path;
 
@@ -16,16 +18,23 @@ use crate::source::{Change, Description, Read, Refusal, Source};
 enum Format {
     /// One item object per line (see `docs/formats.md`, "JSONL").
     Jsonl,
+    /// One array of item objects (see `docs/formats.md`, "JSON").
+    Json,
+    /// An `<items>` element of `<item>` elements (see `docs/formats.md`,
+    /// "XML").
+    Xml,
 }
 
 /// The extensions of the formats, as `srl` names them in messages.
-const EXTENSIONS: &str = ".jsonl";
+const EXTENSIONS: &str = ".jsonl, .json and .xml";
 
 impl Format {
     /// The format of the file at `path`, by its extension.
     fn of(path: &str) -> Option<Self> {
         match Path::new(path).extension()?.to_str()? {
             "jsonl" => Some(Self::Jsonl),
+            "json" => Some(Self::Json),
+            "xml" => Some(Self::Xml),
             _ => None,
         }
     }
@@ -33,6 +42,8 @@ impl Format {
     fn parse(self, text: &str) -> Parsed {
         match self {
             Self::Jsonl => jsonl::parse(text),
+            Self::Json => json::parse(text),
+            Self::Xml => xml::parse(text),
         }
     }
 
@@ -48,6 +59,8 @@ impl Format {
     ) -> Result<(String, String), Refusal> {
         match self {
             Self::Jsonl => jsonl::changed(path, old, changes),
+            Self::Json => json::changed(path, old, changes),
+            Self::Xml => xml::changed(path, old, changes),
         }
     }
 }

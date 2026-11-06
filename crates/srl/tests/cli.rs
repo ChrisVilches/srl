@@ -76,6 +76,99 @@ fn help_succeeds_and_lists_commands() {
 }
 
 #[test]
+fn jsonl_json_and_xml_collections_are_read_and_written_alike() {
+    let xml = "<items>\n  <!-- By hand. -->\n  <item id=\"xml1\" see=\"rust.md\">\n    <Q>\n      Does this compile?\n\n          let b = a;\n    </Q>\n    <A>No.</A>\n  </item>\n</items>\n";
+    let tmp = store(&[
+        ("rust.md", "# Rust\n"),
+        (
+            "a.jsonl",
+            "{\"id\": \"jsl1\", \"Q\": \"q\", \"A\": \"a\"}\n",
+        ),
+        ("b.json", "[{\"id\": \"jsn1\", \"Q\": \"q\", \"A\": \"a\"}]"),
+        ("c.xml", xml),
+        (
+            ".srl/config.toml",
+            "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"**/*.jsonl\", \"**/*.json\", \"**/*.xml\"]\n",
+        ),
+    ]);
+    let found = srl(&["find", "--dir", dir(&tmp)]);
+    assert_eq!(found.status.code(), Some(0), "{}", stderr(&found));
+    assert_eq!(
+        lines(&found),
+        [
+            "jsl1  a.jsonl  q",
+            "jsn1  b.json  q",
+            "xml1  c.xml  Does this compile?"
+        ]
+    );
+    let shown = json_lines(&srl(&["show", "xml1", "--json", "--dir", dir(&tmp)]));
+    assert_eq!(shown[0]["Q"], "Does this compile?\n\n    let b = a;");
+    assert_eq!(shown[0]["context"], "# Rust\n");
+    assert_eq!(
+        stdout(&srl(&["show", "xml1", "--no-context", "--dir", dir(&tmp)])),
+        "c.xml\n<item id=\"xml1\" see=\"rust.md\">\n  <Q>\n    Does this compile?\n\n        let b = a;\n  </Q>\n  <A>No.</A>\n</item>\n"
+    );
+    // An edit changes only the element of its item; an add goes before
+    // `</items>`.
+    let edited = srl_with_input(
+        &["edit", "--stdin", "--dir", dir(&tmp)],
+        "{\"id\": \"xml1\", \"see\": \"rust.md\", \"Q\": \"Does this compile?\\n\\n    let b = a;\", \"A\": \"No: `a` < `b`.\"}\n{\"id\": \"jsn1\", \"draft\": true, \"Q\": \"q\", \"A\": \"a\"}\n",
+    );
+    assert_eq!(edited.status.code(), Some(0), "{}", stderr(&edited));
+    let added = srl_with_input(
+        &["add", "c.xml", "--stdin", "--dir", dir(&tmp)],
+        "{\"id\": \"xml2\", \"Q\": \"Two\\nlines\", \"A\": \"a\"}\n",
+    );
+    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+    assert_eq!(
+        read(&tmp, "c.xml"),
+        "<items>\n  <!-- By hand. -->\n  <item id=\"xml1\" see=\"rust.md\">\n    <Q>\n      Does this compile?\n\n          let b = a;\n    </Q>\n    <A><![CDATA[No: `a` < `b`.]]></A>\n  </item>\n  <item id=\"xml2\">\n    <Q>\n      Two\n      lines\n    </Q>\n    <A>a</A>\n  </item>\n</items>\n"
+    );
+    assert_eq!(
+        read(&tmp, "b.json"),
+        "[\n  {\n    \"id\": \"jsn1\",\n    \"draft\": true,\n    \"Q\": \"q\",\n    \"A\": \"a\"\n  }\n]\n"
+    );
+    // A new collection of each format is created by its extension.
+    for (path, text) in [
+        (
+            "new/d.json",
+            "[\n  {\n    \"id\": \"new1\",\n    \"Q\": \"q\",\n    \"A\": \"a\"\n  }\n]\n",
+        ),
+        (
+            "new/e.xml",
+            "<items>\n  <item id=\"new2\">\n    <Q>q</Q>\n    <A>a</A>\n  </item>\n</items>\n",
+        ),
+    ] {
+        let id = if path.ends_with("json") {
+            "new1"
+        } else {
+            "new2"
+        };
+        let added = srl_with_input(
+            &["add", path, "--stdin", "--dir", dir(&tmp)],
+            &format!("{{\"id\": \"{id}\", \"Q\": \"q\", \"A\": \"a\"}}\n"),
+        );
+        assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+        assert_eq!(read(&tmp, path), text);
+    }
+    let checked = srl(&["check", "--dir", dir(&tmp)]);
+    assert_eq!(checked.status.code(), Some(0), "{}", stderr(&checked));
+    // An XML error names its line.
+    write(
+        &tmp,
+        "c.xml",
+        "<items>\n  <item drfat=\"true\"><Q>q</Q></item>\n</items>\n",
+    );
+    let checked = srl(&["check", "--dir", dir(&tmp)]);
+    assert_eq!(checked.status.code(), Some(2));
+    assert!(
+        stderr(&checked).contains("c.xml: line 2: `drfat` is not a header entry"),
+        "{}",
+        stderr(&checked)
+    );
+}
+
+#[test]
 fn usage_errors_exit_with_2() {
     let output = srl(&["review", "a7f3k2", "--rating", "9"]);
     assert_eq!(output.status.code(), Some(2));
