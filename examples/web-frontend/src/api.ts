@@ -9,9 +9,10 @@ export type ShownCard = {
   answer: string | null;
   kind: string;
   address: string;
+  // The note the item names as its context, and the note's text: null when
+  // it is not UTF-8 or holds nothing but blank space.
   see: string | null;
   context: string | null;
-  context_address: string | null;
 };
 
 // What `srl next --json` prints (docs/frontends.md, "What a frontend gets"):
@@ -25,9 +26,6 @@ export type FoundCard = {
   item: string;
   address: string;
   source: string;
-  // The file its collection is kept in, or null when it is no file of its own.
-  file: string | null;
-  line: number | null;
   status: 'active' | 'draft' | 'suspended';
   schedule: 'new' | 'due' | 'young' | 'mature';
   leech: boolean;
@@ -66,12 +64,11 @@ export type FieldDescription = { name: string; label: string | null; description
 export const fieldLabel = (field: FieldDescription) => field.label ?? field.name;
 
 // A source of the store, as `srl sources --json` describes it
-// (docs/sources.md): where `srl add` may create a collection is its prefix,
-// then a name that a glob of `include` matches and none of `exclude` does.
+// (docs/sources.md): `srl add` may create a collection whose address a
+// glob of `include` matches and none of `exclude` does.
 export type SourceDescription = {
   name: string;
   driver: string;
-  prefix: string;
   description: string;
   creates: { include: string[]; exclude: string[] };
 };
@@ -143,6 +140,8 @@ export const api = {
   kinds: async () => (await call<{ kinds: KindDescription[] }>('/api/kinds')).kinds,
   sources: async () => (await call<{ sources: SourceDescription[] }>('/api/sources')).sources,
   collections: async () => (await call<{ collections: string[] }>('/api/collections')).collections,
+  // The notes: the files an item may name with `see`, as its context.
+  notes: async () => (await call<{ notes: string[] }>('/api/notes')).notes,
   // The item as its source would add it to the collection at ADDRESS,
   // adding nothing.
   check: async (address: string, item: NewItem) =>

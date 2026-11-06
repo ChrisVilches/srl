@@ -7,7 +7,7 @@
 
 A proof of concept of source programs (see docs/sources.md, "Source
 programs"): items kept in a small document database, one JSON file,
-instead of in notes. Name it in `[sources]` of the store's
+instead of in files of the store. Name it in `[sources]` of the store's
 .srl/config.toml (see README.md), or call it by hand:
 
     echo '{"config": {"database": "vocab.json"}}' | uv run --script tinydb_source.py read
@@ -15,13 +15,11 @@ instead of in notes. Name it in `[sources]` of the store's
 Needs uv, which installs TinyDB for it. Meant for Linux, macOS and
 Windows, but tried on Linux only.
 
-- Each table of the database is a collection, and `srl add` may create
-  any new one.
+- Each table of the database is a collection, named by the table under
+  the folder `folder` (by default `db`): the table `words` is the
+  collection `db/words`. `srl add` may create any new one there.
 - Each item is a document `{"item": {...}}` holding its item object, and
   its handle is TinyDB's document ID.
-- A table's context is the text of its one document `{"context": "..."}`,
-  if it has one, shown in modes `prose` and `full` alike: it is prose,
-  never items.
 
 Every call reads one JSON object per line up to the end of standard
 input, and prints its answer, one JSON object per line.
@@ -31,54 +29,70 @@ import json
 import sys
 from pathlib import Path
 
-from tinydb import TinyDB, where
+from tinydb import TinyDB
+
+# The settings this source takes, in `[sources]` of .srl/config.toml.
+SETTINGS = {"database", "folder"}
 
 
 class SourceError(Exception):
     """A call that fails as a whole: the reason goes to standard error."""
 
 
-def database(config):
-    """The database the source's settings name, relative to the store."""
-    name = config.get("database")
-    if not isinstance(name, str) or not name:
-        raise SourceError("the setting `database` is missing; give the database's file, such as vocab/vocab.json")
-    Path(name).parent.mkdir(parents=True, exist_ok=True)
-    return TinyDB(name, ensure_ascii=False)
+class Source:
+    """The database the source's settings name, relative to the store, and
+    the folder its tables are collections under."""
+
+    def __init__(self, config):
+        unknown = sorted(set(config) - SETTINGS)
+        if unknown:
+            raise SourceError(f"unknown setting `{unknown[0]}`; the settings are `database` and `folder`")
+        name = config.get("database")
+        if not isinstance(name, str) or not name:
+            raise SourceError("the setting `database` is missing; give the database's file, such as vocab/vocab.json")
+        folder = config.get("folder", "db")
+        if not isinstance(folder, str) or not folder or folder.startswith(".") or "\\" in folder:
+            raise SourceError("the setting `folder` must be a folder name, such as db or vocab")
+        self.folder = folder.strip("/")
+        Path(name).parent.mkdir(parents=True, exist_ok=True)
+        self.db = TinyDB(name, ensure_ascii=False)
+
+    def collection(self, table):
+        return f"{self.folder}/{table}"
+
+    def table(self, collection):
+        """The table of COLLECTION, which srl gave as one of this source's."""
+        return self.db.table(collection.removeprefix(f"{self.folder}/"))
+
+    def close(self):
+        self.db.close()
 
 
-def describe(_db, inputs):
-    return [{"description": "Items kept in a TinyDB database, one table per collection.", "creates": ["*"]} for _ in inputs]
+def describe(source, inputs):
+    return [{"description": "Items kept in a TinyDB database, one table per collection.",
+             "creates": [f"{source.folder}/*"]} for _ in inputs]
 
 
-def collections(db, _inputs):
-    return [{"collection": name, "file": None} for name in sorted(db.tables())]
+def collections(source, _inputs):
+    return [{"collection": source.collection(name)} for name in sorted(source.db.tables())]
 
 
-def read(db, _inputs):
+def read(source, _inputs):
     lines = []
-    for name in sorted(db.tables()):
-        for document in db.table(name).all():
+    for name in sorted(source.db.tables()):
+        for document in source.db.table(name).all():
             if "item" not in document:
                 continue
-            item = {"collection": name, "handle": str(document.doc_id), "line": None, "written": None, "item": document["item"]}
-            lines.append(item)
+            lines.append({"collection": source.collection(name), "handle": str(document.doc_id),
+                          "written": None, "item": document["item"]})
     return lines
 
 
-def context(db, inputs):
-    answers = []
-    for request in inputs:
-        found = db.table(request["collection"]).search(where("context").exists())
-        answers.append({"context": found[0]["context"] if found else None})
-    return answers
-
-
-def write(db, inputs):
+def write(source, inputs):
     """Every change, or none: a change that can't be made refuses them all."""
     answers = []
     for change in inputs:
-        table = db.table(change["collection"])
+        table = source.table(change["collection"])
         if change["op"] == "replace":
             document = table.get(doc_id=int(change["handle"]))
             if document is None or document.get("item") != change["before"]:
@@ -87,7 +101,7 @@ def write(db, inputs):
     if not inputs or inputs[0]["dry_run"]:
         return answers
     for change in inputs:
-        table = db.table(change["collection"])
+        table = source.table(change["collection"])
         if change["op"] == "add":
             table.insert({"item": change["item"]})
         else:
@@ -95,7 +109,7 @@ def write(db, inputs):
     return answers
 
 
-CALLS = {"describe": describe, "collections": collections, "read": read, "context": context, "write": write}
+CALLS = {"describe": describe, "collections": collections, "read": read, "write": write}
 
 
 def main():
@@ -105,8 +119,8 @@ def main():
         return 2
     inputs = [json.loads(line) for line in sys.stdin if line.strip()]
     try:
-        db = database(inputs[0]["config"] if inputs else {})
-        for answer in CALLS[call](db, inputs):
+        source = Source(inputs[0]["config"] if inputs else {})
+        for answer in CALLS[call](source, inputs):
             print(json.dumps(answer, ensure_ascii=False))
     except SourceError as error:
         print(error, file=sys.stderr)

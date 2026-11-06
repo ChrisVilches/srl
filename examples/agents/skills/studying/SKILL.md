@@ -22,10 +22,7 @@ srl-web in:grammar          # only collections in a folder named grammar
 ```
 
 For each card, space or Enter shows the answer, then the context (the
-collection the item is in, such as the note around it, or the one its
-`see` names; none for an item of a
-JSONL note without `see`, and in mode `full` a JSONL note named by `see`, shown as a code
-block); `1`–`4` records the
+note the item names with `see`; none for an item without `see`); `1`–`4` records the
 rating; `s` suspends the card without rating it, after asking why (what
 to fix before studying it again; it may be left empty). In `srl-tui`, the card
 and the context scroll in panels of their own: `j`/`k` or the arrows
@@ -38,7 +35,8 @@ as it is given.
 shows any of them as studying would, recording nothing: for seeing how a
 card looks, such as one of a kind program, without waiting for it to be
 due. Its Add tab adds items one at a time to a collection the person picks,
-for a person who prefers a form to editing notes (see the writing-items
+and its context among the notes `srl notes` lists, for a person who
+prefers a form to editing files (see the writing-items
 skill for what an item holds).
 
 Both are meant for Linux, macOS and Windows, but are tried on Linux only;
@@ -90,7 +88,7 @@ Things that explain "why didn't my card show up?":
   is:draft` lists drafts; `srl find is:suspended` lists suspended
   cards.
 - **Errors stop everything.** An error in any source makes `srl next` fail
-  with the address and line; see the `fixing-problems` skill.
+  with the address and item at fault; see the `fixing-problems` skill.
 - `srl next` exits with 1 and prints nothing when nothing is left today.
 - **A card that can't be made stops `srl next`.** If the card it picks
   comes from a kind program that fails (an LLM API that is down, a
@@ -110,24 +108,20 @@ as yours. Only run one when the person asks for it. Each round:
 1. `srl next [SELECTOR] --json` prints the card, with its schedule, kind and
    context: `{"id": "k3m9q1.2", "prompt": "...", "prompt_revealed": "...",
    "answer": "...", "schedule": "due", "leech": false, "kind": "qa", "address": "...",
-   "source": "notes", "file": "...", "see": null, "context": "...", "context_address": "..."}`. Mention the kind when it isn't `qa`:
+   "source": "items", "see": "japanese/grammar/wo.md", "context": "..."}`. Mention the kind when it isn't `qa`:
    it says which program made the card. Exit
    code 1 means nothing is left: say so and stop. Exit code 2 is an
-   error: tell the person what it says, and stop. `--context MODE` chooses
-   how much of the collection comes along: `prose` (the default) without its
-   items, `full` with them, `none` nothing. An item of a JSONL note
-   without `see` has no context (`null`), and a JSONL note named by `see`
-   comes whole, as it is, in `full` only: `prose` never shows items.
+   error: tell the person what it says, and stop. `context` is the text
+   of the note `see` names, or `null` when the item has no `see` (or the
+   note isn't text). `--no-context` leaves it out.
 2. Show the prompt, and wait for the person's answer or for them to ask for
    the answer.
 3. Show the answer: `prompt_revealed` (the prompt with a cloze's blanks
    filled in), or `prompt` again when it is `null`; then `answer`, unless
    it is `null` (there is none: show nothing for it); then the context,
-   unless it is `null`. Say which collection it comes from:
-   `context_address`. Its extension says what the context is: a `.md`
-   note is Markdown; a `.jsonl` note is data rather than prose, so show it
-   as a code block or say what in it matters. Treat anything else as plain text, unless you
-   can tell what it is.
+   unless it is `null`. Say which note it comes from: `see`. Its
+   extension says what the context is: a `.md` note is Markdown; treat
+   anything else as plain text, unless you can tell what it is.
 4. Get the rating. Either the person gives it, or, if they asked you to
    judge, you compare their answer with the card's and decide, telling them
    the rating and why.

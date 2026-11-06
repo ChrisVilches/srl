@@ -1,0 +1,17 @@
+<items>
+  <item id="acy0x6" see="japanese/grammar/naru-beku.md">
+    <Q>What does なるべく express, and how does it differ from できるだけ?</Q>
+    <A>
+      A reasonable effort, "as much as possible, where you can". できるだけ
+      means the same but is a little stronger: to the limit of one's ability.
+    </A>
+  </item>
+  <item id="yekox3" see="japanese/grammar/naru-beku.md">
+    <Q>{{c1::なるべく::adverb}}早く返事をください。</Q>
+    <A>Please reply as soon as you can.</A>
+  </item>
+  <item id="moai8k" see="japanese/grammar/naru-beku.md">
+    <Q>夜はなるべく甘いものを{{c1::食べないようにしている}}。</Q>
+    <A>I try not to eat sweets at night, as far as I can.</A>
+  </item>
+</items>

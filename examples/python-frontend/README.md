@@ -20,11 +20,10 @@ screen needs a modern terminal such as Windows Terminal.
   cloze's blanks filled in (or leaves it as it is when the card has none,
   `prompt_revealed` being `null`), and adds the answer below it when there
   is one.
-- The context is shown under the answer, titled with the address of its
-  collection (`see`, or else `address`). It asks for the `prose` context:
-  the collection without its items. A context from anything but a
-  Markdown note (by the extension of `context_address`), such as a JSONL
-  note or a table of a source program, is shown as a code block.
+- The context, the note the item names with `see`, is shown under the
+  answer, titled with the note's path. A note in anything but Markdown
+  (by the extension of `see`), such as a text file, is shown as a code
+  block. An item without `see` has no context.
 - The screen never scrolls: the card and its context each scroll inside
   their own panel. When both are too long for the screen, each gets half
   of it; when one is shorter than half, the other takes the rest. A panel
@@ -98,10 +97,10 @@ otherwise the nearest store from the current directory up (see
 ## Making it yours
 
 It is one file, `src/srl_tui/__init__.py`, running the frontend loop of
-[docs/frontends.md](../../docs/frontends.md): `srl next --json --context
-CONTEXT` for a card, its schedule, kind and context, `srl review --stdin` for
-the rating. Change what you like: the colors in `THEME` and `RATINGS`, the
-context mode in `CONTEXT` (`prose`, `full` or `none`), the layout in
+[docs/frontends.md](../../docs/frontends.md): `srl next --json` for a
+card, its schedule, kind and context, `srl review --stdin` for the
+rating. Change what you like: the colors in `THEME` and `RATINGS`, the
+layout in
 `Session.show`, the keys in `QUESTION_KEYS` and `ANSWER_KEYS` and what
 they do in `Session.run`.
 

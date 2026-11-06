@@ -141,7 +141,8 @@ know, even in Markdown notes.
 ```toml
 [sources.vocab]
 program = ["python3", "sources/tinydb_source.py"]
-database = "vocab/vocab.json"    # the program's own setting
+database = "vocab/vocab.json"    # the program's own settings
+folder = "vocab"                 # its tables are collections vocab/TABLE
 ```
 
 Its items are then added, found, edited and studied with the same

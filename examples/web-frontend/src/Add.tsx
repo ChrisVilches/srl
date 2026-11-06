@@ -8,13 +8,14 @@ import { TopBar } from './TopBar';
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
 // collection to add it to, of any source, picked from
 // `srl collections`, or a new one where `srl sources` says one may be
-// created; its source writes the item its own way. srl checks the item, with
+// created; its source writes the item its own way. Its context, if any, is
+// a note picked from `srl notes`, never the collection. srl checks the item, with
 // `srl add --dry-run` (Check) and when it is added: the page knows no rule of
 // any kind, and shows what srl says.
 
 type Store =
   | { kind: 'loading' }
-  | { kind: 'ready'; kinds: KindDescription[]; collections: string[]; sources: SourceDescription[] }
+  | { kind: 'ready'; kinds: KindDescription[]; collections: string[]; notes: string[]; sources: SourceDescription[] }
   | { kind: 'error'; message: string };
 
 // What the last Check or Add gave.
@@ -65,12 +66,17 @@ export function Add() {
   const load = useCallback(async () => {
     setStore({ kind: 'loading' });
     try {
-      const [kinds, collections, sources] = await Promise.all([api.kinds(), api.collections(), api.sources()]);
-      setStore({ kind: 'ready', kinds, collections, sources });
+      const [kinds, collections, notes, sources] = await Promise.all([
+        api.kinds(),
+        api.collections(),
+        api.notes(),
+        api.sources(),
+      ]);
+      setStore({ kind: 'ready', kinds, collections, notes, sources });
       setCollection((current) =>
         current !== null && collections.includes(current) ? current : rememberedCollection(collections),
       );
-      setSee((current) => (current !== null && collections.includes(current) ? current : null));
+      setSee((current) => (current !== null && notes.includes(current) ? current : null));
     } catch (error) {
       setStore({ kind: 'error', message: (error as Error).message });
     }
@@ -81,6 +87,7 @@ export function Add() {
 
   const kinds = store.kind === 'ready' ? store.kinds : [];
   const collections = store.kind === 'ready' ? store.collections : [];
+  const notes = store.kind === 'ready' ? store.notes : [];
   const sources = store.kind === 'ready' ? store.sources : [];
   const kind = kinds.find((k) => k.name === kindName) ?? kinds[0];
   // A field of the kind holds text: the item would be lost by leaving.
@@ -179,7 +186,7 @@ export function Add() {
 
             <Section
               label="Collection"
-              hint="Where the item is added: an existing collection of any source, such as a note or a database table, or a new one, typed as its address, where a source of the store can create it (srl sources)."
+              hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its address, where a source of the store can create it (srl sources)."
             >
               <CollectionPicker
                 collections={collections}
@@ -194,15 +201,13 @@ export function Add() {
 
             <Section
               label="Context"
-              hint={'Optional: the collection shown for context along with the answer (the item\'s "see" entry). Default: same as collection.'}
+              hint={'Optional: the note shown for context along with the answer (the item\'s "see" entry), one of your study notes (srl notes). Default: no context.'}
             >
-              {/* The input is controlled, so its placeholder follows the
-                  collection chosen above like any other prop. */}
               <CollectionPicker
-                collections={collections}
+                collections={notes}
                 value={see}
                 onChange={setSee}
-                placeholder={collection ?? ''}
+                placeholder={notes.length === 0 ? 'The store has no notes' : 'Find a note…'}
                 clearable
               />
             </Section>
@@ -230,7 +235,7 @@ export function Add() {
   );
 }
 
-// The form while srl reads the kinds, collections and sources: the kind,
+// The form while srl reads the kinds, collections, notes and sources: the kind,
 // two fields, the collection and context with their hints, Draft and the
 // buttons, as laid out once they come.
 function FormSkeleton() {
@@ -348,8 +353,8 @@ function fuzzy(addresses: string[], query: string): string[] {
   return scored.sort((a, b) => a[0] - b[0] || a[1].length - b[1].length).map(([, address]) => address);
 }
 
-// A collection chosen from COLLECTIONS, the addresses `srl collections`
-// lists, by typing part of its address. Only a listed one can be chosen,
+// A path chosen from COLLECTIONS, the addresses `srl collections` lists or
+// the notes `srl notes` lists, by typing part of it. Only a listed one can be chosen,
 // and, with CREATABLE, a new one. With CLEARABLE, the choice can be taken
 // back.
 function CollectionPicker({
@@ -456,21 +461,17 @@ function CollectionPicker({
 }
 
 // Whether a source of the store can create a collection at ADDRESS, as
-// `srl add` decides it (docs/sources.md, "Addresses"): one
-// mounted deepest above it, whose `creates.include` globs (`srl sources
-// --json`) match the rest of the address and whose `creates.exclude` don't.
-// srl checks it again when the item is checked or added.
+// `srl add` decides it (docs/sources.md, "Addresses"): exactly one source
+// whose `creates.include` globs (`srl sources --json`) match the address
+// and whose `creates.exclude` don't. srl checks it again, with the format
+// the extension names, when the item is checked or added.
 function creatable(sources: SourceDescription[], address: string): boolean {
   if (address.split('/').some((part) => part === '' || part.startsWith('.'))) return false;
-  const above = sources.filter((source) => address.startsWith(source.prefix));
-  const deepest = Math.max(-1, ...above.map((source) => source.prefix.length));
-  return above
-    .filter((source) => source.prefix.length === deepest)
-    .some((source) => {
-      const rest = address.slice(source.prefix.length);
-      const { include, exclude } = source.creates;
-      return include.some((glob) => globMatches(glob, rest)) && !exclude.some((glob) => globMatches(glob, rest));
-    });
+  const accepting = sources.filter((source) => {
+    const { include, exclude } = source.creates;
+    return include.some((glob) => globMatches(glob, address)) && !exclude.some((glob) => globMatches(glob, address));
+  });
+  return accepting.length === 1;
 }
 
 // Whether `glob` matches `path` as srl matches globs: `*` within one folder,

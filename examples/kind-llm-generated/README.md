@@ -4,11 +4,11 @@
 should be about, and an LLM writes a new question and its answer every
 time the card is shown.
 
-````markdown
-```srl id:q4n8w2 kind:llm-generated
-PROMPT: question about Ohm's law, related to circuits, when it's used, what edge cases there are, following a Circuit Analysis I course
+```xml
+<item id="q4n8w2" kind="llm-generated" see="electrical/ohms-law.md">
+  <PROMPT>question about Ohm's law, related to circuits, when it's used, what edge cases there are, following a Circuit Analysis I course</PROMPT>
+</item>
 ```
-````
 
 It is the idea of [docs/guides/ideas.md](../../docs/guides/ideas.md),
 "Questions written by an LLM", made to work: a proof of concept of a
@@ -51,8 +51,8 @@ Meant for Linux, macOS and Windows; tried on Linux only.
   instructions tell the model not to write cloze deletions or `==…==`.
 - **The instructions are fixed**, in `INSTRUCTIONS` at the top of the
   program: write one question on the topic and its answer, a different angle
-  each time. The model gets `PROMPT`, then the item's context (its collection,
-  or the one `see` names, in mode `prose`) as background, when it has one.
+  each time. The model gets `PROMPT`, then the item's context (the text of
+  the note `see` names) as background, when it has one.
 
 ## Writing a good PROMPT
 
@@ -67,11 +67,9 @@ differently each time.
 - **One item per thing you want to know.** A narrow topic, such as one
   grammar point, word or theorem, rather than a whole field:
 
-  ````markdown
-  ```srl id:k3v9p1 kind:llm-generated
-  PROMPT: The N1 grammar point をよそに. Ask in Japanese about its nuance or usage; answer briefly in English.
+  ```json
+  {"id": "k3v9p1", "kind": "llm-generated", "PROMPT": "The N1 grammar point をよそに. Ask in Japanese about its nuance or usage; answer briefly in English."}
   ```
-  ````
 
   It is also what makes the scheduling work: srl schedules the item, so
   your ratings say how well you know that one topic. On a broad topic
@@ -79,10 +77,10 @@ differently each time.
 - **Say which angles you want**, if the default ones don't fit: "contrast
   it with にもかかわらず", "a new example sentence each time", "a
   calculation with different numbers".
-- **Put what many items share in their collection.** Its context is sent
-  as background, so a Markdown note, for one, can say around its items the
+- **Put what many items share in the note they name.** Its text is sent
+  as background, so a note named with `see` by many items can say the
   language the question and answer are in, the level and the style, and
-  each `PROMPT` in it only names its topic.
+  each `PROMPT` only names its topic.
 - **Keep a broad topic only for random review**, knowing it leans
   towards the topic's best-known points.
 
@@ -185,7 +183,7 @@ echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}}' \
   | python3 llm_generated.py groups
 # {"groups": [[null]]}
 
-echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}, "suffix": null, "context": null, "context_address": null, "day": "2026-10-27"}' \
+echo '{"id": "q4n8w2", "fields": {"PROMPT": "Ohm'\''s law"}, "suffix": null, "see": null, "context": null, "day": "2026-10-27"}' \
   | python3 llm_generated.py make
 
 echo '{}' | python3 llm_generated.py describe

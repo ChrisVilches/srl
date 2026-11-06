@@ -3,11 +3,9 @@
 `ja_words.py` is the `ja-words` kind: a lazy way to study words in
 context. You write a sentence and put braces around the words to study:
 
-````markdown
-```srl id:v81k3z kind:ja-words
-TEXT: 東京{都}は、日本の関東{地方}に{位置}する{都}
+```json
+{"id": "v81k3z", "kind": "ja-words", "TEXT": "東京{都}は、日本の関東{地方}に{位置}する{都}"}
 ```
-````
 
 Each distinct word in braces is a card. The card shows the whole sentence
 with that word highlighted, not hidden: you say the word to yourself, look
@@ -100,7 +98,7 @@ ja-words = ["python3", "kinds/ja_words.py"]
 
 The path is relative to the store's folder; an absolute path works too,
 so you can also point at this folder instead of copying. Items with
-`kind:ja-words` then have their cards:
+`"kind": "ja-words"` then have their cards:
 
 ```sh
 srl cards v81k3z     # the three cards of the sentence above
@@ -132,7 +130,7 @@ echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地�
   | python3 ja_words.py groups
 # {"groups": [["e983bd"], ["e59cb0e696b9"], ["e4bd8de7bdae"]]}
 
-echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地方}に{位置}する{都}"}, "suffix": "e983bd", "context": null, "context_address": null, "day": "2026-10-27"}' \
+echo '{"id": "v81k3z", "fields": {"TEXT": "東京{都}は、日本の関東{地方}に{位置}する{都}"}, "suffix": "e983bd", "see": null, "context": null, "day": "2026-10-27"}' \
   | python3 ja_words.py make
 
 echo '{}' | python3 ja_words.py describe

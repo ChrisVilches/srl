@@ -131,35 +131,34 @@ export function CardBadges({
   );
 }
 
-// The item's context: from the collection it belongs to, or the one its
-// see: names, under its address. Nothing when the item has none.
+// The item's context: the note its see: names, under its path. Nothing
+// when the item has none, or the note has no text to show.
 function ContextView({ card }: { card: ShownCard }) {
   if (card.context === null) {
     return null;
   }
   return (
     <section className="rounded-2xl bg-stone-100 px-6 py-5 dark:bg-stone-900/50">
-      <div className="mb-3 truncate font-mono text-xs text-stone-500" title={card.context_address ?? undefined}>
-        {card.context_address}
+      <div className="mb-3 truncate font-mono text-xs text-stone-500" title={card.see ?? undefined}>
+        {card.see}
       </div>
-      <Markdown text={contextMarkdown(card.context, card.context_address)} className="prose-sm prose-stone" />
+      <Markdown text={contextMarkdown(card.context, card.see)} className="prose-sm prose-stone" />
     </section>
   );
 }
 
 const MARKDOWN_EXTENSIONS =['.md', '.markdown', '.mdx', '.qmd'];
 
-// The context as Markdown to render, by the extension of its collection's
-// address (context_address). A context from anything but a Markdown note,
-// such as a JSONL note or a database's table, goes in a code block as plain
-// text, json for a JSONL note, with a fence longer than any run of
-// backticks in it.
-function contextMarkdown(context: string, address: string | null): string {
-  const lower = (address ?? '').toLowerCase();
+// The context as Markdown to render, by the extension of the note's path
+// (see). A note in anything but Markdown, such as a text file, goes in a
+// code block as plain text, json for JSON and JSONL, xml for XML, with a
+// fence longer than any run of backticks in it.
+function contextMarkdown(context: string, path: string | null): string {
+  const lower = (path ?? '').toLowerCase();
   if (MARKDOWN_EXTENSIONS.some((extension) => lower.endsWith(extension))) {
     return context;
   }
-  const language = lower.endsWith('.jsonl') ? 'json' : '';
+  const language = /\.jsonl?$/.test(lower) ? 'json' : lower.endsWith('.xml') ? 'xml' : '';
   const longest = Math.max(0, ...(context.match(/`+/g) ?? []).map((run) => run.length));
   const fence = '`'.repeat(Math.max(3, longest + 1));
   return `${fence}${language}\n${context.replace(/\n+$/, '')}\n${fence}\n`;

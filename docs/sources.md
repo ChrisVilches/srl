@@ -38,6 +38,7 @@ include = ["generated/**/*.jsonl"]
 [sources.vocab]
 program = ["python3", "sources/tinydb_source.py"]
 database = "vocab/vocab.json"    # every key but program is the program's
+folder = "vocab"                 # its tables are collections vocab/TABLE
 ```
 
 Each table of `[sources]` is a source, and its key is the source's name:
@@ -135,6 +136,7 @@ written in Markdown notes. It is configured like a kind program (see
 [sources.vocab]
 program = ["python3", "sources/tinydb_source.py"]
 database = "vocab/vocab.json"    # every key but program is the program's
+folder = "vocab"                 # its tables are collections vocab/TABLE
 ```
 
 - **`program` is a command**, as in `[kinds]`: the same rules for paths,

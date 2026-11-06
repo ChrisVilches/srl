@@ -1,0 +1,3 @@
+{"id": "pphbmm", "see": "software/big-o.md", "Q": "Why is pushing onto a dynamic array O(1) *amortized* but not O(1)?", "A": "When it is full it doubles its capacity and copies everything, which\ncosts O(n); averaged over all pushes, that is constant per push."}
+{"id": "75ryh7", "see": "software/big-o.md", "Q": "A hash map's lookup is O(1) on average but {{c1::O(n)}} in the worst case, when {{c2::every key collides}}."}
+{"id": "wcjimv", "see": "software/big-o.md", "Q": "Which structure gives the minimum in O(1) and inserts in O(log n)?", "A": "A binary heap."}

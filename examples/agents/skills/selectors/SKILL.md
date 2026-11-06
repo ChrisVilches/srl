@@ -12,9 +12,9 @@ A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | Cards whose item's address (its note's path, for a source without a prefix) has a folder named `NAME` anywhere, or is itself named `NAME` plus an extension (`NAME.md`, `NAME.txt`, …). Ignores case. `in:grammar` matches `japanese/Grammar/wo.md` and `grammar.md`, not `grammar-notes.md`. |
-| `path:GLOB` | The item's address: the note's path, relative to the store, for a source without a prefix; `vocab/words` for the table `words` of a source program mounted at `vocab/`. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is the collections directly in `japanese/`, such as its notes, `path:japanese/**` everything below it, `path:rust/ownership.md` one note. |
-| `source:NAME` | Cards whose item comes from the source `NAME`: `source:notes` for the notes of a store without `[sources]` (`srl sources` lists them). |
+| `in:NAME` | Cards whose item's address (its collection's path, for a file) has a folder named `NAME` anywhere, or is itself named `NAME` plus an extension (`NAME.jsonl`, `NAME.xml`, …). Ignores case. `in:grammar` matches `japanese/Grammar/wo.jsonl` and `grammar.xml`, not `grammar-notes.jsonl`. Notes are not collections, so a note named `grammar.md` alone matches nothing. |
+| `path:GLOB` | The item's address: the collection's path, relative to the store, for a file; `vocab/words` for the table `words` of a source program that names its tables under `vocab/`. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is the collections directly in `japanese/`, `path:japanese/**` everything below it, `path:rust/ownership.xml` one collection. |
+| `source:NAME` | Cards whose item comes from the source `NAME`: `source:items` for a store without `[sources]` (`srl sources` lists them). |
 | `id:ID` | A card (`id:k3m9q1.2`), or every card of an item (`id:k3m9q1`). |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind:` in their header, or a kind named in `[kinds]` of `.srl/config.toml`. An unknown kind is an error. Without `kind:`, items of every kind match. |
 | `is:S` | A status: `active`, `draft` or `suspended`. Or a place in the schedule: `new` (never reviewed since reset), `due` (due today or earlier), `young` and `mature` (not due; stability under or over 21 days). Or `leech`: forgotten 8 times or more, whatever its place. `is:draft,leech` mixes them freely. |
@@ -81,7 +81,7 @@ srl find is:leech                    # cards that keep being forgotten
 srl find "ものともせず"               # text search
 srl stats in:vocab is:active         # progress on studied vocabulary
 srl accept 'path:generated/**'       # accept every draft under generated/
-srl reset path:rust/ownership.md     # start one note over
+srl reset path:rust/ownership.xml    # start one collection over
 srl suspend id:k3m9q1                # stop studying every card of an item
 srl next kind:ja-words               # study only items of one kind
 ```

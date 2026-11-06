@@ -1,6 +1,6 @@
 ---
 name: setting-up-a-store
-description: Create an srl store, choose between several stores, change the configuration (.srl/config.toml), its sources (JSONL notes, source programs), add kind programs, and keep a store in git or a sync tool. Load when the person sets srl up, has more than one study folder, wants to change how many new cards a day or when a study day starts, asks about backups, wants a kind of item other than qa, or wants items kept somewhere other than notes.
+description: Create an srl store, choose between several stores, change the configuration (.srl/config.toml), its sources (collection files, source programs) and which files are notes, add kind programs, and keep a store in git or a sync tool. Load when the person sets srl up, has more than one study folder, wants to change how many new cards a day or when a study day starts, asks about backups, wants a kind of item other than qa, or wants items kept somewhere else, such as a database.
 ---
 
 # Setting up a store
@@ -13,9 +13,10 @@ srl init ~/study    # in another folder
 ```
 
 `srl init` creates `.srl/config.toml` (every setting commented out),
-`.srl/.gitignore` and an empty `.srl/log/`, and prints their paths. The folder may already hold notes:
-a folder of existing Markdown notes becomes a store as it is, and nothing in
-it changes until items are added.
+`.srl/.gitignore` and an empty `.srl/log/`, and prints their paths. The
+folder may already hold notes: a folder of existing Markdown notes becomes
+a store as it is, and `srl` never changes them. Items go in collections of
+their own, beside them.
 
 ## Which store a command uses
 
@@ -39,39 +40,50 @@ schedule, configuration and log.
 Every command except `srl init` fails if the store it finds doesn't exist,
 and the message says which folder it looked at.
 
-## Which files are notes
+## Collections and notes
 
-Items come from the store's sources, set in `[sources]` of
-`.srl/config.toml`. Without any, the store has one, `notes`: every `.md`
-file is a note of srl blocks in Markdown (see the `writing-items` skill),
-except files in folders whose name starts with `.` (`.srl/`, `.git/`,
-`.obsidian/`) and files matched by `exclude`, which always wins. Files
-must be UTF-8.
+A store holds two kinds of files:
 
-JSONL notes, one item object per line, are read by a source of their
-own, with `driver = "jsonl"` and the globs of their files, for example
-`include = ["generated/**/*.jsonl"]` for items that scripts and agents
-write. `[sources]` replaces the default source, so a store with both
-names both: `[sources.notes]` with `driver = "markdown"`, and
-`[sources.generated]` with `driver = "jsonl"`. Every file a source's
-`include` matches must be a valid note, so don't let a glob catch JSON
-files meant for other programs. `srl sources` describes the sources, and
-`srl collections` lists every collection, such as a note, by its address.
+- **Collections** hold the items. They come from the store's sources, set
+  in `[sources]` of `.srl/config.toml`. Without any, the store has one,
+  `items`, with the built-in `filesystem` driver: every `.jsonl` and
+  `.xml` file is a collection (see the `writing-items` skill for the
+  formats), except files in folders whose name starts with `.` (`.srl/`,
+  `.git/`, `.obsidian/`) and files matched by `exclude`, which always
+  wins. JSON collections (`.json`) are read when `include` names them,
+  such as `include = ["**/*.jsonl", "**/*.xml", "items/**/*.json"]`.
+  Every file a source's `include` matches must be a valid collection, so
+  don't let a glob catch JSON files meant for other programs. `srl
+  sources` describes the sources, and `srl collections` lists every
+  collection by its address.
+- **Notes** are the person's study material, which items name with `see`
+  as their context. They hold no items. `[context]` chooses them, by
+  default every `.md` and `.txt` file; `include = ["**/*.md", "**/*.pdf"]`
+  makes PDFs notes too. `srl notes` lists them.
+
+Files must be UTF-8 (a note that isn't is not shown as text).
+
+`[sources]` replaces the default source, so a store whose agent-written
+items live apart names both, for example `[sources.mine]` with
+`exclude = ["generated/**"]` and `[sources.generated]` with
+`include = ["generated/**/*.jsonl"]`, both `driver = "filesystem"`. No
+collection may be read by two sources.
 
 A source can also be a **source program**, which keeps items its own way,
 such as in a database: `program` instead of `driver`, a command as in
-`[kinds]`. Its `prefix` mounts its collections among the store's
-addresses, and every other key of its table is the program's own setting.
-Its items are studied, shown and changed like any other, with `srl edit
---stdin` since they are in no file. The `srl` repository's `examples/`
-has one, `source-tinydb` (items in a TinyDB database, one table per
-collection); its README says how to add it:
+`[kinds]`. Every other key of its table is the program's own setting,
+which the program checks. It names its collections itself, such as under
+a folder of its own, so that they don't clash with files. Its items are
+studied, shown and changed like any other, with `srl edit --stdin` since
+they are in no file. The `srl` repository's `examples/` has one,
+`source-tinydb` (items in a TinyDB database, one table per collection);
+its README says how to add it:
 
 ```toml
 [sources.vocab]
 program = ["uv", "run", "--quiet", "--script", "sources/tinydb_source.py"]
-prefix = "vocab/"                # the table words is the collection vocab/words
-database = "vocab/vocab.json"    # the program's own setting
+database = "vocab/vocab.json"    # the program's own settings
+folder = "vocab"                 # the table words is the collection vocab/words
 ```
 
 ## Configuration
@@ -79,11 +91,14 @@ database = "vocab/vocab.json"    # the program's own setting
 `.srl/config.toml`. Every setting is optional; these are the defaults:
 
 ```toml
-[sources.notes]              # the one source of a store without [sources]
-driver = "markdown"          # notes of srl blocks; "jsonl" for notes of JSON lines
-include = ["**/*.md"]        # globs of notes, e.g. ["**/*.md", "**/*.txt"]; replaces the default
-exclude = []                 # globs of notes to ignore, e.g. ["templates/**", "inbox.md"]
-prefix = ""                  # where its notes are among the store's addresses; "" keeps their paths
+[sources.items]              # the one source of a store without [sources]
+driver = "filesystem"        # collections that are files of the store
+include = ["**/*.jsonl", "**/*.xml"]   # globs of collections; replaces the default
+exclude = []                 # globs of files to ignore, e.g. ["templates/**"]
+
+[context]
+include = ["**/*.md", "**/*.txt"]      # notes: the files items may name with `see`
+exclude = []                 # files to leave out, e.g. ["inbox.md"]
 
 [schedule]
 desired_retention = 0.9      # target chance of remembering a card when it is due
@@ -95,7 +110,7 @@ mature_days = 21             # a card with at least this stability (days) is mat
 # weights = [...]            # custom FSRS weights; leave out to use the defaults
 
 [kinds]
-# ja-words = ["python3", "kinds/ja_words.py"]   # kind:ja-words runs this command
+# ja-words = ["python3", "kinds/ja_words.py"]   # the kind ja-words runs this command
 
 [kind_programs]
 card_timeout = 60            # seconds a kind program may take to make a card
@@ -117,7 +132,7 @@ card_timeout = 60            # seconds a kind program may take to make a card
 ## Kind programs
 
 `qa` is built in. Any other kind is a program named in `[kinds]`: the key
-is the kind's name, as items write it (`kind:ja-words`), and the value the
+is the kind's name, as items write it (`"kind": "ja-words"`), and the value the
 command, a list of the program and its arguments. A program path with a
 folder is relative to the store's folder, and the program runs there. The
 `srl` repository's `examples/` has two: `kind-ja-words` (one card per
@@ -138,7 +153,7 @@ to add them.
 ## Git and syncing
 
 The store is text, so git and file sync tools work well. Commit everything
-git doesn't ignore: the notes, `.srl/config.toml`, `.srl/.gitignore` and
+git doesn't ignore: the collections and notes, `.srl/config.toml`, `.srl/.gitignore` and
 `.srl/log/*.jsonl` (the log is the whole review history). The store needs
 no `.gitignore` of its own for `srl`: `.srl/.gitignore` already ignores
 what `srl` writes that is not a source of truth (the cache, the log's lock
@@ -148,6 +163,7 @@ nothing.
 Some sync tools skip folders whose names start with `.`. Check that
 `.srl/` is synced, or the review history stays on one device. Keep the
 store on a local disk rather than a network share: locking on network file
-systems is unreliable. Keep the notes on the same file system as `.srl/`
-too: `srl` writes a note by renaming a temporary file from `.srl/tmp/` over
-it, which fails for a note in a folder mounted from elsewhere.
+systems is unreliable. Keep the collections on the same file system as
+`.srl/` too: `srl` writes a collection by renaming a temporary file from
+`.srl/tmp/` over it, which fails for one in a folder mounted from
+elsewhere.

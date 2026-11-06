@@ -6,8 +6,8 @@ Linux and macOS, msvcrt on Windows, a branch that has never run.
 
 It is a starting point: copy it, rename it, change it.
 
-It runs the frontend loop of docs/frontends.md: `srl next --json --context
-CONTEXT` for the card and its context, `srl review --stdin` for the rating.
+It runs the frontend loop of docs/frontends.md: `srl next --json` for the
+card and its context, `srl review --stdin` for the rating.
 Keys act at once, without Enter: space or Enter shows the answer, 1-4 rate,
 j/k or the arrows scroll the panel in focus, Ctrl-D/Ctrl-U by half of it,
 g/G to its top and bottom, Tab moves the focus between the card and the
@@ -39,10 +39,6 @@ from rich.theme import Theme
 THEME = Theme({"markdown.mark": "bold yellow", "markdown.h1": "bold magenta"})
 
 RATINGS = [("again", "red"), ("hard", "yellow"), ("good", "green"), ("easy", "blue")]
-
-# How much of the context to show after the answer: "prose" (the collection
-# without its items), "full" (with them) or "none" (see docs/items.md, "Context").
-CONTEXT = "prose"
 
 console = Console(theme=THEME, highlight=False)
 
@@ -118,16 +114,20 @@ MARKDOWN_EXTENSIONS = (".md", ".markdown", ".mdx", ".qmd")
 
 
 def context_markdown(card):
-    """The card's context, as Markdown to render, by the extension of its
-    collection's address (context_address). A context from anything but a
-    Markdown note, such as a JSONL note or a table of a source program, goes
-    in a code block as plain text, json for a JSONL note, with a fence longer
-    than any run of backticks in it."""
+    """The card's context, as Markdown to render, by the extension of the
+    note's path (see). A note in anything but Markdown, such as a text file,
+    goes in a code block as plain text, json for JSON and JSONL, xml for XML,
+    with a fence longer than any run of backticks in it."""
     context = card["context"]
-    address = (card.get("context_address") or "").lower()
-    if address.endswith(MARKDOWN_EXTENSIONS):
+    path = (card.get("see") or "").lower()
+    if path.endswith(MARKDOWN_EXTENSIONS):
         return context
-    language = "json" if address.endswith(".jsonl") else ""
+    if path.endswith((".json", ".jsonl")):
+        language = "json"
+    elif path.endswith(".xml"):
+        language = "xml"
+    else:
+        language = ""
     longest = max((len(run) for run in re.findall("`+", context)), default=0)
     fence = "`" * max(3, longest + 1)
     return f"{fence}{language}\n{context.rstrip(chr(10))}\n{fence}\n"
@@ -315,7 +315,7 @@ class Session:
         if with_context:
             context, scroll["context"], shown["context"] = scrolled(
                 context_lines, context_height, scroll["context"], focus == "context",
-                title=Text(card["see"] or card["address"], "dim"), title_align="left",
+                title=Text(card["see"] or "", "dim"), title_align="left",
                 border_style="white" if focus == "context" else "dim", padding=(0, 2))
             screen.append(context)
         elif answered:
@@ -350,7 +350,7 @@ class Session:
     def run(self):
         """Studies until no card is left (returns True) or q is pressed."""
         while True:
-            out, code = srl("next", "--json", "--context", CONTEXT, "--", *self.selector)
+            out, code = srl("next", "--json", "--", *self.selector)
             if code == 1:
                 return True
             card = json.loads(out)

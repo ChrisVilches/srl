@@ -4,8 +4,7 @@
 // here: scheduling belongs to srl (see docs/frontends.md).
 //
 //   GET  /api/config       nothing                     → { on_change }
-//   GET  /api/next?sel=…   srl next SEL --json --context CONTEXT
-//                                                      → { card } or { card: null }
+//   GET  /api/next?sel=…   srl next SEL --json         → { card } or { card: null }
 //   POST /api/review       srl review --stdin          ← { card, rating, response? }
 //   POST /api/suspend      srl suspend id:CARD --reason REASON
 //                                                      ← { card, reason? }
@@ -13,10 +12,10 @@
 // The card browser, which shows any card without studying it:
 //
 //   GET  /api/find?sel=…   srl find SEL --json, then srl show ITEMS --json
-//                          --context none for each item's kind and first field
+//                          --no-context for each item's kind and first field
 //                                                      → { cards: [found…] }
 //   GET  /api/card?id=…    srl cards ID --json and srl show ID --json
-//                          --context CONTEXT           → { card }
+//                                                      → { card }
 //   GET  /api/log?id=…     srl log id:ID --json        → { events: [event…] }
 //
 // /api/next and /api/card make the card, so a kind program runs and may take
@@ -27,6 +26,7 @@
 //
 //   GET  /api/kinds        srl kinds --json            → { kinds: [kind…] }
 //   GET  /api/collections  srl collections --json      → { collections: [address…] }
+//   GET  /api/notes        srl notes --json            → { notes: [path…] }
 //   GET  /api/sources      srl sources --json          → { sources: [source…] }
 //   POST /api/add          srl add ADDRESS --stdin [--dry-run], with ITEM as its
 //                          one line                    ← { address, item, dry_run }
@@ -35,7 +35,7 @@
 //
 // Editing an item, of any source:
 //
-//   GET  /api/item?id=ID   srl show ID --json --context none → { item }
+//   GET  /api/item?id=ID   srl show ID --json --no-context → { item }
 //   POST /api/edit         srl edit --stdin, with ITEM as its one line
 //                                                      ← { item } → { ids }
 //
@@ -56,10 +56,6 @@ import path from 'node:path';
 
 import { createOnChange } from './on-change.js';
 import { SrlError, runSrl } from './srl.js';
-
-// How much of the context to show after the answer: 'prose' (the collection
-// without its items), 'full' (with them) or 'none' (see docs/items.md, "Context").
-const CONTEXT = 'prose';
 
 // How many item IDs to give one srl show, so that its command line stays
 // short enough everywhere (Windows allows about 32,000 characters).
@@ -112,7 +108,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
     'GET /api/on-change': async () => hook?.status() ?? { busy: false, last: null },
 
     'GET /api/next': async (url, _body, signal) => {
-      const { found, stdout } = await srl(['next', '--json', '--context', CONTEXT, ...selectorArgs(url)], undefined, signal);
+      const { found, stdout } = await srl(['next', '--json', ...selectorArgs(url)], undefined, signal);
       return { card: found ? JSON.parse(stdout) : null };
     },
 
@@ -142,7 +138,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       const items = new Map();
       const itemIds = [...new Set(cards.map((card) => card.item))];
       for (let i = 0; i < itemIds.length; i += SHOW_BATCH) {
-        const show = await srl(['show', '--json', '--context', 'none', ...itemIds.slice(i, i + SHOW_BATCH)]);
+        const show = await srl(['show', '--json', '--no-context', ...itemIds.slice(i, i + SHOW_BATCH)]);
         for (const item of jsonLines(show.stdout)) {
           items.set(item.id, item);
         }
@@ -163,7 +159,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       const id = requireId(url.searchParams.get('id'));
       const [cards, show] = await Promise.all([
         srl(['cards', '--json', id], undefined, signal),
-        srl(['show', '--json', '--context', CONTEXT, id], undefined, signal),
+        srl(['show', '--json', id], undefined, signal),
       ]);
       const card = jsonLines(cards.stdout).find((c) => c.id === id);
       if (!card) {
@@ -177,7 +173,6 @@ export function createSrlServer({ dir, staticDir, onChange }) {
           address: item.address,
           see: item.see,
           context: item.context,
-          context_address: item.context_address,
         },
       };
     },
@@ -200,10 +195,16 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       return { collections: found ? jsonLines(stdout).map((collection) => collection.address) : [] };
     },
 
+    // The notes: the files items may name with `see`, as their context.
+    'GET /api/notes': async () => {
+      const { found, stdout } = await srl(['notes', '--json']);
+      return { notes: found ? jsonLines(stdout).map((note) => note.path) : [] };
+    },
+
     // The item is passed to srl as it is: srl checks it, and the address of
     // the collection, given as `address`. With dry_run, srl prints the item
-    // as its source would add it, as written in a note or a source program's
-    // preview of it, and adds nothing.
+    // as its source would add it, as written in its collection or a source
+    // program's preview of it, and adds nothing.
     'POST /api/add': async (_url, body) => {
       if (typeof body.address !== 'string' || body.address === '') {
         throw new BadRequest('address must be the address of a collection');
@@ -225,7 +226,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
     // The item of a card or item ID, as srl show --json prints it, to edit.
     'GET /api/item': async (url) => {
       const id = requireId(url.searchParams.get('id'));
-      const { stdout } = await srl(['show', '--json', '--context', 'none', id]);
+      const { stdout } = await srl(['show', '--json', '--no-context', id]);
       return { item: jsonLines(stdout)[0] };
     },
 

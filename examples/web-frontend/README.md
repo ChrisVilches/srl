@@ -26,8 +26,7 @@ macOS and Windows (it is tried on Linux only).
   header, opens its details in a modal: everything srl says about it, to
   trace it back to where it comes from and what happened to it. Its card
   and item IDs, its kind (a built-in one too), its source, the address
-  of its collection with the item's line, the file the collection is
-  kept in, the collection its context comes from, its status (with the
+  of its collection, the note its context comes from, its status (with the
   reason, if it is suspended), its place in the schedule, the day it is
   due, whether it is a leech, and its history: every event of the log
   for it, newest first, each with its time, as `srl log` gives them (a
@@ -37,11 +36,11 @@ macOS and Windows (it is tried on Linux only).
 - Showing the answer scrolls smoothly to put it in the middle of the
   window. Browse doesn't: turning a card to its answer there leaves the
   page where it is.
-- After the answer it shows the context in `prose` mode, under the
-  address of its collection; `CONTEXT` in `server/server.js` chooses the
-  mode. A context from anything but a Markdown note (by the extension of
-  `context_address`), such as a JSONL note or a table of a source
-  program, is shown as a code block, a JSONL one in colors. A table
+- After the answer it shows the context, the note the item names with
+  `see`, under the note's path. A note in anything but Markdown (by the
+  extension of `see`), such as a text file, is shown as a code block, a
+  JSON or JSONL one in colors. A note srl gives no text for, such as one
+  that isn't UTF-8, isn't shown. A table
   wider than the page scrolls sideways in its own box, leaving the text
   around it in place. A long kind is cut short in the card's header, a
   long address over the context and a long value in the details, whole
@@ -111,7 +110,7 @@ address), for seeing what a store holds and how a kind's cards look, such
 as how `ja_word` marks words, without studying:
 
 - It lists the cards of a selector as `srl find` does, in the order they
-  are written and under the address of each collection: each card's ID, line,
+  are written and under the address of each collection: each card's ID,
   kind (unless built in), status (when not active), place in the schedule
   and whether it is a leech, and the
   first line of its item's first field.
@@ -156,8 +155,8 @@ as how `ja_word` marks words, without studying:
   Study is shown, so a page opened on `/browse` runs no `srl next`.
 
 In the card browser, the **Edit** side, next to Prompt, Revealed and
-JSON, edits the item of the chosen card, whatever its source: a note, or
-a database or service behind a source program. It shows the item's
+JSON, edits the item of the chosen card, whatever its source: a file of
+the store, or a database or service behind a source program. It shows the item's
 fields and whether it is a draft, as `srl show --json` gives them, each
 field under its label from `srl kinds` (`Question` for `Q`), or its name
 if its kind gives none or `srl kinds` fails, and **Save** gives the whole item to `srl edit
@@ -183,24 +182,26 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   box's placeholder: shown while the box is empty, gone once something
   is typed, since a kind is soon learned. Changing
   the kind keeps the text of a field of the same name.
-- The **Collection** it is added to, of any source (a note, or a table
-  of a source program), is chosen among those `srl collections` lists,
-  by typing any part of its address (the letters in order), or is a new
-  one: an address typed in full, offered as **New collection** when a
-  source of the store could create it there, as `srl sources` describes
-  (its prefix, then an address its `include` globs match and its
-  `exclude` globs don't). `srl add` creates it, and has the last word on
-  whether it may; the source writes the item its own way. The
-  collections are read each time Add is shown.
+- The **Collection** it is added to, of any source (a JSONL, JSON or
+  XML file, or a table of a source program), is chosen among those `srl
+  collections` lists, by typing any part of its address (the letters in
+  order), or is a new one: an address typed in full, offered as **New
+  collection** when exactly one source of the store could create it
+  there, as `srl sources` describes (an address its `include` globs
+  match and its `exclude` globs don't). `srl add` creates it, and has
+  the last word on whether it may; the source writes the item its own
+  way. Notes are never offered: they hold no items. The collections are
+  read each time Add is shown.
 - The collection last added to is chosen again on the next visit. It is kept
   in the browser's `localStorage`, so it is per browser and per address
   (port), and forgotten when `srl collections` no longer lists it.
-- An optional context collection, chosen the same way, becomes the
-  item's `see:`. Until one is chosen, its box shows, as its placeholder,
-  the collection the item is added to, which is its context without
-  one. **Draft** makes the item a draft.
+- An optional **Context**, a note chosen the same way among those `srl
+  notes` lists (your study material, by default the store's Markdown and
+  text files), becomes the item's `see`. Without one, the item has no
+  context: the collection it is added to is never its context.
+  **Draft** makes the item a draft.
 - **Check** runs `srl add --dry-run` and shows the item as srl would
-  add it: as it would be written in a note, or the preview a source
+  add it: as it would be written in its collection, or the preview a source
   program gives; **Add** (Ctrl+Enter) adds it and shows its ID, then empties
   the fields. Leaving Add while a field of the kind holds text asks
   first, in a dialog, whether to leave and lose the item. The page knows
@@ -284,17 +285,18 @@ scheduling here; that belongs to `srl`.
 |---|---|---|
 | `GET /api/config` | nothing | `{"on_change": …}`, whether `srl-web` has `--on-change` |
 | `GET /api/on-change` | nothing | `{"busy": …, "last": …}`: whether a change is still waiting for its run, and the last run, `{"seq": N, "error": …}` with `error` `null` on success, or `null` before any |
-| `GET /api/next?sel=…` | `srl next SEL --json --context prose` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
+| `GET /api/next?sel=…` | `srl next SEL --json` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
 | `POST /api/review` | `srl review --stdin`, with the request body | `{}` |
 | `POST /api/suspend` | `srl suspend id:CARD --reason=REASON`, for `{"card": CARD, "reason": REASON}`; an empty or missing `reason` is none | `{}` |
-| `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --context none` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind`, `see` and `excerpt`, the first line of its first field |
+| `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --no-context` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind`, `see` and `excerpt`, the first line of its first field |
 | `GET /api/log?id=…` | `srl log id:ID --json` | `{"events": […]}`: the card's events, in log order, as stored; those of other cards of an item of the same ID are left out |
-| `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json --context prose` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `address`, `see`, `context` and `context_address`, as `srl next --json` gives them (not its `source` and `file`) |
+| `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `address`, `see` and `context`, as `srl next --json` gives them (not its `source`) |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
 | `GET /api/sources` | `srl sources --json` | `{"sources": […]}`, each source as `srl sources` printed it |
 | `GET /api/collections` | `srl collections --json` | `{"collections": [ADDRESS…]}` |
-| `POST /api/add` | `srl add ADDRESS --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"address": ADDRESS, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as its source would add it, as written in a note or a source program's preview |
-| `GET /api/item?id=…` | `srl show ID --json --context none` | `{"item": …}`, the item object `srl show` printed |
+| `GET /api/notes` | `srl notes --json` | `{"notes": [PATH…]}` |
+| `POST /api/add` | `srl add ADDRESS --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"address": ADDRESS, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as its source would add it, as written in its collection or a source program's preview |
+| `GET /api/item?id=…` | `srl show ID --json --no-context` | `{"item": …}`, the item object `srl show` printed |
 | `POST /api/edit` | `srl edit --stdin`, for `{"item": ITEM}`; `ITEM` is its one line | `{"ids": […]}` |
 
 `/api/find` gives `srl show` at most 500 item IDs at a time, to keep its

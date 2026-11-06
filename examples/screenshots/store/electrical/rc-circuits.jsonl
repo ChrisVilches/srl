@@ -1,0 +1,2 @@
+{"id": "pldhp1", "see": "electrical/rc-circuits.md", "Q": "What is the time constant of a 10 kΩ resistor with a 100 µF capacitor?", "A": "τ = RC = 10,000 × 0.0001 = 1 s."}
+{"id": "ire7bm", "see": "electrical/rc-circuits.md", "Q": "After one time constant, a charging capacitor reaches about {{c1::63%}} of the supply voltage."}

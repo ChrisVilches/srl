@@ -20,7 +20,6 @@ const RATING_NAMES: Record<Rating, { name: string; color: string }> = {
 // a built-in one too, unlike on the card. Its history is read once
 // READ_HISTORY is true: Browse waits until the card has stayed chosen.
 export function CardDetails({ card, readHistory = true }: { card: FoundCard; readHistory?: boolean }) {
-  const where = card.line === null ? card.address : `${card.address}:${card.line}`;
   return (
     <div className="flex flex-col gap-4 text-sm">
       {/* A card suspended without a reason says so, with no reason. */}
@@ -67,13 +66,10 @@ export function CardDetails({ card, readHistory = true }: { card: FoundCard; rea
           )}
         </Entry>
         <Entry name="Collection" mono wide>
-          {where}
-        </Entry>
-        <Entry name="File" mono={card.file !== null} wide>
-          {card.file ?? <None>none of its own</None>}
+          {card.address}
         </Entry>
         <Entry name="Context" mono={card.see !== null} wide>
-          {card.see ?? <None>its collection</None>}
+          {card.see ?? <None>none</None>}
         </Entry>
       </dl>
       <History card={card} read={readHistory} />

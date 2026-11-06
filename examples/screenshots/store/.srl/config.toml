@@ -1,11 +1,14 @@
 # srl configuration. Every key is optional; these are the defaults.
 
 # The sources of items. Without any, a store has the one below.
-# [sources.notes]
-# driver = "markdown"        # markdown (notes of srl blocks) or jsonl (notes of JSON lines)
-# include = ["**/*.md"]      # globs of notes, relative to the store's folder
-# exclude = []               # globs of notes to ignore; they win over include
-# prefix = ""                # where its collections are among the store's addresses
+# [sources.items]
+# driver = "filesystem"      # collections that are files of the store; or program = [...]
+# include = ["**/*.jsonl", "**/*.xml"]   # globs of the collections, relative to the store's folder
+# exclude = []               # globs of files to ignore; they win over include
+
+[context]
+# include = ["**/*.md", "**/*.txt"]   # files items may name with `see`: study material
+# exclude = []                        # files to leave out; they win over include
 
 [schedule]
 # desired_retention = 0.9    # FSRS target probability of recall

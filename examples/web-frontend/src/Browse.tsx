@@ -276,7 +276,6 @@ function CardList({
               <KindBadge kind={card.kind} />
               <CardBadges status={card.status} schedule={card.schedule} leech={card.leech} />
               {made[card.id]?.kind === 'making' && <span className="text-amber-600">making…</span>}
-              {card.line !== null && <span className="ml-auto font-mono">:{card.line}</span>}
             </div>
             <div className="mt-1 truncate text-sm">{card.excerpt}</div>
           </button>

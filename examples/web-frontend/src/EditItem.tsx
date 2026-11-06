@@ -7,7 +7,7 @@ import { Modal, ResultBox, UnsavedGuard } from './Modal';
 // Editing an item of any source: its fields and whether it is a draft, as
 // srl show --json gives them, written back whole with srl edit --stdin. The
 // page knows no source: srl finds the item by its ID and its source writes
-// it, so an item kept in a database is edited as a note's item is.
+// it, so an item kept in a database is edited as one kept in a file.
 
 // What was read, with the ID of the item it was read for, so that the form
 // never shows an item read for another ID.

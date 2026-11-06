@@ -20,7 +20,7 @@ command runs from there**.
 | Path | What it is |
 |---|---|
 | `images/` | The accepted screenshots: `tui-*.png` and `web-*-dark.png`. |
-| `store/` | The demo store: notes about geography, software, Japanese, Chinese and electrical engineering, and `.srl/config.toml`. Its items already have IDs. |
+| `store/` | The demo store: notes about geography, software, Japanese, Chinese and electrical engineering (`.md`), each with its items in a collection beside it (`.jsonl`, or `.xml` for those written by hand over several lines) naming the note with `see`, and `.srl/config.toml`. Its items already have IDs. |
 | `store/kinds/` | Not in git: the `ja-words` kind program, copied in by step 2 below. |
 | `capture-tui.sh` | Runs `srl-tui` in tmux on each shot's selector and saves the screen, with its colors, as a `.ansi` file. |
 | `tui.html` | A terminal in a web page (xterm.js) that draws a `.ansi` file with the fonts and colors of the shots. |
@@ -131,10 +131,11 @@ IPA dictionary (for the `ja-words` cards; see `../kind-ja-words/`).
   SELECTOR REVEAL`) and in `shoot.mjs` (`study(…)`, and the card clicked
   in Browse). `srl next SELECTOR --json` on the copied store tells which
   card a selector shows.
-- **Other notes:** edit or add notes in `store/`, then give new items
-  their IDs in place, so every copy gets the same cards:
-  `SRL_DIR="$PWD/store" srl id` (after step 2). Write the notes as plain
-  Markdown that a terminal can show: sub- and superscripts as Unicode
+- **Other notes and items:** edit or add notes and collections in
+  `store/` (a collection's items name their note with `see`), then give
+  new items their IDs in place, so every copy gets the same cards:
+  `SRL_DIR="$PWD/store" srl id` (after step 2). Write notes and items as
+  plain Markdown that a terminal can show: sub- and superscripts as Unicode
   characters (R₁, I²), which terminals show; no LaTeX, which neither
   frontend renders.
 - **Size, fonts, colors:** see "The user's current preferences" below, and

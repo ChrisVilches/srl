@@ -1,0 +1,22 @@
+<items>
+  <item id="tsh116" see="electrical/ohms-law.md">
+    <Q>
+      A 12 V supply drives a 4 Ω resistor. What current flows, and what power
+      does the resistor dissipate?
+    </Q>
+    <A>I = V/R = 3 A, and P = V·I = 36 W.</A>
+  </item>
+  <item id="4jh1mn" see="electrical/ohms-law.md">
+    <Q>Two 100 Ω resistors in parallel have a total resistance of {{c1::50 Ω}}.</Q>
+  </item>
+  <item id="3tgv3r" see="electrical/ohms-law.md">
+    <Q>
+      Why is the resistance of resistors in parallel always less than the
+      smallest of them?
+    </Q>
+    <A>
+      Each one adds another path for the current: conductances add, so the
+      total conductance is larger than any single one.
+    </A>
+  </item>
+</items>

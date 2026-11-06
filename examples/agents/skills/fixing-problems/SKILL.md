@@ -1,6 +1,6 @@
 ---
 name: fixing-problems
-description: Diagnose and fix srl problems - errors in items or sources that stop every command, a card a kind program can't make that stops srl next, srl check and srl lint, items that silently aren't items, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, locking or cache messages, and revising suspended cards by the reasons they were suspended with. Load whenever an srl command fails, when cards are missing or behave unexpectedly, or when the person wants to fix cards they suspended.
+description: Diagnose and fix srl problems - errors in items or sources that stop every command, a card a kind program can't make that stops srl next, srl check and its warnings, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, locking or cache messages, and revising suspended cards by the reasons they were suspended with. Load whenever an srl command fails, when cards are missing or behave unexpectedly, or when the person wants to fix cards they suspended.
 ---
 
 # Fixing problems
@@ -8,40 +8,38 @@ description: Diagnose and fix srl problems - errors in items or sources that sto
 ## Errors stop every command
 
 Any error in any source stops every command that reads items (`srl find`,
-`srl next`, ...). Each error is printed on standard error as
-`ADDRESS:LINE: message` (the address being a note's path, for a source
-without a prefix), and the exit code is 2. Fix them all, then run the
-command again. `srl check` lists every problem in the store at once,
-except after an invalid configuration: it reports that alone and stops,
-since the sources and the log can't be read without it. Fix it and run
-`srl check` again.
+`srl next`, ...). Each error is printed on standard error, and the exit
+code is 2: `ADDRESS: item ID: message` for an item (`item N`, by its
+position, when it has no valid ID), or `ADDRESS: message` for a
+collection, where the message says where in it, such as `line 3:` in a
+JSONL or XML file. The address is the collection's path, for a file of
+the store. Fix them all, then run the command again. `srl check` lists
+every problem in the store at once, except after an invalid
+configuration: it reports that alone and stops, since the sources and the
+log can't be read without it. Fix it and run `srl check` again.
 
 | Error | Usual cause | Fix |
 |---|---|---|
-| srl block never closed | a ```` ```srl ```` without its closing ```` ``` ````, or a field's code block that closed it early | Close the block; when a field holds a code block, open the srl block with `~~~srl` and close it with `~~~` (see "An item cut short, or gone" below). |
-| first line of an srl block, or block that mixes forms | a blank line or text right after the fence, entries on the fence of a block of `@` items, or an `@` line in a block of one item | Start the block with a field line (one item) or an `@` line (several); put entries on the `@` lines when there are some. |
-| line not part of an item in an srl block | a continuation line without its two spaces, or prose inside the block | Indent the continuation with two spaces, or move the prose out of the block. |
-| header not followed by a field line | a blank line or a paragraph right after an `@` line | Put `Q:` on the line right after it. |
-| line starts with one space or a tab | a continuation line indented wrong | Indent continuation lines with exactly two spaces. |
-| item without an ID | a new item | Run `srl id`. |
-| duplicate ID | an item was copied | Delete `id:...` from the copy, then `srl id`. |
-| unknown or repeated header entry | a typo such as `darft` | Use only `id:`, `kind:`, `see:` and `draft`. |
-| a line of a JSONL note that is not a valid item object | text that isn't JSON, an object over several lines, an unknown or misspelled key, a key written twice, a value of the wrong type (`"draft": "yes"`, a number for text) | Make the line one JSON object with the keys `id`, `kind`, `see`, `draft` and uppercase field names (see the `writing-items` skill). |
-| unknown field, missing `Q` or `A` | `B:`, or a `qa` item without `A` and without cloze | Use `Q` and `A` only; `A` is optional only with cloze. |
+| item without an ID | a new item written by hand | Run `srl id`. |
+| duplicate ID | an item was copied | Delete the `id` from the copy, then `srl id`. |
+| a line of a JSONL collection that is not a valid item object | text that isn't JSON, an object over several lines, an unknown or misspelled key, a key written twice, a value of the wrong type (`"draft": "yes"`, a number for text) | Make the line one JSON object with the keys `id`, `kind`, `see`, `draft` and uppercase field names (see the `writing-items` skill). |
+| `line N: …` in an XML collection | XML that isn't well-formed, an attribute other than `id`, `kind`, `see`, `draft`, a lowercase element in an `<item>`, `<` or `&` in a field outside CDATA | Fix the line as the message says; write a field with `<` or `&` as `<![CDATA[…]]>`. |
+| `it is not a JSON array` or `item N: …` in a JSON collection | the file isn't one array of item objects | Fix the element at that position. |
+| `srl reads collections in the formats …` | a source's `include` matches a file that isn't `.jsonl`, `.json` or `.xml`, such as a note | Narrow `include`, or `exclude` the file. |
+| unknown field, missing `Q` or `A` | `B`, or a `qa` item without `A` and without cloze | Use `Q` and `A` only; `A` is optional only with cloze. |
 | bad cloze | `{{c1::` without `}}`, empty text, `c0`, `c01`, nested, or cloze in `A` | Fix the deletion. |
-| `ADDRESS:LINE: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind:` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind:`. |
+| `ADDRESS: item ID: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind`. |
 | a reason such as `cannot find the program …` or `the program of kind X failed …`, ending `; no item of kind X can be read until the program works` | the program itself is broken: not installed, a missing dependency, a bug; not your items | Fix or reinstall the program, or its command in `[kinds]`; run `srl check` again. |
 | `the program of kind X printed invalid output …` | a bug in the program | Report it to its author; the item is fine as written. |
-| `` `see` … doesn't name a collection of the store `` | the collection, such as a note, was moved, renamed or deleted | Update the address (`srl collections` lists them). |
+| `` `see` … is not study material `` or `` `see` … names no file of the store `` | the note was moved, renamed or deleted, or `see` names a collection or a file `[context]` doesn't include | Name a note `srl notes` lists, or widen `[context]` in `.srl/config.toml`. |
 | invalid configuration | a typo or out-of-range value in `.srl/config.toml` | Fix the named setting. |
-| ``[notes]` is not read: notes are a source of items now; …`` | a configuration written before sources | Write `[sources.notes]` with `driver = "markdown"` and the same `include` and `exclude`, and a `jsonl` source for JSONL notes, as the message says (see the `setting-up-a-store` skill). |
-| `ADDRESS: the source X gives it, but it is under the prefix P of the source Y …` | a note of one source lies under the prefix another source is mounted at | Leave it out of X with `exclude`, or give Y another prefix. |
-| `ADDRESS: the sources X and Y both give it …`, or `… it is the file F, which … is too …` | two sources' globs match the same file | Leave it out of one of them with `exclude`, or give one of them a prefix. |
+| `the driver markdown is gone …`, `` `prefix` is not read …``, or ``[notes]` is not read …`` | a configuration written for an older srl, whose items lived in Markdown notes | Use `driver = "filesystem"` and drop `prefix` (see the `setting-up-a-store` skill); the items must move from the notes into collections, which the person decides. |
+| `ADDRESS: the sources X and Y both give it …` | two sources' globs match the same file, or a source program names a collection as a file is named | Leave it out of one of them with `exclude`, or have the program name its collections under a folder of its own. |
 | `the source X failed: …; no item can be read or written until it works` | a source program is broken: not installed, a missing dependency, a bug, a wrong setting of its own in `[sources.X]`, or a service it needs is down; not your items | Fix what the reason says, or the program's command and settings in `[sources.X]`; run `srl check` again. |
-| `cannot add to ADDRESS: …; nothing was added`, from `srl add` | no source can create a collection at that address (its `include` doesn't match it, or the prefix is wrong), or more than one would | Pick an address a source can create (`srl sources` says where), or an existing one (`srl collections`). |
+| `cannot add to ADDRESS: …; nothing was added`, from `srl add` | no source can create a collection at that address (its `include` doesn't match it, or the extension names no format), or more than one would | Pick an address a source can create (`srl sources` says where), or an existing one (`srl collections`). |
 
-`srl show ID` prints an item exactly as written (in a JSONL note, its
-line), which helps spot the problem.
+`srl show ID` prints an item exactly as written (in a JSONL collection,
+its line; in XML, its `<item>` element), which helps spot the problem.
 
 ## A card that can't be made
 
@@ -60,35 +58,18 @@ way every time, because nothing changes until someone acts:
 `srl cards ID` makes the card too, so it shows whether the fix worked.
 The person can also see it rendered in the Browse tab of `srl-web`.
 
-## Text that should be an item but isn't
+## Likely mistakes: warnings of `srl check`
 
-Only srl blocks make items, so `Q:` lines outside one are ordinary text,
-and no error is reported. `srl lint` finds such likely mistakes: `Q:` or
-`A:` lines outside blocks (also in lists and quotes), indented or
-misspelled block fences (```` ```SRL ````, ```` ```srl{…} ````), cloze
-deletions outside items, and srl blocks closed too early (see below). It prints `ADDRESS:LINE: message` and never
-fails; exit 0 means it found something.
+A collection's format is strict, so a mistake in it is an error. Some
+items are valid but probably not what was meant; `srl check` warns of
+them on standard error, as `srl: warning: ADDRESS: item ID: message`,
+without failing: in the `Q` of a `qa` item, something that looks like a
+cloze deletion but isn't (`{{C1::…}}`, `{{c1:…}}`), shown as written, and
+a deletion whose hint is the text it hides. Fix them as the message says.
 
-## An item cut short, or gone
-
-When a field holds a fenced code block and its srl block was opened with
-```` ``` ````, the code's closing fence closes the srl block. The rest of
-the item becomes text of the note, and the srl block's own closing fence,
-left over, opens a code block that hides the next srl blocks until another
-fence.
-
-- `srl check` reports it only when the cut item is invalid, such as a `qa`
-  item that lost its `A:`. An item whose `Q` has cloze deletions, or an
-  item of a kind program, is just shorter, and the hidden items just gone.
-- `srl lint` reports it every time: "this indented fence closes the srl
-  block of line N…", at the code's closing fence, which is indented by
-  the two spaces of its continuation line.
-
-Other signs: `srl show ID` prints fewer or shorter fields than the note
-seems to hold; `srl find in:NOTE` lists fewer items than the note has. The
-fix: open that srl block with `~~~srl` and close it with `~~~`, or with
-more backticks than any fence inside it. Then run `srl check`, `srl lint`
-and `srl find` again.
+Items written in the person's Markdown notes are not items at all: notes
+are study material, and `srl` reads no items from them. Move such
+questions into a collection with `srl add`, naming the note with `see`.
 
 ## History left behind: orphans and `srl move`
 
@@ -109,7 +90,7 @@ srl: x7k2m9 has reviews but no card; x7k2m9.1 is new. To keep the history: srl m
 Run `srl move FROM TO` if the person wants the new card to keep the old
 schedule (ask them first). `TO` must have no history of its own. A deleted
 item also leaves an orphan; that is harmless, and `srl check` still exits
-with 0 when orphans are the only thing it reports.
+with 0 when orphans and warnings are the only thing it reports.
 
 Editing an item's text, moving it, or renaming its collection never changes its
 schedule.
@@ -137,7 +118,7 @@ why, and come back later to fix them. When asked to:
    person, or look at their reviews with `srl log id:ID`.
 2. `srl show ITEM --json` gives the item (`item` in the find line), with
    its context. Fix what the reason says: a clearer question or answer,
-   more context (in its collection, or with `see`), or split the item into two
+   more context (a `see` naming a better note), or split the item into two
    with `srl add` and remove the old one (see the `writing-items` skill).
    Show the person the new item before writing it with `srl edit --stdin`.
 3. Ask before `srl unsuspend id:ID`: it puts the card back into their
@@ -154,16 +135,19 @@ why, and come back later to fix them. When asked to:
 
 - **"is not a store"**: the command didn't find a store. `cd` into it, or
   use `--dir` or `SRL_DIR`; `srl init` creates one.
-- **A note that changed while srl was working is not written**: an editor
-  saved it at the same moment, or an item to change was removed from it,
-  or it has an error now. Run the command again, after `srl check` if the
-  note may be broken. An item that only moved is still found, by its ID.
-- **A note can't be renamed into place**: `srl` writes a note to
-  `.srl/tmp/` and renames it over the note, which fails when the note is
-  on another file system than `.srl/`, such as a mounted folder. The note
-  is left as it was. Keep notes on the same file system as the store.
-  Files left in `.srl/tmp/` by a killed `srl` can be deleted when no `srl`
-  is running.
+- **A collection that changed while srl was working is not written**: an
+  editor saved it at the same moment, or an item to change was removed
+  from it, or it has an error now. Run the command again, after `srl
+  check` if the file may be broken. An item that only moved is still
+  found, by its ID.
+- **A collection can't be renamed into place**: `srl` writes a collection
+  to `.srl/tmp/` and renames it over the file, which fails when the file
+  is on another file system than `.srl/`, such as a mounted folder. The
+  file is left as it was. Keep collections on the same file system as the
+  store. Files left in `.srl/tmp/` by a killed `srl` can be deleted when
+  no `srl` is running.
+- **XML can't hold a carriage return**: an item whose text has one can't
+  be written to an XML collection; keep it in a JSONL collection.
 - **The log's lock**: another `srl` was recording a review for more than 5
   seconds. Try again; on a network share, move the store to a local disk.
 - **Log lines skipped**: a line of `.srl/log/*.jsonl` isn't a valid event,
@@ -177,12 +161,14 @@ why, and come back later to fix them. When asked to:
   srl keeps the answers of `validate` and `groups` per item, and can't see
   that the program changed. Run `srl check` so it asks again about every
   item.
-- **unrecognized subcommand `study`, `web` or `tui`**: `srl` has no
-  built-in frontend, and doesn't run other programs. Study with a frontend
-  run by its own name, such as `srl-web` or `srl-tui` (see the `studying`
-  skill); scripts use `srl next` and `srl review`.
+- **unrecognized subcommand `study`, `web`, `tui` or `lint`**: `srl` has
+  no built-in frontend, and doesn't run other programs. Study with a
+  frontend run by its own name, such as `srl-web` or `srl-tui` (see the
+  `studying` skill); scripts use `srl next` and `srl review`. `srl lint`
+  is gone: `srl check` gives its warnings.
+- **`--context` is not an option**: the context is shown unless
+  `--no-context` is given; there are no modes.
 - **An invalid configuration naming `study`**: `.srl/config.toml` has a
   `[study]` section, which stores made by older versions have. It is no
-  longer a setting: each frontend chooses the context with `--context`.
-  Delete the `[study]` line and the `context` line under it, telling the
-  person why.
+  longer a setting. Delete the `[study]` line and the `context` line
+  under it, telling the person why.

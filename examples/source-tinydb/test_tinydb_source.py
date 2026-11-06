@@ -6,52 +6,56 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tinydb_source import collections, context, database, read, write
+from tinydb_source import Source, SourceError, collections, describe, read, write
 
 ITEM = {"id": "cat001", "Q": "猫", "A": "cat"}
 
 
-class Source(unittest.TestCase):
+class Tests(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
-        self.db = database({"database": str(Path(self.folder.name) / "vocab" / "vocab.json")})
+        self.source = Source({"database": str(Path(self.folder.name) / "vocab" / "vocab.json"), "folder": "vocab"})
 
     def tearDown(self):
-        self.db.close()
+        self.source.close()
         self.folder.cleanup()
 
     def change(self, op, dry_run=False, **rest):
-        return {"op": op, "dry_run": dry_run, "collection": "words", **rest}
+        return {"op": op, "dry_run": dry_run, "collection": "vocab/words", **rest}
 
-    def test_an_added_item_is_read_with_its_table_and_document_id(self):
-        self.assertEqual(write(self.db, [self.change("add", item=ITEM)]), [{"ok": True}])
-        self.assertEqual(collections(self.db, [{}]), [{"collection": "words", "file": None}])
+    def test_an_added_item_is_read_with_its_table_under_the_folder_and_document_id(self):
+        self.assertEqual(write(self.source, [self.change("add", item=ITEM)]), [{"ok": True}])
+        self.assertEqual(collections(self.source, [{}]), [{"collection": "vocab/words"}])
         self.assertEqual(
-            read(self.db, [{}]),
-            [{"collection": "words", "handle": "1", "line": None, "written": None, "item": ITEM}],
+            read(self.source, [{}]),
+            [{"collection": "vocab/words", "handle": "1", "written": None, "item": ITEM}],
         )
+        self.assertEqual(describe(self.source, [{}])[0]["creates"], ["vocab/*"])
 
     def test_a_dry_run_previews_and_writes_nothing(self):
-        answers = write(self.db, [self.change("add", dry_run=True, item=ITEM)])
+        answers = write(self.source, [self.change("add", dry_run=True, item=ITEM)])
         self.assertEqual(answers, [{"preview": '{"id": "cat001", "Q": "猫", "A": "cat"}'}])
-        self.assertEqual(read(self.db, [{}]), [])
+        self.assertEqual(read(self.source, [{}]), [])
 
     def test_a_stale_replace_refuses_every_change(self):
-        write(self.db, [self.change("add", item=ITEM)])
+        write(self.source, [self.change("add", item=ITEM)])
         after = {**ITEM, "A": "a cat"}
         stale = [self.change("replace", handle="1", before={**ITEM, "A": "dog"}, after=after),
                  self.change("add", item={"Q": "犬"})]
-        self.assertTrue(all("error" in answer for answer in write(self.db, stale)))
-        self.assertEqual(len(read(self.db, [{}])), 1)
+        self.assertTrue(all("error" in answer for answer in write(self.source, stale)))
+        self.assertEqual(len(read(self.source, [{}])), 1)
         current = [self.change("replace", handle="1", before=ITEM, after=after)]
-        self.assertEqual(write(self.db, current), [{"ok": True}])
-        self.assertEqual(read(self.db, [{}])[0]["item"], after)
+        self.assertEqual(write(self.source, current), [{"ok": True}])
+        self.assertEqual(read(self.source, [{}])[0]["item"], after)
 
-    def test_a_table_s_context_is_its_context_document(self):
-        self.db.table("words").insert({"context": "Animals."})
-        request = {"collection": "words", "mode": "prose", "own": True}
-        self.assertEqual(context(self.db, [request, {**request, "collection": "none"}]),
-                         [{"context": "Animals."}, {"context": None}])
+    def test_settings_are_checked(self):
+        database = str(Path(self.folder.name) / "other.json")
+        for config in [{}, {"database": database, "prefix": "vocab/"}, {"database": database, "folder": ".hidden"}]:
+            with self.assertRaises(SourceError):
+                Source(config)
+        source = Source({"database": database})
+        self.assertEqual(source.folder, "db")
+        source.close()
 
 
 if __name__ == "__main__":
