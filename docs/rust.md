@@ -25,22 +25,22 @@ crates/
     src/domain/item.rs       items.md: the item model (entries, fields, IDs, status), where an item comes from (`Origin`)
     src/domain/item/object.rs  items.md, "The item object": reading and writing items as JSON objects
     src/domain/card.rs       cards.md: the card format and card IDs
-    src/domain/context.rs    items.md, "Context": the context's modes, and the `Context` given
     src/domain/selector.rs   selectors.md
     src/domain/schedule.rs   scheduling.md: replaying the log through FSRS, places in the schedule
     src/domain/stats.rs      cli.md, "Analysis": `srl stats`
     src/domain/random.rs     reproducible random numbers for new IDs and `srl next`
     src/app.rs          the application: what the commands do with the domain and the ports
-    src/app/catalog.rs       every item of the store, read from its sources and checked by their kinds; which collection is an item's context
+    src/app/catalog.rs       every item of the store, read from its sources and checked by their kinds; the notes, and the context `see` names
     src/app/write.rs         items.md, "How srl changes items": what `srl id`, `srl accept`, `srl add` and `srl edit` change, checked before any source writes it
-    src/app/check.rs         cli.md, "Checking": `srl check`, and `srl lint` through the sources
+    src/app/check.rs         cli.md, "Checking": orphans and the warnings of `srl check`
     src/app/review.rs        log.md and scheduling.md: recording reviews, resets, moves, suspensions
     src/app/next.rs          scheduling.md, "Choosing the next card" and "Siblings"
     src/source.rs       the `Source` port: what every source of items answers, and the store's sources (see "Sources" below)
-    src/source/markdown.rs   notes.md, "The srl block syntax": the source of notes of srl blocks
-    src/source/markdown/blocks.rs  the srl block syntax itself: parsing, context, formatting, edits, lint
-    src/source/jsonl.rs      notes.md, "The JSONL syntax": the source of JSONL notes
-    src/source/files.rs      what the notes' sources share: which files, lines, and "How srl writes to notes" (see "Note editing" below)
+    src/source/filesystem.rs  formats.md: the `filesystem` source, which picks a format by a file's extension
+    src/source/filesystem/jsonl.rs  formats.md, "JSONL"
+    src/source/filesystem/json.rs   formats.md, "JSON"
+    src/source/filesystem/xml.rs    formats.md, "XML"
+    src/source/files.rs      what the formats share: which files, lines, and "How srl writes to collections" (see "Collection editing" below)
     src/source/program.rs    sources.md, "Source programs": a source program, its calls, and checking what it prints
     src/process.rs      running the programs a store names, kind programs and source programs: one process per call
     src/kind.rs         cards.md, "Kinds": the `qa` kind, asking kinds about items and making cards, describing kinds
@@ -270,17 +270,17 @@ types, so that the compiler checks them:
 depend on the platform, and flag every place that does.
 
 - **Paths:** build them with `Path::join`, never by gluing strings with `/`
-  or `\`. Addresses and the paths of notes are `String`s with `/` between
+  or `\`. Addresses and the paths of files are `String`s with `/` between
   folders, because they are part of the formats (JSON output, `path:`
-  selectors, `see`); turn a note's path into a file path only with
-  `Store::note_file`.
+  selectors, `see`); turn such a path into a file path only with
+  `Store::file`.
 - **Platform locations** come from a crate, never from hard-coded paths such
   as `~/.local/share`: the default store uses `dirs::data_dir()`.
 - **Finding programs** uses `which`, which follows `PATHEXT` on Windows.
   Running a bare name with `std::process::Command` only finds `.exe` there.
 - **Text files** `srl` creates are written as UTF-8 with `\n`, and read
-  with either `\n` or `\r\n`. A note `srl` changes keeps its own line
-  endings (see "Note editing").
+  with either `\n` or `\r\n`. A collection `srl` changes keeps its own line
+  endings (see "Collection editing").
 - **Tests** must not assume a platform either: build paths with `join`, and
   don't rely on Unix-only tools.
 
@@ -314,7 +314,7 @@ Known places:
 | Where | What differs | Status |
 |---|---|---|
 | `store.rs`, `note_paths`, `nfc`; [store.md](store.md) | macOS often lists file names in Unicode NFD, so paths could sort and match differently | Handled: paths are sorted and matched against `path:`, `in:` and `exclude` in NFC, on every platform |
-| `source/files.rs`, `replace_file`; [notes.md](notes.md) | Replacing a note atomically: a rename over an existing file, which Windows refuses while another program holds the file open without sharing | Handled: the rename's error is reported and the note left as it was. **TODO in code and spec**: not run on Windows |
+| `source/files.rs`, `replace_file`; [formats.md](formats.md) | Replacing a collection atomically: a rename over an existing file, which Windows refuses while another program holds the file open without sharing | Handled: the rename's error is reported and the file left as it was. **TODO in code and spec**: not run on Windows |
 | `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `.srl/log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
 | `process.rs`, `Running`, `stop_programs`; `srl`'s `main.rs`; [cards.md](cards.md) | Stopping a program with every process it started: a process group and signal handlers on Unix, a job object on Windows | Handled. **TODO in code and spec**: on Unix, `SIGKILL` can't be caught; on Windows, a process started before the program is put in its job escapes it, and it is not run on Windows |
 | `index.rs`, `connect`; [store.md](store.md) | SQLite's file locking is unreliable on network file systems (NFS, SMB) on every platform: concurrent updates could damage the index cache | **TODO in code and spec**: damage is usually detected and the cache rebuilt; keep stores on a local disk for now |
@@ -473,31 +473,26 @@ knows how it keeps its items.
 
 | Method | Gives |
 |---|---|
-| `collections()` | The source's collections, each named by the source, with the file it is kept in if any. A note is a collection, named by its path. |
-| `read()` | Every item, with its collection, its handle (what names it to the source when it changes), its line, its text as written and its entries and fields; and every problem found. |
-| `context(requests)` | What each requested collection shows as context, to its own items or to the items that name it with `see`. |
+| `collections()` | The names of the source's collections, which are their addresses. A file of the `filesystem` source is a collection, named by its path. |
+| `read()` | Every item, with its collection, its handle (what names it to the source when it changes), its text as written and its entries and fields; and every problem found, each at its collection. |
 | `refuses(collection)` | Why `srl add` can't create a collection, or nothing. |
 | `write(changes, dry_run)` | Makes a list of changes: `Add` an item to a collection, or `Replace` the item of a handle, read as `before`, with `after`. Every change is made and checked before anything is written; a change refused is named by its place. |
-| `lint()` | The likely mistakes in the source. |
 | `describe()` | What the source is, in a sentence, and the globs of the collections `srl add` may create in it, for `srl sources`. |
 
 - **The catalog holds every item in memory** (`app/catalog.rs`, the type
   `Catalog`). It reads every source, turns what they read into `Item`s,
-  each with its `Origin` (source, collection, address, handle, line, and
-  the item as read), checks them with their kinds, and keeps the rules
-  that cross sources: IDs unique in the store, `see` naming a collection
-  of the store, collections and items in the order of their addresses.
-  Everything else works on the catalog, never on a source.
-- **Addresses name collections everywhere outside their source**: the
-  source's prefix, then the collection. A note's address is its source's
-  prefix followed by its path; with the default prefix, `""`, it is its
-  path.
-- **The context of an item is asked of the source that owns the
-  collection shown**: the one `see` names, found by its address, or the
-  item's own. Each source is asked once about all of the items that need
-  it, and mode `none` asks none. So an item of one source can name a
-  collection of another, and each is shown by its own source's rules; no
-  source knows another's.
+  each with its `Origin` (source, address, handle, its position in its
+  collection, and the item as read), checks them with their kinds, and
+  keeps the rules that cross sources: IDs unique in the store, no address
+  given by two sources, `see` naming a note, collections and items in the
+  order of their addresses. Everything else works on the catalog, never
+  on a source.
+- **An address is a collection's name, as its source gives it**, and
+  names it everywhere outside its source.
+- **Context is not a source's business.** The catalog checks that `see`
+  names a note, a file `[context]` allows (`Notes` in `app/catalog.rs`),
+  and reads its text when it is shown. No source shows anything, so no
+  source knows another's rules.
 - **Changes give back the item as it was read.** `app/write.rs` decides what
   changes and checks it (item objects, IDs, kinds, `see`), then gives
   each source its changes; a `Replace` carries the item as read, and the
@@ -507,32 +502,31 @@ knows how it keeps its items.
   (`catalog::check_new`), so an item is judged the same whatever
   collection it goes to.
 
-### The notes' sources
+### The filesystem source
 
-The store's notes are read by the sources of `[sources]`, each with its
-driver (see [sources.md](sources.md)): `source/markdown.rs` for a
-`markdown` source, `source/jsonl.rs` for a `jsonl` source. `Sources::new`
-in `source.rs` builds them from the configuration.
+The collections of a store are read by the `filesystem` sources of
+`[sources]` (see [sources.md](sources.md)), `source/filesystem.rs`, which
+picks a format for each file by its extension (see
+[formats.md](formats.md)): `filesystem/jsonl.rs`, `filesystem/json.rs`
+and `filesystem/xml.rs`. `Sources::new` in `source.rs` builds the sources
+from the configuration.
 
-- **Each source is its format, whole.** `markdown.rs` reads, shows and
-  changes notes of srl blocks, with the syntax itself (parsing,
-  formatting, the edits that change an item, its lint) in
-  `markdown/blocks.rs`; `jsonl.rs` does the same for JSONL notes. There is
-  no trait for formats: each source calls its own functions, and the two
-  share no code about how items are written, even where that means
-  writing some twice.
+- **Each format is its own module, whole**: it parses its files into
+  items, and makes a list of changes to a file's text, keeping what it can
+  of the rest. There is no trait for formats: `filesystem.rs` dispatches on
+  an enum, `Format`, and each format calls its own functions.
 - **What doesn't depend on a format is shared**, in `source/files.rs`:
-  which files a source reads (`NoteFiles`, its globs), splitting a file
-  into lines, a change of lines (`Edit`) and applying it, finding the
-  item a change is about, and writing a file safely (see "Note
-  editing").
+  which files a source reads (`CollectionFiles`, its globs), splitting a
+  file into lines, finding the item a change is about, and writing a file
+  safely (see "Collection editing").
 - **The item object** (see [items.md](items.md), "The item object") is
-  read and written by `domain/item/object.rs`, for the JSONL source, source programs and the
-  standard input of `srl add` and `srl edit`. `Item::json` writes it for
-  `srl show --json`.
-- **The `qa` kind's lint is the core's** (`app/check.rs`), on the items
-  every source reads, at each item's line; a source's own `lint` finds
-  only the mistakes of its format.
+  read and written by `domain/item/object.rs`, for JSONL and JSON
+  collections, source programs and the standard input of `srl add` and
+  `srl edit`; `object::from_pairs` reads one from keys and values, which
+  XML gives too. `Item::json` writes it for `srl show --json`.
+- **Likely mistakes are the core's** (`app/check.rs`): the warnings of
+  `srl check`, in the valid items of every source. A format's mistakes are
+  errors of its parse.
 
 ### Source programs
 
@@ -547,73 +541,44 @@ programs too.
 - **Its changes are verified by reading it again**: `write` reads the
   program before and after the call, and compares the items with what
   the changes should give, since `srl` can't check the program's own
-  storage as it checks a note it parsed itself.
+  storage as it checks a file it parsed itself.
 - **It is tested with `srl-test-source`**, a source program for the tests
   (see "Testing").
 
-### Lines are for people
+### Items are named by their IDs
 
-**Rely on an item's line as little as possible.** A line is a convenience
-for people: `ADDRESS:LINE` in listings, messages and `srl show`, and
-`line` in JSON. Nothing in `srl` finds an item by it:
+**Nothing in `srl` names an item by where it is in its collection.** An
+item is its collection's address and its ID:
 
-- **Changes find the item again in the note as it is right before the
-  change**: by its ID, or, for `srl id`, by its handle, its position
-  among the note's items (see "Note editing").
-- **The order of items** is the order a source reads them in, not an
-  order of lines.
+- **Changes find the item again in the collection as it is right before
+  the change**: by its ID, or, for `srl id`, by its handle, its position
+  among the collection's items (see "Collection editing").
+- **Messages name an item** as `ADDRESS: item ID`, or, for an item read
+  without a valid ID, by its position, `item N` (`Spot` in `error.rs`).
+  A format that can say where in a file a problem is says it in the
+  message, such as `line 3:` for JSONL and XML, as plain text.
+- **The order of items** is the order a source reads them in.
 
-The line stays because most formats can say where an item starts, and
-people need it to open the note there. But it is a guess for some: in a
-pretty-printed JSON document, say, an item could be said to start on the
-line of its `{` or of its first key, and neither says where its fields
-are. A source gives the line that helps a person most, and new code must
-not make anything depend on it beyond showing it.
+## Collection editing
 
-### What still assumes lines
+Collections may be written by hand, as XML is meant to be, so `srl` keeps
+a file as close to how it was as its format allows. The formats change
+files (see [formats.md](formats.md), "How srl writes to collections") by
+these rules, with the helpers of `source/files.rs`:
 
-Not finding items, but two other things still take for granted that the
-notes' sources write their items in whole lines. Both hold for srl blocks
-and JSONL; they are worth keeping in mind before adding a format, not
-problems today.
-
-- **Changes are line ranges.** Every change the notes' sources make is an
-  `Edit`: lines `first` to `last` replaced by other lines, applied by
-  `source/files.rs`, keeping line endings, a byte order mark and every
-  other line as they are, which is how "only the lines of the items
-  changed are written" holds (see [notes.md](notes.md), "How srl writes
-  to notes"). That needs each item to have lines of its own. In a format
-  where items can share a line, such as a JSON array written on one line,
-  a change to one item would have to replace lines that hold others too:
-  up to the whole file. Verification would still catch a change that
-  reads back wrong, since it compares the items, not the lines. Such a
-  format would want byte ranges instead of line ranges, or would rewrite
-  its file whole, as the JSONL source already does with an item's line.
-- **Messages name lines.** Errors, `srl lint` and `ADDRESS:LINE` name a
-  line, so the notes' sources give one for every item and every problem,
-  even where they can only guess.
-
-## Note editing
-
-Notes are written by hand, so `srl` must never rewrite one: no
-re-serializing, no normalized whitespace or line endings. The one thing it
-writes again is the line of a JSONL item it changes, which is data, not
-text written for people. The notes' sources change notes (see
-[notes.md](notes.md), "How srl writes to notes") by these rules, with the
-helpers of `source/files.rs`:
-
-1. **It edits lines, not data.** It changes header lines (adding `id:ID`,
-   removing `draft`), replaces the lines of an item or of its block
-   (`srl edit --stdin`), writes the line of a JSONL item again, or appends
-   lines at the end. Every other byte of the file stays the same,
-   including a UTF-8 BOM, `\r\n` line endings and a missing final newline.
-   New lines get the line ending of the note's first line, or `\n` in a
-   note without one.
-2. **It finds each item in the note as it is now.** It reads the note
-   again, and finds the item by its ID, or, for `srl id`, by its handle,
-   its position. An item that is gone, or no longer as it was read (the
-   `before` of the change), or a note that has an error now, means the
-   note changed since it was read: the command stops, and says so.
+1. **It changes as little as the format allows.** JSONL writes the line
+   of an item again; XML writes the element of an item again, in place,
+   by its byte range, and inserts new elements before `</items>`; JSON
+   writes the whole array again, since no part of it is an item's alone.
+   In JSONL and XML every other byte of the file stays the same,
+   including a UTF-8 BOM, `\r\n` line endings and a missing final newline;
+   new text gets the line ending of the file's first line, or `\n` in a
+   file without one.
+2. **It finds each item in the collection as it is now.** It reads the
+   file again, and finds the item by its ID, or, for `srl id`, by its
+   handle, its position. An item that is gone, or no longer as it was read
+   (the `before` of the change), or a file that has an error now, means the
+   file changed since it was read: the command stops, and says so.
 3. **It verifies its own work.** After editing, it parses the new text and
    compares the items with the old parse: they must be equal except for
    the change it meant to make. If not, the edit is abandoned and the file
@@ -621,15 +586,15 @@ helpers of `source/files.rs`:
 4. **It checks the file didn't change underneath it**, by comparing the
    bytes it read with the bytes on disk right before writing.
 5. **It writes atomically**: to a temporary file in `.srl/tmp/`
-   (`tempfile`), then a rename over the note. Keeping it in `.srl/` keeps
+   (`tempfile`), then a rename over the file. Keeping it in `.srl/` keeps
    the rest of the store clean, and lets `.srl/.gitignore` ignore it (see
    [store.md](store.md), "Version control and syncing").
 6. **It has thorough tests**, including CRLF line endings, a UTF-8 BOM, no
-   trailing newline, fences with extra spaces, fences of tildes and of more
-   than three backticks, `@` lines, quoted values, non-ASCII text around
-   the edited line, and a note changed between reading and writing. The
-   edits themselves (which lines, what they become) are tested with each
-   format, and the commands that change notes in `app/write.rs`.
+   trailing newline, XML comments and indentation kept, fields that must be
+   written as CDATA, non-ASCII text around the edited item, and a file
+   changed between reading and writing. Each format tests its own edits,
+   and `app/write.rs` the commands that change items.
+
 
 ## The command line
 

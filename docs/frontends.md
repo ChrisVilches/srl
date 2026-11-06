@@ -24,7 +24,7 @@ in [guides/frontends.md](guides/frontends.md).
 
 Every frontend runs the same loop, around the contract:
 
-1. **Get a card:** `srl next SELECTOR --json --context MODE`. It prints the
+1. **Get a card:** `srl next SELECTOR --json`. It prints the
    card (see "What a frontend gets" below); exit 1 means nothing is left,
    and exit 2 is an error, with its reason on standard error, such as a
    card its kind couldn't make (see [cli.md](cli.md), "Studying"). How
@@ -32,9 +32,8 @@ Every frontend runs the same loop, around the contract:
 2. **Show the prompt**, and wait until the person wants to see the answer.
 3. **Show the answer:** `prompt_revealed` in place of `prompt`, or
    `prompt` again when `prompt_revealed` is `null`; then `answer` and the
-   context, each if it is not `null`. The collection the context
-   comes from is `context_address`; a frontend may name
-   it.
+   context, each if it is not `null`. The note the context comes from is
+   `see`; a frontend may name it.
 4. **Get a rating** from 1 to 4.
 5. **Record it:** the card ID and the rating to `srl review --stdin` (see
    [cli.md](cli.md), "Studying").
@@ -49,10 +48,9 @@ question each time, like an arithmetic drill.
 
 A frontend may offer more, with the other commands everyone has: suspending the
 card (`srl suspend id:ID`, with `--reason TEXT` if the person says why,
-so that they can fix the card later), opening the file its item is kept in, when there is one (`file`, relative
-to the store's folder, in an editor of its choice), or a summary at the
-end, counting the
-cards whose `schedule` was `new`.
+so that they can fix the card later), opening the note its item names
+(`see`, relative to the store's folder, in a program of its choice), or
+a summary at the end, counting the cards whose `schedule` was `new`.
 
 A frontend never computes schedules. That belongs to `srl`, so every
 frontend behaves the same. Since `srl next` reads every source and the
@@ -70,10 +68,9 @@ context:
  "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
  "answer": "Despite everyone's opposition, she started a company.",
  "schedule": "due", "leech": false, "kind": "qa",
- "address": "japanese/grammar/wo-mono-tomo-sezu.md", "source": "notes",
- "file": "japanese/grammar/wo-mono-tomo-sezu.md", "see": null,
- "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n",
- "context_address": "japanese/grammar/wo-mono-tomo-sezu.md"}
+ "address": "japanese/grammar.jsonl", "source": "items",
+ "see": "japanese/grammar/wo-mono-tomo-sezu.md",
+ "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
 ```
 
 | Field | Meaning |
@@ -82,36 +79,33 @@ context:
 | `schedule` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Schedule" and "Choosing the next card"). |
 | `leech` | Whether the card is a leech, `true` or `false` (see [scheduling.md](scheduling.md), "Leeches"): a frontend may say so, as the question likely needs rewriting. |
 | `kind` | The item's kind: `qa`, or the name of a kind program in `.srl/config.toml`, as in `srl show --json` (see [cards.md](cards.md), "Kinds"). |
-| `address` | The address of the collection the item is in, such as its note, as in `srl show --json` (see [items.md](items.md), "The item object"). |
+| `address` | The address of the collection the item is in, as in `srl show --json` (see [items.md](items.md), "The item object"). |
 | `source` | The name of the item's source (see [sources.md](sources.md)). |
-| `file` | The file the item's collection is kept in, relative to the store's folder, or `null` when it is no file of its own. |
-| `see` | The address its `see` names, or `null`. |
-| `context` | The context, in the mode the frontend chose, or `null` when there is none (see [items.md](items.md), "Context"). |
-| `context_address` | The address of the collection the context comes from: `see`, or else `address` (see "Rendering"). `null` when `context` is. |
+| `see` | The path of the note the item names as its context, relative to the store's folder, or `null` (see "Rendering"). |
+| `context` | The note's text, or `null` when there is none: no `see`, `--no-context`, or a note that isn't UTF-8 or holds nothing but blank space (see [items.md](items.md), "Context"). |
 
-**The frontend chooses the context's mode** with `--context`: `prose` (the
-default), `full` or `none`. How much of a collection to show is a choice about
-presentation, so it belongs to the frontend, not to the store.
+**The frontend chooses whether to get the context**: `--no-context`
+leaves it out, without reading the note, for a frontend that never shows
+it or reads the file itself.
 
 ## Rendering
 
 Card text is Markdown, and may also hold `==highlight==` (see
 [cards.md](cards.md), "Text formatting"). **`srl` doesn't say what the
-context's text is: the frontend decides how to render it from
-`context_address`**, the collection it comes from (see
-[items.md](items.md), "Context"), for example by its extension: Markdown
-for `.md`, Quarto for `.qmd`, JSON lines for `.jsonl`. What the text
-holds is up to the collection's source, in each mode: for the notes of
-the built-in drivers, a note of srl blocks without its front matter and,
-in mode `prose`, without its blocks, and a JSONL note as it is (see
-[notes.md](notes.md), "Context"); for a source program, what it gives.
+context's text is: the frontend decides how to render it from `see`**,
+the path of the note it comes from (see [items.md](items.md), "Context"),
+for example by its extension: Markdown for `.md`, Quarto for `.qmd`,
+plain text for `.txt`. The text is the note as it is, whole: notes hold
+no items, so nothing is removed from them.
 
 A frontend renders the contexts it supports as it likes, and **shows any
 other context as plain text**, with whatever fallbacks it wants, such as for
-a file whose content doesn't match its extension. Rendering only Markdown,
-or nothing at all, is fine.
+a file whose content doesn't match its extension. A note `srl` gives no
+text for, such as an image or a PDF, may be read by the frontend itself
+from the path in `see`, or only named. Rendering only Markdown, or nothing
+at all, is fine.
 
-- The context is the collection as its source shows it, so it may use syntax beyond
+- A note is a file as you wrote it, so it may use syntax beyond
   CommonMark that notes commonly have, such as GFM tables. A frontend may
   render it.
 - How highlighted text looks is a frontend setting, never card content.

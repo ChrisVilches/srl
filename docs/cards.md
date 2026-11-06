@@ -121,12 +121,9 @@ Each field may appear once, and any other field is an error.
 **Without cloze deletions**, the item gives one card, with the item's ID:
 the prompt is `Q`, `prompt_revealed` is `null`, and the answer is `A`.
 
-````markdown
-```srl id:x7k2m9
-Q: What does 〜をものともせず mean?
-A: Undeterred by (adversity), braving.
+```json
+{"id": "x7k2m9", "Q": "What does 〜をものともせず mean?", "A": "Undeterred by (adversity), braving."}
 ```
-````
 
 ```json
 {"id": "x7k2m9", "prompt": "What does 〜をものともせず mean?",
@@ -163,12 +160,9 @@ The rules:
    with empty text, a deletion inside another, a number with leading zeros
    or `c0`, and deletions in `A`.
 
-````markdown
-```srl id:k3m9q1
-Q: {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。
-A: Despite everyone's opposition, she started a company.
+```json
+{"id": "k3m9q1", "Q": "{{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。", "A": "Despite everyone's opposition, she started a company."}
 ```
-````
 
 gives two cards:
 
@@ -183,7 +177,7 @@ gives two cards:
  "answer": "Despite everyone's opposition, she started a company."}
 ```
 
-Without the `A:` line, both cards would have `"answer": null`: the
+Without `A`, both cards would have `"answer": null`: the
 revealed prompt is all there is to show.
 
 The cards of a `qa` item are all **siblings**, one group: seeing one would
@@ -260,7 +254,7 @@ standard error is free for messages.
 | `describe` | `{}`, which the program may ignore | `{"description": "…", "fields": [{"name": "VERB", "label": "Verb", "description": "…"}]}`, `label` optional (see "Describing a kind") |
 | `validate` | the item: `{"id": "v81k3z", "fields": {"VERB": "動く", "FORMS": "te past negative"}}` | `{"errors": []}` for a valid item; otherwise its errors, each with a `message` and the `field` it is about, or `null` (or no `field`) when it is about the whole item: `{"errors": [{"field": "FORMS", "message": "\`tense\` is not a form; the forms are te, past, negative"}]}` |
 | `groups` | the item, as for `validate` | its cards, in groups: `{"groups": [["te", "past"], ["negative"]]}` |
-| `make` | the item, plus `"suffix"` (`null` for a card with the item's ID), `"context"` and `"context_address"` (the item's context in mode `prose` and the collection it comes from, as in `srl show --json`) and `"day"` (the study day, such as `"2026-10-27"`) | the card's fields of "Format" above, without `id`: `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`, where only `prompt` must be present, and `prompt_revealed` and `answer` may be left out, which is the same as `null`; or, when this card can't be made, `{"error": "…"}` |
+| `make` | the item, plus `"suffix"` (`null` for a card with the item's ID), `"see"` and `"context"` (the path of the note the item names with `see` and its text, as in `srl show --json`, or `null`) and `"day"` (the study day, such as `"2026-10-27"`) | the card's fields of "Format" above, without `id`: `{"prompt": "…", "prompt_revealed": "…", "answer": "…"}`, where only `prompt` must be present, and `prompt_revealed` and `answer` may be left out, which is the same as `null`; or, when this card can't be made, `{"error": "…"}` |
 
 `fields` is an object of the item's fields, keyed by name, in the order
 they are written. No key is written twice in an item, whatever its kind
@@ -271,9 +265,9 @@ field name, made as in [items.md](items.md), "The item object".
 
 **`groups` never gets the context or the day**, so that card IDs depend
 on the item's fields alone (see [rationale.md](rationale.md), "Why
-`groups` sees only the fields"). `make` gets both: the context is always
-in mode `prose`, whatever mode a frontend asks for, so a card doesn't
-depend on the frontend that shows it.
+`groups` sees only the fields"). `make` gets both: the context always,
+whether a frontend asks for it or not, so a card doesn't depend on the
+frontend that shows it.
 
 **Rule for kind authors: a new version of a program must give the same
 card suffixes for the same fields.** Review history is kept per card ID
@@ -335,12 +329,9 @@ without touching any card's history. The output of `groups` holds:
 
 Example: a conjugation kind.
 
-````markdown
-```srl id:v81k3z kind:conj
-VERB: 動く
-FORMS: te past negative
+```json
+{"id": "v81k3z", "kind": "conj", "VERB": "動く", "FORMS": "te past negative"}
 ```
-````
 
 `validate` accepts the item, and `groups` gives cards `v81k3z.te`,
 `v81k3z.past` and `v81k3z.negative`, the first two in one group: 動いて
@@ -382,9 +373,8 @@ asked about the item.
 When something goes wrong, the place it happens says whose fault it is:
 
 - **An error `validate` gives is an error in the item**, like a `qa` item
-  without `Q`, reported at the item's line, as `ADDRESS:LINE: FIELD:
-  message`, or `ADDRESS:LINE: message` when it is about no field
-  (without `:LINE` for an item without a line).
+  without `Q`, reported at the item, as `ADDRESS: item ID: FIELD:
+  message`, or `ADDRESS: item ID: message` when it is about no field.
 - **An answer about one item that doesn't follow the rules above**, from
   `validate` or `groups`, is an error at that item, saying
   that the program printed invalid output.
@@ -477,8 +467,8 @@ description only informs"). `srl kinds` prints the descriptions (see
   are still written with the name: the label is never a key of an item.
   `qa` gives `Question` and `Answer`.
 - The output holds a description that isn't blank, at least one field,
-  each field once with a name made as in [notes.md](notes.md), "The item
-  object", descriptions that aren't blank, and labels that aren't blank,
+  each field once with a name made as in [items.md](items.md), "Fields",
+  descriptions that aren't blank, and labels that aren't blank,
   where given (a `label` of `null` is none). Any other key is invalid.
 
 **A description only informs.** It doesn't say which fields are required

@@ -46,8 +46,8 @@ structure, and whether they serve the goals in
 spaced repetition, with one mapping to frontends and everything else built
 on top. Most of the specification holds that idea well: the log as the only
 truth for memory, the cache that never decides anything, IDs over
-positions, careful note writes, and the split between specification, guides
-and examples.
+positions, careful collection writes, and the split between specification,
+guides and examples.
 
 The open findings cluster in three places:
 
@@ -55,8 +55,8 @@ The open findings cluster in three places:
    or any file syncing tool". The log format, kind programs and source
    programs make that untrue in common cases (H1, H3).
 2. **Strictness at the wrong moment.** "One error stops everything" also
-   stops `srl review`, so a half-typed note loses the rating of the card
-   just studied (H2).
+   stops `srl review`, so a half-typed collection loses the rating of the
+   card just studied (H2).
 3. **Kind programs.** They are `srl`'s main extension mechanism: any new
    type of card is a program, an idea as useful without any AI as with it.
    The overview still presents them as an exception rather than a pillar
@@ -69,11 +69,10 @@ The open findings cluster in three places:
 | H2 | A broken item anywhere makes `srl review` fail, losing the rating | Specification | High | Moderate |
 | H3 | Kind programs and source programs make a store machine-specific, and a cloned store runs code on any command | Brittleness | High | Moderate |
 | H4 | Card IDs of kind programs can change silently, orphaning history | Brittleness | High | Easy |
-| M1 | Sources make every place of items equal, but the Goals put notes first | Vision | Medium | Hard |
 | M3 | Kind programs are the main extension mechanism, but the vision doesn't say so | Vision | Medium | Easy |
 | M4 | Invalid log lines are skipped, against "fail loudly" | Specification | Medium | Easy |
 | M5 | "Every rule in one sentence" no longer describes the specification | Vision | Medium | Moderate |
-| L2 | Exit codes are surprising for linters and write commands | Specification | Low | Easy |
+| L2 | Exit codes are surprising for `srl check` and write commands | Specification | Low | Easy |
 | L3 | The default store is used silently from any directory | Specification | Low | Easy |
 | L4 | The card ID separator is described as changeable | Specification | Low | Trivial |
 | L5 | The frontend contract is larger in practice than "one mapping" | Vision | Low | Trivial |
@@ -134,13 +133,14 @@ and it fails silently.
 error in any source then stops it. So:
 
 1. A frontend shows a card and the person rates it.
-2. Meanwhile the person has a note open in an editor, with an srl block
-   half typed (an unclosed fence), and the editor autosaves.
+2. Meanwhile the person has an XML collection open in an editor, with an
+   item half typed (an unclosed element), and the editor autosaves; or
+   has just renamed a note that items name with `see`.
 3. `srl review` fails with exit 2. The rating is not recorded.
 
-This is likely, not exotic: the frontend contract encourages "opening the
-file its item is kept in … in an editor" ([frontends.md](frontends.md), "The loop"), and the whole point
-is that questions are written in notes while studying them. The same holds
+This is likely, not exotic: the frontend contract encourages opening the
+note an item names while studying ([frontends.md](frontends.md), "The
+loop"), and items are edited and added while studying them. The same holds
 for `srl suspend`, for a kind program that fails as a whole (for
 example a missing Python package) while you review a `qa` card, and for a
 source program that fails, such as one whose web service is down: its
@@ -234,31 +234,6 @@ orphans created by such a change an error rather than a notice.
 
 ## Medium
 
-### M1. Sources make every place of items equal, but the Goals put notes first
-
-**Severity Medium · Difficulty Hard**
-
-The first goals in [overview.md](overview.md) are "Questions live in your notes …
-in a few keystrokes" and "Notes stay notes". Sources serve another model
-beside it: questions kept as data, in JSONL notes or any other source,
-written by importers and generators, and linked to the knowledge by
-`see`.
-
-Both are legitimate, and neither needs an LLM: an Anki importer or a
-script that turns a vocabulary list into items wants a source of data as
-much as any agent does. Sources settled how the two live side by side:
-each driver is a source of its own, with its own context rules, and an
-item of one names a collection of another by its address (see
-[sources.md](sources.md)). What is still unsaid is which model is
-primary: the rationale keeps the Goals' order ("Not every question is
-typed next to the knowledge by hand"), but nothing else says so, and
-"Plain text" and "Notes stay notes" read as if every item were in a note.
-
-**Possible fix:** keep notes primary, as the Goals say, and say in the
-Goals that other sources are for items that programs write and keep: the
-default source is notes, and a store needs no other. This is a vision
-decision, hence Hard, though the doc edit is small once made.
-
 ### M3. Kind programs are the main extension mechanism, but the vision doesn't say so
 
 **Severity Medium · Difficulty Easy**
@@ -319,13 +294,13 @@ skip silently only a last line without its final newline, which is the
 **Severity Medium · Difficulty Moderate**
 
 "Predictable behaviour. Every rule is simple enough to state in one
-sentence" ([overview.md](overview.md)). The srl block syntax has 14 numbered rules;
-kind programs have four calls, a batch protocol, cache keys and error
-attribution; the cache's incremental replay is a paragraph of conditions;
-`srl lint` has a page of heuristics. About 4,700 lines of documents of the
-specification describe about 17,000 lines of Rust, tests included, much of
-it cross-references and designs for hypothetical formats ([rust.md](rust.md),
-"What still assumes lines").
+sentence" ([overview.md](overview.md)). Kind programs have four calls, a
+batch protocol, cache keys and error attribution; the cache's incremental
+replay is a paragraph of conditions; the XML format has six numbered rules
+and a layout rule for fields of many lines. Removing items from Markdown
+took out the largest set of rules (srl blocks, their context modes and the
+heuristics of `srl lint`), but the documents of the specification are
+still several thousand lines, much of them cross-references.
 
 This matters because the docs are declared the source of truth and must be
 updated with every change ([AGENTS.md](../AGENTS.md)). Their size and redundancy make
@@ -336,22 +311,20 @@ meet.
 **Possible fixes:** reword the goal to "each decision has one rule, stated
 where it is used"; remove speculative sections whose only purpose is a
 future syntax; and state each rule once, linking to it instead of
-restating it (context rules, for example, are restated in `notes.md`,
-`frontends.md`, `rationale.md` and `rust.md`).
+restating it (the rules of context, for example, are restated in
+`items.md`, `frontends.md`, `rationale.md` and `rust.md`).
 
 ---
 
 ## Low
 
-### L2. Exit codes are surprising for linters and write commands
+### L2. Exit codes are surprising for `srl check` and write commands
 
 **Severity Low · Difficulty Easy (but a breaking change)**
 
-- `srl lint` exits 0 when it found something and 1 when not
-  ([cli.md](cli.md), "Checking"): the opposite of most linters, so it can't
-  gate a commit hook or CI as written.
 - `srl check` exits 0 when it found only orphans, which can be lost
-  history (see H4).
+  history (see H4), or only warnings, so neither can gate a commit hook
+  or CI as written.
 - Write commands exit 1 when they changed nothing (`srl id`, `srl accept`,
   `srl reset`, `srl suspend`). The grep convention fits queries; for
   writes it breaks `set -e` scripts on the normal "already done" case.
@@ -386,10 +359,11 @@ fixed, and drop the paragraph about changing it.
 **Severity Low · Difficulty Trivial**
 
 The docs say frontends "understand this and nothing else"
-([frontends.md](frontends.md)). The same page then lets them suspend cards and open
-`file` in an editor, and `srl-web` also browses cards and adds items, using
-`find`, `cards`, `show` and `add`. That is fine, but the contract a real
-frontend depends on is several commands' JSON, not one. **Fix:** say that
+([frontends.md](frontends.md)). The same page then lets them suspend
+cards and open the note `see` names, and `srl-web` also browses cards
+and adds items, using `find`, `cards`, `show`, `collections`, `notes` and
+`add`. That is fine, but the contract a real frontend depends on is
+several commands' JSON, not one. **Fix:** say that
 `srl next --json` is the one mapping needed to study, and that every
 `--json` output is a contract too (as "Small fixed contracts" implies).
 
@@ -421,9 +395,9 @@ still weaker than the layers suggest:
   programs. Moving `Kind`, `qa` and the log's events into the domain
   would make the layers true by construction, and a crate of its own for
   the domain would let the compiler keep them so.
-- The largest files (`source/markdown/blocks.rs`, `kind/program.rs`,
-  `index.rs`), each over 1,000 lines with tests, are where a split would
-  pay first.
+- The largest files (`kind/program.rs` and `index.rs`, each over 1,000
+  lines with tests, then `source/filesystem/xml.rs`) are where a split
+  would pay first.
 
 None of this is urgent.
 
@@ -464,7 +438,7 @@ Worth keeping as they are:
 - The index cache as an optimization only, tested against a cache-free
   path.
 - Identity by ID, never by position; `groups` seeing only the fields.
-- Note writes that change only the lines of the items, verify by
+- Collection writes that change only the items changed, verify by
   re-parsing, detect concurrent edits, and write atomically.
 - A core that calls no service and judges no answer, with every other
   program, agents included, using the same commands as people.
@@ -482,5 +456,5 @@ Worth keeping as they are:
 5. **M3**: state kinds as the extension mechanism, and settle their
    contract, since every plugin builds on it.
 6. **H3**: per-machine config overlay and trust for kind programs.
-7. Decide **M1**, then trim **M5** to match.
+7. Trim the documents as **M5** says.
 8. **L3**, **L5**, **L6**, **L7** when nearby.

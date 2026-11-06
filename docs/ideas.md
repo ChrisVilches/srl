@@ -10,7 +10,7 @@ questions", once it is planned.
 ## Knowledge structure
 
 - **Prerequisites.** Items could name the items they require, for example
-  in a header entry. A new header entry changes the item syntax. Finding
+  in a header entry. A new header entry changes the item object. Finding
   prerequisites in notes, by hand or by a program, is then work on top.
 - **Partial credit for prerequisites.** A correct answer about a card also
   counts, partially, for the cards it requires. Needs a scheduling rule.
@@ -180,40 +180,40 @@ questions", once it is planned.
     depend on anything but the fields. `make` needs the world (APIs,
     other programs), so it would stay a process.
 
-## Writing notes
+## Writing items
+
+- **YAML collections.** The `filesystem` driver reads JSONL, JSON and XML
+  (see [formats.md](formats.md)). YAML would be a fourth format for
+  writing items by hand, with block scalars (`|`) for fields of many
+  lines. It is postponed: XML already gives hand-written fields of many
+  lines, YAML's many ways of writing the same text make "keep the file as
+  it was" hard to promise, and a YAML parser that keeps spans is a large
+  dependency.
 
 - **Other file formats.** Items can come from any source, and a source
   can be a program (see [sources.md](sources.md), "Source programs"), so
-  a format such as Org, AsciiDoc, reStructuredText or the comments of
-  source code can already be read by a program. What a program can't do
-  is what the notes' sources do for themselves: keep every other byte of
-  a hand-written file, verify each change against its own parse, and
-  write atomically. A third built-in driver would, for a format common
-  enough to be worth it; or `srl` could offer programs a way to give their
-  changes as line edits that `srl` applies itself, as the notes' sources
-  do.
-
-- **Blank space before added items** (low priority). In a note of srl
-  blocks, `srl add` puts a blank line between the note and the items it
-  appends, and keeps every byte already in the note. A note that holds
-  only blank lines, such as
-  an "empty" note an editor saved as one newline, is not empty to it, so
-  the items start after blank lines; a note that ends in several blank
-  lines keeps them all, plus one. Either rule would fix it: a note with
-  nothing but blank space counts as empty and the items replace it, or
-  trailing blank lines are trimmed so that exactly one blank line comes
-  before the items. The second covers both cases, but rewrites blank
-  space at the end of the note (see [notes.md](notes.md), "How srl writes
-  to notes").
+  a format such as Org, AsciiDoc, items written in Markdown notes, or the
+  comments of source code can already be read by a program. What a
+  program can't do is what the `filesystem` driver does for itself: keep
+  every other byte of a hand-written file, verify each change against its
+  own parse, and write atomically. A format of the driver would, for a
+  format common enough to be worth it; or `srl` could offer programs a
+  way to give their changes as edits that `srl` applies itself.
 
 ## Sources
 
-- **`lint` for source programs.** A source program reports likely
-  mistakes only as problems of `read`, which are errors (see
-  [sources.md](sources.md), "Source programs"). A `lint` call, answered
-  like the others, would let a program report guesses that `srl lint`
-  shows and nothing else, as the notes' sources do. It waits for a
+- **Likely mistakes from source programs.** A source program reports
+  what it finds only as problems of `read`, which are errors (see
+  [sources.md](sources.md), "Source programs"). A call for warnings,
+  answered like the others, would let a program report guesses that
+  `srl check` shows as warnings and nothing else. It waits for a
   program that needs it.
+- **What the TinyDB example is for.** `examples/source-tinydb` keeps
+  items in a JSON file through TinyDB, which a JSON collection of the
+  `filesystem` driver now does without a program. It stays as the
+  example of a source program, and may become one that shows what only a
+  program can do, such as a database file of another format, or items
+  behind a web service.
 
 ## The log
 
@@ -243,7 +243,7 @@ questions", once it is planned.
     `--expect`. It takes the log's lock, for the check and the removal
     together, like every append.
   - **The log only.** It doesn't undo changes to items (`srl add`,
-    `srl edit`, `srl accept`, `srl id`), which are made in notes and
+    `srl edit`, `srl accept`, `srl id`), which are made in collections and
     sources, where your editor, git or the source program undo them.
     No other command writes the log, so nothing else is left that can't
     be taken back.
@@ -306,28 +306,29 @@ questions", once it is planned.
 
 ## Stores
 
-- **Export and import between stores.** Move or copy notes from one store to
-  another together with the review history of their cards, so that their
-  memory state comes along. It needs rules for ID clashes and for merging
-  logs. Copying a note by hand moves only the content.
+- **Export and import between stores.** Move or copy collections from one
+  store to another together with the review history of their cards, so
+  that their memory state comes along. It needs rules for ID clashes and
+  for merging logs. Copying a collection by hand moves only the content.
 
 ## Performance
 
-- **Reading every note on every command may become slow in a very large
-  store.** Every command that reads items reads and parses every note
-  (see [store.md](store.md), "The index cache"), so its cost grows with
-  the store. Today it is negligible: a store of 40 notes takes a few
-  milliseconds for a whole command. If a store grows large enough for it
-  to be felt, it needs measuring first (reading, hashing or parsing), and
-  then an optimization that keeps every result the same. Directions
-  to start from, none analyzed: keeping parsed items per note, keyed on
-  its content; reading notes in parallel; trusting modification times or
-  watching files, which `srl` doesn't do today.
+- **Reading every collection on every command may become slow in a very
+  large store.** Every command that reads items reads and parses every
+  collection (see [store.md](store.md), "The index cache"), so its cost
+  grows with the store. Today it is negligible: a store of 40 collections
+  takes a few milliseconds for a whole command. If a store grows large
+  enough for it to be felt, it needs measuring first (reading, hashing or
+  parsing), and then an optimization that keeps every result the same.
+  Directions to start from, none analyzed: keeping parsed items per
+  collection, keyed on its content; reading collections in parallel;
+  trusting modification times or watching files, which `srl` doesn't do
+  today.
 
   A store with source programs pays more: every command that reads items
   starts each of them at least twice, `collections` and `read` (see
   [sources.md](sources.md), "How many calls"), and that is usually more
-  than reading its notes. A program can keep a cache of its own, but not
+  than reading its collections. A program can keep a cache of its own, but not
   avoid starting. Directions, none analyzed: one process per program for
   a whole command, or programs kept running, as for kind programs (see
   "Kind programs").

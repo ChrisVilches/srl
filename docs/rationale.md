@@ -52,16 +52,32 @@ whether found on `PATH` (`srl-NAME`) or listed in the configuration:
 your shell already runs programs, and `srl` would only be launching
 them.
 
-## Why questions live inside notes
+## Why items are data, apart from notes
 
-Writing a question should take seconds, next to the knowledge it asks
-about. A separate file per question, with its own metadata, made adding
-knowledge slow and split it from the notes it came from. Inside a note, a
-question is three lines, and the note around it explains the answer for
-free.
+Questions used to live inside Markdown notes, in fenced blocks. In
+practice they were almost never written there by hand: they were added
+through a frontend or by an agent, and for those a note is the wrong
+place, since a program has to find a spot in prose written for people,
+and the questions then sit in the middle of what you read, looking and
+placed as nobody chose. So items are data, kept in structured
+collections, and notes are study material, kept as you write them.
 
-Trade-off: a note is a file you also edit by hand, so `srl` must parse
-text written for people, and must be careful when it writes to it.
+- **A note holds no items**, so `srl` never parses prose, never writes to
+  a note, and never has to hide items when a note is shown as context:
+  the note is shown whole.
+- **An item names its note with `see`**, as items written by programs
+  always did. Any number of items, of any collection or source, can ask
+  about one note, and a note can be any file: Markdown, plain text, a
+  PDF.
+- **Collections are made for programs** (JSONL, JSON), with one format
+  made for people who still write items by hand (XML; see "Why three
+  formats").
+
+Trade-off: a question is no longer next to the knowledge in the same
+file, so writing one by hand means two files, or a frontend. Keeping
+items in Markdown is still possible, as a source program (see "Why
+source programs"), but `srl` offers nothing for it, such as hiding the
+items of a note shown as context.
 
 ## Why text files, not SQLite, as the source of truth
 
@@ -71,93 +87,69 @@ integrity, but those are covered by a derived index and `srl check`. The
 reverse is not true: editing, diffing and plain-text access cannot be added to
 a database without export and import machinery.
 
-Text files are the default, and what the built-in sources, `markdown` and
-`jsonl`, read. A store may also name a source program that keeps items
-in a database or behind a service (see "Why source programs"). Its items
-then have whatever their storage gives: no plain-text history in git and
-no `grep` unless the program offers them. That is the store's choice,
-made in its configuration; the log, the configuration and the notes stay
-text files whatever the sources.
+Text files are the default, and what the built-in `filesystem` source
+reads. A store may also name a source program that keeps items in a
+database or behind a service (see "Why source programs"). Its items then
+have whatever their storage gives: no plain-text history in git and no
+`grep` unless the program offers them. That is the store's choice, made
+in its configuration; the log, the configuration and the notes stay text
+files whatever the sources.
 
 Trade-off: validation happens on read rather than on write.
 
-## Why items are fenced blocks
+## Why three formats
 
-Items must be told apart from the note around them, and carry their IDs,
-with a syntax every tool already knows. A fenced code block is part of
-CommonMark: renderers, editors and formats built on Markdown (MDX, Quarto)
-all agree on where it starts and where it ends, and its language, `srl`,
-says what it holds. So an item ends where its block does, not where `srl`
-guesses the next paragraph starts, and every line inside a block can be
-checked: a stray line is an error, not prose silently left out of a field.
-Renderers show a block's lines as written, so a question and its answer
-are never joined into one paragraph, and a viewer can show `srl` blocks
-in its own way, as it does for any language. No syntax specific to one app
-is needed.
+A collection is data, so its format is structured enough that every
+mistake in it is an error, not text silently left out of an item. Which
+structure depends on who writes it (see [formats.md](formats.md)):
 
-A block holds one item, with the item's entries on its fence, so that a
-single question is its fields between two fences; or several, each
-starting with an `@` line, so that a list of questions needs one pair of
-fences, not one per question. The first line of the block says which, and
-a block can't mix the two, so there is one rule to read each.
+- **JSONL** for programs that add and change items one at a time:
+  frontends, agents, importers. A JSON object per line is what programs
+  write best, and what `srl add` takes; parsing a line is a JSON parse,
+  a field holds any text, and an item is a line, so `srl` changes an item
+  by writing its line again, and the diff is that line.
+- **JSON** for programs and tools that write a file whole. It holds the
+  same item objects, but no line is an item, so changing one rewrites the
+  file, and its layout is not kept.
+- **XML** for people who still write items by hand, with fields of many
+  lines: code, poems, worked examples. JSON can't hold a line ending
+  without `\n`, which no one types by hand. In XML, a field is an element
+  whose text reads as written, indented under it, and CDATA keeps
+  anything else exactly; elements and attributes say which text is which
+  entry or field, with no syntax of `srl`'s own to learn, and every
+  editor knows it. `srl` changes only the element of the item it changes,
+  so comments and everything else you wrote stay.
 
-Trade-off: in a renderer that knows nothing of `srl`, items show as code,
-not as prose, and a field that holds a fenced code block needs a longer
-fence around its block. Getting that wrong closes the block early, and the
-cut item can still be valid, so `srl check` doesn't always report it. `srl
-lint` does: the fence that closed the block is indented, as the end of a
-code block in a field is. It stays a guess, not an error, because an
-indented closing fence is valid CommonMark, and `srl` reads blocks as
-renderers do. Programs that write items are prone to this mistake, which
-is one reason for JSONL notes (see "Why JSONL notes"). The syntax is also
-Markdown's: it suits Markdown and the formats built on it, and every file
-a `markdown` source reads has to use it too, whatever its name (see
-[notes.md](notes.md), "Item syntaxes").
-
-## Why JSONL notes
-
-Not every question is typed next to the knowledge by hand: importers and
-generators write them in bulk, in files of their own, with `see` naming the
-note they ask about. For them, srl blocks are a syntax to get right for no gain:
-fence lengths, continuation lines, two forms of block. A JSON object per
-line is what such programs write best, and `srl add` already took it. A
-JSONL note is that format kept as is: parsing a line is a JSON parse, a
-field holds any text without counting fences, and an item is one line, so
-`ADDRESS:LINE`, line diffs and `srl`'s line edits work as they do for srl
-blocks. JSONL rather than one JSON document because a document has no
-lines that are items: editing one item would mean rewriting the file.
-YAML was left out because free text in it is easy to misread silently: a
-` #` starts a comment that drops the rest of a line, and `no`, `1.0` or a
-leading `{` change what a value is.
+YAML was left out: free text in it is easy to misread silently (a ` #`
+starts a comment that drops the rest of a line, and `no`, `1.0` or a
+leading `{` change what a value is), it has many ways to write the same
+text, and keeping a YAML file as it was while changing one item is hard
+to promise (see [ideas.md](ideas.md), "Writing items").
 
 The item object is one format everywhere an item is JSON: a line of a
-JSONL note, a line given to `srl add` or `srl edit`, and what `srl show
---json` prints. So what `srl` prints can be changed and given back as it
-is, and programs need to know one format only.
+JSONL collection, an element of a JSON collection, a line given to `srl
+add` or `srl edit`, and what `srl show --json` prints. So what `srl`
+prints can be changed and given back as it is, and programs need to know
+one format only.
 
-A note's syntax is decided by its source's driver, and nothing else: not
-its name, and not what the file holds. Looking inside a file can't tell a
-JSONL note with a mistake from a file that is not one, so a broken note
-would silently give no items. Which files are JSONL notes is up to the
-`include` of a `jsonl` source, so JSON files meant for other programs
-stay out of the store unless a glob names them (see "Why sources").
+A collection's format is decided by its extension, and which files are
+collections by the globs of their source: never by what a file holds,
+since looking inside can't tell a collection with a mistake from a file
+that is not one, so a broken collection would silently give no items.
+JSON files are left out by default, since a store often holds JSON
+meant for other programs (see "Why files are chosen by globs").
 
-
-Trade-off: `srl` writes a JSONL item it changes as a new line, without its
-spacing or key order, so a JSONL note is not for formatting by hand. And
-the two syntaxes give their notes as context by their own rules (see
-[notes.md](notes.md), "Context"), with one in common, that mode `prose`
-never shows items: srl blocks are removed from a note, and
-a JSONL note is all items, so it is given only in mode `full`, whole, and
-is never the context of its own items.
+Trade-off: `srl` writes a JSONL or JSON item it changes as the item
+object of its entries and fields, without its spacing or key order, so
+those formats are not for formatting by hand; XML is.
 
 ## Why sources
 
-Notes of srl blocks and JSONL notes are two formats, and other places to
-keep items are easy to imagine: a database, a web service, another file
-format. Each one added inside `srl` blurred what `srl` is: its rules for
-files, lines and extensions leaked into JSON outputs, selectors, the
-configuration and the rules of other formats. What `srl` is, is what
+Files of the store are one place to keep items, and others are easy to
+imagine: a database, a web service, another file format. Each one added
+inside `srl` blurs what `srl` is: its rules for files, lines and
+extensions leak into JSON outputs, selectors, the configuration and the
+rules of other formats. What `srl` is, is what
 happens to items once they are read: kinds, cards, scheduling, the log,
 selectors and the frontend contract. Where items come from is data
 access, and it sits behind one boundary, as a database sits behind a
@@ -166,19 +158,22 @@ does the same few things (see [sources.md](sources.md), "What a source
 does"), and nothing else in `srl` knows how any of them keeps its items.
 
 - **A source is chosen by the configuration, not by a file's name.** One
-  rule, the same for every source; a store of Markdown notes still needs
-  no setting at all, since the default source reads them.
-- **Each driver is its format, whole**, with no shared syntax to fit:
-  each reads, shows and writes its notes its own way, even where that
-  means two of them write some code twice.
-- **One tree of addresses** names every collection the same way, with a
-  prefix for each source, so that `see`, `srl add`, messages and
-  selectors need no case for any source, and a store of notes keeps its
-  paths as addresses (see [sources.md](sources.md), "Addresses").
-- **The context of an item is asked of the source of the collection
-  shown**, so that a source never needs another's rules: an item of one
-  source can name a note of another, and only that note's source knows
-  what to hide in it.
+  rule, the same for every source; a store of JSONL and XML collections
+  needs no setting at all, since the default source reads them.
+- **Each source's settings are its own**: a `filesystem` source takes its
+  globs, and a program takes whatever keys it checks itself. No key means
+  something for one source and nothing for another.
+- **An address is the collection's name, as its source gives it**, so
+  that `srl add`, messages and selectors need no case for any source. An
+  earlier design mounted each source at a prefix in one tree of
+  addresses, as Unix mounts file systems; it needed rules for prefixes
+  inside prefixes, for files that two sources read under different
+  prefixes, and for addresses hidden under a mount, and gave nothing a
+  program can't do by naming its collections under a folder of its own.
+  One rule is left: no address is given by two sources.
+- **Sources hold items, and nothing else.** Context is a file of the
+  store, which `srl` reads itself (see "Why context is a file"), so a
+  source never shows anything, and never needs to know what to hide.
 
 ## Why source programs
 
@@ -198,37 +193,52 @@ programs").
   write a program for `srl`, not two, and a command calls a source
   program a small, fixed number of times, never once per item.
 - **Its items are item objects**, the one JSON format of an item (see
-  "Why JSONL notes"), read as strictly as `srl add` reads one. A program
-  never makes IDs: `srl id` gives them, as for every source.
+  "Why three formats"), read as strictly as `srl add` reads one. A
+  program never makes IDs: `srl id` gives them, as for every source.
 - **`srl` verifies every write by reading the source again.** It can
-  check a note it parsed itself, line by line, but not a program's
-  storage. Reading the program before and after its `write`, and
-  comparing the items with what the changes should give, holds a
-  program to the same promise as the notes' sources: only the items
-  asked to change, changed, or nothing.
+  check a file it parsed itself, but not a program's storage. Reading the
+  program before and after its `write`, and comparing the items with what
+  the changes should give, holds a program to the same promise as the
+  `filesystem` source: only the items asked to change, changed, or
+  nothing.
 - **`srl` keeps nothing a program answers.** It can't know when a
   database or a service changed, so a kept answer could be stale without
   a word. Caching is the program's business: one that is slow to answer
-  may keep a cache of its own, and knows when it is fresh. The built-in
-  sources aren't cached either, for another reason: parsing a note costs
-  about as much as hashing it to tell whether it changed (see
+  may keep a cache of its own, and knows when it is fresh. The
+  `filesystem` source isn't cached either, for another reason: parsing a
+  file costs about as much as hashing it to tell whether it changed (see
   [store.md](store.md), "The index cache").
 
 Trade-off: a source program is a process started on every command that
 reads items, so a slow one slows every command, and one that fails stops
-them all, as an error in a note does. And `srl` can't keep the bytes of a
-program's storage as it keeps a note's: how carefully items are written
-there is up to the program.
+them all, as an error in a collection does. And `srl` can't keep the
+bytes of a program's storage as it keeps a file's: how carefully items
+are written there is up to the program.
 
-## Why only srl blocks make items
+## Why context is a file
 
-If any `Q:` line made an item, ordinary text would be read as questions:
-an interview transcript, an FAQ, a quote. With one rule, "an item is in an
-srl block", `srl` never reads into your prose, and everything it reads it
-can check strictly.
+An item's context is the note it asks about, so it is that note, a file
+of the store: not a collection as its source shows it, and not something
+a source computes. `srl` reads the file and gives its text whole, and the
+frontend renders it by its extension.
 
-Trade-off: a question typed outside a block is silently not studied.
-`srl lint` looks for these, as a convenience.
+- **No modes, no stripping.** When notes held items, a note shown as
+  context had to be shown without them, in a mode a frontend chose, and
+  every source had to know how to hide its items. Notes hold no items
+  now, so there is nothing to hide: the only choice left to a frontend is
+  whether to get the context at all (`--no-context`).
+- **An item without `see` has no context.** A collection is data; showing
+  a JSONL file after an answer helps no one.
+- **Which files are notes is a setting of the store, `[context]`**, not
+  of a source, since an item of any source may name any note. Its globs
+  keep collections, configuration and other files from being named by
+  mistake, and give frontends the list to pick from (`srl notes`). A note
+  can be any format, and one that isn't text, such as a PDF, is named but
+  not read: its frontend may open it.
+
+Trade-off: a context is read when it is shown, so a note that is
+deleted or moved makes its items errors until their `see` is fixed, as
+any broken reference does.
 
 ## Why one error stops everything
 
@@ -257,20 +267,24 @@ its kind program needs is down, blocks studying until it is fixed or suspended, 
 less annoying are still to be designed (see [overview.md](overview.md),
 "Open questions").
 
-## Why `srl` changes notes so little
+## Why `srl` changes files so little
 
-Your notes are yours. `srl id` and `srl accept` change header lines only,
-adding an ID or removing `draft`; `srl add` only appends new items; and
-`srl edit --stdin` replaces the lines of the items it was given, or the
-block of an item that has its block to itself. In a JSONL note, the line
-of the item changed is written again. No command rewrites a note, so a
-change by `srl` can't damage text you wrote, and is easy to see in a diff.
+Your notes are yours: `srl` never writes to one. In a collection, `srl`
+changes what it must and keeps the rest as it can: in JSONL, the line of
+the item changed; in XML, the element of the item changed, with comments
+and layout around it kept; new items are added at the end. Only JSON is
+written again whole, since no part of it is an item's alone (see
+[formats.md](formats.md), "How srl writes to collections"). So a change
+by `srl` can't damage text you wrote, and is easy to see in a diff.
 
-## Why IDs, not positions
+## Why IDs, not positions or lines
 
-An item's position in a note changes whenever you add a question above it.
-Using it as identity would give one question's history to another without
-a word. An ID among the item's header entries moves with the item.
+An item's position in a collection changes whenever you add a question
+above it. Using it as identity would give one question's history to
+another without a word. An ID among the item's header entries moves with
+the item. For the same reason nothing names an item by its line: items
+are named by their collection's address and their ID, and a line, where a
+format has one, only appears in the message of an error.
 
 Trade-off: every item carries an ID, and copying an item copies its ID,
 which is an error until you remove it.
@@ -284,7 +298,7 @@ left to IDs, because people who name an item themselves write
 `jp-grammar-desu`. `.` is safe everywhere a card ID goes: file names on
 every platform, URLs, shells and selectors. `:` reads well too, but
 Windows file names can't contain it, a relative link `a:b` is read as a
-URL scheme, and it looks like `ADDRESS:LINE` and `key:value`.
+URL scheme, and it looks like `key:value`.
 
 Trade-off: `k3m9q1.2` looks a little like a version number, and `.` can't
 be used in an ID.
@@ -479,15 +493,14 @@ too, unused.
 `groups` gets an item's ID and fields, and nothing else: not its collection,
 not its context, not the day. Card IDs have to stay the same for as long
 as the item's fields do, because a card's history is kept under its ID.
-If `groups` could read the prose around an item, editing that prose
-could change or drop card IDs, and history would be lost without the item
+If `groups` could read the note an item names, editing that note could
+change or drop card IDs, and history would be lost without the item
 changing at all.
 
 `make` may differ every time anyway, so it gets the context and the day:
 a program can use the context as background, for example to pick a sentence
-of it to ask about. The context is always in mode
-`prose`, whatever mode a frontend asks for, so a card doesn't depend on
-the frontend that shows it.
+of it to ask about. It always gets the context, whether a frontend asks
+for it or not, so a card doesn't depend on the frontend that shows it.
 
 ## Why a kind describes itself, and the description only informs
 
@@ -577,13 +590,13 @@ web viewer, needs more than `srl` to run. In exchange there is no terminal
 handling to keep working on every platform, and no frontend that is more
 official than yours.
 
-## Why the frontend chooses the context mode
+## Why the frontend chooses whether to get the context
 
-Whether to show the whole collection after the answer, the collection without its
-items, or nothing, depends on the screen and on the person: a terminal
-frontend may want less than a browser. That is presentation, so it is a
-flag of `srl next` that each frontend sets, not a setting of the store
-that every frontend would have to share.
+Whether to show the note after the answer depends on the screen and on
+the person: a terminal frontend may want less than a browser, and one
+that opens notes itself wants no text at all. That is presentation, so
+it is a flag of `srl next` that each frontend sets, `--no-context`, not
+a setting of the store that every frontend would have to share.
 
 ## Why the core calls no service
 
@@ -593,38 +606,41 @@ offline, costs nothing to run, behaves the same every time, and is not tied
 to a provider. A program that needs a service brings it itself: a kind
 program that looks words up online, a source program that keeps items
 behind a web service, or a program outside `srl` that contributes the way
-a person does, by writing notes and running commands. A store that names
+a person does, by adding items and running commands. A store that names
 such a program depends on its service; `srl` doesn't.
 
 ## Why generated questions are ordinary items
 
 A program that writes questions, such as an importer or a generator,
-writes items, in a note of their own, with `see` pointing to the note they
-ask about. There is no separate cache or session for generated questions:
-that would be a concept that exists only for such programs, and would hide
-content outside your notes. As items, you can
-read, edit, accept or delete them like any other.
+writes items, in a collection of their own, with `see` pointing to the
+note they ask about. There is no separate cache or session for generated
+questions: that would be a concept that exists only for such programs,
+and would hide content outside the store. As items, you can read, edit,
+accept or delete them like any other.
 
-Trade-off: generated notes accumulate in the store, like any notes.
+Trade-off: generated collections accumulate in the store, like any
+collections.
 
 ## Why not tied to Obsidian
 
-Notes are plain Markdown, written in any editor and read in any viewer.
-Everything `srl` adds uses syntax common to Markdown flavours, so notes
-look right in every app, and `srl` assumes none.
+Notes are files you write in any editor and read in any viewer, and
+`srl` never writes to them, so they look as you wrote them in every app,
+and `srl` assumes none.
 
-## Why notes are chosen by globs
+## Why files are chosen by globs
 
-Which files are a source's notes is two lists of globs in its table of
-`[sources]`, `include` and `exclude`, and `exclude` always wins. Globs say
-more than a list of extensions (only the notes under one folder, say) with
-the same matching that `exclude` and `path:` already use. Every note of a
-source is read with its driver's syntax whatever its name, so there is no
-list of file types to keep up to date (see "Why JSONL notes" and "Why
-sources").
+Which files are a source's collections, and which are notes, is two lists
+of globs each, `include` and `exclude`, in the source's table and in
+`[context]`, and `exclude` always wins. Globs say more than a list of
+extensions (only the files under one folder, say) with the same matching
+that `exclude` and `path:` already use. A collection's format is chosen
+by its extension, so a glob that matches a file of another format makes
+it an error rather than silently reading nothing (see "Why three
+formats").
 
-Trade-off: a glob can make a file a note whose item syntax makes no sense
-for it, such as HTML or source code; `srl` reads it anyway.
+Trade-off: a glob can make a file a note that is no use as context, such
+as a collection or a binary file; `srl` allows it, and gives no text for a
+file that isn't UTF-8.
 
 ## Why flat rules
 

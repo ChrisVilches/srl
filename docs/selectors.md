@@ -21,8 +21,8 @@ selector it didn't write puts it after `--`.
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | Cards whose item's address (see [sources.md](sources.md), "Addresses"; for a note of a source without a prefix, its path) has a part between `/` named `NAME`, or a last part named `NAME` without its extension (the part after the last `.`). Names are compared ignoring case, in Unicode NFC: `in:grammar` matches `japanese/Grammar/wo.md`, `grammar.md` and `grammar.txt`, but not `grammar-notes.md`. |
-| `path:GLOB` | Cards whose item's address matches the glob, whatever its source. `*` matches within one part between `/`, `**` across parts: `path:japanese/*` is the collections directly in `japanese/`, such as its notes, `path:japanese/**` everything below it. Addresses and globs are compared in Unicode NFC (see [store.md](store.md), "File names"). |
+| `in:NAME` | Cards whose item's collection has an address (see [sources.md](sources.md), "Addresses"; for a collection of the `filesystem` source, its path) with a part between `/` named `NAME`, or a last part named `NAME` without its extension (the part after the last `.`). Names are compared ignoring case, in Unicode NFC: `in:grammar` matches `japanese/Grammar/wo.jsonl`, `grammar.jsonl` and `grammar.xml`, but not `grammar-notes.jsonl`. Only collections are matched: a note named `grammar.md` that items name with `see` doesn't make them match. |
+| `path:GLOB` | Cards whose item's collection has an address the glob matches, whatever its source. `*` matches within one part between `/`, `**` across parts: `path:japanese/*` is the collections directly in `japanese/`, `path:japanese/**` everything below it. Addresses and globs are compared in Unicode NFC (see [store.md](store.md), "File names"). |
 | `source:NAME` | Cards whose item comes from the source `NAME` of `.srl/config.toml` (see [sources.md](sources.md)): `source:notes` is the cards of the notes of a store without `[sources]`. |
 | `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1.1` and `k3m9q1.2`. |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind` entry, or a kind named in `[kinds]` of `.srl/config.toml` (see [cards.md](cards.md), "Kinds"). A selector without `kind:` matches items of every kind. |
@@ -30,7 +30,7 @@ selector it didn't write puts it after `--`.
 | `word` or `"some words"` | Cards whose item contains the text, case-insensitively, in any field |
 
 `in:` is a quick way to name a topic, taken from how you already arrange
-your collections, such as the folders of your notes: there are no tags
+your collections, such as their folders and names: there are no tags
 to write.
 
 Keys and text are told apart by one rule: a term that starts with lowercase
@@ -96,11 +96,11 @@ Every other command applies the selector exactly as written.
 ## Examples
 
 ```sh
-srl next in:grammar,kanji                 # grammar or kanji notes
+srl next in:grammar,kanji                 # grammar or kanji collections
 srl find in:japanese -in:n5               # all Japanese except the n5 folder
 srl find is:leech --json                  # every leech
 srl find "ものともせず"                    # text search
-srl reset path:rust/ownership.md          # start a note over
+srl reset path:rust/ownership.xml         # start a collection over
 srl find in:vocab is:mature               # what you know well
 srl next kind:ja-words                    # study one kind of item
 srl find -kind:qa                         # every item of a kind program

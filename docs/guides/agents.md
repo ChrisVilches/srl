@@ -12,10 +12,10 @@ guides and examples"): nothing here is part of `srl` itself.
 
 ## How an LLM touches `srl`
 
-In one way only: **an agent runs CLI commands and writes notes**, as a
-person does. Everything an agent writes is an ordinary item in an ordinary
-note. There is no separate kind of generated card: once accepted, an item
-an agent wrote is scheduled like one you wrote.
+In one way only: **an agent runs CLI commands**, as a person does, and
+may write notes of its own. Everything an agent adds is an ordinary item
+in an ordinary collection. There is no separate kind of generated card:
+once accepted, an item an agent wrote is scheduled like one you wrote.
 
 `srl` never judges answers. When you want an LLM to judge a free-form answer,
 the agent does it, outside `srl`, and records the rating it decided.
@@ -25,12 +25,12 @@ the agent does it, outside `srl`, and records the rating it decided.
 1. **Agents write drafts.** Items written by an agent are drafts
    (`"draft": true` in `srl add`'s input). They enter your study queue
    only after `srl accept`.
-2. **Agents write new notes, not into yours.** Items an agent generates go
-   into a note of their own, such as `generated/wo-mono-tomo-sezu.md`, or a
-   JSONL note (`generated/wo-mono-tomo-sezu.jsonl`) when a `jsonl` source reads
-   them, with `see` naming the note they ask about. They then show your note as their
-   context, and your note stays as you wrote it. The one exception is
-   `srl edit --stdin`, for an agent you allow to edit your items.
+2. **Agents add to collections of their own, never to your notes.** Items
+   an agent generates go into a collection of their own, such as
+   `generated/wo-mono-tomo-sezu.jsonl`, with `see` naming the note they
+   ask about. They then show your note as their context, and your note
+   stays as you wrote it. The one exception is `srl edit --stdin`, for an
+   agent you allow to edit your items.
 3. **Reviews go through `srl review`.** An agent never writes to the log, and
    marks its reviews with `--by agent` (or `"by": "agent"`).
 
@@ -46,7 +46,7 @@ use. For example:
 
 | Tool | Runs |
 |---|---|
-| `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_collections`, `srs_sources`, `srs_kinds`, `srs_check`, `srs_lint` | Reading (`srs_collections` and `srs_sources` tell which collections exist and where `srl add` may create new ones, `srs_kinds` which fields an item can have; `srs_check` and `srs_lint` find mistakes in what was written) |
+| `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_collections`, `srs_notes`, `srs_sources`, `srs_kinds`, `srs_check` | Reading (`srs_collections` and `srs_sources` tell which collections exist and where `srl add` may create new ones, `srs_notes` which notes an item may name with `see`, `srs_kinds` which fields an item can have; `srs_check` finds mistakes in what was written) |
 | `srs_add` | `srl add ADDRESS --stdin` (always draft: the tool sets `"draft": true` on every line, for example with `jq -c '.draft = true'`) |
 | `srs_edit` | `srl edit --stdin` (only if you want agents to edit items) |
 | `srs_next`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
@@ -75,61 +75,27 @@ folders, usually inside a small wrapper script per role:
 agi --sys base.md --sys tutor.md --sys me.md --resources srl-agent/tutor "…"
 ```
 
-## Limitations of the item syntax for LLMs
+## Writing items as an LLM
 
-An agent that works through the CLI never needs to write srl blocks: `srl
-add` and `srl edit --stdin` take item objects, one JSON object per line,
-and write them in the note's syntax themselves, and JSONL notes hold
-nothing but item objects (see [notes.md](../notes.md), "Item syntaxes").
+An agent never writes into a collection file itself: `srl add` and `srl
+edit --stdin` take item objects, one JSON object per line, and write them
+in the collection's format themselves (see [formats.md](../formats.md)).
 JSON is what models write most reliably: a field holds any text, code
-blocks included, with nothing to count.
+blocks included, with nothing to count, and every mistake is an error that
+`srl` reports before anything is written.
 
-The limitations below are those of srl blocks written by hand, in
-Markdown notes (see [notes.md](../notes.md), "The srl block syntax"). For
-a model, that is mostly easy: fenced blocks are familiar, a block says
-where its items end, and a mistake inside a block is an error that names
-its line. Three things are harder, and the first can lose text that only
-`srl lint` reports.
-
-1. **Fences inside fields.** A field that holds a fenced code block needs
-   its srl block to be opened with a longer fence, or with tildes, and
-   models often get fence lengths wrong. With too short a fence, the
-   code's closing fence closes the srl block early, and what follows is
-   read as text of the note. The block's own closing fence, left over,
-   opens an ordinary code block, which hides the srl blocks after it
-   until the next fence closes it.
-   - `srl check` reports it only when the cut item is invalid, as a `qa`
-     item without cloze deletions that lost its `A:`. An item whose `Q`
-     has cloze deletions, or an item of a kind program, is just shorter,
-     and the hidden items are just gone: other commands read the note
-     without complaint.
-   - `srl lint` reports it every time, whatever the kind: the fence that
-     closed the block is indented, as the end of a code block in a field
-     is, and a block's own closing fence isn't.
-2. **Two forms of block.** A block holds one item, with its entries on the
-   fence, or several, each starting with an `@` line, never both. A model
-   that mixes them, for example by adding an `@` item to a block of one, gets an
-   error, which says what to do; the rule is one more to get right.
-3. **Fences inside other text.** An item shown inside a Markdown reply sits
-   inside another fenced block, which needs a longer fence again. In a
-   shell, backticks start command substitution, so any text with them
-   given to `srl` through a heredoc, srl blocks or JSON, needs a quoted
-   delimiter (`<<'JSONL'`) to reach `srl` as written.
-
-What keeps them small:
-
-- **Write items with `srl add` and `srl edit --stdin`.** Their input is
-  item objects, with no srl block syntax at all, and they pick a fence long
-  enough for the fields when the note is Markdown.
-- **Keep generated items in JSONL notes**, such as
-  `generated/wo-mono-tomo-sezu.jsonl`, once a `jsonl` source reads them: there is
-  no fence anywhere, and `jq` reads and changes them.
-- **Open blocks written by hand with `~~~srl`** when a field holds code:
-  a tilde fence is never closed by backticks, so there is nothing to count.
-- **Run `srl lint` after writing items by hand**, as well as `srl check`:
-  it is the one that finds a block closed too early. `srl show ID` then
-  shows what was read, and `srl find` whether every item written is
-  there.
+- **Add generated items to a collection of their own**, such as
+  `generated/wo-mono-tomo-sezu.jsonl`, as drafts, each naming the note it
+  asks about with `see`, a path `srl notes` lists. The agent's notes, if
+  it writes any, are files of their own too: a collection never holds
+  prose, and a note never holds items.
+- **Mind the shell.** Backticks start command substitution, so any text
+  with them given to `srl` through a heredoc needs a quoted delimiter
+  (`<<'JSONL'`) to reach `srl` as written.
+- **Run `srl check` after writing items**: it reports errors, and warns
+  of likely mistakes in valid items, such as a cloze deletion written
+  `{{C1::…}}`. `srl show ID` then shows what was read, and `srl find`
+  whether every item written is there.
 - **Give the agent tools instead of a shell** (see "Tools"): the tool
   passes standard input as it is, so there is no quoting to get wrong.
 
@@ -163,15 +129,15 @@ The agent reads the note, runs `srl find` and `srl show` to see which items
 already exist, and sends the new items as JSONL to:
 
 ```sh
-srl add generated/wo-mono-tomo-sezu.md --stdin
+srl add generated/wo-mono-tomo-sezu.jsonl --stdin
 ```
 
 Each line has the item's fields, `"draft": true`, and
 `"see": "japanese/grammar/wo-mono-tomo-sezu.md"`, which makes your note the
 context of the new item. Questions about several notes can go in one call,
-each line with the note it asks about. You read the new
-note, delete what you don't want, and run
-`srl accept path:generated/wo-mono-tomo-sezu.md`.
+each line with the note it asks about. You look at the drafts (`srl find
+is:draft`, or a frontend), remove what you don't want, and run
+`srl accept path:generated/wo-mono-tomo-sezu.jsonl`.
 
 A request such as "test me on N1 grammar using food vocabulary" is the same
 workflow: the agent writes the questions as draft items, and you accept the

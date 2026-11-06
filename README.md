@@ -6,9 +6,10 @@ A programmable data layer for spaced repetition.
 a plain-text log, schedules every card with
 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/ABC-of-FSRS),
 and exposes all of it through a CLI with JSON output. Out of the box,
-questions live inside your Markdown notes, next to what they ask about.
-They can also be lines of JSONL files that programs write, or be kept by a
-program of your own: in a database, behind a web service, in any format.
+questions are data in structured files of your study folder (JSONL, JSON
+or XML), each naming the note it asks about, which is shown as its
+context. They can also be kept by a program of your own: in a database,
+behind a web service, in any format.
 
 `srl` has no study screen of its own. Instead, it is the one place where
 your study data comes together and stays correct, and everything else is
@@ -17,7 +18,7 @@ programs that make new types of cards, source programs that keep items
 their own way, and any other tool you write.
 
 ```
-   sources: Markdown notes, JSONL, a program of yours (a database, …)
+   sources: JSONL/JSON/XML files, a program of yours (a database, …)
                 │ items              ▲ changes
                 ▼                    │
  ┌─────────────────────────────────────────────────────┐
@@ -33,7 +34,7 @@ their own way, and any other tool you write.
 
 Spaced repetition apps bundle four things: where your cards are kept, the
 format they're written in, the scheduler, and the screen you study on. You
-can't easily keep cards next to your notes, generate them with a script,
+can't easily keep cards beside your notes, generate them with a script,
 study in a different interface, or analyze what you keep forgetting with
 your own tools, because the data is locked inside the app.
 
@@ -44,18 +45,19 @@ so either can be replaced, rewritten or built by you.
 - **The CLI is the API.** Every command is non-interactive, with JSON
   output. Frontends and scripts use the same commands you do; there
   is no separate interface to learn.
-- **Small fixed contracts.** The item syntaxes, the card, the frontend
+- **Small fixed contracts.** The collection formats, the card, the frontend
   contract (`srl next --json`), the review event, the selector language
   and the calls to source programs are rigid and documented, so the
   programs around them can vary freely.
 - **Items can live anywhere.** A store reads its items from its sources:
-  Markdown notes by default, JSONL files, or programs you write.
+  JSONL, JSON and XML files by default, or programs you write.
   Scheduling, selectors, card types and frontends work the same whatever
-  the source, so a card from a database is studied like a card from a note.
+  the source, so a card from a database is studied like a card from a
+  file.
 - **One schedule for everyone.** Frontends never compute schedules. Study
   in the browser in the morning and in a terminal at night, and it's the
   same queue.
-- **Plain text by default.** Items in notes are lines in files, and
+- **Plain text by default.** Items are lines and elements in files, and
   reviews are always lines in append-only JSONL files. `cat`, `grep`, git
   and any program that reads files can work with them. The SQLite index
   is only a cache.
@@ -67,83 +69,85 @@ so either can be replaced, rewritten or built by you.
 ## Where your items live
 
 A store is a folder with a `.srl/` folder in it, which holds its
-configuration and its review log. Its items come from its **sources**,
-each mounted at a place in one tree of addresses, so every group of
-items, whether a note or a database table, is reached by an address such
-as `japanese/grammar/wo.md` or `vocab/words`. A store without
-configuration has one source: every Markdown file in it.
+configuration and its review log. Everything else is yours: your
+**notes**, the study material you write, in any format, and your
+**collections**, files of items, read by the store's **sources**. Every
+collection is reached by an address, such as `japanese/grammar.jsonl` or
+`vocab/words`. A store without configuration has one source, which reads
+every `.jsonl` and `.xml` file in it.
 
-### Markdown notes, the default
+### Notes are notes, items are data
 
-````markdown
-# 食い倒れ
+Notes hold no questions. An item names the note it asks about with
+`see`, and that note is shown, whole, after the answer:
 
-Eating yourself into ruin. Osaka's motto, lived nightly along Dotonbori:
-京の着倒れ、大阪の食い倒れ (Kyoto spends it on clothes, Osaka on food).
-
-```srl
-@ id:x7k2m9
-Q: What does 食い倒れ mean?
-A: Eating until you drop, or go broke.
-
-@ id:p4n8d2
-Q: 道頓堀で{{c1::食い倒れ}}の一日を過ごした。
 ```
-````
-
-That's a complete note with two cards in it. The questions live in a
-fenced `srl` block, so the note stays a normal Markdown file for your
-editor, your viewer or GitHub, which show the block as code; a block can
-also hold a single question, with its ID on the fence (```` ```srl
-id:x7k2m9 ````). When you study a card, the note around it is shown as
-context after the answer.
-
-A card's identity is its ID, so you can reword a question or move its note
-without losing its schedule. Your folders are your topics:
-`srl next in:grammar` studies every note under a `grammar` folder.
-
-### JSONL notes, for items that programs write
-
-Questions that scripts write can go in a JSONL note instead,
-one JSON object per line, each naming the note it asks about with `see`:
+japanese/vocabulary/osaka.md      # your note, written as you like
+japanese/vocabulary.jsonl         # the items about it
+```
 
 ```json
-{"id": "q8m2k1", "see": "japanese/vocabulary/osaka.md", "Q": "What does 食い倒れ mean?", "A": "Eating yourself into ruin."}
+{"id": "x7k2m9", "see": "japanese/vocabulary/osaka.md", "Q": "What does 食い倒れ mean?", "A": "Eating until you drop, or go broke."}
+{"id": "p4n8d2", "see": "japanese/vocabulary/osaka.md", "Q": "道頓堀で{{c1::食い倒れ}}の一日を過ごした。"}
 ```
 
-A JSONL note holds nothing but items, and has no context of its own, so
-each item names its note with `see`. `srl add` and `srl edit` take items
-in that same form, whatever source they go to, and `srl id` gives IDs to
-the items that have none. JSONL notes are read once your configuration
-names a source of them, in `.srl/config.toml`, beside the notes:
+That's a complete collection with two items, one card each. `srl add`
+and `srl edit` take items in that same form, whatever source they go
+to, and `srl id` gives IDs to the items that have none. Which files can
+be notes is set once for the store, `**/*.md` and `**/*.txt` unless
+`[context]` in `.srl/config.toml` says otherwise; `srl notes` lists them.
 
-```toml
-[sources.notes]
-driver = "markdown"
+A card's identity is its ID, so you can reword a question or move it to
+another collection without losing its schedule. Your folders and file
+names are your topics: `srl next in:vocabulary` studies every collection
+named `vocabulary` or under a `vocabulary` folder.
 
-[sources.data]
-driver = "jsonl"
-```
+### Three formats
+
+- **JSONL**, one item per line, for what frontends, agents and scripts
+  write: `srl` changes an item by writing its line again.
+- **XML**, for writing items by hand, with fields of many lines laid out
+  as they read:
+
+  ```xml
+  <items>
+    <item id="b19x0q" see="rust/ownership.md">
+      <Q>
+        Does this compile?
+
+            let a = String::new();
+            let b = a;
+            println!("{a}");
+      </Q>
+      <A>No. `a` was moved into `b`.</A>
+    </item>
+  </items>
+  ```
+
+  `srl` rewrites only the element of an item it changes, so comments and
+  layout stay.
+- **JSON**, one array of items, for tools that write files whole; read
+  once a source's `include` names JSON files, since a store often holds
+  JSON meant for other programs.
 
 ### Source programs, for items kept your own way
 
 Any other source is a program you name in the configuration, written in
 any language. It answers a few calls over standard input and output (list
-its collections, read its items, show a collection as context, write
-changes) and keeps items however it likes: in a database, behind a web
-API, in a format `srl` doesn't know.
+its collections, read its items, write changes) and keeps items however
+it likes: in a database, behind a web API, in a format `srl` doesn't
+know, even in Markdown notes.
 
 ```toml
 [sources.vocab]
 program = ["python3", "sources/tinydb_source.py"]
-prefix = "vocab/"
 database = "vocab/vocab.json"    # the program's own setting
 ```
 
 Its items are then added, found, edited and studied with the same
 commands as any other: `srl add vocab/words --stdin` adds items to the
-table `words`, `srl next source:vocab` studies only its cards, and an item
-in the database can name a Markdown note with `see` to show it as
+collection `vocab/words`, `srl next source:vocab` studies only its cards,
+and an item in the database can name a note with `see` to show it as
 context. `srl sources` and `srl collections` describe what a store reads.
 
 ## What you can build on it
@@ -232,18 +236,15 @@ and writing items. It can turn a note or an article into questions, sent
 as JSONL and kept as drafts until you accept them:
 
 ```sh
-srl add generated/japanese.md --stdin <<'JSONL'
+srl add generated/japanese.jsonl --stdin <<'JSONL'
 {"see": "japanese/grammar/wo-mono-tomo-sezu.md", "draft": true, "Q": "Make a sentence with 〜をものともせず about a football team.", "A": "…"}
 {"see": "japanese/grammar/wo-mono-tomo-sezu.md", "draft": true, "Q": "{{c1::嵐}}をものともせず、漁師たちは海へ出た。"}
 JSONL
-srl accept path:generated/japanese.md   # after you've read them
+srl accept path:generated/japanese.jsonl   # after you've read them
 ```
 
-The same lines can go to a JSONL note instead, `srl add
-generated/japanese.jsonl --stdin`, where each item is stored as one line,
-just as it was sent. There is then no Markdown for the agent to get
-wrong, such as the fences around a field that holds code, and the note
-stays easy to read and change with `jq`.
+Each item is stored as one line, just as it was sent, so there is no
+syntax for the agent to get wrong, and your note stays as you wrote it.
 
 It can also be your frontend, tutoring you in a chat: it takes the next
 card, judges your answer in your own words, and records the rating with
@@ -255,7 +256,7 @@ keeps it from doing anything `srl` wouldn't accept.
 ## Predictable by design
 
 One simple rule per decision, no hidden state, and errors that say what to
-do about them. A broken note, or a source that fails, stops `srl` loudly
+do about them. A broken item, or a source that fails, stops `srl` loudly
 instead of being silently skipped, so the programs built on it can trust
 what they read.
 
@@ -272,22 +273,17 @@ cargo install srl
 ```sh
 srl init ~/notes          # make a folder of notes into a store
 cd ~/notes
-$EDITOR rust/ownership.md # write an item: ```srl, Q: and A: lines, then ```
-srl id                    # give new items their IDs
+echo '{"see": "rust/ownership.md", "Q": "Can a moved value be used again?", "A": "No."}' \
+  | srl add rust.jsonl --stdin   # add an item about your note rust/ownership.md
 srl next                  # the next card to study (frontends use srl next --json)
 srl review ID --rating 3  # rate it: 1 Again, 2 Hard, 3 Good, 4 Easy
 srl stats                 # what's new, due, young, mature
 ```
 
-To add items without writing Markdown, send them as JSON lines to any
-collection: a Markdown note, where `srl` writes the srl blocks for you, a
-JSONL note (once a `jsonl` source reads them, see above), or a collection
-of a source program:
-
-```sh
-echo '{"see": "rust/ownership.md", "Q": "Can a moved value be used again?", "A": "No."}' \
-  | srl add inbox.jsonl --stdin
-```
+`srl add` sends items as JSON lines to any collection: a JSONL or XML
+file, created if needed, or a collection of a source program. To write
+items by hand, write an XML collection in your editor and run `srl id`
+to give them IDs.
 
 Cloze deletions use Anki's syntax (`{{c1::text}}` and `{{c1::text::hint}}`).
 Multi-line fields, code blocks and drafts are supported too. `srl kinds`
@@ -300,12 +296,12 @@ of it: copy them and change them.
 
 | Example | What it is |
 |---|---|
-| [`web-frontend/`](examples/web-frontend/) | `srl-web`: a local web viewer that renders cards and context as Markdown (a JSONL note as a code block), with a card browser and a form that adds items. |
+| [`web-frontend/`](examples/web-frontend/) | `srl-web`: a local web viewer that renders cards and context as Markdown (other notes as a code block), with a card browser and a form that adds items. |
 | [`python-frontend/`](examples/python-frontend/) | `srl-tui`: a terminal study frontend in Python with Rich. |
 | [`agents/`](examples/agents/) | A system prompt and skills that turn an LLM agent into a guide to `srl`. |
 | [`kind-ja-words/`](examples/kind-ja-words/) | A card type made by a program: one card per marked word of a Japanese sentence. |
 | [`kind-llm-generated/`](examples/kind-llm-generated/) | A card type made by a program: an LLM writes a new question each time the card is shown. |
-| [`source-tinydb/`](examples/source-tinydb/) | A source program that keeps items in a TinyDB database instead of in notes. |
+| [`source-tinydb/`](examples/source-tinydb/) | A source program that keeps items in a TinyDB database instead of in files of the store. |
 | [`nushell/`](examples/nushell/) | A Nushell wrapper that gives `srl`'s data as tables and records. |
 | [`screenshots/`](examples/screenshots/) | Screenshots of `srl-web` and `srl-tui`, and instructions for an agent to take new ones. |
 
