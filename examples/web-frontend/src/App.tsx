@@ -334,7 +334,7 @@ function SuspendDialog({
 
   return (
     <Modal open={open} title="Suspend this card" onClose={onClose}>
-      <label className="flex flex-col gap-2.5 text-sm text-stone-500">
+      <label className="flex flex-col gap-4 text-sm text-stone-500">
         Why? What to fix before studying it again (optional)
         <textarea
           autoFocus
