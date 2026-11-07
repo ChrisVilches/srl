@@ -50,8 +50,8 @@ macOS and Windows (it is tried on Linux only).
   card's details, `s` suspends the
   card without recording a review, after asking why in a dialog: what to
   fix before studying it again. The reason may be left empty, or take
-  several lines, kept as they are: Enter starts a new line, Ctrl+Enter
-  (or ⌘+Enter) suspends, Escape cancels. Buttons name
+  several lines, kept as they are: Enter starts a new line, Escape
+  cancels, and only a click on the dialog's Suspend suspends. Buttons name
   their key, as **Make again** `r` does, everywhere on the page, but not
   on a touch screen (a coarse primary pointer, as on a phone), which has
   no keys to press.
@@ -442,6 +442,9 @@ it loses something or takes a card out of study: Leave, when leaving
 Add or Edit with unsaved text, and Suspend in the suspend dialog. A
 button that only leads to one, such as Suspend in Study's bar, which
 opens the dialog, keeps its own look.
+
+A red button has no key: what it does is hard to undo, so it takes a
+deliberate click, never a key pressed by habit.
 
 ### A button whose answer is a modal
 

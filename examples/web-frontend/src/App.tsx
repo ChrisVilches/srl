@@ -317,7 +317,8 @@ function CardView({
 
 // Asks why the card is suspended, so that it can be fixed later: srl keeps
 // the reason, and srl find --json gives it. Enter starts a new line, as in
-// any text box, Ctrl+Enter (or ⌘+Enter) suspends, Escape cancels.
+// any text box, Escape cancels. Suspending has no key, as a red button
+// has none: it takes a click.
 function SuspendDialog({
   open,
   onSuspend,
@@ -340,19 +341,13 @@ function SuspendDialog({
           autoFocus
           value={reason}
           onChange={(event) => setReason(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-              event.preventDefault();
-              onSuspend(reason);
-            }
-          }}
           rows={3}
           placeholder="e.g. too hard for now; split it in two"
           className="rounded-lg border border-stone-300 bg-white p-2 text-base text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
         />
       </label>
-      <button onClick={() => onSuspend(reason)} className={`self-start px-5 py-2.5 ${WITH_KEY} ${DANGER_BUTTON}`}>
-        Suspend <Key>ctrl+enter</Key>
+      <button onClick={() => onSuspend(reason)} className={`self-start px-5 py-2.5 ${DANGER_BUTTON}`}>
+        Suspend
       </button>
     </Modal>
   );
