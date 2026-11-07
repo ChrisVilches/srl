@@ -20,7 +20,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
   (`find`, `show`, `cards`, `collections`, `notes`, `sources`, `kinds`,
   `next`, `stats`, `log`) can print JSON instead (JSONL for lists). The
   default output is for people. Commands that change the store print the
-  IDs they changed, one per line (`srl id` adds the address); they have
+  IDs they changed, one per line (`srl id` adds the collection); they have
   no `--json`.
 - **Never interactive.** No command asks questions or waits for a person.
   Studying is up to frontends (see [frontends.md](frontends.md)), and
@@ -67,8 +67,8 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 |---|---|
 | `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
 | `srl check` | Check the sources, the configuration and the log, and look for likely mistakes in the items; report each on standard error and exit with 2 if there are problems (see "Checking" below). |
-| `srl id` | Give an ID to every item without one (see [items.md](items.md), "How srl changes items"). Prints `ID  ADDRESS` per item; exit 1 if every item already had one. |
-| `srl collections [--json]` | List the collections of the store, of every source (see [sources.md](sources.md)): one address per line, in the order of their addresses, as `srl find` sorts them. With `--json`, one object per collection, with its address and its source: `{"address": "japanese/grammar.jsonl", "source": "items"}`. It doesn't read any item, so errors in them don't stop it. Exit 1 if the store has none. |
+| `srl id` | Give an ID to every item without one (see [items.md](items.md), "How srl changes items"). Prints `ID  COLLECTION` per item; exit 1 if every item already had one. |
+| `srl collections [--json]` | List the collections of the store, of every source (see [sources.md](sources.md)): one collection per line, in the order of their names, as `srl find` sorts them. With `--json`, one object per collection, with its name and its source: `{"collection": "japanese/grammar.jsonl", "source": "items"}`. It doesn't read any item, so errors in them don't stop it. Exit 1 if the store has none. |
 | `srl notes [--json]` | List the notes of the store: the files `[context]` allows, which items may name with `see` (see [items.md](items.md), "Context"). One path per line, relative to the store's folder, in the order of their paths in NFC. With `--json`, one object per note: `{"path": "japanese/grammar/wo.md"}`. It reads no item and no note. Exit 1 if the store has none. |
 | `srl sources [--json]` | Describe the sources of the store, in the order of their names (see [sources.md](sources.md)): for each, a line with its name and description, then lines, indented by two spaces, for its driver (`filesystem`, or `program` for a source program), the `include` globs and the `exclude` globs if it has some, each name and value separated by two spaces and globs by one. With `--json`, one object per source: `{"name": "items", "driver": "filesystem", "description": "…", "creates": {"include": ["**/*.jsonl", "**/*.xml"], "exclude": []}}`. The globs, in `creates` with `--json`, are those of the collections `srl add` may create in it: for `filesystem`, its `include` and `exclude`; for a source program, the globs its `describe` gives, and no `exclude`. It doesn't read any item. |
 | `srl kinds [--json]` | Describe the kinds of the store: `qa`, then the kind programs of `[kinds]` sorted by name (see [cards.md](cards.md), "Describing a kind"). For each, a line with its name and description, then a line per field, indented by two spaces, with its name, its label in parentheses if it has one, and its description: `  Q (Question)  The question. …`; names and descriptions are separated by two spaces. With `--json`, one object per kind: `{"name": "qa", "description": "…", "fields": [{"name": "Q", "label": "Question", "description": "…"}, …]}`, a field's `label` being `null` when its kind gives none. It doesn't read any item. If a kind program can't describe its kind, it fails at once with the reason, and prints nothing. |
@@ -77,10 +77,10 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 
 | Command | Does |
 |---|---|
-| `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by address, the order of items in the collection, then card ID): one line each with the card ID, the address and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
+| `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by collection, the order of items in the collection, then card ID): one line each with the card ID, the collection and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
 | `srl show ID… [--no-context] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
-| `srl add ADDRESS --stdin` | Add new items to the collection at `ADDRESS`, such as a file's path (see "Adding items" below). Prints the new item IDs. |
+| `srl add COLLECTION --stdin` | Add new items to the collection `COLLECTION`, such as a file's path (see "Adding items" below). Prints the new item IDs. |
 | `srl edit --stdin` | Replace items, in any source, with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). Nothing else of their collections changes. Prints the IDs of the items. |
 | `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
 | `srl suspend SELECTOR [--reason TEXT]` | Suspend matching active cards, saying why if `--reason` is given (see below). |
@@ -90,7 +90,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 `srl find --json` prints one object per card:
 
 ```json
-{"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar.jsonl",
+{"id": "k3m9q1.2", "item": "k3m9q1", "collection": "japanese/grammar.jsonl",
  "source": "items", "status": "active", "schedule": "due", "leech": false,
  "due": "2026-10-24", "suspend_reason": null}
 ```
@@ -104,7 +104,7 @@ keeps being forgotten (see [scheduling.md](scheduling.md), "Schedule" and
 suspended or was suspended without one. `srl show
 --json` prints one item object per item, with every entry and the keys
 only `srl` gives (see [items.md](items.md), "The item object"). Without
-`--json`, `srl show` prints, for each item: a line with the address of its
+`--json`, `srl show` prints, for each item: a line with its
 collection, the item as written, and, if it names a note with `see`, a
 line `---`, a space and the note's path, then the note's text, if it has
 any (see [items.md](items.md), "Context"). Items are
@@ -129,7 +129,7 @@ srl edit --stdin < item.jsonl
 Standard input holds one item object per line (see [items.md](items.md),
 "The item object"), each with the `id` of the item it replaces, which can
 be in any collection, of any source. Blank lines are ignored. What `srl show
---json` prints is such input: its keys `address`, `source`, `cards` and
+--json` prints is such input: its keys `collection`, `source`, `cards` and
 `context` are ignored. Each object is the whole new item, not a
 change to the old one: an entry left out takes its default, and a field
 left out is
@@ -190,7 +190,7 @@ only append to the log.
 ### Adding items
 
 ```sh
-srl add ADDRESS --stdin
+srl add COLLECTION --stdin
 ```
 
 The items come from standard input, one item object per line (see
@@ -215,10 +215,10 @@ JSONL
 - **Uppercase keys are field names, and their values the fields' text**,
   in the order given. Which fields are accepted is up to the kind, so `srl
   add` works the same for every kind there is; `srl kinds` describes them.
-- `ADDRESS` is the address of a collection (see [sources.md](sources.md),
-  "Addresses"): for the `filesystem` source, its path relative to the
+- `COLLECTION` is the name of a collection (see [sources.md](sources.md),
+  "Collections"): for the `filesystem` source, its path relative to the
   store's folder, such as `japanese/grammar.jsonl`. If no collection has
-  that address, it is created in the one source that accepts it: for
+  that name, it is created in the one source that accepts it: for
   `filesystem`, a file whose path its `include` matches and its `exclude`
   doesn't, outside folders that start with `.`, in a format it knows by
   its extension (see [formats.md](formats.md), "Which files are
@@ -368,7 +368,7 @@ those of the `qa` kind, the same in every source: in the `Q` of a valid
 `qa` item, something that was probably meant to be a cloze deletion
 (`{{C1::…}}`, or `{{c1:…}}` with one colon), and a deletion whose hint is
 the text it hides. Each is reported once per item, as `srl: warning:
-ADDRESS: item ID: message`, in the order of the items. `srl check` knows
+COLLECTION: item ID: message`, in the order of the items. `srl check` knows
 only the `qa` kind: it doesn't look at the fields of items of kind
 programs, and a source program reports what it finds as problems of
 `read` (see [sources.md](sources.md), "Source programs").

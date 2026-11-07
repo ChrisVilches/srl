@@ -210,7 +210,7 @@ export function Browse() {
 const EXCERPT_WIDTHS = ['w-3/4', 'w-1/2', 'w-2/3', 'w-5/6', 'w-2/5', 'w-3/5', 'w-3/4', 'w-1/2'];
 
 // The list while srl finds the cards: rows of an ID and an excerpt. No bar
-// for a collection's address, whose background would stop short of the
+// for a collection, whose background would stop short of the
 // gutter kept for the scrollbar, leaving a gap.
 function ListSkeleton() {
   return (
@@ -241,7 +241,7 @@ function scrollToRow(row: HTMLButtonElement | null) {
   if (r.bottom <= l.top || r.top >= l.bottom) row.scrollIntoView({ block: 'center' });
 }
 
-// The cards in the order srl find gives them, under the address of each collection.
+// The cards in the order srl find gives them, under the name of each collection.
 function CardList({
   cards,
   selected,
@@ -257,9 +257,9 @@ function CardList({
     <ul>
       {cards.map((card, i) => (
         <li key={card.id}>
-          {(i === 0 || cards[i - 1].address !== card.address) && (
+          {(i === 0 || cards[i - 1].collection !== card.collection) && (
             <div className="sticky top-0 border-b border-stone-200 bg-stone-100/95 px-4 py-1.5 font-mono text-xs text-stone-500 backdrop-blur dark:border-stone-800 dark:bg-stone-900/95">
-              {card.address}
+              {card.collection}
             </div>
           )}
           <button

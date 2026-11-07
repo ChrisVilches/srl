@@ -21,8 +21,8 @@ use crate::{Catalog, Error, Item, ItemId, Result};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Written {
     pub id: ItemId,
-    /// The address of the item's collection.
-    pub address: String,
+    /// The item's collection.
+    pub collection: String,
 }
 
 /// What `srl add` did, or would do.
@@ -64,7 +64,7 @@ pub fn assign_ids(catalog: &Catalog, seed: u64, dry_run: bool) -> Result<Vec<Wri
         .into_iter()
         .map(|(origin, id)| Written {
             id,
-            address: origin.address.clone(),
+            collection: origin.collection.clone(),
         })
         .collect())
 }
@@ -95,34 +95,34 @@ pub fn accept(catalog: &Catalog, items: &[&Item], dry_run: bool) -> Result<Vec<W
         .into_iter()
         .map(|item| Written {
             id: item.id().clone(),
-            address: item.address().to_owned(),
+            collection: item.collection().to_owned(),
         })
         .collect())
 }
 
-/// `srl add ADDRESS`: adds the items of `input`, one item object per
-/// line, to the collection at `address`, or creates it. An item without an
+/// `srl add COLLECTION`: adds the items of `input`, one item object per
+/// line, to the collection `collection`, or creates it. An item without an
 /// `id` gets a new one.
 pub fn add(
     catalog: &Catalog,
-    address: &str,
+    collection: &str,
     input: &str,
     seed: u64,
     dry_run: bool,
 ) -> Result<Added> {
     refuse_problems(catalog, false)?;
-    check_address(address)?;
-    let (source, collection) = match catalog.located(address) {
-        Some(located) => (located.source, located.address.clone()),
+    check_collection(collection)?;
+    let (source, collection) = match catalog.located(collection) {
+        Some(located) => (located.source, located.collection.clone()),
         None => (
             catalog
                 .sources()
-                .for_new(address)
+                .for_new(collection)
                 .map_err(|reason| Error::CannotAdd {
-                    address: address.to_owned(),
+                    collection: collection.to_owned(),
                     reason,
                 })?,
-            address.to_owned(),
+            collection.to_owned(),
         ),
     };
     let lines = read_input(catalog, input)?;
@@ -230,7 +230,7 @@ pub fn edit(catalog: &Catalog, input: &str, dry_run: bool) -> Result<Vec<ItemId>
 /// The change that replaces the item read at `origin` with `after`.
 fn replacement(origin: &Origin, after: Object) -> Change {
     Change::Replace {
-        collection: origin.address.clone(),
+        collection: origin.collection.clone(),
         handle: origin.handle.clone(),
         before: origin.read.clone(),
         after,
@@ -363,24 +363,24 @@ fn check_lines(new: &[Object], lines: &[(usize, Object)], catalog: &Catalog) -> 
     Err(Error::InvalidLine { line, reason })
 }
 
-/// Checks that `address` can name a collection (see `docs/sources.md`,
-/// "Addresses"): parts joined by `/`, none empty or starting with `.`.
-fn check_address(address: &str) -> Result<()> {
+/// Checks that `collection` can name a collection (see `docs/sources.md`,
+/// "Collections"): parts joined by `/`, none empty or starting with `.`.
+fn check_collection(collection: &str) -> Result<()> {
     let invalid = |reason: &str| Error::CannotAdd {
-        address: address.to_owned(),
+        collection: collection.to_owned(),
         reason: reason.to_owned(),
     };
-    if address.starts_with('/') || address.contains('\\') || address.contains(':') {
+    if collection.starts_with('/') || collection.contains('\\') || collection.contains(':') {
         return Err(invalid(
-            "give an address as `srl collections` lists it, with / between its parts",
+            "give a collection as `srl collections` lists it, with / between its parts",
         ));
     }
-    if address
+    if collection
         .split('/')
         .any(|part| part.is_empty() || part == "." || part == ".." || part.starts_with('.'))
     {
         return Err(invalid(
-            "the address has an empty part, `.`, `..`, or a part starting with `.`, which no \
+            "it has an empty part, `.`, `..`, or a part starting with `.`, which no \
              collection's name may have",
         ));
     }
@@ -449,7 +449,7 @@ mod tests {
         let written = assign_ids(&catalog(&store), 7, false).unwrap();
         assert_eq!(written.len(), 2);
         assert!(written.iter().all(|done| is_id(done.id.as_str())));
-        assert!(written.iter().all(|done| done.address == "a.jsonl"));
+        assert!(written.iter().all(|done| done.collection == "a.jsonl"));
         let (one, two) = (&written[0].id, &written[1].id);
         assert_eq!(
             read(&store, "a.jsonl"),
@@ -677,7 +677,7 @@ mod tests {
             ),
             ("a.md", "# A\n"),
         ]);
-        let input = "{\"id\": \"aaa2\", \"Q\": \"new\\n```\\ncode\\n```\", \"A\": \"a\", \"address\": \"x\", \"cards\": []}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\", \"see\": \"a.md\"}\n";
+        let input = "{\"id\": \"aaa2\", \"Q\": \"new\\n```\\ncode\\n```\", \"A\": \"a\", \"collection\": \"x\", \"cards\": []}\n{\"id\": \"bbb1\", \"Q\": \"new\", \"A\": \"a\", \"see\": \"a.md\"}\n";
         let ids = edit(&catalog(&store), input, false).unwrap();
         let ids = ids.iter().map(ItemId::as_str).collect::<Vec<_>>();
         assert_eq!(ids, ["aaa2", "bbb1"]);
@@ -825,10 +825,10 @@ mod tests {
         let text = "<items>\n  <!-- Kept as written. -->\n  <item draft=\"true\">\n    <Q>\n      Two\n      lines\n    </Q>\n    <A>a</A>\n  </item>\n  <item id=\"keep\"><Q>q</Q><A>b</A></item>\n</items>\n";
         let (_tmp, store) = store(&[("a.xml", text)]);
         let written = assign_ids(&catalog(&store), 7, false).unwrap();
-        let [Written { id, address }] = written.as_slice() else {
+        let [Written { id, collection }] = written.as_slice() else {
             panic!("expected one ID: {written:?}");
         };
-        assert_eq!(address, "a.xml");
+        assert_eq!(collection, "a.xml");
         assert_eq!(
             read(&store, "a.xml"),
             format!(

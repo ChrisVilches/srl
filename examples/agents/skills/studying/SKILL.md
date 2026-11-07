@@ -64,7 +64,7 @@ tomorrow, which is the point. Good is the normal answer, not a compromise.
 `srl next [SELECTOR]` (and so every frontend) picks, among active cards:
 
 1. **Due cards** first, the most overdue first.
-2. **Then new cards**, in the order they are written (by address, then
+2. **Then new cards**, in the order they are written (by collection, then
    the order of items in each collection), until
    `new_per_day` (default 10) new cards were started today. The limit is
    for the whole store, not per selector.
@@ -88,7 +88,7 @@ Things that explain "why didn't my card show up?":
   is:draft` lists drafts; `srl find is:suspended` lists suspended
   cards.
 - **Errors stop everything.** An error in any source makes `srl next` fail
-  with the address and item at fault; see the `fixing-problems` skill.
+  with the collection and item at fault; see the `fixing-problems` skill.
 - `srl next` exits with 1 and prints nothing when nothing is left today.
 - **A card that can't be made stops `srl next`.** If the card it picks
   comes from a kind program that fails (an LLM API that is down, a
@@ -107,7 +107,7 @@ as yours. Only run one when the person asks for it. Each round:
 
 1. `srl next [SELECTOR] --json` prints the card, with its schedule, kind and
    context: `{"id": "k3m9q1.2", "prompt": "...", "prompt_revealed": "...",
-   "answer": "...", "schedule": "due", "leech": false, "kind": "qa", "address": "...",
+   "answer": "...", "schedule": "due", "leech": false, "kind": "qa", "collection": "...",
    "source": "items", "see": "japanese/grammar/wo.md", "context": "..."}`. Mention the kind when it isn't `qa`:
    it says which program made the card. Exit
    code 1 means nothing is left: say so and stop. Exit code 2 is an

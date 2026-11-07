@@ -29,12 +29,12 @@ it out.
 
 A frontend needs to know nothing of the store's sources (see
 [sources.md](../sources.md)): every card comes the same way, whatever
-source its item is in. What it may use is in the JSON it gets: `address`
+source its item is in. What it may use is in the JSON it gets: `collection`
 names the item's collection, for people and for `srl add`, and `see` the
 note the item asks about, relative to the store's folder, for a frontend
 that opens it. An item is changed through `srl show ID --json` and `srl
-edit --stdin`, whatever its source. A form that adds items picks an
-address from `srl collections`, or offers a new one where `srl sources`
+edit --stdin`, whatever its source. A form that adds items picks a
+collection from `srl collections`, or offers a new one where `srl sources`
 says a source can create it, and a note for `see` from `srl notes`: the
 two are separate lists, since a collection is never a context.
 

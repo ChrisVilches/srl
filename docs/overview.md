@@ -117,7 +117,7 @@ any particular note-taking app.
 |---|---|
 | **Store** | A folder with a `.srl/` folder in it, which holds the configuration, the log and caches, and your files: collections of items and study notes. |
 | **Source** | A place items come from and are written back to, named in `.srl/config.toml`: by default, `items`, the structured files of the store. Each has the driver `filesystem`, or is a source program that keeps items its own way. |
-| **Collection** | A group of items of a source, named by its **address**: for the `filesystem` source, a file of items, named by its path; for a program, whatever it groups items in, such as a table. |
+| **Collection** | A group of items of a source, named by its source, and by that name everywhere: for the `filesystem` source, a file of items, named by its path; for a program, whatever it groups items in, such as a table. |
 | **Note** | A file of study material, which items name with `see` as their context: any file `[context]` of `.srl/config.toml` allows, by default Markdown and text files. Notes hold no items. |
 | **Item** | A question kept in a collection: header entries (`id`, `kind`, `see`, `draft`) and fields such as `Q` and `A`, as a JSON object in a JSONL or JSON collection, as an `<item>` element in an XML collection, and as a JSON object to and from a source program. It has an ID, and gives one or more cards. |
 | **Format** | How items are written in a collection file of the `filesystem` source, by its extension: JSONL, JSON or XML. |
@@ -252,7 +252,7 @@ The specification:
 | Document | Contents |
 |---|---|
 | [store.md](store.md) | Store layout, how a store is found, configuration, the index cache |
-| [sources.md](sources.md) | Sources of items: drivers, collections and addresses, what every source does, source programs |
+| [sources.md](sources.md) | Sources of items: drivers, collections, what every source does, source programs |
 | [items.md](items.md) | Items, whatever their source: header entries, fields, IDs, status, context, how `srl` changes items, errors, the item object |
 | [formats.md](formats.md) | The collections of the `filesystem` source: which files they are, their formats (JSONL, JSON, XML), how `srl` writes to them |
 | [cards.md](cards.md) | The `qa` kind, cloze deletions, kind programs and groups of siblings, card IDs, the card format and its text formatting |

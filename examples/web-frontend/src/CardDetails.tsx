@@ -67,7 +67,7 @@ export function CardDetails({ card, readHistory = true }: { card: FoundCard; rea
           )}
         </Entry>
         <Entry name="Collection" mono wide>
-          {card.address}
+          {card.collection}
         </Entry>
         <Entry name="Context" mono={card.see !== null} wide>
           {card.see ?? <None>none</None>}
@@ -78,7 +78,7 @@ export function CardDetails({ card, readHistory = true }: { card: FoundCard; rea
   );
 }
 
-// A name and its value, WIDE for a value such as an address, which gets a
+// A name and its value, WIDE for a value such as a collection, which gets a
 // row of its own. A long value is cut short, whole in its tooltip.
 function Entry({ name, mono, wide, children }: { name: string; mono?: boolean; wide?: boolean; children: ReactNode }) {
   return (

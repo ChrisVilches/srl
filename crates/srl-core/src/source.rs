@@ -156,15 +156,15 @@ impl Sources {
         &self.named
     }
 
-    /// The source that `address`, of a collection that doesn't exist yet,
+    /// The source that `collection`, a collection that doesn't exist yet,
     /// would be created in, or why it can't be created: exactly one source
-    /// must accept it (see `docs/sources.md`, "Addresses").
-    pub(crate) fn for_new(&self, address: &str) -> std::result::Result<usize, String> {
+    /// must accept it (see `docs/sources.md`, "Collections").
+    pub(crate) fn for_new(&self, collection: &str) -> std::result::Result<usize, String> {
         let answers = self
             .named
             .iter()
             .enumerate()
-            .map(|(index, named)| (index, named.source.refuses(address)))
+            .map(|(index, named)| (index, named.source.refuses(collection)))
             .collect::<Vec<_>>();
         let accepting = answers
             .iter()

@@ -37,7 +37,7 @@ Whatever the collection, an item is added and changed with `srl add` and
   leaving them out.
 - **Uppercase keys are fields**, and their values the fields' text. A
   newline in a field is `\n`; code needs no special treatment.
-- Any other key is an error, except `address`, `source`, `cards` and
+- Any other key is an error, except `collection`, `source`, `cards` and
   `context`, which `srl show --json` adds and every reader ignores. A key
   written twice is an error.
 
@@ -137,10 +137,10 @@ leaves the old card's history behind; see the `fixing-problems` skill.
 ## Adding items with `srl add`
 
 ```sh
-srl add ADDRESS [--dry-run] --stdin
+srl add COLLECTION [--dry-run] --stdin
 ```
 
-One item object per line on standard input. `ADDRESS` names the
+One item object per line on standard input. `COLLECTION` names the
 collection: for a file, its path relative to the store's folder, such as
 `generated/rust.jsonl`. A collection that doesn't exist is created where
 exactly one source of the store accepts it, in the format its extension
@@ -177,7 +177,7 @@ Only when the person asks you to change their items. Standard input holds
 item objects, one per line, as for `srl add`, each with the `"id"` of the
 item it replaces, in any collection; the rest of each collection is
 untouched. `srl show --json ID` prints the item in that form, with
-`address`, `source`, `cards` and `context`, which `srl edit` ignores:
+`collection`, `source`, `cards` and `context`, which `srl edit` ignores:
 change what you need and give the line back. Each object is the whole new
 item: a field or entry left out is gone, not kept.
 
@@ -198,6 +198,6 @@ printed.
 `--dry-run` checks the input and prints the IDs, and writes nothing.
 Editing never changes the card's schedule. To change it themselves
 instead, the person opens the collection in their editor: `srl show
-x7k2m9` prints its address, which is the file's path for a collection of
+x7k2m9` prints its collection, which is the file's path for a collection of
 the `filesystem` source. An item of a source program, such as in a
 database, has no file: change it with `srl edit --stdin`.

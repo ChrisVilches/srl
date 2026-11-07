@@ -162,13 +162,13 @@ does"), and nothing else in `srl` knows how any of them keeps its items.
 - **Each source's settings are its own**: a `filesystem` source takes its
   globs, and a program takes whatever keys it checks itself. No key means
   something for one source and nothing for another.
-- **An address is the collection's name, as its source gives it**, so
+- **A collection is named everywhere as its source names it**, so
   that `srl add`, messages and selectors need no case for any source.
   Mounting each source under a prefix of its own, as Unix mounts file
   systems, would need rules for prefixes inside prefixes and for
-  addresses hidden under a mount, and gives nothing a program can't do
+  collections hidden under a mount, and gives nothing a program can't do
   by naming its collections under a folder of its own. So there is one
-  rule: no address is given by two sources.
+  rule: no collection's name is given by two sources.
 - **Sources hold items, and nothing else.** Context is a file of the
   store, which `srl` reads itself (see "Why context is a file"), so a
   source never shows anything, and never needs to know what to hide.
@@ -279,7 +279,7 @@ An item's position in a collection changes whenever you add a question
 above it. Using it as identity would give one question's history to
 another without a word. An ID among the item's header entries moves with
 the item. For the same reason nothing names an item by its line: items
-are named by their collection's address and their ID, and a line, where a
+are named by their collection and their ID, and a line, where a
 format has one, only appears in the message of an error.
 
 Trade-off: every item carries an ID, and copying an item copies its ID,

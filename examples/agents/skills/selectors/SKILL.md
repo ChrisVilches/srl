@@ -12,8 +12,8 @@ A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | Cards whose item's address (its collection's path, for a file) has a folder named `NAME` anywhere, or is itself named `NAME` plus an extension (`NAME.jsonl`, `NAME.xml`, …). Ignores case. `in:grammar` matches `japanese/Grammar/wo.jsonl` and `grammar.xml`, not `grammar-notes.jsonl`. Notes are not collections, so a note named `grammar.md` alone matches nothing. |
-| `path:GLOB` | The item's address: the collection's path, relative to the store, for a file; whatever name a source program gives, such as `words` for the table `words` of a database. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is the collections directly in `japanese/`, `path:japanese/**` everything below it, `path:rust/ownership.xml` one collection. |
+| `in:NAME` | Cards whose item's collection (its path, for a file) has a folder named `NAME` anywhere, or is itself named `NAME` plus an extension (`NAME.jsonl`, `NAME.xml`, …). Ignores case. `in:grammar` matches `japanese/Grammar/wo.jsonl` and `grammar.xml`, not `grammar-notes.jsonl`. Notes are not collections, so a note named `grammar.md` alone matches nothing. |
+| `path:GLOB` | The item's collection: its path, relative to the store, for a file; whatever name a source program gives, such as `words` for the table `words` of a database. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is the collections directly in `japanese/`, `path:japanese/**` everything below it, `path:rust/ownership.xml` one collection. |
 | `source:NAME` | Cards whose item comes from the source `NAME`: `source:items` for a store without `[sources]` (`srl sources` lists them). |
 | `id:ID` | A card (`id:k3m9q1.2`), or every card of an item (`id:k3m9q1`). |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind:` in their header, or a kind named in `[kinds]` of `.srl/config.toml`. An unknown kind is an error. Without `kind:`, items of every kind match. |

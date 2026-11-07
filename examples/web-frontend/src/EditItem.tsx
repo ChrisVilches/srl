@@ -108,7 +108,7 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
     <div className="flex flex-col gap-4">
       <UnsavedGuard unsaved={unsaved} what="The edits to this item aren't saved, and leaving its Edit side loses them." />
       <p className="text-sm text-stone-500">
-        Item <span className="font-mono">{String(loaded.item.id)}</span> of <span className="font-mono">{String(loaded.item.address)}</span>{' '}
+        Item <span className="font-mono">{String(loaded.item.id)}</span> of <span className="font-mono">{String(loaded.item.collection)}</span>{' '}
         (source {String(loaded.item.source)}).
       </p>
       {Object.entries(texts).map(([key, text]) => (

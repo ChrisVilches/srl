@@ -61,8 +61,8 @@ pub fn orphans(catalog: &Catalog, memories: &Memories) -> Vec<Error> {
 /// never an error.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Warning {
-    /// The address of the collection the item is in.
-    pub address: String,
+    /// The collection the item is in.
+    pub collection: String,
     pub id: String,
     pub message: String,
 }
@@ -84,7 +84,7 @@ pub fn warnings(catalog: &Catalog) -> Vec<Warning> {
             question_suspicions(question)
                 .into_iter()
                 .map(|message| Warning {
-                    address: item.address().to_owned(),
+                    collection: item.collection().to_owned(),
                     id: item.id().to_string(),
                     message: message.to_owned(),
                 })

@@ -373,8 +373,8 @@ asked about the item.
 When something goes wrong, the place it happens says whose fault it is:
 
 - **An error `validate` gives is an error in the item**, like a `qa` item
-  without `Q`, reported at the item, as `ADDRESS: item ID: FIELD:
-  message`, or `ADDRESS: item ID: message` when it is about no field.
+  without `Q`, reported at the item, as `COLLECTION: item ID: FIELD:
+  message`, or `COLLECTION: item ID: message` when it is about no field.
 - **An answer about one item that doesn't follow the rules above**, from
   `validate` or `groups`, is an error at that item, saying
   that the program printed invalid output.

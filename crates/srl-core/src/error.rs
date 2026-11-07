@@ -45,18 +45,18 @@ pub enum Error {
 
     /// A problem in a source, at an item of a collection, or in the
     /// collection when `spot` is `None`.
-    #[error("{}: {reason}", at(address, spot.as_ref()))]
+    #[error("{}: {reason}", at(collection, spot.as_ref()))]
     At {
-        address: String,
+        collection: String,
         spot: Option<Spot>,
         reason: String,
     },
 
-    #[error("{address}: {reason}")]
-    Collection { address: String, reason: String },
+    #[error("{collection}: {reason}")]
+    Collection { collection: String, reason: String },
 
-    #[error("{address}: item {position} has no ID; run `srl id` to give it one")]
-    MissingId { address: String, position: usize },
+    #[error("{collection}: item {position} has no ID; run `srl id` to give it one")]
+    MissingId { collection: String, position: usize },
 
     #[error(
         "{count} problem(s) in the store's sources, listed above; fix them first, since srl \
@@ -94,8 +94,8 @@ pub enum Error {
     #[error("line {line} of standard input is not a valid item: {reason}; nothing was written")]
     InvalidLine { line: usize, reason: String },
 
-    #[error("cannot add to {address}: {reason}; nothing was added")]
-    CannotAdd { address: String, reason: String },
+    #[error("cannot add to {collection}: {reason}; nothing was added")]
+    CannotAdd { collection: String, reason: String },
 
     #[error(
         "{path} changed while srl was working on it, so it was not written; run the command \
@@ -173,21 +173,28 @@ impl Error {
         move |source| Self::Io { path, source }
     }
 
-    /// The address a problem in a source is about, and the position of its
+    /// The collection a problem in a source is about, and the position of its
     /// item, 0 for a collection as a whole (see `docs/items.md`,
     /// "Errors").
     pub(crate) fn place(&self) -> Option<(&str, usize)> {
-        if let Self::Collection { address, .. } = self {
-            return Some((address.as_str(), 0));
+        if let Self::Collection { collection, .. } = self {
+            return Some((collection.as_str(), 0));
         }
-        if let Self::At { address, spot, .. } = self {
+        if let Self::At {
+            collection, spot, ..
+        } = self
+        {
             return Some((
-                address.as_str(),
+                collection.as_str(),
                 spot.as_ref().map_or(0, |spot| spot.position),
             ));
         }
-        if let Self::MissingId { address, position } = self {
-            return Some((address.as_str(), *position));
+        if let Self::MissingId {
+            collection,
+            position,
+        } = self
+        {
+            return Some((collection.as_str(), *position));
         }
         None
     }
@@ -211,11 +218,11 @@ impl std::fmt::Display for Spot {
     }
 }
 
-/// Where something is, for people: `ADDRESS: item ID`, or `ADDRESS` alone
+/// Where something is, for people: `COLLECTION: item ID`, or `COLLECTION` alone
 /// for a collection as a whole.
-pub(crate) fn at(address: &str, spot: Option<&Spot>) -> String {
+pub(crate) fn at(collection: &str, spot: Option<&Spot>) -> String {
     match spot {
-        Some(spot) => format!("{address}: {spot}"),
-        None => address.to_owned(),
+        Some(spot) => format!("{collection}: {spot}"),
+        None => collection.to_owned(),
     }
 }

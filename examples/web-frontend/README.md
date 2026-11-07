@@ -25,7 +25,7 @@ macOS and Windows (it is tried on Linux only).
 - The card's ID is not on the card. **Details** (`i`), at the left of its
   header, opens its details in a modal: everything srl says about it, to
   trace it back to where it comes from and what happened to it. Its card
-  and item IDs, its kind (a built-in one too), its source, the address
+  and item IDs, its kind (a built-in one too), its source, the name
   of its collection, the note its context comes from, its status (with the
   reason, if it is suspended), its place in the schedule, the day it is
   due, whether it is a leech, and its history: every event of the log
@@ -44,7 +44,7 @@ macOS and Windows (it is tried on Linux only).
   there is no text to show. An item without `see` has no context. A table
   wider than the page scrolls sideways in its own box, leaving the text
   around it in place. A long kind is cut short in the card's header, a
-  long address over the context and a long value in the details, whole
+  long collection over the context and a long value in the details, whole
   in its tooltip.
 - Keys: space (or Enter) shows the answer, `1`–`4` rate, `i` shows the
   card's details, `s` suspends the
@@ -111,7 +111,7 @@ address), for seeing what a store holds and how a kind's cards look, such
 as how `ja_word` marks words, without studying:
 
 - It lists the cards of a selector as `srl find` does, in the order they
-  are written and under the address of each collection: each card's ID,
+  are written and under the name of each collection: each card's ID,
   kind (unless built in), status (when not active), place in the schedule
   and whether it is a leech, and the
   first line of its item's first field.
@@ -185,10 +185,10 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   the kind keeps the text of a field of the same name.
 - The **Collection** it is added to, of any source (a JSONL, JSON or
   XML file, or a table of a source program), is chosen among those `srl
-  collections` lists, by typing any part of its address (the letters in
-  order), or is a new one: an address typed in full, offered as **New
+  collections` lists, by typing any part of its name (the letters in
+  order), or is a new one: a name typed in full, offered as **New
   collection** when exactly one source of the store could create it
-  there, as `srl sources` describes (an address its `include` globs
+  there, as `srl sources` describes (a name its `include` globs
   match and its `exclude` globs don't). `srl add` creates it, and has
   the last word on whether it may; the source writes the item its own
   way. Notes are never offered: they hold no items. The collections are
@@ -291,12 +291,12 @@ scheduling here; that belongs to `srl`.
 | `POST /api/suspend` | `srl suspend id:CARD --reason=REASON`, for `{"card": CARD, "reason": REASON}`; an empty or missing `reason` is none | `{}` |
 | `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --no-context` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind`, `see` and `excerpt`, the first line of its first field |
 | `GET /api/log?id=…` | `srl log id:ID --json` | `{"events": […]}`: the card's events, in log order, as stored; those of other cards of an item of the same ID are left out |
-| `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `address`, `see` and `context`, as `srl next --json` gives them (not its `source`) |
+| `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `collection`, `see` and `context`, as `srl next --json` gives them (not its `source`) |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
 | `GET /api/sources` | `srl sources --json` | `{"sources": […]}`, each source as `srl sources` printed it |
-| `GET /api/collections` | `srl collections --json` | `{"collections": [ADDRESS…]}` |
+| `GET /api/collections` | `srl collections --json` | `{"collections": [COLLECTION…]}` |
 | `GET /api/notes` | `srl notes --json` | `{"notes": [PATH…]}` |
-| `POST /api/add` | `srl add ADDRESS --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"address": ADDRESS, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as its source would add it, as written in its collection or a source program's preview |
+| `POST /api/add` | `srl add COLLECTION --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"collection": COLLECTION, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as its source would add it, as written in its collection or a source program's preview |
 | `GET /api/item?id=…` | `srl show ID --json --no-context` | `{"item": …}`, the item object `srl show` printed |
 | `POST /api/edit` | `srl edit --stdin`, for `{"item": ITEM}`; `ITEM` is its one line | `{"ids": […]}` |
 

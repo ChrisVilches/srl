@@ -228,7 +228,7 @@ fn collections(store: &Store, json: bool) -> anyhow::Result<Outcome> {
     if json {
         output::json_lines(&found)?;
     } else {
-        output::addresses(&found);
+        output::collections(&found);
     }
     Ok(found_anything(!found.is_empty()))
 }
@@ -289,7 +289,7 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
                 serde_json::json!({
                     "id": card,
                     "item": item.id(),
-                    "address": item.address(),
+                    "collection": item.collection(),
                     "source": item.source(),
                     "status": Status::of(item, card, memories),
                     "schedule": place_name(memories.place(card)),
@@ -398,7 +398,7 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
     Ok(reported(&problems))
 }
 
-/// `srl add ADDRESS --stdin`: adds items to a collection, and prints
+/// `srl add COLLECTION --stdin`: adds items to a collection, and prints
 /// their IDs, or with `--dry-run` the items as their source would add them.
 fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
     let (_, catalog) = load(store)?;
@@ -406,7 +406,7 @@ fn add(store: &Store, args: &AddArgs) -> anyhow::Result<Outcome> {
     let dry_run = args.dry_run.dry_run;
     let added = srl_core::add(
         &catalog,
-        &args.address,
+        &args.collection,
         &input,
         seed("for new IDs")?,
         dry_run,
@@ -519,7 +519,7 @@ fn next(store: &Store, selector: &Selector, context: bool, json: bool) -> anyhow
             schedule: &'static str,
             leech: bool,
             kind: &'a str,
-            address: &'a str,
+            collection: &'a str,
             source: &'a str,
             see: Option<&'a str>,
             context: Option<String>,
@@ -534,7 +534,7 @@ fn next(store: &Store, selector: &Selector, context: bool, json: bool) -> anyhow
             schedule: place_name(loaded.memories.place(card.id())),
             leech: loaded.memories.is_leech(card.id()),
             kind: item.kind().as_str(),
-            address: item.address(),
+            collection: item.collection(),
             source: item.source(),
             see: item.see(),
             context,

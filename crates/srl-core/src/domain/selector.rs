@@ -146,10 +146,10 @@ impl Selector {
     }
 }
 
-/// The names `in:` matches for an address: each part before the last, and
+/// The names `in:` matches for a collection: each part before the last, and
 /// the last part without its extension, in NFC and lowercased.
-fn names(address: &str) -> impl Iterator<Item = String> + '_ {
-    let (parents, last) = address.rsplit_once('/').unwrap_or(("", address));
+fn names(collection: &str) -> impl Iterator<Item = String> + '_ {
+    let (parents, last) = collection.rsplit_once('/').unwrap_or(("", collection));
     let stem = Path::new(last)
         .file_stem()
         .and_then(|stem| stem.to_str())
@@ -164,8 +164,8 @@ fn names(address: &str) -> impl Iterator<Item = String> + '_ {
 impl Filter {
     fn matches(&self, item: &Item, card: &CardId, memories: &Memories) -> bool {
         match self {
-            Self::In(wanted) => names(item.address()).any(|name| wanted.contains(&name)),
-            Self::Path(globs) => globs.is_match(nfc(item.address())),
+            Self::In(wanted) => names(item.collection()).any(|name| wanted.contains(&name)),
+            Self::Path(globs) => globs.is_match(nfc(item.collection())),
             Self::Source(names) => names.iter().any(|name| name == item.source()),
             Self::Id(ids) => ids.iter().any(|id| match id.suffix() {
                 Some(_) => id == card,

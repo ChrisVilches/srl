@@ -808,7 +808,7 @@ mod tests {
     }
 
     #[test]
-    fn problems_come_by_address_and_item_and_failing_programs_last() {
+    fn problems_come_by_collection_and_item_and_failing_programs_last() {
         let (_tmp, _store, catalog) = store_with(
             &config("broken = ['srl-no-such-program-anywhere']\n"),
             &[

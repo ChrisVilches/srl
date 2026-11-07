@@ -68,7 +68,7 @@ context:
  "prompt_revealed": "周囲の反対をものともせず、==彼女==は起業した。",
  "answer": "Despite everyone's opposition, she started a company.",
  "schedule": "due", "leech": false, "kind": "qa",
- "address": "japanese/grammar.jsonl", "source": "items",
+ "collection": "japanese/grammar.jsonl", "source": "items",
  "see": "japanese/grammar/wo-mono-tomo-sezu.md",
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
 ```
@@ -79,7 +79,7 @@ context:
 | `schedule` | `new` or `due`, since `srl next` only gives cards that are due or new (see [scheduling.md](scheduling.md), "Schedule" and "Choosing the next card"). |
 | `leech` | Whether the card is a leech, `true` or `false` (see [scheduling.md](scheduling.md), "Leeches"): a frontend may say so, as the question likely needs rewriting. |
 | `kind` | The item's kind: `qa`, or the name of a kind program in `.srl/config.toml`, as in `srl show --json` (see [cards.md](cards.md), "Kinds"). |
-| `address` | The address of the collection the item is in, as in `srl show --json` (see [items.md](items.md), "The item object"). |
+| `collection` | The collection the item is in, as in `srl show --json` (see [items.md](items.md), "The item object"). |
 | `source` | The name of the item's source (see [sources.md](sources.md)). |
 | `see` | The path of the note the item names as its context, relative to the store's folder, or `null` (see "Rendering"). |
 | `context` | The note's text, or `null` when there is none: no `see`, `--no-context`, or a note that isn't UTF-8 or holds nothing but blank space (see [items.md](items.md), "Context"). |

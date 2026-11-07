@@ -14,7 +14,7 @@ use crate::domain::item::{Entries, Field, ItemId, is_field_key};
 
 /// The keys that `srl show --json` prints and nothing reads: they are
 /// ignored wherever an item object is read.
-pub(crate) const READ_ONLY: [&str; 4] = ["address", "source", "cards", "context"];
+pub(crate) const READ_ONLY: [&str; 4] = ["collection", "source", "cards", "context"];
 
 /// An item object as read: its entries and its fields, in order.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -83,7 +83,7 @@ pub(crate) fn from_pairs(pairs: Vec<(String, Value)>) -> Result<Object, String> 
                 return Err(format!(
                     "`{key}` is neither a header entry (`id`, `kind`, `see`, `draft`), a field \
                      name (uppercase letters, digits and _, starting with a letter), nor a key \
-                     only srl gives (`address`, `source`, `cards`, `context`)"
+                     only srl gives (`collection`, `source`, `cards`, `context`)"
                 ));
             }
         }
@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn entries_and_fields_are_read_in_order() {
         let object = read(
-            r#"{"id": "abc", "kind": "words", "see": "a b.md", "draft": true, "Q": "q", "A": "a", "address": "x", "source": "items", "cards": [], "context": null}"#,
+            r#"{"id": "abc", "kind": "words", "see": "a b.md", "draft": true, "Q": "q", "A": "a", "collection": "x", "source": "items", "cards": [], "context": null}"#,
         )
         .unwrap();
         assert_eq!(object.entries.id.unwrap().as_str(), "abc");

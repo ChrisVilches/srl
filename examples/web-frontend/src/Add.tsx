@@ -32,16 +32,16 @@ const LAST_COLLECTION = 'srl-web:last-collection';
 
 function rememberedCollection(collections: string[]): string | null {
   try {
-    const address = localStorage.getItem(LAST_COLLECTION);
-    return address !== null && collections.includes(address) ? address : null;
+    const remembered = localStorage.getItem(LAST_COLLECTION);
+    return remembered !== null && collections.includes(remembered) ? remembered : null;
   } catch {
     return null;
   }
 }
 
-function rememberCollection(address: string) {
+function rememberCollection(collection: string) {
   try {
-    localStorage.setItem(LAST_COLLECTION, address);
+    localStorage.setItem(LAST_COLLECTION, collection);
   } catch {
     // Not remembered: the next visit starts without a collection.
   }
@@ -185,16 +185,16 @@ export function Add() {
 
             <Section
               label="Collection"
-              hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its address, where a source of the store can create it (srl sources)."
+              hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its name, where a source of the store can create it (srl sources)."
             >
               <PathPicker
                 paths={collections}
                 value={collection}
                 onChange={setCollection}
                 placeholder={
-                  collections.length === 0 ? 'Type the address of a new collection…' : 'Find a collection, or type a new one…'
+                  collections.length === 0 ? 'Type the name of a new collection…' : 'Find a collection, or type a new one…'
                 }
-                creatable={(address) => creatable(sources, address)}
+                creatable={(collection) => creatable(sources, collection)}
               />
             </Section>
 
@@ -327,15 +327,15 @@ function ResultModal({ result, kind, onClose }: { result: Result; kind: string; 
 // How many matching collections the picker shows.
 const SHOWN = 50;
 
-// The addresses that have the letters of QUERY in order, ignoring case,
+// The paths that have the letters of QUERY in order, ignoring case,
 // best first: the fewer letters between the matched ones, the better, then
-// the shorter address. Every address matches an empty query, in order.
-function fuzzy(addresses: string[], query: string): string[] {
+// the shorter path. Every path matches an empty query, in order.
+function fuzzy(paths: string[], query: string): string[] {
   const q = query.toLowerCase().replace(/\s+/g, '');
-  if (q === '') return addresses;
+  if (q === '') return paths;
   const scored: [number, string][] = [];
-  for (const address of addresses) {
-    const lower = address.toLowerCase();
+  for (const path of paths) {
+    const lower = path.toLowerCase();
     let at = -1;
     let gaps = 0;
     for (const char of q) {
@@ -347,12 +347,12 @@ function fuzzy(addresses: string[], query: string): string[] {
       if (at >= 0) gaps += next - at - 1;
       at = next;
     }
-    if (at !== -2) scored.push([gaps, address]);
+    if (at !== -2) scored.push([gaps, path]);
   }
-  return scored.sort((a, b) => a[0] - b[0] || a[1].length - b[1].length).map(([, address]) => address);
+  return scored.sort((a, b) => a[0] - b[0] || a[1].length - b[1].length).map(([, path]) => path);
 }
 
-// A path chosen from PATHS, the addresses `srl collections` lists or the
+// A path chosen from PATHS, the collections `srl collections` lists or the
 // notes `srl notes` lists, by typing part of it. Only a listed one can be
 // chosen, and, with CREATABLE, a new one. With CLEARABLE, the choice can be
 // taken back.
@@ -366,12 +366,12 @@ function PathPicker({
 }: {
   paths: string[];
   value: string | null;
-  onChange: (address: string | null) => void;
+  onChange: (path: string | null) => void;
   placeholder: string;
   clearable?: boolean;
-  // Whether a new collection may be at an address that is typed: then it
+  // Whether a new collection may have the name that is typed: then it
   // is offered too, after the collections that match.
-  creatable?: (address: string) => boolean;
+  creatable?: (path: string) => boolean;
 }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -382,8 +382,8 @@ function PathPicker({
   const fresh = typed !== '' && !paths.includes(typed) && creatable?.(typed) === true ? typed : null;
   const options = fresh === null ? matches : [...matches, fresh];
 
-  const choose = (address: string) => {
-    onChange(address);
+  const choose = (path: string) => {
+    onChange(path);
     setOpen(false);
     input.current?.blur();
   };
@@ -419,7 +419,7 @@ function PathPicker({
           }}
           onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
-          placeholder={open ? 'Type part of an address' : placeholder}
+          placeholder={open ? 'Type part of a name' : placeholder}
           spellCheck={false}
           className={`${INPUT} font-mono`}
         />
@@ -432,24 +432,24 @@ function PathPicker({
       {open && (
         <ul className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-900">
           {options.length === 0 && <li className="px-3 py-1.5 text-sm text-stone-400">No collection matches.</li>}
-          {options.map((address, i) => (
+          {options.map((path, i) => (
             <li
-              key={address}
+              key={path}
               // Before the input's blur, which closes the list.
               onMouseDown={(event) => {
                 event.preventDefault();
-                choose(address);
+                choose(path);
               }}
               onMouseEnter={() => setAt(i)}
               className={`cursor-pointer px-3 py-1.5 font-mono text-sm ${i === at ? 'bg-stone-100 dark:bg-stone-800' : ''}`}
             >
-              {address === fresh ? (
+              {path === fresh ? (
                 <>
                   <span className="font-sans text-stone-500">New collection: </span>
-                  {address}
+                  {path}
                 </>
               ) : (
-                address
+                path
               )}
             </li>
           ))}
@@ -459,16 +459,16 @@ function PathPicker({
   );
 }
 
-// Whether a source of the store can create a collection at ADDRESS, as
-// `srl add` decides it (docs/sources.md, "Addresses"): exactly one source
-// whose `creates.include` globs (`srl sources --json`) match the address
+// Whether a source of the store can create COLLECTION, as
+// `srl add` decides it (docs/sources.md, "Collections"): exactly one source
+// whose `creates.include` globs (`srl sources --json`) match its name
 // and whose `creates.exclude` don't. srl checks it again, with the format
 // the extension names, when the item is checked or added.
-function creatable(sources: SourceDescription[], address: string): boolean {
-  if (address.split('/').some((part) => part === '' || part.startsWith('.'))) return false;
+function creatable(sources: SourceDescription[], collection: string): boolean {
+  if (collection.split('/').some((part) => part === '' || part.startsWith('.'))) return false;
   const accepting = sources.filter((source) => {
     const { include, exclude } = source.creates;
-    return include.some((glob) => globMatches(glob, address)) && !exclude.some((glob) => globMatches(glob, address));
+    return include.some((glob) => globMatches(glob, collection)) && !exclude.some((glob) => globMatches(glob, collection));
   });
   return accepting.length === 1;
 }

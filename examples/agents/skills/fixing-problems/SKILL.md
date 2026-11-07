@@ -9,10 +9,10 @@ description: Diagnose and fix srl problems - errors in items or sources that sto
 
 Any error in any source stops every command that reads items (`srl find`,
 `srl next`, ...). Each error is printed on standard error, and the exit
-code is 2: `ADDRESS: item ID: message` for an item (`item N`, by its
-position, when it has no valid ID), or `ADDRESS: message` for a
+code is 2: `COLLECTION: item ID: message` for an item (`item N`, by its
+position, when it has no valid ID), or `COLLECTION: message` for a
 collection, where the message says where in it, such as `line 3:` in a
-JSONL or XML file. The address is the collection's path, for a file of
+JSONL or XML file. The collection is named by its path, for a file of
 the store. Fix them all, then run the command again. `srl check` lists
 every problem in the store at once, except after an invalid
 configuration: it reports that alone and stops, since the sources and the
@@ -28,14 +28,14 @@ log can't be read without it. Fix it and run `srl check` again.
 | `srl reads collections in the formats …` | a source's `include` matches a file that isn't `.jsonl`, `.json` or `.xml`, such as a note | Narrow `include`, or `exclude` the file. |
 | unknown field, missing `Q` or `A` | `B`, or a `qa` item without `A` and without cloze | Use `Q` and `A` only; `A` is optional only with cloze. |
 | bad cloze | `{{c1::` without `}}`, empty text, `c0`, `c01`, nested, or cloze in `A` | Fix the deletion. |
-| `ADDRESS: item ID: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind`. |
+| `COLLECTION: item ID: FIELD: message` on an item of a kind program, or there is no such kind | the fields don't suit the kind (its `validate` said so), or `kind` names no kind of `[kinds]` | Fix the field as the message says (`srl kinds` lists the kind's fields), or the `kind`. |
 | a reason such as `cannot find the program …` or `the program of kind X failed …`, ending `; no item of kind X can be read until the program works` | the program itself is broken: not installed, a missing dependency, a bug; not your items | Fix or reinstall the program, or its command in `[kinds]`; run `srl check` again. |
 | `the program of kind X printed invalid output …` | a bug in the program | Report it to its author; the item is fine as written. |
 | `` `see` … is not study material `` or `` `see` … names no file of the store `` | the note was moved, renamed or deleted, or `see` names a collection or a file `[context]` doesn't include | Name a note `srl notes` lists, or widen `[context]` in `.srl/config.toml`. |
 | invalid configuration | a typo or out-of-range value in `.srl/config.toml` | Fix the named setting. |
-| `ADDRESS: the sources X and Y both give it …` | two sources' globs match the same file, or a source program names a collection as a file is named | Leave it out of one of them with `exclude`, or have the program name its collections under a folder of its own. |
+| `COLLECTION: the sources X and Y both give it …` | two sources' globs match the same file, or a source program names a collection as a file is named | Leave it out of one of them with `exclude`, or have the program name its collections under a folder of its own. |
 | `the source X failed: …; no item can be read or written until it works` | a source program is broken: not installed, a missing dependency, a bug, a wrong setting of its own in `[sources.X]`, or a service it needs is down; not your items | Fix what the reason says, or the program's command and settings in `[sources.X]`; run `srl check` again. |
-| `cannot add to ADDRESS: …; nothing was added`, from `srl add` | no source can create a collection at that address (its `include` doesn't match it, or the extension names no format), or more than one would | Pick an address a source can create (`srl sources` says where), or an existing one (`srl collections`). |
+| `cannot add to COLLECTION: …; nothing was added`, from `srl add` | no source can create that collection (its `include` doesn't match it, or the extension names no format), or more than one would | Pick a collection a source can create (`srl sources` says where), or an existing one (`srl collections`). |
 
 `srl show ID` prints an item exactly as written (in a JSONL collection,
 its line; in XML, its `<item>` element), which helps spot the problem.
@@ -61,7 +61,7 @@ The person can also see it rendered in the Browse tab of `srl-web`.
 
 A collection's format is strict, so a mistake in it is an error. Some
 items are valid but probably not what was meant; `srl check` warns of
-them on standard error, as `srl: warning: ADDRESS: item ID: message`,
+them on standard error, as `srl: warning: COLLECTION: item ID: message`,
 without failing: in the `Q` of a `qa` item, something that looks like a
 cloze deletion but isn't (`{{C1::…}}`, `{{c1:…}}`), shown as written, and
 a deletion whose hint is the text it hides. Fix them as the message says.

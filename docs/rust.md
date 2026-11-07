@@ -270,7 +270,7 @@ types, so that the compiler checks them:
 depend on the platform, and flag every place that does.
 
 - **Paths:** build them with `Path::join`, never by gluing strings with `/`
-  or `\`. Addresses and the paths of files are `String`s with `/` between
+  or `\`. Collections' names and the paths of files are `String`s with `/` between
   folders, because they are part of the formats (JSON output, `path:`
   selectors, `see`); turn such a path into a file path only with
   `Store::file`.
@@ -416,7 +416,7 @@ Current dependencies:
 | `quick-xml` | `srl-core` | Reading XML collections, with the byte position of each element, so that a change writes only its item's element |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |
 | `sha2` | `srl-core` | The `hash` of review events |
-| `unicode-normalization` | `srl-core` | NFC for comparing addresses and the paths of files |
+| `unicode-normalization` | `srl-core` | NFC for comparing collections' names and the paths of files |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
 | `globset` | `srl-core` | `path:` globs in selectors, and the `include` and `exclude` globs of sources and `[context]` |
 | `serde` (derive), `serde_json` (`preserve_order`, `float_roundtrip`) | both | The JSON formats; fields keep their order, and numbers read back from the index cache are exactly the ones written |
@@ -474,7 +474,7 @@ knows how it keeps its items.
 
 | Method | Gives |
 |---|---|
-| `collections()` | The names of the source's collections, which are their addresses. A file of the `filesystem` source is a collection, named by its path. |
+| `collections()` | The names of the source's collections, by which `srl` names them everywhere. A file of the `filesystem` source is a collection, named by its path. |
 | `read()` | Every item, with its collection, its handle (what names it to the source when it changes), its text as written and its entries and fields; and every problem found, each at its collection. |
 | `refuses(collection)` | Why `srl add` can't create a collection, or nothing. |
 | `write(changes, dry_run)` | Makes a list of changes: `Add` an item to a collection, or `Replace` the item of a handle, read as `before`, with `after`. Every change is made and checked before anything is written; a change refused is named by its place. |
@@ -482,14 +482,14 @@ knows how it keeps its items.
 
 - **The catalog holds every item in memory** (`app/catalog.rs`, the type
   `Catalog`). It reads every source, turns what they read into `Item`s,
-  each with its `Origin` (source, address, handle, its position in its
+  each with its `Origin` (source, collection, handle, its position in its
   collection, and the item as read), checks them with their kinds, and
-  keeps the rules that cross sources: IDs unique in the store, no address
-  given by two sources, `see` naming a note, collections and items in the
-  order of their addresses. Everything else works on the catalog, never
-  on a source.
-- **An address is a collection's name, as its source gives it**, and
-  names it everywhere outside its source.
+  keeps the rules that cross sources: IDs unique in the store, no
+  collection's name given by two sources, `see` naming a note, collections
+  and items in the order of the collections' names. Everything else works
+  on the catalog, never on a source.
+- **A collection is named by its source**, and by that name everywhere
+  outside its source.
 - **Context is not a source's business.** The catalog checks that `see`
   names a note, a file `[context]` allows (`Notes` in `app/catalog.rs`),
   and reads its text when it is shown. No source shows anything, so no
@@ -549,12 +549,12 @@ programs too.
 ### Items are named by their IDs
 
 **Nothing in `srl` names an item by where it is in its collection.** An
-item is its collection's address and its ID:
+item is its collection and its ID:
 
 - **Changes find the item again in the collection as it is right before
   the change**: by its ID, or, for `srl id`, by its handle, its position
   among the collection's items (see "Collection editing").
-- **Messages name an item** as `ADDRESS: item ID`, or, for an item read
+- **Messages name an item** as `COLLECTION: item ID`, or, for an item read
   without a valid ID, by its position, `item N` (`Spot` in `error.rs`).
   A format that can say where in a file a problem is says it in the
   message, such as `line 3:` for JSONL and XML, as plain text.

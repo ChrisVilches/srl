@@ -52,12 +52,12 @@ Items of the database may name a note with `see`, as any item may.
 ## How it keeps items
 
 - **Each table is a collection**, and its name is the collection's
-  address: the table `words` is the collection `words`. A source has one
+  name: the table `words` is the collection `words`. A source has one
   database, so a table's name is enough to tell its collections apart.
   `srl add` may create any new one (`describe` gives `*`). A table named
-  as a file of the store, such as `notes.jsonl`, would be an address two
+  as a file of the store, such as `notes.jsonl`, would be a collection two
   sources give, which is an error (see
-  [docs/sources.md](../../docs/sources.md), "Addresses").
+  [docs/sources.md](../../docs/sources.md), "Collections").
 - **Each item is a document `{"item": {...}}`**, holding its item object
   as `srl` writes one. Its handle is TinyDB's document ID. Other
   documents of a table are left alone.

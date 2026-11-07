@@ -21,8 +21,7 @@ store that `[context]` allows (see [items.md](items.md), "Context").
 |---|---|
 | **Source** | A named place items are read from and written to, configured as `[sources.NAME]`: `items`, `generated`, `vocab`. |
 | **Driver** | What a source is: `filesystem`, collections that are files of the store (see [formats.md](formats.md)), or a **source program** that keeps items its own way (see "Source programs"). A source is a driver with its settings; two sources may use the same driver with different settings. |
-| **Collection** | A group of items inside a source, named by its source: for `filesystem`, a file, named by its path; for a program, whatever it groups items in, such as a table. Collections are named like paths, with `/` between parts. |
-| **Address** | The name of a collection everywhere outside its source: the collection's name, as its source gives it. `japanese/grammar.jsonl` for a file of a `filesystem` source. |
+| **Collection** | A group of items inside a source, named by its source, and by that name everywhere: for `filesystem`, a file, named by its path (`japanese/grammar.jsonl`); for a program, whatever it groups items in, such as a table. Collections are named like paths, with `/` between parts. |
 
 ## Configuration
 
@@ -59,31 +58,32 @@ is an error, so a typo fails instead of being ignored:
   as above, an unknown driver, and a source without a `driver` or a
   `program`, or with both.
 
-## Addresses
+## Collections
 
-**Every collection of the store has an address**: its name, as its source
-gives it. A `filesystem` source names a collection by its path, relative
-to the store's folder, and a source program by whatever it chooses, such
-as the name of a table. `srl collections` lists every address, with the
-source that gives it.
+**Every collection of the store is named by its source**, and that name
+is the collection's everywhere in `srl`. A `filesystem` source names a
+collection by its path, relative to the store's folder, and a source
+program by whatever it chooses, such as the name of a table. `srl
+collections` lists every collection, with the source that gives it.
 
 The rules, the same for every source:
 
-1. **No address may be given by two sources.** Two `filesystem` sources
-   whose globs match the same file, or a program that names a collection
+1. **No collection's name may be given by two sources.** Two
+   `filesystem` sources whose globs match the same file, or a program that names a collection
    as a file of another source is named, break it; leave the collection
    out of one of them with `exclude`, or have the program name its
    collections otherwise, such as under a folder of its own, `vocab/`.
-2. **An address never names an item.** Every item of a collection has the
-   same address, and items are told apart by their IDs. `see`, `srl add`,
-   `in:` and `path:` take addresses alone.
+2. **A collection's name never names an item.** Every item of a
+   collection is in the same collection, and items are told apart by
+   their IDs. `see`, `srl add`, `in:` and `path:` take collections'
+   names alone.
 
 A collection that breaks a rule is an error in the store (see
 [items.md](items.md), "Errors"): it stops every command that reads items,
-and `srl check` reports it, as `ADDRESS: message`.
+and `srl check` reports it, as `COLLECTION: message`.
 
 **A new collection**, for `srl add`, is created in the one source that
-accepts its address: for `filesystem`, a path that `include` matches and
+accepts its name: for `filesystem`, a path that `include` matches and
 `exclude` doesn't, in a format it knows by its extension; for a program,
 a name that the globs of its `describe` match. Exactly one source must
 accept it; none or several is an error.
@@ -143,7 +143,7 @@ database = "vocab/vocab.json"    # every key but program is the program's
   program checks them, refusing the keys it doesn't take, and a call that
   fails because of them is reported with the program's message.
 - **A program names its collections as it likes**, as paths with `/`
-  between parts: those are their addresses. A program that may share a
+  between parts, and `srl` names them so everywhere. A program that may share a
   store with files of a `filesystem` source names its collections so that
   they can't be taken for a file, such as under a folder of its own, or
   takes the folder in its settings.
@@ -218,7 +218,7 @@ wherever it chooses, and is responsible for its freshness.
   of the source, and stops every command that reads items until it is
   fixed.
 - **An item in a collection the source doesn't list** is an error in the
-  store, as is breaking a rule of "Addresses".
+  store, as is breaking a rule of "Collections".
 - **After `write`, `srl` reads the source again**: every item not changed
   must be as before, every `add` must have added exactly its item, and
   every `replace` must give exactly `after`. If not, the command fails,

@@ -452,9 +452,9 @@ fn find_json_prints_one_card_per_line() {
     assert_eq!(
         json_lines(&output),
         [
-            serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "address": "japanese/grammar/wo.jsonl",
+            serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "collection": "japanese/grammar/wo.jsonl",
                 "source": "items", "status": "active", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
-            serde_json::json!({"id": "saba01", "item": "saba01", "address": "kanji/fish.jsonl",
+            serde_json::json!({"id": "saba01", "item": "saba01", "collection": "kanji/fish.jsonl",
                 "source": "items", "status": "draft", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
         ]
     );
@@ -539,7 +539,7 @@ fn show_prints_the_item_and_the_file_its_see_names() {
     assert_eq!(shown["see"], "japanese/grammar/wo.md");
     assert_eq!(shown["context"], GRAMMAR_NOTE);
     assert!(shown.get("file").is_none() && shown.get("line").is_none());
-    assert!(shown.get("context_address").is_none());
+    assert!(shown.get("context_collection").is_none());
     // --no-context leaves it out.
     let plain = srl(&["show", "x7k2m9", "--no-context", "--dir", d]);
     assert_eq!(
@@ -740,7 +740,7 @@ fn see_names_study_material_and_items_without_it_have_no_context() {
     let own = srl(&["show", &id, "--json", "--dir", d]);
     assert_eq!(json_lines(&own)[0]["context"], serde_json::Value::Null);
     let own = next_card(d, &[&format!("id:{id}")]);
-    assert_eq!(own["address"], "generated/items.jsonl");
+    assert_eq!(own["collection"], "generated/items.jsonl");
     assert_eq!(own["see"], serde_json::Value::Null);
     assert_eq!(own["context"], serde_json::Value::Null);
     let seen = next_card(d, &["id:wo0001"]);
@@ -930,7 +930,7 @@ fn next_json_gives_the_card_with_its_state_collection_and_context() {
             "schedule": "new",
             "leech": false,
             "kind": "qa",
-            "address": "japanese/grammar/wo.jsonl",
+            "collection": "japanese/grammar/wo.jsonl",
             "source": "items",
             "see": "japanese/grammar/wo.md",
             "context": GRAMMAR_NOTE,
@@ -1135,7 +1135,7 @@ fn collections_lists_every_collection_without_reading_it() {
     let output = srl(&["collections", "--json", "--dir", d]);
     assert_eq!(
         json_lines(&output)[1],
-        serde_json::json!({"address": "japanese/grammar/wo.jsonl", "source": "items"})
+        serde_json::json!({"collection": "japanese/grammar/wo.jsonl", "source": "items"})
     );
     let empty = store(&[]);
     assert_eq!(
@@ -1211,7 +1211,7 @@ fn include_replaces_the_default_rather_than_adding_to_it() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let cards = json_lines(&output);
     assert_eq!(cards.len(), 1);
-    assert_eq!(cards[0]["address"], "cards/extra.jsonl");
+    assert_eq!(cards[0]["collection"], "cards/extra.jsonl");
     // in: drops the extension like any other.
     assert_eq!(lines(&srl(&["find", "in:extra", "--dir", d])).len(), 1);
 }
@@ -1830,8 +1830,8 @@ fn sources_read_their_collections_each_with_its_driver() {
     assert_eq!(
         json_lines(&collections),
         [
-            serde_json::json!({"address": "japanese/wo.jsonl", "source": "items"}),
-            serde_json::json!({"address": "vocab/words.jsonl", "source": "vocab"}),
+            serde_json::json!({"collection": "japanese/wo.jsonl", "source": "items"}),
+            serde_json::json!({"collection": "vocab/words.jsonl", "source": "vocab"}),
         ]
     );
     let found = srl(&["find", "--dir", d]);
@@ -1859,7 +1859,7 @@ fn sources_read_their_collections_each_with_its_driver() {
 }
 
 #[test]
-fn an_address_two_sources_give_is_an_error() {
+fn a_collection_two_sources_give_is_an_error() {
     let tmp = store(&[(
         "a.jsonl",
         "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n",
@@ -1889,12 +1889,12 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
         "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"data/**\"]\n\n[sources.data]\ndriver = \"filesystem\"\ninclude = [\"data/**/*.jsonl\"]\n",
     );
     let item = "{\"Q\": \"q\", \"A\": \"a\"}";
-    let add = |address: &str| srl_with_input(&["add", address, "--stdin", "--dir", d], item);
+    let add = |collection: &str| srl_with_input(&["add", collection, "--stdin", "--dir", d], item);
     assert_eq!(add("a.jsonl").status.code(), Some(0));
     assert_eq!(add("data/b.jsonl").status.code(), Some(0));
     assert!(read(&tmp, "data/b.jsonl").starts_with("{\"id\""));
     let found = srl(&["find", "source:data", "--json", "--dir", d]);
-    assert_eq!(json_lines(&found)[0]["address"], "data/b.jsonl");
+    assert_eq!(json_lines(&found)[0]["collection"], "data/b.jsonl");
     let refused = add("c.txt");
     assert_eq!(refused.status.code(), Some(2));
     assert!(
@@ -1981,7 +1981,7 @@ fn a_source_program_s_items_are_given_ids_studied_changed_and_shown() {
     let found = srl(&["find", "source:vocab", "--json", "--dir", d]);
     let found = json_lines(&found);
     assert_eq!(found.len(), 2);
-    assert_eq!(found[0]["address"], "vocab/words");
+    assert_eq!(found[0]["collection"], "vocab/words");
     assert!(found[0].get("file").is_none() && found[0].get("line").is_none());
     // An item of the program names study material, as any item does.
     let dog = &json_lines(&srl(&["find", "犬", "--json", "--dir", d]))[0]["item"];

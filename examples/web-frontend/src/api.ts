@@ -1,6 +1,6 @@
 // The server's API (server/server.js).
 
-// A card (docs/cards.md, "Format") with its item's kind, address and context:
+// A card (docs/cards.md, "Format") with its item's kind, collection and context:
 // what /api/card gives the card browser.
 export type ShownCard = {
   id: string;
@@ -8,7 +8,7 @@ export type ShownCard = {
   prompt_revealed: string | null;
   answer: string | null;
   kind: string;
-  address: string;
+  collection: string;
   // The note the item names as its context, and the note's text: null when
   // it is not UTF-8 or holds nothing but blank space.
   see: string | null;
@@ -24,7 +24,7 @@ export type Card = ShownCard & { schedule: 'new' | 'due'; leech: boolean };
 export type FoundCard = {
   id: string;
   item: string;
-  address: string;
+  collection: string;
   source: string;
   status: 'active' | 'draft' | 'suspended';
   schedule: 'new' | 'due' | 'young' | 'mature';
@@ -64,7 +64,7 @@ export type FieldDescription = { name: string; label: string | null; description
 export const fieldLabel = (field: FieldDescription) => field.label ?? field.name;
 
 // A source of the store, as `srl sources --json` describes it
-// (docs/sources.md): `srl add` may create a collection whose address a
+// (docs/sources.md): `srl add` may create a collection whose name a
 // glob of `include` matches and none of `exclude` does.
 export type SourceDescription = {
   name: string;
@@ -142,13 +142,13 @@ export const api = {
   collections: async () => (await call<{ collections: string[] }>('/api/collections')).collections,
   // The notes: the files an item may name with `see`, as its context.
   notes: async () => (await call<{ notes: string[] }>('/api/notes')).notes,
-  // The item as its source would add it to the collection at ADDRESS,
+  // The item as its source would add it to COLLECTION,
   // adding nothing.
-  check: async (address: string, item: NewItem) =>
-    (await call<{ text: string }>('/api/add', { address, item, dry_run: true })).text,
-  // Adds the item to the collection at ADDRESS, and gives its new IDs.
-  add: async (address: string, item: NewItem) =>
-    (await change<{ ids: string[] }>('/api/add', { address, item })).ids,
+  check: async (collection: string, item: NewItem) =>
+    (await call<{ text: string }>('/api/add', { collection, item, dry_run: true })).text,
+  // Adds the item to COLLECTION, and gives its new IDs.
+  add: async (collection: string, item: NewItem) =>
+    (await change<{ ids: string[] }>('/api/add', { collection, item })).ids,
   // The item of ID as srl show --json prints it: its entries, fields and the
   // keys only srl gives, which srl edit ignores.
   item: async (id: string) =>

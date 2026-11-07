@@ -72,7 +72,7 @@ A store is a folder with a `.srl/` folder in it, which holds its
 configuration and its review log. Everything else is yours: your
 **notes**, the study material you write, in any format, and your
 **collections**, files of items, read by the store's **sources**. Every
-collection is reached by an address, such as `japanese/grammar.jsonl`,
+collection is named by its source, such as `japanese/grammar.jsonl`,
 or `words` for a table of a database. A store without configuration has
 one source, which reads every `.jsonl` and `.xml` file in it.
 

@@ -137,9 +137,9 @@ pub(crate) struct Origin {
     pub(crate) source: usize,
     /// The source's name.
     pub(crate) source_name: String,
-    /// The address of the collection the item is in: the collection's
-    /// name, as its source gives it.
-    pub(crate) address: String,
+    /// The name of the collection the item is in, as its source
+    /// gives it.
+    pub(crate) collection: String,
     /// What names the item to its source when it is changed.
     pub(crate) handle: String,
     /// The item's position among the items its source read in its
@@ -172,11 +172,11 @@ impl Item {
         &self.id
     }
 
-    /// The address of the item's collection: for a collection of the
+    /// The name of the item's collection: for a collection of the
     /// `filesystem` source, its path relative to the store's folder, with
     /// `/` between folders.
-    pub fn address(&self) -> &str {
-        &self.origin.address
+    pub fn collection(&self) -> &str {
+        &self.origin.collection
     }
 
     /// The name of the item's source.
@@ -266,8 +266,8 @@ impl Item {
             object.insert(field.key.clone(), Value::from(field.text.as_str()));
         }
         object.insert(
-            "address".to_owned(),
-            Value::from(self.origin.address.as_str()),
+            "collection".to_owned(),
+            Value::from(self.origin.collection.as_str()),
         );
         object.insert(
             "source".to_owned(),

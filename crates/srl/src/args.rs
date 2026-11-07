@@ -214,8 +214,8 @@ pub(crate) enum Command {
 
 #[derive(Debug, Args)]
 pub(crate) struct AddArgs {
-    /// The address of the collection, such as a file's path; created if it doesn't exist.
-    pub(crate) address: String,
+    /// The collection, such as a file's path; created if it doesn't exist.
+    pub(crate) collection: String,
     /// Read the items from standard input: one item object per line, of
     /// fields and the header entries `id` (new if left out), `kind`, `see`
     /// and `draft` (true or false).

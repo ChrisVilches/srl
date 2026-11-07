@@ -55,7 +55,7 @@ A store holds two kinds of files:
   Every file a source's `include` matches must be a valid collection, so
   don't let a glob catch JSON files meant for other programs. `srl
   sources` describes the sources, and `srl collections` lists every
-  collection by its address.
+  collection by its name.
 - **Notes** are the person's study material, which items name with `see`
   as their context. They hold no items. `[context]` chooses them, by
   default every `.md` and `.txt` file; `include = ["**/*.md", "**/*.pdf"]`

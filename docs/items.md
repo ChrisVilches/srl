@@ -2,7 +2,7 @@
 
 An **item** is a question, with its header entries and fields. Items come
 from the store's **sources** (see [sources.md](sources.md)), each in one of
-its **collections**, named everywhere by an **address**. Everything here
+its **collections**, named everywhere as its source names it. Everything here
 holds for every item, whatever its source: how a source keeps its items,
 and how it writes them, is its own business. The built-in `filesystem`
 driver keeps them in structured files of the store, JSONL, JSON or XML
@@ -65,8 +65,8 @@ kind (see [cards.md](cards.md), "Kinds"). An item has at least one field.
   the item's: `x7k2m9`, or `p4n8d2.1` and `p4n8d2.2` (see
   [cards.md](cards.md), "Card IDs"). Because an item ID never contains `.`,
   a card ID always names its item.
-- **An item is named by its ID and its collection's address**, never by
-  where it is in its collection: listings and messages give the address,
+- **An item is named by its ID and its collection**, never by
+  where it is in its collection: listings and messages give the collection,
   and commands that change an item find it by its ID in its collection as
   it is (see "How srl changes items"). An item without an ID yet is named
   in messages by its position among its collection's items, counting
@@ -136,7 +136,7 @@ Only four commands ever change an item:
 |---|---|
 | `srl id` | Gives an ID to the items that have none. |
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
-| `srl add ADDRESS` | Adds new items to the collection at `ADDRESS`, or creates it. |
+| `srl add COLLECTION` | Adds new items to the collection `COLLECTION`, or creates it. |
 | `srl edit --stdin` | Replaces the items it is given with new ones, for scripts and other programs. |
 
 Every other command only reads items. The rules, for every source:
@@ -154,7 +154,7 @@ Every other command only reads items. The rules, for every source:
    it, the command stops and says so; changes written before stay
    written, and running it again finishes the work.
 3. **Every change is reported.** `srl id` prints one line per item it gave
-   an ID: the ID and the address, separated by two spaces. `srl accept`,
+   an ID: the ID and its collection, separated by two spaces. `srl accept`,
    `srl add` and `srl edit` print the IDs of the items they changed or
    added (see [cli.md](cli.md)). With `--dry-run` they write nothing, and
    print the same (`srl add`: the items as their source would add them).
@@ -171,12 +171,12 @@ their formats are described in [cli.md](cli.md).
 
 Every command that reads items reads every source, and **any error in any
 source stops it**: it reports every error it found on standard error, one
-per line, in the order of the addresses and the items in them, and exits
-with status 2. An error of an item is `ADDRESS: item ID: message`, or
-`ADDRESS: item N: message` for an item read without a valid ID, by its
-position; an error of a collection is `ADDRESS: message`, where the
+per line, in the order of the collections and the items in them, and exits
+with status 2. An error of an item is `COLLECTION: item ID: message`, or
+`COLLECTION: item N: message` for an item read without a valid ID, by its
+position; an error of a collection is `COLLECTION: message`, where the
 message says where in the collection it is, when its source can, such as
-`ADDRESS: line 3: message`. The errors are those of each source's format
+`COLLECTION: line 3: message`. The errors are those of each source's format
 (for the `filesystem` driver, see [formats.md](formats.md), "Errors"),
 and, for every source:
 
@@ -186,15 +186,15 @@ and, for every source:
 - a field name written twice in one item, whatever its kind;
 - an unknown kind, or fields that the kind doesn't accept (see
   [cards.md](cards.md));
-- a kind program that fails as a whole, reported once, without an
-  address (see [cards.md](cards.md), "How srl calls them");
+- a kind program that fails as a whole, reported once, without a
+  collection (see [cards.md](cards.md), "How srl calls them");
 - a source program that fails as a whole or prints invalid output,
   reported once, as a problem of the source (see [sources.md](sources.md),
   "What srl checks");
 - an item in a collection its source doesn't list;
 - a `see` that doesn't name a note (see "Context");
-- a collection that breaks a rule of addresses (see
-  [sources.md](sources.md), "Addresses"), reported as `ADDRESS: message`.
+- a collection that breaks a rule of collections (see
+  [sources.md](sources.md), "Collections"), reported as `COLLECTION: message`.
 
 `srl id` is the exception for items without an ID: that is the error it
 fixes. `srl check` reports the same errors and more (see [cli.md](cli.md)).
@@ -225,7 +225,7 @@ edit --stdin` as it is.
 {"id": "p4n8d2", "kind": "qa",
  "see": "japanese/grammar/wo-mono-tomo-sezu.md", "draft": false,
  "Q": "嵐を{{c1::ものともせず}}、漁師たちは海へ出た。",
- "address": "japanese/grammar.jsonl", "source": "items",
+ "collection": "japanese/grammar.jsonl", "source": "items",
  "cards": ["p4n8d2.1"],
  "context": "# 〜をものともせず\n\nUndeterred by (adversity), braving. …\n"}
 ```
@@ -239,7 +239,7 @@ Its keys:
 | `see` | The path of the note shown as context, as text. `null` is the same as leaving it out. |
 | `draft` | `true` or `false`. `false` is the same as leaving it out. |
 | a field name (see "Fields") | The field's text. |
-| `address`, `source`, `cards`, `context` | Given by `srl` only (see below), and ignored wherever an item object is read. |
+| `collection`, `source`, `cards`, `context` | Given by `srl` only (see below), and ignored wherever an item object is read. |
 
 - Header entries are lowercase and field names uppercase, so they never
   clash. Any other key is an error, so a typo such as `drfat` fails
@@ -253,7 +253,7 @@ Its keys:
 `srl show --json` prints every entry, defaults included, its fields, then
 the keys only `srl` gives:
 
-- `address` is the address of the collection the item is in, and
+- `collection` is the name of the collection the item is in, and
   `source` the name of its source.
 - `cards` lists the IDs of the item's cards, in order.
 - `context` is the text of the note `see` names, or `null` when there is

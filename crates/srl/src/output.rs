@@ -36,32 +36,32 @@ pub(crate) fn ids<T: Display>(ids: &[T]) {
     }
 }
 
-/// Prints the address of each collection, one per line.
-pub(crate) fn addresses(collections: &[CollectionInfo]) {
+/// Prints the name of each collection, one per line.
+pub(crate) fn collections(collections: &[CollectionInfo]) {
     for collection in collections {
-        println!("{}", collection.address);
+        println!("{}", collection.collection);
     }
 }
 
-/// Prints one line per changed item: its ID and the address of its
+/// Prints one line per changed item: its ID and its
 /// collection, separated by two spaces.
 pub(crate) fn written(written: &[Written]) {
     for done in written {
-        println!("{}  {}", done.id, done.address);
+        println!("{}  {}", done.id, done.collection);
     }
 }
 
-/// Prints one line per card: its ID, the address of its item's
+/// Prints one line per card: its ID, its item's
 /// collection, and the first line of the item's first field, separated by
 /// two spaces.
 pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
     for (item, card) in cards {
-        let line = format!("{}  {}  {}", card, item.address(), item.label());
+        let line = format!("{}  {}  {}", card, item.collection(), item.label());
         println!("{}", line.trim_end());
     }
 }
 
-/// Prints items for people: for each, a line with the address of its
+/// Prints items for people: for each, a line with its
 /// collection, the item as written, and, with `context`, if the item
 /// names a note with `see`, a line `---` with the note's path, then its
 /// text, if it has any. Items are separated by blank lines.
@@ -70,7 +70,7 @@ pub(crate) fn items(items: &[(&Item, Option<String>)], context: bool) {
         if index > 0 {
             println!();
         }
-        println!("{}", item.address());
+        println!("{}", item.collection());
         println!("{}", item.text());
         if let (true, Some(see)) = (context, item.see()) {
             println!("--- {see}");
@@ -183,11 +183,11 @@ pub(crate) fn sources(sources: &[SourceDescription]) {
 }
 
 /// Reports a likely mistake `srl check` found, on standard error, as
-/// `warning: ADDRESS: item ID: message`.
+/// `warning: COLLECTION: item ID: message`.
 pub(crate) fn warning(warning: &Warning) {
     eprintln!(
         "srl: warning: {}: item {}: {}",
-        warning.address, warning.id, warning.message
+        warning.collection, warning.id, warning.message
     );
 }
 

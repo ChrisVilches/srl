@@ -60,8 +60,8 @@ All of these use the wrapper, not the bare `srl`.
 srl find in:grammar is:due
 
 # How many cards each collection has, largest first
-srl find | group-by address --to-table
-  | each {|g| {address: $g.address, cards: ($g.items | length)} }
+srl find | group-by collection --to-table
+  | each {|g| {collection: $g.collection, cards: ($g.items | length)} }
   | sort-by cards --reverse
 
 # How many cards are at each place in the schedule

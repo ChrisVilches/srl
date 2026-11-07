@@ -2,7 +2,7 @@
 //! their kinds, with the problems found (see `docs/rust.md`, "Sources").
 //!
 //! Everything that crosses sources happens here: item IDs unique in the
-//! store, addresses given by one source each, and `see` naming a file of
+//! store, collections given by one source each, and `see` naming a file of
 //! study material, whose text is the item's context.
 
 use std::collections::{HashMap, HashSet};
@@ -33,10 +33,10 @@ pub struct Catalog {
     notes: Notes,
 }
 
-/// A collection of the store: its address, and its source.
+/// A collection of the store: its name, as its source gives it, and its source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Located {
-    pub(crate) address: String,
+    pub(crate) collection: String,
     pub(crate) source: usize,
 }
 
@@ -70,13 +70,13 @@ impl Catalog {
         for (index, named) in sources.all().iter().enumerate() {
             let listed = named.source.collections()?;
             let known = listed.iter().cloned().collect::<HashSet<_>>();
-            collections.extend(listed.into_iter().map(|address| Located {
-                address,
+            collections.extend(listed.into_iter().map(|collection| Located {
+                collection,
                 source: index,
             }));
             let read = named.source.read()?;
             problems.extend(read.problems.into_iter().map(|problem| Error::At {
-                address: problem.collection,
+                collection: problem.collection,
                 spot: None,
                 reason: problem.reason,
             }));
@@ -84,7 +84,7 @@ impl Catalog {
             for item in read.items {
                 if !known.contains(&item.collection) {
                     problems.push(Error::Collection {
-                        address: item.collection.clone(),
+                        collection: item.collection.clone(),
                         reason: format!(
                             "the source {} gives an item in it, but doesn't list it among its \
                              collections",
@@ -97,7 +97,7 @@ impl Catalog {
                 let origin = Origin {
                     source: index,
                     source_name: named.name.clone(),
-                    address: item.collection,
+                    collection: item.collection,
                     handle: item.handle,
                     position: *count,
                     read: item.item,
@@ -108,7 +108,7 @@ impl Catalog {
                     Err(Unread::Problem(problem)) => problems.push(problem),
                     Err(Unread::Unidentified(origin)) => {
                         problems.push(Error::MissingId {
-                            address: origin.address.clone(),
+                            collection: origin.collection.clone(),
                             position: origin.position,
                         });
                         unidentified.push(*origin);
@@ -116,11 +116,11 @@ impl Catalog {
                 }
             }
         }
-        // Collections, and so items, in the order of their addresses, whatever
+        // Collections, and so items, in the order of their names, whatever
         // their sources; items of one collection in the order read.
-        collections.sort_by_cached_key(|located| by_address(&located.address));
-        written.sort_by_cached_key(|item: &Item| by_address(&item.origin.address));
-        unidentified.sort_by_cached_key(|origin| by_address(&origin.address));
+        collections.sort_by_cached_key(|located| by_collection(&located.collection));
+        written.sort_by_cached_key(|item: &Item| by_collection(&item.origin.collection));
+        unidentified.sort_by_cached_key(|origin| by_collection(&origin.collection));
         problems.extend(clashes(&sources, &collections));
         let (items, checked) = check_items(written, &programs, cache);
         problems.extend(checked);
@@ -134,7 +134,7 @@ impl Catalog {
                 .or_insert_with(|| notes.refuses(see))
                 .clone()?;
             Some(Error::At {
-                address: item.origin.address.clone(),
+                collection: item.origin.collection.clone(),
                 spot: Some(item.spot()),
                 reason: refusal,
             })
@@ -166,13 +166,13 @@ impl Catalog {
         &self.unidentified
     }
 
-    /// The collection whose address is `address`, compared in NFC (see
+    /// The collection named `collection`, compared in NFC (see
     /// `docs/store.md`, "File names").
-    pub(crate) fn located(&self, address: &str) -> Option<&Located> {
-        let address = nfc(address);
+    pub(crate) fn located(&self, collection: &str) -> Option<&Located> {
+        let collection = nfc(collection);
         self.collections
             .iter()
-            .find(|located| nfc(&located.address) == address)
+            .find(|located| nfc(&located.collection) == collection)
     }
 
     /// Why `see` can't name an item's context, or `None` if it can (see
@@ -273,11 +273,11 @@ impl Catalog {
         &self.problems
     }
 
-    /// The address of every collection, in order.
-    pub fn addresses(&self) -> impl Iterator<Item = &str> {
+    /// The name of every collection, in order.
+    pub fn collections(&self) -> impl Iterator<Item = &str> {
         self.collections
             .iter()
-            .map(|located| located.address.as_str())
+            .map(|located| located.collection.as_str())
     }
 
     /// The item with this ID.
@@ -395,12 +395,12 @@ fn is_relative_path(path: &str) -> bool {
 /// A collection of the store, as `srl collections` lists it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CollectionInfo {
-    pub address: String,
+    pub collection: String,
     /// The name of its source.
     pub source: String,
 }
 
-/// Every collection of the store, in the order of their addresses, without
+/// Every collection of the store, in the order of their names, without
 /// reading any item (`srl collections`).
 pub fn collections(store: &Store, config: &Config) -> Result<Vec<CollectionInfo>> {
     let mut found = Vec::new();
@@ -410,13 +410,13 @@ pub fn collections(store: &Store, config: &Config) -> Result<Vec<CollectionInfo>
                 .source
                 .collections()?
                 .into_iter()
-                .map(|address| CollectionInfo {
-                    address,
+                .map(|collection| CollectionInfo {
+                    collection,
                     source: named.name.clone(),
                 }),
         );
     }
-    found.sort_by_cached_key(|collection| by_address(&collection.address));
+    found.sort_by_cached_key(|collection| by_collection(&collection.collection));
     Ok(found)
 }
 
@@ -474,7 +474,7 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
         .errors
         .into_iter()
         .map(|reason| Error::At {
-            address: path.to_owned(),
+            collection: path.to_owned(),
             spot: None,
             reason,
         })
@@ -484,7 +484,7 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
         let origin = Origin {
             source: 0,
             source_name: crate::config::DEFAULT_SOURCE.to_owned(),
-            address: path.to_owned(),
+            collection: path.to_owned(),
             handle: index.to_string(),
             position: index + 1,
             read: Object {
@@ -496,7 +496,7 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
             Ok(item) => written.push(item),
             Err(Unread::Problem(problem)) => problems.push(problem),
             Err(Unread::Unidentified(origin)) => problems.push(Error::MissingId {
-                address: origin.address,
+                collection: origin.collection,
                 position: origin.position,
             }),
         }
@@ -535,7 +535,7 @@ fn check_items(
             }
             Some(Answer::Invalid(reasons)) => {
                 problems.extend(reasons.into_iter().map(|reason| Error::At {
-                    address: item.origin.address.clone(),
+                    collection: item.origin.collection.clone(),
                     spot: Some(item.spot()),
                     reason,
                 }));
@@ -547,17 +547,17 @@ fn check_items(
     (items, problems)
 }
 
-/// The collections that break the rule of addresses (see
-/// `docs/sources.md`, "Addresses"): an address that two sources give.
+/// The collections that break a rule of collections (see
+/// `docs/sources.md`, "Collections"): a name that two sources give.
 fn clashes(sources: &Sources, collections: &[Located]) -> Vec<Error> {
     let named = sources.all();
     let name = |index: usize| named.get(index).map_or("", |source| source.name.as_str());
     let mut problems = Vec::new();
     let mut seen = HashMap::<String, &Located>::new();
     for located in collections {
-        if let Some(first) = seen.insert(nfc(&located.address), located) {
+        if let Some(first) = seen.insert(nfc(&located.collection), located) {
             problems.push(Error::Collection {
-                address: located.address.clone(),
+                collection: located.collection.clone(),
                 reason: format!(
                     "the sources {} and {} both give it; leave it out of one of them",
                     name(first.source),
@@ -569,11 +569,11 @@ fn clashes(sources: &Sources, collections: &[Located]) -> Vec<Error> {
     problems
 }
 
-/// The key collections are sorted by: their address in NFC, so that the
+/// The key collections are sorted by: their name in NFC, so that the
 /// Unicode form of a name never changes the order (see
 /// `docs/store.md`, "File names"), then as written.
-fn by_address(address: &str) -> (String, String) {
-    (nfc(address), address.to_owned())
+fn by_collection(collection: &str) -> (String, String) {
+    (nfc(collection), collection.to_owned())
 }
 
 /// Sorts `problems` by the collection and item they are about, collections
@@ -581,7 +581,7 @@ fn by_address(address: &str) -> (String, String) {
 /// same item; problems about no collection come last.
 fn in_place_order(problems: &mut [Error]) {
     problems.sort_by_cached_key(|problem| match problem.place() {
-        Some((address, position)) => (false, nfc(address), address.to_owned(), position),
+        Some((collection, position)) => (false, nfc(collection), collection.to_owned(), position),
         None => (true, String::new(), String::new(), 0),
     });
 }
@@ -597,7 +597,7 @@ pub(crate) fn check_new(new: &[Object], programs: &Programs) -> Vec<Error> {
         let origin = Origin {
             source: 0,
             source_name: String::new(),
-            address: String::new(),
+            collection: String::new(),
             handle: String::new(),
             position: index + 1,
             read: object.clone(),
@@ -606,7 +606,7 @@ pub(crate) fn check_new(new: &[Object], programs: &Programs) -> Vec<Error> {
             Ok(item) => items.push(item),
             Err(Unread::Problem(problem)) => problems.push(problem),
             Err(Unread::Unidentified(origin)) => problems.push(Error::MissingId {
-                address: origin.address,
+                collection: origin.collection,
                 position: origin.position,
             }),
         }
@@ -633,7 +633,7 @@ fn written_item(
 ) -> std::result::Result<Item, Unread> {
     let at = |reason: String| {
         Unread::Problem(Error::At {
-            address: origin.address.clone(),
+            collection: origin.collection.clone(),
             spot: Some(Spot {
                 position: origin.position,
                 id: origin.read.entries.id.as_ref().map(ToString::to_string),
@@ -696,21 +696,21 @@ fn unique(items: Vec<Item>) -> (Vec<Item>, Vec<Error>) {
     let mut kept = Vec::new();
     let mut duplicates = Vec::new();
     for item in items {
-        if let Some(address) = first.get(&item.id) {
+        if let Some(collection) = first.get(&item.id) {
             duplicates.push(Error::At {
-                address: item.origin.address.clone(),
+                collection: item.origin.collection.clone(),
                 spot: Some(Spot {
                     position: item.origin.position,
                     id: None,
                 }),
                 reason: format!(
-                    "the ID {} is also used by an item of {address}; delete the ID from the copy \
+                    "the ID {} is also used by an item of {collection}; delete the ID from the copy \
                      and run `srl id`",
                     item.id,
                 ),
             });
         } else {
-            first.insert(item.id.clone(), item.origin.address.clone());
+            first.insert(item.id.clone(), item.origin.collection.clone());
             kept.push(item);
         }
     }
@@ -743,7 +743,7 @@ mod tests {
         assert_eq!(ids, ["k3m9q1.1", "k3m9q1.2"]);
         assert_eq!(
             items[0].json(None).to_string(),
-            r#"{"id":"x7k2m9","kind":"qa","see":null,"draft":false,"Q":"What?","A":"That.","address":"n.jsonl","source":"items","cards":["x7k2m9"],"context":null}"#
+            r#"{"id":"x7k2m9","kind":"qa","see":null,"draft":false,"Q":"What?","A":"That.","collection":"n.jsonl","source":"items","cards":["x7k2m9"],"context":null}"#
         );
     }
 
@@ -801,7 +801,7 @@ mod tests {
         let (second, _) = read_items("b.jsonl", item, &Programs::default());
         let (kept, duplicates) = unique(first.into_iter().chain(second).collect());
         assert_eq!(kept.len(), 1);
-        assert_eq!(kept[0].address(), "a.jsonl");
+        assert_eq!(kept[0].collection(), "a.jsonl");
         assert!(
             duplicates[0]
                 .to_string()

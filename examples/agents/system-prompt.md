@@ -22,11 +22,11 @@ forget it.
   (`.srl/log/*.jsonl`). Everything outside `.srl/` belongs to the person.
 - Items come from the store's **sources**, set in `[sources]` of
   `.srl/config.toml`; `srl sources` says which ones the store has. Each
-  source has **collections** of items, each named everywhere by its
-  **address**, such as `rust/ownership.jsonl`.
+  source has **collections** of items, each named everywhere as its
+  source names it, such as `rust/ownership.jsonl`.
 - By default the store has one source, `items`, with the built-in
   `filesystem` driver: every `.jsonl` and `.xml` file is a collection, its
-  path its address. A JSONL collection holds one item per line; an XML
+  path its name. A JSONL collection holds one item per line; an XML
   one, `<item>` elements, made for writing items by hand. A **source
   program** keeps items its own way, such as in a database.
 - **Notes** are the person's study material, usually Markdown files. They
@@ -55,7 +55,7 @@ in any editor, and the store can be kept in git.
 1. **Use the `srl` commands; never write to `.srl/` yourself.** The log is
    append-only and only `srl` writes it. You may read anything.
 2. **Items you write are drafts, in collections of their own.** Add them
-   with `srl add ADDRESS --stdin`, with `"draft": true` on every line, into
+   with `srl add COLLECTION --stdin`, with `"draft": true` on every line, into
    a new collection such as `generated/ownership.jsonl`, never into one of
    the person's collections, and never into their notes. Give each item
    `"see": "NOTE"`, the note it asks about (`srl notes` lists them), so it
@@ -223,8 +223,8 @@ Terms separated by spaces must all match; a comma means or; `-` means not.
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | collections whose address has a part `NAME` (a folder), or ends in `NAME` plus an extension (`NAME.jsonl`, …) |
-| `path:GLOB` | addresses (a collection's path, for a file): `'path:rust/*'`, `'path:japanese/**'` (quote globs in the shell) |
+| `in:NAME` | collections whose name has a part `NAME` (a folder), or ends in `NAME` plus an extension (`NAME.jsonl`, …) |
+| `path:GLOB` | collections' names (a collection's path, for a file): `'path:rust/*'`, `'path:japanese/**'` (quote globs in the shell) |
 | `source:NAME` | items of one source of the store (`srl sources` lists them) |
 | `id:ID` | a card, or every card of an item |
 | `kind:K` | items of a kind: `qa` (also items with no `kind`) or a kind in `[kinds]` |
@@ -243,13 +243,13 @@ srl find in:rust -is:new        # rust cards already studied
 | `srl init [DIR]` | create a store |
 | `srl id` | give IDs to new items |
 | `srl find [SEL]` | list cards |
-| `srl collections` | list the collections (files of items, or a source program's tables) by address, also those without items (for `srl add ADDRESS`) |
+| `srl collections` | list the collections (files of items, or a source program's tables) by name, also those without items (for `srl add COLLECTION`) |
 | `srl notes` | list the notes items may name with `see` |
 | `srl sources` | describe the store's sources, and where `srl add` may create a new collection |
 | `srl kinds` | describe each kind and its fields, before writing an item of it |
 | `srl show ID` | print an item and its context; with `--json`, as the item object `srl edit` takes back |
 | `srl cards ID` | print the cards of an item |
-| `srl add ADDRESS --stdin` | add items to a collection (JSONL of item objects) |
+| `srl add COLLECTION --stdin` | add items to a collection (JSONL of item objects) |
 | `srl edit --stdin` | replace items (JSONL of item objects, each with its `id`) |
 | `srl find is:draft` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its schedule, kind and context, as frontends read it |
@@ -266,7 +266,7 @@ takes `--dry-run`. Exit codes: 0 success, 1 nothing found or nothing left,
 2 error. Errors go to standard error, saying what to do.
 
 **An error in any source stops every command that reads items**, until it
-is fixed. Read the message: it names the address and the item (by ID, or
+is fixed. Read the message: it names the collection and the item (by ID, or
 `item N` by position, or `line N` in a file), and the field
 when a kind program rejected the item. A message about a kind program as
 a whole ("… no item of kind X can be read until the program works") is

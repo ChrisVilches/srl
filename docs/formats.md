@@ -51,11 +51,11 @@ meant for other programs. `include = ["**/*.jsonl", "**/*.xml",
 **Every file a source's `include` matches must be a valid collection**,
 in a format `srl` knows by its extension; a glob that matches files meant
 for other programs makes them errors. A file belongs to one source at
-most (see [sources.md](sources.md), "Addresses").
+most (see [sources.md](sources.md), "Collections").
 
-A collection's **address** is its path, relative to the store's folder,
-with `/` between folders. JSON outputs give the address of the
-collection an item is in (`address`). `srl collections` lists every
+A collection's **name** is its path, relative to the store's folder,
+with `/` between folders. JSON outputs give the name of the
+collection an item is in (`collection`). `srl collections` lists every
 collection, including those that hold no items (see [cli.md](cli.md)).
 
 Files are UTF-8. Both `\n` and `\r\n` line endings are read, and a UTF-8
@@ -174,7 +174,7 @@ changes items") change collections by these rules:
 |---|---|
 | `srl id` | Adds `id` to each item without one. |
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
-| `srl add ADDRESS` | Appends the new items to the collection at `ADDRESS`, or creates it. |
+| `srl add COLLECTION` | Appends the new items to the collection `COLLECTION`, or creates it. |
 | `srl edit --stdin` | Replaces the items it is given with new ones. |
 
 1. **Each format keeps the file as close to how it was as it can**; what

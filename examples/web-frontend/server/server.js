@@ -25,11 +25,11 @@
 // Adding items, one at a time:
 //
 //   GET  /api/kinds        srl kinds --json            → { kinds: [kind…] }
-//   GET  /api/collections  srl collections --json      → { collections: [address…] }
+//   GET  /api/collections  srl collections --json      → { collections: [collection…] }
 //   GET  /api/notes        srl notes --json            → { notes: [path…] }
 //   GET  /api/sources      srl sources --json          → { sources: [source…] }
-//   POST /api/add          srl add ADDRESS --stdin [--dry-run], with ITEM as its
-//                          one line                    ← { address, item, dry_run }
+//   POST /api/add          srl add COLLECTION --stdin [--dry-run], with ITEM as its
+//                          one line                    ← { collection, item, dry_run }
 //                                                      → { ids } or, with
 //                                                        dry_run, { text }
 //
@@ -170,7 +170,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
         card: {
           ...card,
           kind: item.kind,
-          address: item.address,
+          collection: item.collection,
           see: item.see,
           context: item.context,
         },
@@ -192,7 +192,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
 
     'GET /api/collections': async () => {
       const { found, stdout } = await srl(['collections', '--json']);
-      return { collections: found ? jsonLines(stdout).map((collection) => collection.address) : [] };
+      return { collections: found ? jsonLines(stdout).map((listed) => listed.collection) : [] };
     },
 
     // The notes: the files items may name with `see`, as their context.
@@ -201,21 +201,21 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       return { notes: found ? jsonLines(stdout).map((note) => note.path) : [] };
     },
 
-    // The item is passed to srl as it is: srl checks it, and the address of
-    // the collection, given as `address`. With dry_run, srl prints the item
+    // The item is passed to srl as it is: srl checks it, and the name of
+    // the collection, given as `collection`. With dry_run, srl prints the item
     // as its source would add it, as written in its collection or a source
     // program's preview of it, and adds nothing.
     'POST /api/add': async (_url, body) => {
-      if (typeof body.address !== 'string' || body.address === '') {
-        throw new BadRequest('address must be the address of a collection');
+      if (typeof body.collection !== 'string' || body.collection === '') {
+        throw new BadRequest('collection must be the name of a collection');
       }
       if (body.item === null || typeof body.item !== 'object' || Array.isArray(body.item)) {
         throw new BadRequest('item must be a JSON object');
       }
       const dryRun = body.dry_run === true;
-      // The address goes after `--`, so that one starting with `-` is never
+      // The collection goes after `--`, so that one starting with `-` is never
       // read as an option.
-      const args = ['add', '--stdin', ...(dryRun ? ['--dry-run'] : []), '--', body.address];
+      const args = ['add', '--stdin', ...(dryRun ? ['--dry-run'] : []), '--', body.collection];
       const { stdout } = await srl(args, JSON.stringify(body.item) + '\n');
       if (!dryRun) {
         changed();
