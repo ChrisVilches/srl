@@ -72,18 +72,27 @@ collection may be read by two sources.
 A source can also be a **source program**, which keeps items its own way,
 such as in a database: `program` instead of `driver`, a command as in
 `[kinds]`. Every other key of its table is the program's own setting,
-which the program checks. It names its collections itself, such as under
-a folder of its own, so that they don't clash with files. Its items are
-studied, shown and changed like any other, with `srl edit --stdin` since
-they are in no file. The `srl` repository's `examples/` has one,
-`source-tinydb` (items in a TinyDB database, one table per collection);
-its README says how to add it:
+which the program checks. It names its collections itself, and says in
+`describe` which new ones `srl add` may create in it (`srl sources` shows
+them as its `include`). Its items are studied, shown and changed like any
+other, with `srl edit --stdin` since they are in no file. The `srl`
+repository's `examples/` has one, `source-tinydb` (items in a TinyDB
+database, one table per collection, the table `words` being the
+collection `words`); its README says how to add it:
 
 ```toml
 [sources.vocab]
 program = ["uv", "run", "--quiet", "--script", "sources/tinydb_source.py"]
 database = "vocab/vocab.json"    # the program's own setting; each table is a collection
 ```
+
+**A new collection goes to the one source that accepts its name**; none
+or several is an error, `cannot add to COLLECTION`. `source-tinydb`
+accepts any name without a `/` (its glob is `*`), so beside the default
+`filesystem` source a new collection at the top of the store, such as
+`words.jsonl`, is accepted by both and refused: put new files in a
+folder (`generated/words.jsonl`), and a name without an extension
+(`words`) goes to the database.
 
 ## Configuration
 
