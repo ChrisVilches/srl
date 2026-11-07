@@ -16,7 +16,7 @@ export const MAIN_BUTTON =
 // out of study: a red border and name, and a faint red on hover. A Key in
 // it keeps the theme's text color, as in a main button, not the red.
 export const DANGER_BUTTON =
-  'rounded-lg border border-rose-400 font-medium text-rose-700 enabled:hover:bg-rose-50 enabled:active:bg-rose-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 disabled:opacity-50 dark:border-rose-500/70 dark:text-rose-400 dark:enabled:hover:bg-rose-950/40 dark:enabled:active:bg-rose-950/70';
+  'rounded-lg border border-rose-400 font-medium text-rose-700 [&_kbd]:bg-rose-700 [&_kbd]:text-white dark:[&_kbd]:bg-rose-400 dark:[&_kbd]:text-stone-900 enabled:hover:bg-rose-50 enabled:active:bg-rose-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 disabled:opacity-50 dark:border-rose-500/70 dark:text-rose-400 dark:enabled:hover:bg-rose-950/40 dark:enabled:active:bg-rose-950/70';
 // The looks of the buttons that aren't a view's main action.
 export const OUTLINE_BUTTON =
   'rounded-lg border border-stone-300 px-4 py-2 text-sm enabled:hover:bg-stone-100 dark:border-stone-700 disabled:opacity-50 dark:enabled:hover:bg-stone-900';
