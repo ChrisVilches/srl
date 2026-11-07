@@ -1933,6 +1933,30 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
     );
 }
 
+#[test]
+fn add_to_a_collection_a_program_and_a_file_source_both_accept_writes_nothing() {
+    // The program creates `*`, as it does without `creates`, which a file
+    // at the top of the store matches too.
+    let tmp = store_with_program(&[], WORDS, "\n[sources.items]\ndriver = \"filesystem\"\n");
+    let d = dir(&tmp);
+    let item = "{\"Q\": \"q\", \"A\": \"a\"}";
+    let add = |collection: &str| srl_with_input(&["add", collection, "--stdin", "--dir", d], item);
+    let both = add("a.jsonl");
+    assert_eq!(both.status.code(), Some(2));
+    assert!(
+        stderr(&both).contains("more than one source"),
+        "{}",
+        stderr(&both)
+    );
+    assert!(!tmp.path().join("a.jsonl").exists());
+    assert_eq!(read(&tmp, "vocab.json"), WORDS);
+    // A name only one of them accepts is created in it.
+    assert_eq!(add("words").status.code(), Some(0));
+    assert!(read(&tmp, "vocab.json").contains("\"words\""));
+    assert_eq!(add("deck/b.jsonl").status.code(), Some(0));
+    assert!(tmp.path().join("deck/b.jsonl").exists());
+}
+
 /// A store with `files`, whose one source `vocab` is the test source
 /// program of `crates/srl-test-source`, keeping its items in `vocab.json`
 /// (holding `data`), logging its calls in `calls.log`, and with the
