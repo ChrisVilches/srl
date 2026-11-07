@@ -482,10 +482,10 @@ mod tests {
         path
     }
 
-    /// A store with `config` and the notes `notes` (path and text), and its
+    /// A store with `config` and the files `files` (path and text), and its
     /// items as read.
-    fn store_with(config: &str, notes: &[(&str, &str)]) -> (TempDir, Store, Catalog) {
-        store_in(TempDir::new().unwrap(), config, notes)
+    fn store_with(config: &str, files: &[(&str, &str)]) -> (TempDir, Store, Catalog) {
+        store_in(TempDir::new().unwrap(), config, files)
     }
 
     /// A store with `config` and one collection `a.jsonl` holding `items`,
@@ -521,7 +521,7 @@ mod tests {
     }
 
     /// [`store_with`], in `tmp`.
-    fn store_in(tmp: TempDir, config: &str, notes: &[(&str, &str)]) -> (TempDir, Store, Catalog) {
+    fn store_in(tmp: TempDir, config: &str, files: &[(&str, &str)]) -> (TempDir, Store, Catalog) {
         Store::init(tmp.path(), false).unwrap();
         let store = Store::open(&Lookup {
             dir: Some(tmp.path().to_path_buf()),
@@ -529,7 +529,7 @@ mod tests {
         })
         .unwrap();
         fs::write(store.config_file(), config).unwrap();
-        for (path, text) in notes {
+        for (path, text) in files {
             fs::write(store.file(path), text).unwrap();
         }
         let catalog = Catalog::load(

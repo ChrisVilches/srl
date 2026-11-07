@@ -413,15 +413,16 @@ Current dependencies:
 | `win32job` | `srl-core` on Windows | The job object each program runs in, which stops its processes when `srl` ends, without `unsafe` |
 | `jiff` | both | The study day: the local date and time zone (CLI), dates (core) |
 | `toml` | `srl-core` | Parsing `.srl/config.toml` |
+| `quick-xml` | `srl-core` | Reading XML collections, with the byte position of each element, so that a change writes only its item's element |
 | `fsrs` | `srl-core` | FSRS scheduling, from the algorithm's authors. Its optimizer brings `rayon` and `ndarray` along, unused |
 | `sha2` | `srl-core` | The `hash` of review events |
-| `unicode-normalization` | `srl-core` | NFC for comparing addresses and the paths of notes |
+| `unicode-normalization` | `srl-core` | NFC for comparing addresses and the paths of files |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
-| `globset` | `srl-core` | `path:` globs in selectors, `exclude` globs |
+| `globset` | `srl-core` | `path:` globs in selectors, and the `include` and `exclude` globs of sources and `[context]` |
 | `serde` (derive), `serde_json` (`preserve_order`, `float_roundtrip`) | both | The JSON formats; fields keep their order, and numbers read back from the index cache are exactly the ones written |
 | `rusqlite` (`bundled`, `cache`) | `srl-core` | The index cache. `bundled` compiles SQLite in (a C compiler is needed to build), so no system library is required; `cache` reuses prepared statements |
 | `blake3` | `srl-core` | Hashing every file on every use for the index cache. Several times faster than SHA-256 on CPUs without SHA instructions |
-| `tempfile` | `srl-core`; tests of both crates | The temporary file a changed note is written to before it is renamed over the note; temporary store trees in tests |
+| `tempfile` | `srl-core`; tests of both crates | The temporary file a changed collection is written to before it is renamed over it; temporary store trees in tests |
 
 ## Linting and formatting
 

@@ -330,7 +330,7 @@ mod tests {
 
     /// The collections of the tests, with their items.
     fn items() -> Vec<Item> {
-        let notes = [
+        let collections = [
             (
                 "japanese/Grammar/wo.jsonl",
                 "{\"id\": \"aaa1\", \"Q\": \"〜をものともせず?\", \"A\": \"Undeterred by (adversity).\"}\n",
@@ -348,7 +348,7 @@ mod tests {
                 "{\"id\": \"aaa4\", \"Q\": \"Move semantics?\", \"A\": \"Ownership MOVES on assignment.\"}\n",
             ),
         ];
-        notes
+        collections
             .iter()
             .flat_map(|(path, text)| {
                 let (items, problems) = read_items(path, text, &crate::kind::Programs::default());
