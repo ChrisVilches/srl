@@ -74,4 +74,6 @@ Both render a context by the extension of its note, `see` (see
 and `.qmd` as Markdown, and every other context as a code block of plain
 text, so that the lines of a text note don't run together into one
 paragraph and its backticks aren't taken as code spans. The fence is
-longer than any run of backticks in the context.
+longer than any run of backticks in the context. A note `srl` gives no
+text for, such as a PDF, is named by its path alone, and an item without
+`see` shows no context.
