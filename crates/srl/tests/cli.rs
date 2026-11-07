@@ -538,8 +538,25 @@ fn show_prints_the_item_and_the_file_its_see_names() {
     assert_eq!(shown["cards"], serde_json::json!(["x7k2m9"]));
     assert_eq!(shown["see"], "japanese/grammar/wo.md");
     assert_eq!(shown["context"], GRAMMAR_NOTE);
-    assert!(shown.get("file").is_none() && shown.get("line").is_none());
-    assert!(shown.get("context_collection").is_none());
+    let keys = shown
+        .as_object()
+        .map(|object| object.keys().map(String::as_str).collect::<Vec<_>>())
+        .unwrap_or_default();
+    assert_eq!(
+        keys,
+        [
+            "id",
+            "kind",
+            "see",
+            "draft",
+            "Q",
+            "A",
+            "collection",
+            "source",
+            "cards",
+            "context"
+        ]
+    );
     // --no-context leaves it out.
     let plain = srl(&["show", "x7k2m9", "--no-context", "--dir", d]);
     assert_eq!(
