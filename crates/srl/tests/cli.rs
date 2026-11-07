@@ -168,6 +168,72 @@ fn jsonl_json_and_xml_collections_are_read_and_written_alike() {
 }
 
 #[test]
+fn every_format_names_an_item_in_error_by_its_id_or_position() {
+    let tmp = store(&[
+        ("a.jsonl", "{\"id\": \"jsl1\", \"Q\": \"no answer\"}\n"),
+        (
+            "b.json",
+            "[{\"Q\": \"q\", \"A\": \"a\"}, {\"id\": \"jsn1\", \"Q\": \"no answer\"}]",
+        ),
+        (
+            "c.xml",
+            "<items>\n  <item><Q>q</Q><A>a</A></item>\n  <item id=\"xml1\"><Q>no answer</Q></item>\n</items>\n",
+        ),
+        (
+            ".srl/config.toml",
+            "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"*.jsonl\", \"*.json\", \"*.xml\"]\n",
+        ),
+    ]);
+    let output = srl(&["check", "--dir", dir(&tmp)]);
+    assert_eq!(output.status.code(), Some(2));
+    let problems = stderr(&output);
+    let problems = problems.lines().collect::<Vec<_>>();
+    let answer = "a qa item needs an answer in its field A, unless Q has cloze deletions";
+    assert_eq!(
+        problems,
+        [
+            format!("srl: a.jsonl: item jsl1: {answer}"),
+            "srl: b.json: item 1 has no ID; run `srl id` to give it one".to_owned(),
+            format!("srl: b.json: item jsn1: {answer}"),
+            "srl: c.xml: item 1 has no ID; run `srl id` to give it one".to_owned(),
+            format!("srl: c.xml: item xml1: {answer}"),
+        ]
+    );
+}
+
+#[test]
+fn a_note_srl_gives_no_text_for_is_named_but_not_shown() {
+    let tmp = store(&[
+        (
+            "a.jsonl",
+            "{\"id\": \"aaa1\", \"see\": \"paper.pdf\", \"Q\": \"q\", \"A\": \"a\"}\n",
+        ),
+        (".srl/config.toml", "[context]\ninclude = [\"*.pdf\"]\n"),
+    ]);
+    write_bytes(&tmp, "paper.pdf", &[0x25, 0x50, 0x44, 0x46, 0xff, 0xfe]);
+    let d = dir(&tmp);
+    let shown = srl(&["show", "aaa1", "--dir", d]);
+    assert_eq!(shown.status.code(), Some(0), "{}", stderr(&shown));
+    assert_eq!(
+        stdout(&shown),
+        "a.jsonl\n{\"id\": \"aaa1\", \"see\": \"paper.pdf\", \"Q\": \"q\", \"A\": \"a\"}\n--- paper.pdf\n"
+    );
+    let next = json_lines(&srl(&["next", "--json", "--dir", d]));
+    assert_eq!(next[0]["see"], "paper.pdf");
+    assert_eq!(next[0]["context"], serde_json::Value::Null);
+    let notes = srl(&["notes", "--json", "--dir", d]);
+    assert_eq!(
+        json_lines(&notes),
+        [serde_json::json!({"path": "paper.pdf"})]
+    );
+}
+
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn write_bytes(tmp: &TempDir, path: &str, bytes: &[u8]) {
+    fs::write(tmp.path().join(path), bytes).unwrap();
+}
+
+#[test]
 fn usage_errors_exit_with_2() {
     let output = srl(&["review", "a7f3k2", "--rating", "9"]);
     assert_eq!(output.status.code(), Some(2));

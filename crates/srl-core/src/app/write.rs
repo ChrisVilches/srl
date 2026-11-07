@@ -819,4 +819,104 @@ mod tests {
         edit(&catalog(&store), input, false).unwrap();
         assert_eq!(read(&store, "a.jsonl"), text);
     }
+
+    #[test]
+    fn ids_and_accept_rewrite_only_the_elements_of_an_xml_collection() {
+        let text = "<items>\n  <!-- Kept as written. -->\n  <item draft=\"true\">\n    <Q>\n      Two\n      lines\n    </Q>\n    <A>a</A>\n  </item>\n  <item id=\"keep\"><Q>q</Q><A>b</A></item>\n</items>\n";
+        let (_tmp, store) = store(&[("a.xml", text)]);
+        let written = assign_ids(&catalog(&store), 7, false).unwrap();
+        let [Written { id, address }] = written.as_slice() else {
+            panic!("expected one ID: {written:?}");
+        };
+        assert_eq!(address, "a.xml");
+        assert_eq!(
+            read(&store, "a.xml"),
+            format!(
+                "<items>\n  <!-- Kept as written. -->\n  <item id=\"{id}\" draft=\"true\">\n    <Q>\n      Two\n      lines\n    </Q>\n    <A>a</A>\n  </item>\n  <item id=\"keep\"><Q>q</Q><A>b</A></item>\n</items>\n"
+            )
+        );
+        let catalog = catalog(&store);
+        assert!(catalog.problems().is_empty(), "{:?}", catalog.problems());
+        let drafts = catalog.items().iter().collect::<Vec<_>>();
+        assert_eq!(accept(&catalog, &drafts, false).unwrap().len(), 1);
+        let accepted = read(&store, "a.xml");
+        assert!(
+            accepted.contains(&format!("<item id=\"{id}\">\n")),
+            "{accepted}"
+        );
+        assert!(accepted.contains("<!-- Kept as written. -->"), "{accepted}");
+        assert!(
+            accepted.contains("<item id=\"keep\"><Q>q</Q><A>b</A></item>"),
+            "{accepted}"
+        );
+    }
+
+    #[test]
+    fn a_json_collection_is_written_again_only_when_it_changes() {
+        let mut config = Config::default();
+        config.sources = crate::config::sources_of(&["**/*.json"]);
+        let text = "\u{feff}[{\"id\": \"aaa1\", \"kind\": \"qa\", \"Q\": \"q\", \"A\": \"a\"},\r\n {\"Q\": \"r\", \"A\": \"b\"}]";
+        let (_tmp, store) = store(&[("a.json", text)]);
+        let unchanged = "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}";
+        // Without its ID, the second item is a problem only `srl id` passes.
+        assert!(edit(&catalog_with(&store, &config), unchanged, false).is_err());
+        let written = assign_ids(&catalog_with(&store, &config), 7, false).unwrap();
+        let id = &written[0].id;
+        assert_eq!(
+            read(&store, "a.json"),
+            format!(
+                "\u{feff}[\r\n  {{\r\n    \"id\": \"aaa1\",\r\n    \"kind\": \"qa\",\r\n    \"Q\": \"q\",\r\n    \"A\": \"a\"\r\n  }},\r\n  {{\r\n    \"id\": \"{id}\",\r\n    \"Q\": \"r\",\r\n    \"A\": \"b\"\r\n  }}\r\n]\r\n"
+            )
+        );
+        let before = read(&store, "a.json");
+        edit(&catalog_with(&store, &config), unchanged, false).unwrap();
+        assert_eq!(read(&store, "a.json"), before);
+        let added = add(
+            &catalog_with(&store, &config),
+            "a.json",
+            "{\"id\": \"aaa3\", \"Q\": \"s\", \"A\": \"c\"}",
+            3,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            added.text,
+            "{\n  \"id\": \"aaa3\",\n  \"Q\": \"s\",\n  \"A\": \"c\"\n}\n"
+        );
+        let catalog = catalog_with(&store, &config);
+        assert!(catalog.problems().is_empty(), "{:?}", catalog.problems());
+        assert_eq!(catalog.items().len(), 3);
+    }
+
+    #[test]
+    fn see_never_names_a_file_in_a_hidden_folder_or_one_context_excludes() {
+        let (_tmp, store) = store(&[
+            (
+                "a.jsonl",
+                "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n",
+            ),
+            (".hidden/a.md", "# Hidden\n"),
+            ("drafts/b.md", "# Draft\n"),
+            ("blank.md", " \n\n"),
+        ]);
+        let mut config = Config::default();
+        config.context.exclude = vec!["drafts/**".to_owned()];
+        let catalog = catalog_with(&store, &config);
+        let see = |path: &str| {
+            format!("{{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\", \"see\": \"{path}\"}}")
+        };
+        for path in [".hidden/a.md", "drafts/b.md", ".srl/config.toml"] {
+            assert!(edit(&catalog, &see(path), true).is_err(), "accepted {path}");
+        }
+        // A note of nothing but blank space is a note, with no text to give.
+        edit(&catalog, &see("blank.md"), false).unwrap();
+        let catalog = catalog_with(&store, &config);
+        assert!(catalog.problems().is_empty(), "{:?}", catalog.problems());
+        assert_eq!(catalog.context(&catalog.items()[0]).unwrap(), None);
+        assert_eq!(
+            crate::notes(&store, &config).unwrap(),
+            ["blank.md"],
+            "notes skip hidden folders and what [context] excludes"
+        );
+    }
 }
