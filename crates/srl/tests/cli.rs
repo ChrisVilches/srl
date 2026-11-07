@@ -1923,12 +1923,14 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
     assert!(read(&tmp, "data/b.jsonl").starts_with("{\"id\""));
     let found = srl(&["find", "source:data", "--json", "--dir", d]);
     assert_eq!(json_lines(&found)[0]["collection"], "data/b.jsonl");
-    let refused = add("c.txt");
+    // A name no source accepts: each source says why, by its name.
+    let refused = add("data/c.xml");
     assert_eq!(refused.status.code(), Some(2));
-    assert!(
-        stderr(&refused).contains("not matched by `include`"),
-        "{}",
-        stderr(&refused)
+    assert_eq!(
+        stderr(&refused),
+        "srl: cannot add to data/c.xml: no source accepts it (data: its `include` doesn't \
+         match the path; items: its `exclude` matches the path); `srl sources` says which \
+         collections each one creates; nothing was added\n"
     );
     write(
         &tmp,
@@ -1938,7 +1940,7 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
     let both = add("more/d.jsonl");
     assert_eq!(both.status.code(), Some(2));
     assert!(
-        stderr(&both).contains("more than one source"),
+        stderr(&both).contains("more than one source accepts it (items, more)"),
         "{}",
         stderr(&both)
     );
@@ -1955,7 +1957,7 @@ fn add_to_a_collection_a_program_and_a_file_source_both_accept_writes_nothing() 
     let both = add("a.jsonl");
     assert_eq!(both.status.code(), Some(2));
     assert!(
-        stderr(&both).contains("more than one source"),
+        stderr(&both).contains("more than one source accepts it (items, vocab)"),
         "{}",
         stderr(&both)
     );
@@ -2168,7 +2170,9 @@ fn a_change_a_source_program_refuses_or_doesn_t_make_fails_the_command() {
     );
     assert_eq!(added.status.code(), Some(2));
     assert!(
-        stderr(&added).contains("creates no collection named vocab/fish"),
+        stderr(&added).contains(
+            "no source accepts it (vocab: the globs of its `describe` don't match the name)"
+        ),
         "{}",
         stderr(&added)
     );

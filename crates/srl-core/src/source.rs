@@ -156,26 +156,47 @@ impl Sources {
 
     /// The source that `collection`, a collection that doesn't exist yet,
     /// would be created in, or why it can't be created: exactly one source
-    /// must accept it (see `docs/sources.md`, "Collections").
+    /// must accept it (see `docs/sources.md`, "Collections"). When none
+    /// does, every source says why, by its name; when several do, they are
+    /// named.
     pub(crate) fn for_new(&self, collection: &str) -> std::result::Result<usize, String> {
         let answers = self
             .named
             .iter()
-            .enumerate()
-            .map(|(index, named)| (index, named.source.refuses(collection)))
+            .map(|named| named.source.refuses(collection))
             .collect::<Vec<_>>();
         let accepting = answers
             .iter()
+            .enumerate()
             .filter(|(_, refusal)| refusal.is_none())
-            .map(|(index, _)| *index)
+            .map(|(index, _)| index)
             .collect::<Vec<_>>();
         match accepting.as_slice() {
             [index] => Ok(*index),
-            [] => Err(answers
-                .into_iter()
-                .find_map(|(_, refusal)| refusal)
-                .unwrap_or_else(|| "the store has no source to hold it".to_owned())),
-            _ => Err("more than one source of the store would hold it".to_owned()),
+            [] if self.named.is_empty() => Err("the store has no source".to_owned()),
+            [] => {
+                let refusals = self
+                    .named
+                    .iter()
+                    .zip(answers)
+                    .filter_map(|(named, refusal)| Some(format!("{}: {}", named.name, refusal?)))
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                Err(format!(
+                    "no source accepts it ({refusals}); `srl sources` says which collections \
+                     each one creates"
+                ))
+            }
+            several => Err(format!(
+                "more than one source accepts it ({}); `srl sources` says which collections \
+                 each one creates",
+                several
+                    .iter()
+                    .filter_map(|index| self.named.get(*index))
+                    .map(|named| named.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
         }
     }
 }

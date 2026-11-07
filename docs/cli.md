@@ -241,7 +241,9 @@ JSONL
   doesn't, outside folders that start with `.`, in a format it knows by
   its extension (see [formats.md](formats.md), "Which files are
   collections"), created with its folders. No source accepting it, or
-  more than one, is an error. A note is no collection: `srl add` never
+  more than one, is an error, which lists every source with its reason,
+  or the sources that accept it (see [sources.md](sources.md),
+  "Collections"). A note is no collection: `srl add` never
   adds to a note.
 - A source program adds the items its own way (see
   [sources.md](sources.md), "Calls"). In a collection of the

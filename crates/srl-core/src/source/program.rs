@@ -174,13 +174,8 @@ impl Source for Program {
             Ok(creates) => creates,
             Err(reason) => return Some(self.invalid("describe", &reason).to_string()),
         };
-        (!creates.is_match(collection)).then(|| {
-            format!(
-                "the source {} creates no collection named {collection}; `srl sources` says \
-                 which it creates",
-                self.name
-            )
-        })
+        (!creates.is_match(collection))
+            .then(|| "the globs of its `describe` don't match the name".to_owned())
     }
 
     /// Every change goes to the program in one call. The program is read

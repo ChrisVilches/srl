@@ -86,7 +86,19 @@ and `srl check` reports it, as `COLLECTION: message`.
 accepts its name: for `filesystem`, a path that `include` matches and
 `exclude` doesn't, in a format it knows by its extension; for a program,
 a name that the globs of its `describe` match. Exactly one source must
-accept it; none or several is an error.
+accept it; none or several is an error, which names every source
+concerned, so that no one has to guess which source was asked:
+
+```
+srl: cannot add to notes/a.md: no source accepts it (items: its `include` doesn't match the path; vocab: the globs of its `describe` don't match the name); `srl sources` says which collections each one creates; nothing was added
+srl: cannot add to words.jsonl: more than one source accepts it (items, vocab); `srl sources` says which collections each one creates; nothing was added
+```
+
+When none accepts it, every source gives its reason, after its name:
+its `include` doesn't match the path, its `exclude` matches it, or its
+extension names no format it knows, for `filesystem`; the globs of its
+`describe` don't match the name, for a program. When several do, they
+are named.
 
 ## What a source does
 

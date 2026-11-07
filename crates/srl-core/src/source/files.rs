@@ -72,9 +72,9 @@ impl CollectionFiles {
     pub(super) fn refuses(&self, path: &str) -> Option<String> {
         let path = nfc(path);
         if !self.include.is_match(&path) {
-            Some("the path is not matched by `include` in .srl/config.toml".to_owned())
+            Some("its `include` doesn't match the path".to_owned())
         } else if self.exclude.is_match(&path) {
-            Some("the path is excluded by `exclude` in .srl/config.toml".to_owned())
+            Some("its `exclude` matches the path".to_owned())
         } else {
             None
         }
