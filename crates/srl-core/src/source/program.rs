@@ -145,7 +145,7 @@ impl Source for Program {
                 });
                 continue;
             }
-            only(&line, &["collection", "handle", "written", "item"]).map_err(reason)?;
+            only(&line, &["collection", "handle", "item"]).map_err(reason)?;
             let handle = text(&line, "handle").map_err(reason)?;
             if !handles.insert(handle.clone()) {
                 return Err(reason(format!("the handle `{handle}` is given twice")));
@@ -158,7 +158,6 @@ impl Source for Program {
             read.items.push(ReadItem {
                 collection: collection(&line).map_err(reason)?,
                 handle,
-                written: optional_text(&line, "written").map_err(reason)?,
                 item,
             });
         }
@@ -333,17 +332,6 @@ fn text(line: &Map<String, Value>, key: &str) -> std::result::Result<String, Str
         Some(Value::String(text)) => Ok(text.clone()),
         Some(other) => Err(format!("`{key}` must be text, not {other}")),
         None => Err(format!("a line has no `{key}`")),
-    }
-}
-
-/// The text of `key`, or `None` when it is `null` or left out.
-fn optional_text(
-    line: &Map<String, Value>,
-    key: &str,
-) -> std::result::Result<Option<String>, String> {
-    match line.get(key) {
-        None | Some(Value::Null) => Ok(None),
-        Some(_) => text(line, key).map(Some),
     }
 }
 

@@ -354,15 +354,15 @@ fn show(store: &Store, ids: &[String], context: bool, json: bool) -> anyhow::Res
     } else {
         vec![None; items.len()]
     };
-    let shown = items.into_iter().zip(contexts).collect::<Vec<_>>();
+    let shown = items
+        .into_iter()
+        .zip(contexts)
+        .map(|(item, context)| item.json(context.as_deref()))
+        .collect::<Vec<_>>();
     if json {
-        let lines = shown
-            .iter()
-            .map(|(item, context)| item.json(context.as_deref()))
-            .collect::<Vec<_>>();
-        output::json_lines(&lines)?;
+        output::json_lines(&shown)?;
     } else {
-        output::items(&shown, context);
+        output::items(&shown);
     }
     Ok(reported(&problems))
 }

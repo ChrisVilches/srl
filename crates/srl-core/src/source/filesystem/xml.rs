@@ -191,14 +191,9 @@ fn add_item(
 ) -> Result<(), Failure> {
     match read? {
         Ok(Object { entries, fields }) => {
-            let written = written_text(body, span.clone());
             document.items.push((
                 span.start + bom..span.end + bom,
-                ParsedItem {
-                    entries,
-                    fields,
-                    text: written,
-                },
+                ParsedItem { entries, fields },
             ));
         }
         Err((at, reason)) => {
@@ -487,19 +482,6 @@ fn indentation_at(text: &str, at: usize) -> &str {
     if is_blank_line(before) { before } else { "" }
 }
 
-/// The element at `span` of `body`, as `srl show` prints it: without the
-/// indentation of its first line, lines joined with `\n`.
-fn written_text(body: &str, span: Range<usize>) -> String {
-    let indentation = indentation_at(body, span.start);
-    body.get(span)
-        .unwrap_or_default()
-        .replace("\r\n", "\n")
-        .split('\n')
-        .map(|line| line.strip_prefix(indentation).unwrap_or(line))
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
 /// The XML file at `path`, `old`, with `changes` made to it and checked,
 /// and the items added, as written. Only the elements of the items changed
 /// are written again, and new ones are added before `</items>`.
@@ -753,10 +735,6 @@ mod tests {
         assert!(first.entries.draft);
         assert_eq!(first.fields[0].text, "One < two");
         assert_eq!(first.fields[1].text, "");
-        assert_eq!(
-            first.text,
-            "<item id=\"abc\" kind=\"cloze\" see=\"a &amp; b.md\" draft=\"true\">\n  <Q>One &lt; two</Q>\n  <A/>\n</item>"
-        );
         let second = &parsed.items[1];
         assert_eq!(second.entries, Entries::default());
     }

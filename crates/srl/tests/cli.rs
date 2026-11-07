@@ -103,9 +103,11 @@ fn jsonl_json_and_xml_collections_are_read_and_written_alike() {
     let shown = json_lines(&srl(&["show", "xml1", "--json", "--dir", dir(&tmp)]));
     assert_eq!(shown[0]["Q"], "Does this compile?\n\n    let b = a;");
     assert_eq!(shown[0]["context"], "# Rust\n");
+    // Shown as any item is, a field of several lines indented under its
+    // name.
     assert_eq!(
         stdout(&srl(&["show", "xml1", "--no-context", "--dir", dir(&tmp)])),
-        "c.xml\n<item id=\"xml1\" see=\"rust.md\">\n  <Q>\n    Does this compile?\n\n        let b = a;\n  </Q>\n  <A>No.</A>\n</item>\n"
+        "id: xml1\nkind: qa\nsee: rust.md\ndraft: false\nQ:\n  Does this compile?\n\n      let b = a;\nA: No.\ncollection: c.xml\nsource: items\ncards: xml1\ncontext:\n"
     );
     // An edit changes only the element of its item; an add goes before
     // `</items>`.
@@ -216,7 +218,7 @@ fn a_note_srl_gives_no_text_for_is_named_but_not_shown() {
     assert_eq!(shown.status.code(), Some(0), "{}", stderr(&shown));
     assert_eq!(
         stdout(&shown),
-        "a.jsonl\n{\"id\": \"aaa1\", \"see\": \"paper.pdf\", \"Q\": \"q\", \"A\": \"a\"}\n--- paper.pdf\n"
+        "id: aaa1\nkind: qa\nsee: paper.pdf\ndraft: false\nQ: q\nA: a\ncollection: a.jsonl\nsource: items\ncards: aaa1\ncontext:\n"
     );
     let next = json_lines(&srl(&["next", "--json", "--dir", d]));
     assert_eq!(next[0]["see"], "paper.pdf");
@@ -526,10 +528,11 @@ fn show_prints_the_item_and_the_file_its_see_names() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert_eq!(
         stdout(&output),
-        format!(
-            "japanese/grammar/wo.jsonl\n{}--- japanese/grammar/wo.md\n{GRAMMAR_NOTE}",
-            line(GRAMMAR, 1)
-        )
+        "id: k3m9q1\nkind: qa\nsee: japanese/grammar/wo.md\ndraft: false\n\
+         Q: {{c1::周囲の反対}}を{{c1::ものともせず}}、{{c2::彼女::who}}は起業した。\n\
+         A: Despite everyone's opposition, she started a company.\n\
+         collection: japanese/grammar/wo.jsonl\nsource: items\ncards: k3m9q1.1, k3m9q1.2\n\
+         context:\n  # 〜をものともせず\n\n  Undeterred by (adversity). Admiring tone.\n"
     );
     let shown = srl(&["show", "x7k2m9", "--json", "--dir", d]);
     let shown = &json_lines(&shown)[0];
@@ -561,7 +564,15 @@ fn show_prints_the_item_and_the_file_its_see_names() {
     let plain = srl(&["show", "x7k2m9", "--no-context", "--dir", d]);
     assert_eq!(
         stdout(&plain),
-        format!("japanese/grammar/wo.jsonl\n{}", line(GRAMMAR, 0))
+        "id: x7k2m9\nkind: qa\nsee: japanese/grammar/wo.md\ndraft: false\n\
+         Q: What does 〜をものともせず mean?\nA: Undeterred by (adversity), braving.\n\
+         collection: japanese/grammar/wo.jsonl\nsource: items\ncards: x7k2m9\ncontext:\n"
+    );
+    // A draft says so, and an item without `see` names no note.
+    let draft = srl(&["show", "saba01", "--dir", d]);
+    assert_eq!(
+        stdout(&draft),
+        "id: saba01\nkind: qa\nsee:\ndraft: true\nQ: 鯖\nA: さば — mackerel\ncollection: kanji/fish.jsonl\nsource: items\ncards: saba01\ncontext:\n"
     );
     let none = srl(&["show", "x7k2m9", "--no-context", "--json", "--dir", d]);
     assert_eq!(json_lines(&none)[0]["context"], serde_json::Value::Null);
@@ -2029,11 +2040,11 @@ fn a_source_program_s_items_are_given_ids_studied_changed_and_shown() {
     let dog = dog.as_str().unwrap().to_owned();
     let shown = &json_lines(&srl(&["show", &dog, "--json", "--dir", d]))[0];
     assert_eq!(shown["context"], "# Lesson\n\nAnimals.\n");
-    // Without a text of its own, an item is shown as its item object.
+    // It is shown as an item of any source is.
     let plain = srl(&["show", "cat001", "--no-context", "--dir", d]);
     assert_eq!(
         stdout(&plain),
-        "vocab/words\n{\"id\":\"cat001\",\"draft\":true,\"Q\":\"猫\",\"A\":\"cat\"}\n"
+        "id: cat001\nkind: qa\nsee:\ndraft: true\nQ: 猫\nA: cat\ncollection: vocab/words\nsource: vocab\ncards: cat001\ncontext:\n"
     );
     calls(&tmp);
     let accepted = srl(&["accept", "id:cat001", "--dir", d]);

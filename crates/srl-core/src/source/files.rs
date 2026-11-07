@@ -117,9 +117,6 @@ pub(crate) fn lines(text: &str) -> Vec<&str> {
 pub(crate) struct ParsedItem {
     pub(crate) entries: Entries,
     pub(crate) fields: Vec<Field>,
-    /// The item written on its own, lines joined with `\n`: what `srl show`
-    /// prints.
-    pub(crate) text: String,
 }
 
 /// A file read for items.
@@ -259,7 +256,6 @@ pub(super) fn add_read(read: &mut Read, path: &str, parsed: Parsed) {
             .map(|(position, item)| ReadItem {
                 collection: path.to_owned(),
                 handle: position.to_string(),
-                written: Some(item.text),
                 item: Object {
                     entries: item.entries,
                     fields: item.fields,

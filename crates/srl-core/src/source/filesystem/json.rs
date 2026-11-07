@@ -37,12 +37,8 @@ pub(super) fn parse(text: &str) -> Parsed {
         Ok(elements) => {
             for (index, element) in elements.into_iter().enumerate() {
                 match element.item() {
-                    Ok((Object { entries, fields }, written)) => {
-                        parsed.items.push(ParsedItem {
-                            entries,
-                            fields,
-                            text: pretty(&written),
-                        });
+                    Ok((Object { entries, fields }, _)) => {
+                        parsed.items.push(ParsedItem { entries, fields });
                     }
                     Err(reason) => parsed.errors.push(format!("item {}: {reason}", index + 1)),
                 }
@@ -216,10 +212,7 @@ mod tests {
         let text = "\u{feff}[\n  {\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"},\n  {\"Q\": \"r\", \"Q\": \"s\"},\n  [1],\n  {\"Q\": \"t\", \"kind\": \"qa\"}\n]";
         let parsed = parse(text);
         assert_eq!(parsed.items.len(), 2);
-        assert_eq!(
-            parsed.items[0].text,
-            "{\n  \"id\": \"abc\",\n  \"Q\": \"q\",\n  \"A\": \"a\"\n}"
-        );
+        assert_eq!(parsed.items[0].fields[1].text, "a");
         assert_eq!(parsed.errors.len(), 2, "{:?}", parsed.errors);
         assert!(parsed.errors[0].starts_with("item 2: the key `Q` appears twice"));
         assert_eq!(parsed.errors[1], "item 3: it is not a JSON object");

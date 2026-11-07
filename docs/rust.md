@@ -475,7 +475,7 @@ knows how it keeps its items.
 | Method | Gives |
 |---|---|
 | `collections()` | The names of the source's collections, by which `srl` names them everywhere. A file of the `filesystem` source is a collection, named by its path. |
-| `read()` | Every item, with its collection, its handle (what names it to the source when it changes), its text as written and its entries and fields; and every problem found, each at its collection. |
+| `read()` | Every item, with its collection, its handle (what names it to the source when it changes) and its entries and fields; and every problem found, each at its collection. |
 | `refuses(collection)` | Why `srl add` can't create a collection, or nothing. |
 | `write(changes, dry_run)` | Makes a list of changes: `Add` an item to a collection, or `Replace` the item of a handle, read as `before`, with `after`. Every change is made and checked before anything is written; a change refused is named by its place. |
 | `describe()` | What the source is, in a sentence, and the globs of the collections `srl add` may create in it, for `srl sources`. |

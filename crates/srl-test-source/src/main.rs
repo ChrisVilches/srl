@@ -22,8 +22,6 @@
 //!   `ETag`, and `PUT` with `If-Match` replaces it, refused with 412 when
 //!   it changed. `token` is sent as a bearer token, and `cache` names a
 //!   file that keeps the last answer, asked again with `If-None-Match`.
-//!
-//! An item's text as written is `null`, so `srl` shows its item object.
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, BufRead as _, Write as _};
@@ -135,8 +133,7 @@ fn answer(
                     .unwrap_or_default()
                     .into_iter()
                     .map(move |item| {
-                        json!({"collection": name, "handle": at(&item, "handle"),
-                               "written": null, "item": at(&item, "item")})
+                        json!({"collection": name, "handle": at(&item, "handle"), "item": at(&item, "item")})
                     })
             })
             .collect()),

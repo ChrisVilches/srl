@@ -20,11 +20,7 @@ pub(super) fn parse(text: &str) -> Parsed {
     };
     for (line, content) in item_lines(text) {
         match object::read(content) {
-            Ok(Object { entries, fields }) => parsed.items.push(ParsedItem {
-                entries,
-                fields,
-                text: content.to_owned(),
-            }),
+            Ok(Object { entries, fields }) => parsed.items.push(ParsedItem { entries, fields }),
             Err(reason) => parsed.errors.push(format!("line {line}: {reason}")),
         }
     }
@@ -145,10 +141,7 @@ mod tests {
             "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}\r\n\n  \n{\"Q\": \"r\"}\nnot json\n";
         let parsed = parse(text);
         assert_eq!(parsed.items.len(), 2);
-        assert_eq!(
-            parsed.items[0].text,
-            "{\"id\": \"abc\", \"Q\": \"q\", \"A\": \"a\"}"
-        );
+        assert_eq!(parsed.items[0].fields[1].text, "a");
         assert!(parsed.items[1].entries.id.is_none());
         assert_eq!(parsed.errors.len(), 1);
         assert!(

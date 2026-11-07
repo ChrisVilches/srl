@@ -93,8 +93,8 @@ accept it; none or several is an error.
 Every source does the same few things, each its own way:
 
 - **It lists its collections**, including those without items.
-- **It reads its items**, each with its collection, the item as written,
-  if it gives it, and the item object, and the problems it finds (see
+- **It reads its items**, each with its collection and its item object,
+  and the problems it finds (see
   [items.md](items.md), "Errors"). A problem is about a collection, and
   says where in it, as the source can.
 - **It makes changes**: it adds items to a collection, creating it if
@@ -163,13 +163,12 @@ with every process it started, when `srl` is stopped (see
 |---|---|---|
 | `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "creates": ["*"]}`: what the source is, in a sentence, and the globs of the collections `srl add` may create in it (`[]` for none), which `srl sources` shows as its `include` |
 | `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words"}` |
-| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "written": null, "item": {…}}`; one line per problem: `{"collection": "words", "error": "…"}` |
+| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "item": {…}}`; one line per problem: `{"collection": "words", "error": "…"}` |
 | `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, or `{…, "op": "replace", "collection": "words", "handle": "17", "before": {…}, "after": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
 
 - **`read`** gives every item with its collection; its `handle`, what
   names it when it is changed, unique in the source, such as a key of a
-  database; `written`, the item as the program writes it, for `srl show`,
-  or `null`, which shows its item object; and `item`, its item object
+  database; and `item`, its item object
   (see [items.md](items.md), "The item object"), read as strictly as `srl
   add` reads one. An item may come without an `id`, for `srl id` to give
   it one: a program never makes IDs itself. A problem is reported as an

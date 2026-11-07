@@ -56,8 +56,6 @@ pub(crate) struct ReadItem {
     pub(crate) collection: String,
     /// What names the item to its source when it is changed.
     pub(crate) handle: String,
-    /// The item as written, for `srl show`, if the source gives it.
-    pub(crate) written: Option<String>,
     pub(crate) item: Object,
 }
 

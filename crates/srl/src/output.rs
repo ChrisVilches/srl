@@ -10,6 +10,7 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use serde::Serialize;
+use serde_json::Value;
 use srl_core::{
     By, Card, CardId, CollectionInfo, Event, Item, KindDescription, SourceDescription, Stats,
     Warning, Written,
@@ -61,23 +62,44 @@ pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
     }
 }
 
-/// Prints items for people: for each, a line with its
-/// collection, the item as written, and, with `context`, if the item
-/// names a note with `see`, a line `---` with the note's path, then its
-/// text, if it has any. Items are separated by blank lines.
-pub(crate) fn items(items: &[(&Item, Option<String>)], context: bool) {
-    for (index, (item, text)) in items.iter().enumerate() {
+/// Prints items for people (see `docs/cli.md`, "Items and cards"): each
+/// key of its item object, as `srl show --json` gives it, as `KEY: value`.
+/// Items are separated by blank lines.
+pub(crate) fn items(items: &[Value]) {
+    for (index, item) in items.iter().enumerate() {
         if index > 0 {
             println!();
         }
-        println!("{}", item.collection());
-        println!("{}", item.text());
-        if let (true, Some(see)) = (context, item.see()) {
-            println!("--- {see}");
-            if let Some(text) = text {
-                print!("{text}");
-            }
+        for (key, value) in item.as_object().into_iter().flatten() {
+            let value = match value {
+                Value::Null => String::new(),
+                Value::String(text) => text.clone(),
+                Value::Array(values) => values
+                    .iter()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .map_or_else(|| value.to_string(), str::to_owned)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                other @ (Value::Bool(_) | Value::Number(_) | Value::Object(_)) => other.to_string(),
+            };
+            entry(key, &value);
         }
+    }
+}
+
+/// Prints `NAME: value`, or, for a value of several lines, `NAME:` and
+/// then each line indented by two spaces.
+fn entry(name: &str, value: &str) {
+    if value.contains('\n') {
+        println!("{name}:");
+        for line in value.lines() {
+            println!("{}", format!("  {line}").trim_end());
+        }
+    } else {
+        println!("{}", format!("{name}: {value}").trim_end());
     }
 }
 

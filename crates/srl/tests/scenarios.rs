@@ -346,7 +346,8 @@ fn drafts_added_by_a_tool_are_studied_once_accepted() {
     assert_eq!(
         store.ok(&now, &["show", &studied[0], "--no-context"]),
         format!(
-            "generated/capitals.jsonl\n{{\"id\":\"{}\",\"see\":\"geography/capitals.md\",\"Q\":\"Capital of Peru?\",\"A\":\"Lima\"}}\n",
+            "id: {0}\nkind: qa\nsee: geography/capitals.md\ndraft: false\nQ: Capital of Peru?\nA: Lima\n\
+             collection: generated/capitals.jsonl\nsource: items\ncards: {0}\ncontext:\n",
             studied[0]
         )
     );

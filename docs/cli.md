@@ -103,20 +103,38 @@ keeps being forgotten (see [scheduling.md](scheduling.md), "Schedule" and
 `suspend` event (see [log.md](log.md)), or `null` if the card is not
 suspended or was suspended without one. `srl show
 --json` prints one item object per item, with every entry and the keys
-only `srl` gives (see [items.md](items.md), "The item object"). Without
-`--json`, `srl show` prints, for each item: a line with its
-collection, the item as written, and, if it names a note with `see`, a
-line `---`, a space and the note's path, then the note's text, if it has
-any (see [items.md](items.md), "Context"). Items are
-separated by blank lines. `--no-context` leaves the context out, without
-reading the note (see [items.md](items.md), "Context").
+only `srl` gives (see [items.md](items.md), "The item object").
+`--no-context` leaves the context out, without reading the note (see
+[items.md](items.md), "Context").
 
-**An item as written** is, in a JSONL collection, its line; in a JSON
-collection, its object as it was read, keys in their order, with two
-spaces of indentation; in an XML collection, its `<item>` element as
-written, without the indentation of its first line. Of a source program,
-it is the text the program gives, or else its item object on one line,
-as `srl` writes one.
+**Without `--json`**, `srl show` prints the same keys, in the same
+order, as prose: one line `KEY: value` each, the same for every item
+whatever its source and format. `null` is printed as nothing after the
+colon, `true` and `false` as words, and `cards` as its IDs separated by
+`, `. A value of several lines, such as a field or the context, is
+printed as `KEY:` on its own line, then each of its lines indented by two
+spaces. Items are separated by blank lines:
+
+```
+id: p4n8d2
+kind: qa
+see: japanese/grammar/wo-mono-tomo-sezu.md
+draft: false
+Q:
+  嵐を{{c1::ものともせず}}、
+  漁師たちは海へ出た。
+A: The fishermen went out to sea, braving the storm.
+collection: japanese/grammar.jsonl
+source: items
+cards: p4n8d2.1
+context:
+  # 〜をものともせず
+
+  Undeterred by (adversity), braving. …
+```
+
+It is for people to read, not for programs to parse: `--json` is the
+form to read or change items with.
 
 ### Editing items
 

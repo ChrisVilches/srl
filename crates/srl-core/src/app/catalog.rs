@@ -102,8 +102,7 @@ impl Catalog {
                     position: *count,
                     read: item.item,
                 };
-                let text = item.written.unwrap_or_else(|| as_one_line(&origin.read));
-                match written_item(origin, text, &programs) {
+                match written_item(origin, &programs) {
                     Ok(item) => written.push(item),
                     Err(Unread::Problem(problem)) => problems.push(problem),
                     Err(Unread::Unidentified(origin)) => {
@@ -492,7 +491,7 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
                 fields: item.fields,
             },
         };
-        match written_item(origin, item.text, programs) {
+        match written_item(origin, programs) {
             Ok(item) => written.push(item),
             Err(Unread::Problem(problem)) => problems.push(problem),
             Err(Unread::Unidentified(origin)) => problems.push(Error::MissingId {
@@ -602,7 +601,7 @@ pub(crate) fn check_new(new: &[Object], programs: &Programs) -> Vec<Error> {
             position: index + 1,
             read: object.clone(),
         };
-        match written_item(origin, String::new(), programs) {
+        match written_item(origin, programs) {
             Ok(item) => items.push(item),
             Err(Unread::Problem(problem)) => problems.push(problem),
             Err(Unread::Unidentified(origin)) => problems.push(Error::MissingId {
@@ -624,13 +623,9 @@ enum Unread {
     Unidentified(Box<Origin>),
 }
 
-/// The item read at `origin`, written as `written`, without its cards yet,
-/// or why it is not an item.
-fn written_item(
-    origin: Origin,
-    written: String,
-    programs: &Programs,
-) -> std::result::Result<Item, Unread> {
+/// The item read at `origin`, without its cards yet, or why it is not an
+/// item.
+fn written_item(origin: Origin, programs: &Programs) -> std::result::Result<Item, Unread> {
     let at = |reason: String| {
         Unread::Problem(Error::At {
             collection: origin.collection.clone(),
@@ -662,21 +657,10 @@ fn written_item(
         see: read.entries.see.clone(),
         draft: read.entries.draft,
         fields: read.fields.clone(),
-        text: written,
         cards: Vec::new(),
         groups: Vec::new(),
         origin,
     })
-}
-
-/// An item as written by a source that gives no text of its own: its item
-/// object on one line, as `srl` writes one.
-fn as_one_line(object: &Object) -> String {
-    serde_json::Value::Object(crate::domain::item::object::written(
-        &object.entries,
-        &object.fields,
-    ))
-    .to_string()
 }
 
 /// Why `fields` can't be an item's fields, whatever its kind: a key
@@ -722,15 +706,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn items_get_their_cards_and_text() {
+    fn items_get_their_cards() {
         let text = "{\"id\": \"x7k2m9\", \"Q\": \"What?\", \"A\": \"That.\"}\n\n{\"id\": \"k3m9q1\", \"draft\": true, \"see\": \"a.md\", \"Q\": \"{{c1::a}} {{c2::b}}\"}\n";
         let (items, problems) = read_items("n.jsonl", text, &Programs::default());
         assert!(problems.is_empty(), "{problems:?}");
         assert_eq!(items.len(), 2);
-        assert_eq!(
-            items[0].text(),
-            "{\"id\": \"x7k2m9\", \"Q\": \"What?\", \"A\": \"That.\"}"
-        );
         assert_eq!(items[0].label(), "What?");
         assert_eq!(items[0].cards().len(), 1);
         assert!(items[1].is_draft());

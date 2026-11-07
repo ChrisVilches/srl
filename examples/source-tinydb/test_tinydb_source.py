@@ -28,7 +28,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(collections(self.source, [{}]), [{"collection": "words"}])
         self.assertEqual(
             read(self.source, [{}]),
-            [{"collection": "words", "handle": "words/1", "written": None, "item": ITEM}],
+            [{"collection": "words", "handle": "words/1", "item": ITEM}],
         )
         self.assertEqual(describe(self.source, [{}])[0]["creates"], ["*"])
 

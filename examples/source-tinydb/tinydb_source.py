@@ -84,7 +84,7 @@ def read(source, _inputs):
             if "item" not in document:
                 continue
             lines.append({"collection": name, "handle": handle(name, document.doc_id),
-                          "written": None, "item": document["item"]})
+                          "item": document["item"]})
     return lines
 
 

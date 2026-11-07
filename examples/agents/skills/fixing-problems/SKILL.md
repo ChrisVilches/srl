@@ -37,8 +37,9 @@ log can't be read without it. Fix it and run `srl check` again.
 | `the source X failed: …; no item can be read or written until it works` | a source program is broken: not installed, a missing dependency, a bug, a wrong setting of its own in `[sources.X]`, or a service it needs is down; not your items | Fix what the reason says, or the program's command and settings in `[sources.X]`; run `srl check` again. |
 | `cannot add to COLLECTION: …; nothing was added`, from `srl add` | no source can create that collection (its `include` doesn't match it, or the extension names no format), or more than one would | Pick a collection a source can create (`srl sources` says where), or an existing one (`srl collections`). |
 
-`srl show ID` prints an item exactly as written (in a JSONL collection,
-its line; in XML, its `<item>` element), which helps spot the problem.
+`srl show ID` prints an item's entries and fields as `srl` read them, one
+per line, which helps spot the problem; its collection, which `srl show`
+names, has it as written.
 
 ## A card that can't be made
 

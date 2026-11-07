@@ -160,7 +160,6 @@ pub struct Item {
     pub(crate) see: Option<String>,
     pub(crate) draft: bool,
     pub(crate) fields: Vec<Field>,
-    pub(crate) text: String,
     /// The card IDs in groups of siblings, as the kind gave them.
     pub(crate) groups: Vec<Vec<CardId>>,
     /// Every card ID of `groups`, in order.
@@ -207,12 +206,6 @@ impl Item {
 
     pub fn fields(&self) -> &[Field] {
         &self.fields
-    }
-
-    /// The item written on its own, lines joined with `\n`, as its source
-    /// gives it: what `srl show` prints.
-    pub fn text(&self) -> &str {
-        &self.text
     }
 
     /// The IDs of the item's cards, in order.
