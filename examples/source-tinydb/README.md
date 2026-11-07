@@ -59,7 +59,9 @@ Items of the database may name a note with `see`, as any item may.
   sources give, which is an error (see
   [docs/sources.md](../../docs/sources.md), "Collections").
 - **Each item is a document `{"item": {...}}`**, holding its item object
-  as `srl` writes one. Its handle is TinyDB's document ID. Other
+  as `srl` writes one. Its handle is its table and TinyDB's document
+  ID, such as `words/17`, since TinyDB numbers the documents of each
+  table from 1 and a handle must be unique in the source. Other
   documents of a table are left alone.
 - **A change that can't be made refuses every change of the command**:
   a `replace` whose item is no longer as `srl` read it fails the whole

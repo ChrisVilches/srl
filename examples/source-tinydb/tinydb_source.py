@@ -19,7 +19,9 @@ Windows, but tried on Linux only.
   table `words` is the collection `words`. `srl add` may create any new
   one.
 - Each item is a document `{"item": {...}}` holding its item object, and
-  its handle is TinyDB's document ID.
+  its handle is its table and TinyDB's document ID, `words/17`: TinyDB
+  numbers the documents of each table from 1, so the ID alone would name
+  items of two tables alike.
 
 Every call reads one JSON object per line up to the end of standard
 input, and prints its answer, one JSON object per line.
@@ -61,6 +63,16 @@ def describe(_source, inputs):
              "creates": ["*"]} for _ in inputs]
 
 
+def handle(table, doc_id):
+    return f"{table}/{doc_id}"
+
+
+def doc_id(handle):
+    """The document ID of HANDLE, as `read` gave it: a table's name may
+    hold `/`, its document ID never does."""
+    return int(handle.rsplit("/", 1)[1])
+
+
 def collections(source, _inputs):
     return [{"collection": name} for name in sorted(source.db.tables())]
 
@@ -71,7 +83,7 @@ def read(source, _inputs):
         for document in source.db.table(name).all():
             if "item" not in document:
                 continue
-            lines.append({"collection": name, "handle": str(document.doc_id),
+            lines.append({"collection": name, "handle": handle(name, document.doc_id),
                           "written": None, "item": document["item"]})
     return lines
 
@@ -82,7 +94,7 @@ def write(source, inputs):
     for change in inputs:
         table = source.db.table(change["collection"])
         if change["op"] == "replace":
-            document = table.get(doc_id=int(change["handle"]))
+            document = table.get(doc_id=doc_id(change["handle"]))
             if document is None or document.get("item") != change["before"]:
                 return [{"error": "the item changed in the database since srl read it; run the command again"} for _ in inputs]
         answers.append({"preview": json.dumps(change["item"], ensure_ascii=False)} if change["op"] == "add" and change["dry_run"] else {"ok": True})
@@ -93,7 +105,7 @@ def write(source, inputs):
         if change["op"] == "add":
             table.insert({"item": change["item"]})
         else:
-            table.update({"item": change["after"]}, doc_ids=[int(change["handle"])])
+            table.update({"item": change["after"]}, doc_ids=[doc_id(change["handle"])])
     return answers
 
 

@@ -28,9 +28,18 @@ class Tests(unittest.TestCase):
         self.assertEqual(collections(self.source, [{}]), [{"collection": "words"}])
         self.assertEqual(
             read(self.source, [{}]),
-            [{"collection": "words", "handle": "1", "written": None, "item": ITEM}],
+            [{"collection": "words", "handle": "words/1", "written": None, "item": ITEM}],
         )
         self.assertEqual(describe(self.source, [{}])[0]["creates"], ["*"])
+
+    def test_items_of_two_tables_have_different_handles(self):
+        animals = {"Q": "犬"}
+        write(self.source, [self.change("add", item=ITEM), {**self.change("add", item=animals), "collection": "animals"}])
+        self.assertEqual([line["handle"] for line in read(self.source, [{}])], ["animals/1", "words/1"])
+        after = {"Q": "犬", "A": "dog"}
+        replace = {**self.change("replace", handle="animals/1", before=animals, after=after), "collection": "animals"}
+        self.assertEqual(write(self.source, [replace]), [{"ok": True}])
+        self.assertEqual([line["item"] for line in read(self.source, [{}])], [after, ITEM])
 
     def test_a_dry_run_previews_and_writes_nothing(self):
         answers = write(self.source, [self.change("add", dry_run=True, item=ITEM)])
@@ -40,11 +49,11 @@ class Tests(unittest.TestCase):
     def test_a_stale_replace_refuses_every_change(self):
         write(self.source, [self.change("add", item=ITEM)])
         after = {**ITEM, "A": "a cat"}
-        stale = [self.change("replace", handle="1", before={**ITEM, "A": "dog"}, after=after),
+        stale = [self.change("replace", handle="words/1", before={**ITEM, "A": "dog"}, after=after),
                  self.change("add", item={"Q": "犬"})]
         self.assertTrue(all("error" in answer for answer in write(self.source, stale)))
         self.assertEqual(len(read(self.source, [{}])), 1)
-        current = [self.change("replace", handle="1", before=ITEM, after=after)]
+        current = [self.change("replace", handle="words/1", before=ITEM, after=after)]
         self.assertEqual(write(self.source, current), [{"ok": True}])
         self.assertEqual(read(self.source, [{}])[0]["item"], after)
 
