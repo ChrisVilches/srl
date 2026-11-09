@@ -39,12 +39,17 @@ export function Modal({
       onClose={onClose}
       // A click on the backdrop is a click on the dialog itself.
       onClick={(event) => event.target === dialog.current && onClose()}
-      className="modal m-auto w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-stone-200 bg-white p-0 text-stone-900 shadow-xl backdrop:bg-stone-950/50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-100"
+      className="modal m-auto max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-stone-200 bg-white p-0 text-stone-900 shadow-xl backdrop:bg-stone-950/50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-100"
     >
-      <div className="flex flex-col gap-4 p-6">
-        <h2 className="text-lg font-semibold">{shown.current.title}</h2>
-        {shown.current.children}
-        <button onClick={onClose} className={`self-end ${OUTLINE_BUTTON}`}>
+      {/* Only what it shows scrolls, between its title and its button. The
+          box, not the <dialog>, is a flex column: a <dialog> shown as flex
+          would be shown when closed too. Its height is the dialog's, less
+          the dialog's border. Its 4px more above and below keep a focus
+          ring inside it whole. */}
+      <div className="flex max-h-[calc(100dvh-2rem-2px)] flex-col gap-4 py-6">
+        <h2 className="px-6 text-lg font-semibold">{shown.current.title}</h2>
+        <div className="-my-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-1">{shown.current.children}</div>
+        <button onClick={onClose} className={`mx-6 self-end ${OUTLINE_BUTTON}`}>
           Close
         </button>
       </div>
