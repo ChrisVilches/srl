@@ -2630,7 +2630,11 @@ fn a_bad_configuration_refuses_every_command_and_writes_nothing() {
         ),
         (
             "[sources.items]\ndriver = \"filesystem\"\ninclude = \"**/*.jsonl\"\n",
-            "expected a sequence",
+            "expected a sequence in `include`; fix it",
+        ),
+        (
+            "[sources.items]\ninclude = [\"**/*.jsonl\"]\n",
+            "a source has a `driver` or a `program`:",
         ),
         ("[context]\nbogus = 1\n", "unknown field `bogus`"),
         ("[schedule]\ndesired_retention = 1.0\n", "desired_retention"),
@@ -2642,6 +2646,13 @@ fn a_bad_configuration_refuses_every_command_and_writes_nothing() {
         assert_refused(&found, config);
         assert!(
             stderr(&found).contains(expected),
+            "{config}: {}",
+            stderr(&found)
+        );
+        // One plain message, on one line.
+        assert_eq!(
+            stderr(&found).lines().count(),
+            1,
             "{config}: {}",
             stderr(&found)
         );

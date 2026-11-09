@@ -158,6 +158,12 @@ impl<'de> Deserialize<'de> for SourceConfig {
         use serde::de::Error as _;
         let mut table = toml::Table::deserialize(deserializer)?;
         let Some(program) = table.remove("program") else {
+            if !table.contains_key("driver") {
+                return Err(D::Error::custom(
+                    "a source has a `driver` or a `program`: `driver = \"filesystem\"`, or the \
+                     command of a source program",
+                ));
+            }
             let source = FilesystemSource::deserialize(toml::Value::Table(table))
                 .map_err(D::Error::custom)?;
             return match source.driver.as_str() {
@@ -279,9 +285,16 @@ impl Config {
         Self::parse(&text).map_err(|reason| Error::InvalidConfig { file, reason })
     }
 
-    /// Parses the text of `config.toml`. Errors are plain reasons.
+    /// Parses the text of `config.toml`. Errors are plain reasons, on one
+    /// line: the parser's may take several.
     fn parse(text: &str) -> std::result::Result<Self, String> {
-        let config = toml::from_str::<Self>(text).map_err(|error| error.message().to_owned())?;
+        let config = toml::from_str::<Self>(text).map_err(|error| {
+            error
+                .message()
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+        })?;
         let schedule = &config.schedule;
         if !(schedule.desired_retention > 0.0 && schedule.desired_retention < 1.0) {
             return Err("`schedule.desired_retention` must be between 0 and 1".to_owned());
