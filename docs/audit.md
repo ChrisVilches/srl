@@ -69,7 +69,6 @@ The open findings cluster in three places:
 | H2 | A broken item anywhere makes `srl review` fail, losing the rating | Specification | High | Moderate |
 | H3 | Kind programs and source programs make a store machine-specific, and a cloned store runs code on any command | Brittleness | High | Moderate |
 | H4 | Card IDs of kind programs can change silently, orphaning history | Brittleness | High | Easy |
-| H5 | A mistyped option is a selector term, so `srl reset --dryrun` resets every card | Specification | High | Easy |
 | M3 | Kind programs are the main extension mechanism, but the vision doesn't say so | Vision | Medium | Easy |
 | M4 | Invalid log lines are skipped, against "fail loudly" | Specification | Medium | Easy |
 | M5 | "Every rule in one sentence" no longer describes the specification | Vision | Medium | Moderate |
@@ -233,38 +232,6 @@ call that re-asks) gets a `groups` answer that differs from a kept answer
 for the same input line, report it as an error naming the program and the
 suffixes that changed. The cache already holds both. Also consider making
 orphans created by such a change an error rather than a notice.
-
-### H5. A mistyped option is a selector term, so `srl reset --dryrun` resets every card
-
-**Severity High · Difficulty Easy**
-
-[selectors.md](selectors.md), "Syntax", says every argument that is not
-one of the command's options is a term, "even when it starts with `-`",
-so that negations such as `-in:n5` need no `--` (`crates/srl/src/argv.rs`).
-A mistyped option is not one of the command's options, so it becomes a
-term too: `--dryrun` is `-` and the text `-dryrun`, which matches every
-card whose item doesn't contain that text, almost always all of them.
-
-- `srl reset --dryrun` resets every card of the store, instead of
-  printing what it would reset. The log is never edited, so the schedule
-  can't be given back.
-- `srl suspend --reasn "too long" in:x` suspends, without a reason, only
-  the cards of `x` that contain `too` and `long`; `srl accept --dryrun`
-  accepts every draft.
-- Reading commands hide the typo: `srl log --jsonn` prints every event as
-  text, and `srl find --jsonn` lists every card.
-
-Other typos in a selector fail, so this one breaks the docs' promise too:
-"a typo such as `ni:x` fails instead of silently searching for the text
-`ni:x`".
-
-**Possible fix:** before a `--`, an argument that starts with `--` and is
-not one of the command's options is an error, as clap reports it
-elsewhere. Negation is one `-`, so no selector written as the docs show
-needs `--` at the start of a term; text that starts with `-`, such as
-`--verbose` in a note about command lines, is written in quotes
-(`"--verbose"`) or after `--`, as a program passing a selector already
-does.
 
 ---
 

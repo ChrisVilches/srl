@@ -1,7 +1,8 @@
 //! Lets selector terms start with `-` without clap reading them as options.
 //!
 //! The rule: on a command that takes a selector, every argument that is not
-//! one of the command's options (or an option's value) is a selector term.
+//! one of the command's options (or an option's value) is a selector term,
+//! except, before a `--`, one that starts with `--`, which clap reports.
 //! The arguments are reordered so that the options come first and the terms
 //! follow a `--`, which clap then reads as plain values. Which options exist,
 //! and whether they take a value, comes from the clap definition in `args`.
@@ -85,6 +86,10 @@ fn tokens(command: &clap::Command, args: impl Iterator<Item = OsString>) -> Vec<
         } else if let Some(takes_value) = option_takes_value(command, &arg) {
             let value = if takes_value { args.next() } else { None };
             tokens.push(Token::Option(iter::once(arg).chain(value).collect()));
+        } else if arg.as_encoded_bytes().starts_with(b"--") {
+            // Not one of `command`'s options, such as a typo: kept with the
+            // options, for clap to report, instead of becoming a term.
+            tokens.push(Token::Option(vec![arg]));
         } else {
             tokens.push(Token::Other(arg));
         }
@@ -132,10 +137,39 @@ mod tests {
     use super::*;
     use crate::args::Command;
 
-    fn parse(args: &[&str]) -> Cli {
+    fn try_parse(args: &[&str]) -> Result<Cli, clap::Error> {
         let args = iter::once("srl").chain(args.iter().copied());
-        Cli::try_parse_from(separate_selector(args.map(OsString::from).collect())).unwrap()
+        Cli::try_parse_from(separate_selector(args.map(OsString::from).collect()))
     }
+
+    fn parse(args: &[&str]) -> Cli {
+        try_parse(args).unwrap()
+    }
+
+    /// Asserts that `args` is refused because of `unexpected`, and that
+    /// nothing would run.
+    fn refused(args: &[&str], unexpected: &str) {
+        let Err(error) = try_parse(args) else {
+            panic!("accepted {args:?}");
+        };
+        let message = error.to_string();
+        assert!(
+            message.contains(&format!("'{unexpected}'")),
+            "{args:?}: {message}"
+        );
+    }
+
+    /// Every command that takes a selector.
+    const SELECTOR_COMMANDS: [&str; 8] = [
+        "find",
+        "next",
+        "stats",
+        "log",
+        "accept",
+        "suspend",
+        "unsuspend",
+        "reset",
+    ];
 
     fn find(args: &[&str]) -> (Vec<String>, bool, Option<PathBuf>) {
         let cli = parse(args);
@@ -183,6 +217,124 @@ mod tests {
         assert_eq!(terms, ["-h", "--dir", "/s"]);
         assert!(json);
         assert_eq!(dir, None);
+    }
+
+    #[test]
+    fn a_mistyped_option_is_an_error_on_every_command_with_a_selector() {
+        for command in SELECTOR_COMMANDS {
+            for typo in [
+                "--jsonn",
+                "--dryrun",
+                "--dry_run",
+                "--dry-run-",
+                "--JSON",
+                "--Dry-Run",
+                "--reasn",
+                "---json",
+                "--in:a",
+                "--is:new",
+                "--ものともせず",
+            ] {
+                refused(&[command, typo], typo);
+                refused(&[command, "in:a", typo], typo);
+                refused(&[command, typo, "in:a", "-is:new"], typo);
+                refused(&[command, "-in:a", typo, "b", "--dir", "/s"], typo);
+            }
+        }
+    }
+
+    #[test]
+    fn an_option_of_another_command_is_an_error() {
+        refused(&["accept", "--json"], "--json");
+        refused(&["find", "--dry-run"], "--dry-run");
+        refused(&["reset", "--reason", "x"], "--reason");
+        refused(&["next", "--rating", "3"], "--rating");
+        refused(&["log", "--stdin"], "--stdin");
+    }
+
+    #[test]
+    fn a_mistyped_option_with_an_inline_value_is_an_error() {
+        refused(&["reset", "--reason=x", "in:a"], "--reason");
+        refused(&["accept", "--dryrun=true"], "--dryrun");
+        refused(&["find", "--=x"], "--");
+        refused(&["find", "--json=x"], "x");
+    }
+
+    #[test]
+    fn a_mistyped_option_is_not_mistaken_for_an_options_value() {
+        // `--reasn` is no option, so "too long" is not its value: the typo
+        // is reported, instead of suspending what contains "too" and "long".
+        refused(&["suspend", "--reasn", "too long", "in:x"], "--reasn");
+        // `--reason` takes the next argument as its value, but a value can't
+        // start with `--`, so this fails too, instead of suspending in:a
+        // with the reason "--dryrun".
+        refused(&["suspend", "--reason", "--dryrun", "in:a"], "--dryrun");
+    }
+
+    #[test]
+    fn a_mistyped_option_before_the_command_is_an_error() {
+        refused(&["--jsonn", "find", "in:a"], "--jsonn");
+        refused(&["--dryrun", "reset"], "--dryrun");
+    }
+
+    #[test]
+    fn a_value_written_inline_may_start_with_dashes() {
+        let cli = parse(&["suspend", "--reason=--x -in:y", "in:a"]);
+        let Command::Suspend {
+            selector, reason, ..
+        } = cli.command
+        else {
+            panic!("expected suspend, got {:?}", cli.command);
+        };
+        assert_eq!(reason.as_deref(), Some("--x -in:y"));
+        assert_eq!(selector.terms, ["in:a"]);
+    }
+
+    #[test]
+    fn after_a_separator_dashes_are_text_terms() {
+        let (terms, json, _) = find(&["find", "--", "--jsonn", "--dry-run", "---"]);
+        assert_eq!(terms, ["--jsonn", "--dry-run", "---"]);
+        assert!(!json);
+        let (terms, json, dir) = find(&["find", "--json", "in:a", "--", "--json"]);
+        assert_eq!(terms, ["in:a", "--json"]);
+        assert!(json);
+        assert_eq!(dir, None);
+        let (terms, _, _) = find(&["find", "--", "--"]);
+        assert_eq!(terms, ["--"]);
+    }
+
+    #[test]
+    fn terms_with_one_dash_or_none_are_still_terms() {
+        let (terms, json, _) = find(&[
+            "find",
+            "-in:n5",
+            "-is:new",
+            "-jsonn",
+            "-x",
+            "-",
+            "-ものともせず",
+            "asdf",
+            "\"--verbose\"",
+            "-\"--verbose\"",
+            "—json",
+            "--json",
+        ]);
+        assert_eq!(
+            terms,
+            [
+                "-in:n5",
+                "-is:new",
+                "-jsonn",
+                "-x",
+                "-",
+                "-ものともせず",
+                "asdf",
+                "\"--verbose\"",
+                "-\"--verbose\"",
+                "—json",
+            ]
+        );
+        assert!(json);
     }
 
     #[test]

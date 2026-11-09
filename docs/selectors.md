@@ -15,9 +15,11 @@ srl accept is:draft in:generated
 A selector is a list of **terms** separated by spaces. Command-line arguments
 are joined with spaces, so `srl find in:a in:b` and `srl find "in:a in:b"`
 mean the same. Every argument that is not one of the command's options is a
-term, even when it starts with `-` (`-in:n5`), and every argument after a
-`--` is a term, even when it looks like an option. A program that passes a
-selector it didn't write puts it after `--`.
+term, even when it starts with `-` (`-in:n5`), except one that starts with
+`--`: that is an option the command doesn't have, such as the typo
+`--dryrun`, and an error. Every argument after a `--` is a term, even when
+it looks like an option. A program that passes a selector it didn't write
+puts it after `--`.
 
 | Term | Matches |
 |---|---|
@@ -40,7 +42,9 @@ fails instead of silently searching for the text `ni:x`. To search for text
 like that, put it in double quotes: `"std::move"`.
 
 Double quotes make a term of everything up to the next `"`, spaces included,
-and it is always text. `-` before the opening quote negates it. Quotes must be
+and it is always text. `-` before the opening quote negates it. So text
+that starts with `-`, such as `--verbose`, is searched for in quotes
+(`"--verbose"`): unquoted, its first `-` would negate it. Quotes must be
 closed, and followed by a space or the end. Your shell removes one level of
 quotes, so from the command line write `srl find '"some words"'`. Without the
 inner quotes, `srl find "some words"` is two terms, `some` and `words`. That

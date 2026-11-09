@@ -1024,6 +1024,55 @@ fn bad_reviews_record_nothing() {
 }
 
 #[test]
+fn a_mistyped_option_changes_nothing_and_prints_nothing() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let reviewed = srl(&["review", "tuna01", "--rating", "3", "--dir", d]);
+    assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
+    let log = stdout(&srl(&["log", "--json", "--dir", d]));
+    for args in [
+        &["reset", "--dryrun"][..],
+        &["reset", "in:fish", "--dry_run"],
+        &["accept", "--dryrun"],
+        &["accept", "in:fish", "--json"],
+        &["suspend", "--reasn", "too long", "in:fish"],
+        &["suspend", "in:fish", "--reason", "--dryrun"],
+        &["unsuspend", "--dryrun"],
+        &["find", "--jsonn"],
+        &["next", "--jsonn"],
+        &["stats", "--jsonn"],
+        &["log", "--jsonn"],
+    ] {
+        let output = srl(&[args, &["--dir", d]].concat());
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+        assert_eq!(stdout(&output), "", "{args:?}");
+        assert!(
+            stderr(&output).contains("unexpected argument"),
+            "{args:?}: {}",
+            stderr(&output)
+        );
+    }
+    assert_eq!(read(&tmp, "kanji/fish.jsonl"), FISH);
+    assert_eq!(stdout(&srl(&["log", "--json", "--dir", d])), log);
+}
+
+#[test]
+fn text_that_starts_with_dashes_is_searched_for_in_quotes() {
+    let tmp = store(&[(
+        "a.jsonl",
+        "{\"id\":\"flag01\",\"Q\":\"Use --verbose\",\"A\":\"a\"}\n{\"id\":\"none01\",\"Q\":\"Plain\",\"A\":\"b\"}\n",
+    )]);
+    let d = dir(&tmp);
+    let quoted = srl(&["find", "\"--verbose\"", "--dir", d]);
+    assert_eq!(lines(&quoted), ["flag01  a.jsonl  Use --verbose"]);
+    // After `--` it is a term, and so a negation: `-` and the text `-verbose`.
+    let negated = srl(&["find", "--dir", d, "--", "--verbose"]);
+    assert_eq!(lines(&negated), ["none01  a.jsonl  Plain"]);
+    let refused = srl(&["find", "--verbose", "--dir", d]);
+    assert_eq!(refused.status.code(), Some(2));
+}
+
+#[test]
 fn a_broken_log_line_is_reported_and_skipped() {
     let tmp = japanese();
     let d = dir(&tmp);
