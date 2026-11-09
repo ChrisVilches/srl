@@ -65,8 +65,11 @@ macOS and Windows (it is tried on Linux only).
 - The selector can be changed in the page, and the X at the right of its
   box, shown while the box holds text, empties it and applies no
   selector, every card; the counters at the top are the
-  cards reviewed, the new ones among them, and the Again ratings, since
-  Study was last shown. The
+  cards reviewed today, the new ones among them, and the Again ratings,
+  of every card whatever the selector, as `srl stats` counts them: read
+  when Study is shown, with each selector submitted and after each
+  review, so a reload keeps them and they include reviews recorded
+  elsewhere. The
   page has one selector, the same in Study and Browse: submitting it in
   either changes it in both, as the other view finds when it is shown.
   The selector

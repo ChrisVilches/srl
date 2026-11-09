@@ -19,6 +19,9 @@ export type ShownCard = {
 // the same, with where the card is in its schedule and whether it is a leech.
 export type Card = ShownCard & { schedule: 'new' | 'due'; leech: boolean };
 
+// The counts of today's study day (api.today).
+export type Today = { reviewed: number; new: number; again: number };
+
 // A card as `srl find --json` lists it (docs/cli.md, "Items and cards"),
 // with its item's kind and see, and the first line of its first field.
 export type FoundCard = {
@@ -129,6 +132,14 @@ export const api = {
   review: (card: string, rating: Rating) => change<object>('/api/review', { card, rating }),
   // An empty REASON is no reason.
   suspend: (card: string, reason: string) => change<object>('/api/suspend', { card, reason }),
+  // Today's reviews of every card, the new cards and the Again ratings
+  // among them, as srl stats --json counts them: none in a store with no card.
+  today: async (): Promise<Today> => {
+    const { stats } = await call<{ stats: { reviews_today: number; new_today: number; again_today: number } | null }>(
+      '/api/stats',
+    );
+    return { reviewed: stats?.reviews_today ?? 0, new: stats?.new_today ?? 0, again: stats?.again_today ?? 0 };
+  },
   find: async (selector: string) =>
     (await call<{ cards: FoundCard[] }>(`/api/find?${new URLSearchParams({ sel: selector })}`)).cards,
   // Makes the card, running its kind program. Aborting SIGNAL stops srl.

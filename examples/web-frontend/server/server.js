@@ -8,6 +8,8 @@
 //   POST /api/review       srl review --stdin          ← { card, rating, response? }
 //   POST /api/suspend      srl suspend id:CARD --reason REASON
 //                                                      ← { card, reason? }
+//   GET  /api/stats        srl stats --json            → { stats } or, with no
+//                                                        card, { stats: null }
 //
 // The card browser, which shows any card without studying it:
 //
@@ -128,6 +130,12 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       await srl(['suspend', `id:${requireId(body.card)}`, `--reason=${reason}`]);
       changed();
       return {};
+    },
+
+    // The statistics of every card: the store has no card when none matches.
+    'GET /api/stats': async () => {
+      const { found, stdout } = await srl(['stats', '--json']);
+      return { stats: found ? JSON.parse(stdout) : null };
     },
 
     // Each card as srl find --json gives it, with its item's kind and see,

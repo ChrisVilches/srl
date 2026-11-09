@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router';
 
 import { queryOfSelector, selectorOfQuery } from './address';
-import { api, type Card, type Rating } from './api';
+import { api, type Card, type Rating, type Today } from './api';
 import { CardDetailsDialog } from './CardDetails';
 import { CardBadges, CardFace, Counts, DANGER_BUTTON, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
@@ -28,8 +28,6 @@ type Phase =
   | { kind: 'answer'; card: Card }
   | { kind: 'done' }
   | { kind: 'error'; message: string };
-
-type Stats = { reviewed: number; new: number; again: number };
 
 const RATINGS: { rating: Rating; name: string; style: string }[] = [
   { rating: 1, name: 'Again', style: 'bg-rose-600 enabled:hover:bg-rose-500' },
@@ -83,11 +81,11 @@ export function Study() {
   const { submitted, onSelector } = useView();
   const { selector } = submitted;
   const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: performance.now() }));
-  const [stats, setStats] = useState<Stats>({ reviewed: 0, new: 0, again: 0 });
+  const [today, setToday] = useState<Today | null>(null);
   const [busy, setBusy] = useState(false);
 
   // Runs one step of the loop, showing any error from srl instead of the card.
-  const step = useCallback(async (action: () => Promise<void>) => {
+  const step = useCallback(async (action: () => Promise<unknown>) => {
     setBusy(true);
     try {
       await action();
@@ -121,9 +119,17 @@ export function Study() {
     }
   }, []);
 
-  const loadNext = useCallback((sel: string) => step(() => toNext(sel)), [step, toNext]);
+  // The counts are the study day's, from srl: they include reviews recorded
+  // elsewhere, and a reload shows them as they were.
+  const readToday = useCallback(async () => setToday(await api.today()), []);
 
-  // Asks for a card when shown, and with each selector submitted.
+  const loadNext = useCallback(
+    (sel: string) => step(() => Promise.all([toNext(sel), readToday()])),
+    [step, toNext, readToday],
+  );
+
+  // Asks for a card, and reads the counts, when shown and with each selector
+  // submitted.
   useSubmitted(submitted, loadNext);
 
   const reveal = useCallback(() => {
@@ -137,15 +143,10 @@ export function Study() {
       const { card } = phase;
       step(async () => {
         await api.review(card.id, rating);
-        setStats((s) => ({
-          reviewed: s.reviewed + 1,
-          new: s.new + (card.schedule === 'new' ? 1 : 0),
-          again: s.again + (rating === 1 ? 1 : 0),
-        }));
-        await toNext(selector);
+        await Promise.all([toNext(selector), readToday()]);
       });
     },
-    [phase, selector, step, toNext],
+    [phase, selector, step, toNext, readToday],
   );
 
   // Suspending first asks why, in a dialog; the reason may be left empty.
@@ -199,7 +200,7 @@ export function Study() {
     <div className="flex min-h-screen flex-col">
       <TopBar view="study">
         <SelectorInput selector={selector} onSelector={onSelector} />
-        <StatsLine stats={stats} />
+        {today && <StatsLine stats={today} />}
       </TopBar>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
         {phase.kind === 'loading' && (
@@ -209,7 +210,7 @@ export function Study() {
           <ErrorView message={phase.message} onRetry={() => loadNext(selector)} />
         )}
         {phase.kind === 'done' && (
-          <DoneView selector={selector} stats={stats} onCheck={() => loadNext(selector)} />
+          <DoneView selector={selector} today={today} onCheck={() => loadNext(selector)} />
         )}
         {(phase.kind === 'prompt' || phase.kind === 'answer') && (
           <>
@@ -230,7 +231,7 @@ export function Study() {
   );
 }
 
-function StatsLine({ stats }: { stats: Stats }) {
+function StatsLine({ stats }: { stats: Today }) {
   return (
     <Counts
       counts={[
@@ -353,7 +354,7 @@ function SuspendDialog({
   );
 }
 
-function DoneView({ selector, stats, onCheck }: { selector: string; stats: Stats; onCheck: () => void }) {
+function DoneView({ selector, today, onCheck }: { selector: string; today: Today | null; onCheck: () => void }) {
   return (
     <div className="m-auto flex flex-col items-center gap-4 text-center">
       <div className="text-4xl">✓</div>
@@ -367,7 +368,7 @@ function DoneView({ selector, stats, onCheck }: { selector: string; stats: Stats
           'No card is due.'
         )}
       </p>
-      <StatsLine stats={stats} />
+      {today && <StatsLine stats={today} />}
       <button onClick={onCheck} className={OUTLINE_BUTTON}>
         Check again
       </button>
