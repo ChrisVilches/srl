@@ -482,6 +482,11 @@ new collection's name ([cli.md](cli.md), `srl add`) refuse empty parts,
   a file: git and file syncing tools can't create it there, so the
   store's collection, or a note `see` names, is missing.
 
+For now the difference is documented, not fixed: a **TODO (platform)**
+note in [formats.md](formats.md), "How srl writes to collections", and a
+`TODO(platform)` comment above the code that checks a new collection's
+name.
+
 **Possible fixes:**
 
 1. **Refuse these names everywhere**, in every part of a new
@@ -490,9 +495,8 @@ new collection's name ([cli.md](cli.md), `srl add`) refuse empty parts,
    platform and keeps stores portable, at the cost of a rule almost no
    one meets. Existing files with such names could be refused too, as an
    error of their collection, or left alone.
-2. **Accept the difference**: a **TODO (platform)** note in
-   [formats.md](formats.md) saying such names fail on Windows, and a
-   comment above the code that checks names.
+2. **Accept the difference for good**: keep the notes above, and remove
+   this finding.
 
 ### L12. A `[sources]` without sources makes a store that silently has no items
 

@@ -359,6 +359,10 @@ fn check_lines(new: &[Object], lines: &[(usize, Object)], catalog: &Catalog) -> 
 
 /// Checks that `collection` can name a collection (see `docs/sources.md`,
 /// "Collections"): parts joined by `/`, none empty or starting with `.`.
+// TODO(platform): Windows names devices `CON`, `PRN`, `AUX`, `NUL`, `COM1`
+// to `COM9` and `LPT1` to `LPT9`, in any case and with any extension, so a
+// collection with such a part is accepted here and then fails to be
+// created on Windows only. See docs/formats.md and docs/audit.md, L11.
 fn check_collection(collection: &str) -> Result<()> {
     let invalid = |reason: &str| Error::CannotAdd {
         collection: collection.to_owned(),

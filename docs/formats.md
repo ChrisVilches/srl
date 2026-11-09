@@ -242,6 +242,14 @@ XML.
 > over a file that another program holds open without sharing it, as some
 > editors do; the command then fails for that file and says so.
 
+> **TODO (platform):** Windows reserves the names `CON`, `PRN`, `AUX`,
+> `NUL`, `COM1` to `COM9` and `LPT1` to `LPT9` for devices, whatever
+> their case and extension. `srl add con.jsonl`, or any collection with
+> such a part, works on Linux and macOS and fails on Windows with the
+> system's error, and a store holding such a file can't be checked out
+> or synced to Windows. See [audit.md](audit.md), L11, for how this
+> could be fixed.
+
 ## Errors
 
 The errors of collection files, besides those of every item (see
