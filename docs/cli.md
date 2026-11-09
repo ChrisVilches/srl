@@ -345,6 +345,18 @@ retention  88.5% of 400 reviews in 30 days
   the reviews of matching cards that were not new at the time, and gives
   the share that were not Again. Without such reviews it is `-`.
 
+Even the counts of today need every log file: whether a review today was
+a card's first since its last reset depends on its whole history, and the
+schedule counts do too. Each run reads and hashes every log file, and
+replays only the lines the index cache hasn't seen (see
+[store.md](store.md), "The index cache"). A frontend may run it after
+every review.
+
+> **TODO (design):** reading every log file on each run is fast for
+> years of reviews, but a log large enough could make it impractical,
+> for a frontend running it after every review above all. How to read
+> less without trusting modification times is undecided.
+
 With `--json` it prints one object:
 `{"cards": N, "schedule": {"new": N, "due": N, "young": N, "mature": N},
 "leech": N, "reviews_today": N, "new_today": N, "again_today": N,
