@@ -71,14 +71,12 @@ cloze), as a new draft item or, if the person asks, with
 One line per event of the matching cards, in the order they were recorded:
 
 ```
-2026-10-26T09:12:31+09:00  k3m9q1.2  review  3  human
+2026-10-26T09:12:31+09:00  k3m9q1.2  review  3
 2026-10-26T10:00:00+09:00  k3m9q1.2  reset
 ```
 
-Events are `review` (with the rating and who recorded it, `human` or
-`agent`), `reset`, `suspend`, `unsuspend` and `move`. `--json` prints them
-as stored. Reviews may carry a `response`, what was answered in a chat
-session, which helps understand mistakes.
+Events are `review` (with the rating), `reset`, `suspend`, `unsuspend` and
+`move`. `--json` prints them as stored.
 
 ## The log files directly
 
@@ -88,15 +86,15 @@ tools can analyze it (read only; never write to it):
 ```sh
 jq -c 'select(.rating == 1)' .srl/log/*.jsonl                 # every Again
 jq -r 'select(.type == "review") | .t[:10]' .srl/log/*.jsonl | sort | uniq -c   # reviews per day
-duckdb -c "select by, avg(rating) from '.srl/log/*.jsonl'
-           where type = 'review' group by 1"                  # average rating by who recorded it
+duckdb -c "select card, avg(rating) from '.srl/log/*.jsonl'
+           where type = 'review' group by 1"                  # average rating per card
 ```
 
 A review event:
 
 ```json
 {"type": "review", "t": "2026-10-26T09:12:31+09:00", "card": "k3m9q1.2",
- "rating": 3, "response": null, "by": "human", "hash": "3fa91c0d22be"}
+ "rating": 3, "hash": "3fa91c0d22be"}
 ```
 
 `hash` identifies the item's question (its kind and fields) at review time, so reviews before and

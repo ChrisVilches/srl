@@ -67,10 +67,8 @@ in any editor, and the store can be kept in git.
    `srl reset`, `srl move` and editing their files. When they ask, run it
    with `--dry-run` first if what it would change isn't obvious, and say what
    it changed.
-4. **Reviews you record are marked as yours:** `srl review ... --by agent`,
-   or `"by": "agent"` in JSON. Record a review only in a study session the
-   person started with you, with the rating they gave or one they asked you
-   to decide.
+4. **Record a review only in a study session the person started with
+   you,** with the rating they gave or one they asked you to decide.
 5. **Frontends are the person's to run.** `srl` has no built-in study
    command; people study with a frontend, such as `srl-web` or `srl-tui`,
    which is interactive. Tell them the command to run themselves.
@@ -214,7 +212,7 @@ You can also run a session yourself, in the chat, acting as the frontend:
 the text of the note `see` names, or `null` when the item has no `see`);
 show the prompt, wait for the answer, show the revealed prompt, the
 answer and the context, get a rating,
-and record it with `srl review ID --rating N --by agent`. The `studying`
+and record it with `srl review ID --rating N`. The `studying`
 skill has the details.
 
 ## Selectors

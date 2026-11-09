@@ -36,8 +36,7 @@ real `srl` as `^srl`, so `srl` must be on your PATH.
   `srl`'s message has been printed, so `try` and `catch` work.
 - **Lists and records piped in are written as JSONL**, one object per line.
   That is the input of `srl add --stdin` and `srl edit --stdin`, so you can
-  pipe tables straight in. `srl review --stdin` takes a single review, so
-  pipe it a record.
+  pipe tables straight in.
 - **Everything else runs as it is.** Other commands (`check`, `add`,
   `review`, `help` and the rest), `--raw`, and `--help` or `-h` on any
   command pass their arguments, output and exit codes through unchanged. So
@@ -83,7 +82,7 @@ if $card == null { print "Nothing left for today" } else {
     input "Press Enter for the answer "
     print $card.answer
     let rating = input "Rating (1-4): " | into int
-    {card: $card.id, rating: $rating} | srl review --stdin
+    srl review $card.id --rating $rating
 }
 ```
 

@@ -7,7 +7,7 @@ Linux and macOS, msvcrt on Windows, a branch that has never run.
 It is a starting point: copy it, rename it, change it.
 
 It runs the frontend loop of docs/frontends.md: `srl next --json` for the
-card and its context, `srl review --stdin` for the rating.
+card and its context, `srl review ID --rating N` for the rating.
 Keys act at once, without Enter: space or Enter shows the answer, 1-4 rate,
 j/k or the arrows scroll the panel in focus, Ctrl-D/Ctrl-U by half of it,
 g/G to its top and bottom, Tab moves the focus between the card and the
@@ -47,17 +47,17 @@ class SrlError(Exception):
     """srl failed; the message is what it printed on standard error."""
 
 
-def srl(*args, stdin=None):
+def srl(*args):
     """Runs srl and returns its output and exit code; any code but 0 and 1 is an error.
 
     srl can take a while, as when srl next runs a kind program that asks an
     LLM: past a moment, the screen shows a spinner and the seconds taken.
     """
     pipe = subprocess.PIPE
-    process = subprocess.Popen(["srl", *args], stdin=pipe, stdout=pipe, stderr=pipe, text=True)
+    process = subprocess.Popen(["srl", *args], stdin=subprocess.DEVNULL, stdout=pipe, stderr=pipe, text=True)
     start = time.monotonic()
     try:
-        out, err = process.communicate(stdin, timeout=0.3)  # most calls end here, without a spinner
+        out, err = process.communicate(timeout=0.3)  # most calls end here, without a spinner
     except subprocess.TimeoutExpired:
         console.clear()
         with console.status("Loading…") as status:
@@ -413,7 +413,7 @@ class Session:
                         break
 
     def review(self, card, rating):
-        srl("review", "--stdin", stdin=json.dumps({"card": card["id"], "rating": rating}))
+        srl("review", card["id"], f"--rating={rating}")
 
 
 USAGE = "usage: srl-tui [SELECTOR]...\n"

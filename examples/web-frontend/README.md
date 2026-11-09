@@ -30,8 +30,7 @@ macOS and Windows (it is tried on Linux only).
   reason, if it is suspended), its place in the schedule, the day it is
   due, whether it is a leech, and its history: every event of the log
   for it, newest first, each with its time, as `srl log` gives them (a
-  review's rating, who recorded it, the response if there is one and the
-  hash of its question). They are `src/CardDetails.tsx`, which Browse's
+  review's rating and the hash of its question). They are `src/CardDetails.tsx`, which Browse's
   Details side shows too. The modal is as tall as the window, so it
   doesn't move as the card, then its history, come in.
 - Showing the answer scrolls smoothly to put it in the middle of the
@@ -296,7 +295,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/config` | nothing | `{"on_change": …}`, whether `srl-web` has `--on-change` |
 | `GET /api/on-change` | nothing | `{"busy": …, "last": …}`: whether a change is still waiting for its run, and the last run, `{"seq": N, "error": …}` with `error` `null` on success, or `null` before any |
 | `GET /api/next?sel=…` | `srl next SEL --json` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
-| `POST /api/review` | `srl review --stdin`, with the request body | `{}` |
+| `POST /api/review` | `srl review CARD --rating=N`, for `{"card": CARD, "rating": N}`; `N` must be 1, 2, 3 or 4 | `{}` |
 | `POST /api/suspend` | `srl suspend id:CARD --reason=REASON`, for `{"card": CARD, "reason": REASON}`; an empty or missing `reason` is none | `{}` |
 | `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --no-context` | `{"cards": […]}`: each card `srl find` printed, with its item's `kind`, `see` and `excerpt`, the first line of its first field |
 | `GET /api/log?id=…` | `srl log id:ID --json` | `{"events": […]}`: the card's events, in log order, as stored; those of other cards of an item of the same ID are left out |

@@ -128,15 +128,7 @@ as yours. Only run one when the person asks for it. Each round:
 5. Record it:
 
    ```sh
-   srl review k3m9q1.2 --rating 3 --by agent
-   ```
-
-   To keep what they answered, use JSON instead:
-
-   ```sh
-   srl review --stdin <<'JSON'
-   {"card": "k3m9q1.2", "rating": 3, "response": "彼女", "by": "agent"}
-   JSON
+   srl review k3m9q1.2 --rating 3
    ```
 
 Then go back to step 1. `==text==` in a card marks the important part:

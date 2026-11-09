@@ -23,7 +23,7 @@ def subcommand [args: list<string>] {
 # Run srl. The commands that read data (find, show, cards, collections, notes, sources, kinds,
 # next, stats, log) give Nushell data: a table, or a record for `next` and
 # `stats`; --raw gives srl's text instead. A list or record piped in is
-# written to srl as JSONL, for `add`, `edit` and `review` with --stdin.
+# written to srl as JSONL, for `add` and `edit` with --stdin.
 export def --wrapped main [...args: string] {
     let input = $in
     let stdin = if ($input | describe) =~ '^(list|table|record)' {

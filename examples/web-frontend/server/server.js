@@ -5,7 +5,7 @@
 //
 //   GET  /api/config       nothing                     → { on_change }
 //   GET  /api/next?sel=…   srl next SEL --json         → { card } or { card: null }
-//   POST /api/review       srl review --stdin          ← { card, rating, response? }
+//   POST /api/review       srl review CARD --rating N  ← { card, rating }
 //   POST /api/suspend      srl suspend id:CARD --reason REASON
 //                                                      ← { card, reason? }
 //   GET  /api/stats        srl stats --json            → { stats } or, with no
@@ -114,9 +114,11 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       return { card: found ? JSON.parse(stdout) : null };
     },
 
-    // The body is passed to srl as it is: srl checks it.
     'POST /api/review': async (_url, body) => {
-      await srl(['review', '--stdin'], JSON.stringify(body));
+      if (![1, 2, 3, 4].includes(body.rating)) {
+        throw new BadRequest('rating must be 1, 2, 3 or 4');
+      }
+      await srl(['review', requireId(body.card), `--rating=${body.rating}`]);
       changed();
       return {};
     },

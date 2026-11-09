@@ -147,9 +147,7 @@ function EventText({ event }: { event: LogEvent }) {
       const { name, color } = RATING_NAMES[event.rating];
       return (
         <>
-          <b className={`font-medium ${color}`}>{name}</b>
-          {event.by === 'agent' && ', recorded by an agent'}
-          {event.response !== null && <span className="whitespace-pre-wrap">: “{event.response}”</span>}{' '}
+          <b className={`font-medium ${color}`}>{name}</b>{' '}
           <span className="font-mono text-xs text-stone-400" title="The hash of the question when it was reviewed">
             {event.hash}
           </span>

@@ -91,7 +91,7 @@ The prompt has the agent follow the rules in `docs/guides/agents.md`:
   accept` the ones you want.
 - It changes your items or your schedule (`srl accept`, `srl edit`,
   `srl reset`, `srl suspend`, `srl move`) only when you ask.
-- Reviews it records are marked `--by agent`.
+- It records reviews only in a study session you started with it.
 - It never writes to `.srl/`.
 
 These are instructions, not guarantees: an agent with a shell can do

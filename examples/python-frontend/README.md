@@ -103,7 +103,7 @@ otherwise the nearest store from the current directory up (see
 
 It is one file, `src/srl_tui/__init__.py`, running the frontend loop of
 [docs/frontends.md](../../docs/frontends.md): `srl next --json` for a
-card, its schedule, kind and context, `srl review --stdin` for the
+card, its schedule, kind and context, `srl review ID --rating N` for the
 rating. Change what you like: the colors in `THEME` and `RATINGS`, the
 layout in
 `Session.show`, the keys in `QUESTION_KEYS` and `ANSWER_KEYS` and what
