@@ -107,7 +107,14 @@ impl Source for Filesystem {
     fn read(&self) -> crate::Result<Read> {
         let mut read = Read::default();
         for path in self.files.paths()? {
-            add_read(&mut read, &path, parse(&path, &self.files.text(&path)?));
+            let parsed = match self.files.text(&path)? {
+                Some(text) => parse(&path, &text),
+                None => Parsed {
+                    items: Vec::new(),
+                    errors: vec!["it is not UTF-8, as every collection must be".to_owned()],
+                },
+            };
+            add_read(&mut read, &path, parsed);
         }
         Ok(read)
     }

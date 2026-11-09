@@ -56,10 +56,11 @@ impl CollectionFiles {
         self.store.files(&self.include, &self.exclude)
     }
 
-    /// The text of the file at `path`.
-    pub(super) fn text(&self, path: &str) -> Result<String> {
+    /// The text of the file at `path`, or `None` if it isn't UTF-8.
+    pub(super) fn text(&self, path: &str) -> Result<Option<String>> {
         let file = self.store.file(path);
-        fs::read_to_string(&file).map_err(Error::io(file))
+        let bytes = fs::read(&file).map_err(Error::io(file))?;
+        Ok(String::from_utf8(bytes).ok())
     }
 
     /// The text of the file at `path`, or `None` if it doesn't exist.

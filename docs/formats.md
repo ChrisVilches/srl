@@ -58,8 +58,9 @@ with `/` between folders. JSON outputs give the name of the
 collection an item is in (`collection`). `srl collections` lists every
 collection, including those that hold no items (see [cli.md](cli.md)).
 
-Files are UTF-8. Both `\n` and `\r\n` line endings are read, and a UTF-8
-byte order mark is ignored.
+Files are UTF-8, and a file that isn't is an error of its collection.
+Both `\n` and `\r\n` line endings are read, and a UTF-8 byte order mark
+is ignored.
 
 ## JSONL
 

@@ -2412,7 +2412,11 @@ fn hostile_collection_files_are_errors_in_the_store_not_crashes() {
     );
     let output = srl(&["find", "--dir", dir(&tmp)]);
     assert_refused(&output, "not UTF-8");
-    assert!(stderr(&output).contains("a.jsonl"), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("srl: a.jsonl: it is not UTF-8, as every collection must be\n"),
+        "{}",
+        stderr(&output)
+    );
 }
 
 #[test]
