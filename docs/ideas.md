@@ -276,33 +276,9 @@ questions", once it is planned.
   `srl undo --expect` with that line; a different last line is shown as
   an error in the dialog, and the button can be pressed again. After the
   undo, nothing on the page changes but the dialog closing: no view is
-  reloaded, no card changes, and the counts of the study session stay as
-  they were. `srl-tui` gets nothing.
-
-## Statistics
-
-- **The study counts of a frontend, from the log.** `srl-web`'s Study
-  shows the cards reviewed, the new ones among them and the Again
-  ratings. The page counts them itself, in memory, from the reviews it
-  records: they start again at 0 when the page is reloaded or Study is
-  left, and leave out reviews recorded elsewhere, by `srl review` or
-  another frontend. The log already holds every review, so `srl stats`
-  could give these counts and keep nothing new: beside `reviews today`,
-  `new today`, the reviews today of cards that were new then (their
-  first review), and `again today`, the Again ratings today, for the
-  matching cards like the rest (`new_today` and `again_today` with
-  `--json`).
-
-  Study would then show what `srl stats` says for its selector, read
-  when the view is shown and after each review, rather than counting.
-  The counts change meaning: they are the study day's, not the page's,
-  so they survive a reload and include every frontend's reviews, and
-  they follow the selector, so submitting another one shows its own.
-  `srl undo` (see "The log") would take its review out of them, unlike
-  the counts the page keeps today.
-
-  It changes [cli.md](cli.md) (`srl stats`'s lines and its JSON
-  object), and `srl-web`'s README, which says what the counters count.
+  reloaded and no card changes. Study's counts, which come from
+  `srl stats`, leave the undone review out once Study is shown again.
+  `srl-tui` gets nothing.
 
 ## Stores
 

@@ -1057,7 +1057,7 @@ fn stats_counts_cards_reviews_and_retention() {
     let output = srl(&["stats", "--dir", d]);
     assert_eq!(
         stdout(&output),
-        "cards  5\nnew  4\ndue  0\nyoung  1\nmature  0\nleech  0\nreviews today  1\nretention  -\n"
+        "cards  5\nnew  4\ndue  0\nyoung  1\nmature  0\nleech  0\nreviews today  1\nnew today  1\nagain today  0\nretention  -\n"
     );
     let json = json_lines(&srl(&["stats", "in:fish", "--json", "--dir", d]));
     assert_eq!(json[0]["cards"], 2);

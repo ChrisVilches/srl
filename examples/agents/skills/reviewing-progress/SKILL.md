@@ -15,11 +15,15 @@ young  41
 mature  37
 leech  2
 reviews today  25
+new today  8
+again today  3
 retention  88.5% of 400 reviews in 30 days
 ```
 
 - `new`, `due`, `young` and `mature` add up to `cards`; `leech` counts the
   leeches among them.
+- `new today` and `again today` are the first reviews of new cards and the
+  Again ratings among `reviews today`.
 - `retention` is the share of reviews in the last 30 study days that were
   not Again, counting only cards that were not new at the time. Compare it
   with `desired_retention` (default 90%): well below means the cards are
@@ -27,7 +31,7 @@ retention  88.5% of 400 reviews in 30 days
   needed.
 - It applies the selector as written, so drafts and suspended cards count
   unless the selector says `is:active`.
-- `--json` gives `{"cards", "schedule": {...}, "leech", "reviews_today", "retention",
+- `--json` gives `{"cards", "schedule": {...}, "leech", "reviews_today", "new_today", "again_today", "retention",
   "retention_reviews"}`, with `retention` from 0 to 1 or `null`.
 
 Per-topic comparisons are a selector each: `srl stats in:grammar`,

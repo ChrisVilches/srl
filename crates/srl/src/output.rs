@@ -161,6 +161,8 @@ pub(crate) fn stats(report: &Stats) {
         ("mature", schedule.mature),
         ("leech", report.leech),
         ("reviews today", report.reviews_today),
+        ("new today", report.new_today),
+        ("again today", report.again_today),
     ] {
         println!("{name}  {value}");
     }

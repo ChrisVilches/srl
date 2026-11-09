@@ -1,5 +1,6 @@
-//! `srl stats`: cards per place in the schedule, leeches, reviews today,
-//! recent retention (see `docs/cli.md`, "Analysis").
+//! `srl stats`: cards per place in the schedule, leeches, reviews today
+//! with the new cards and Again ratings among them, recent retention (see
+//! `docs/cli.md`, "Analysis").
 
 use std::collections::HashSet;
 
@@ -21,6 +22,10 @@ pub struct Stats {
     pub leech: usize,
     /// Reviews of these cards on today's study day.
     pub reviews_today: usize,
+    /// Of `reviews_today`, the first reviews of cards that were new.
+    pub new_today: usize,
+    /// Of `reviews_today`, those rated Again.
+    pub again_today: usize,
     /// Over the last 30 study days, the share of reviews of these cards
     /// that were not Again, counting only reviews of cards that were not
     /// new. `None` if there were none.
@@ -85,11 +90,20 @@ pub fn stats(cards: &[(&Item, &CardId)], memories: &Memories, reviews: &[Reviewe
         let kept = recalled.iter().filter(|kept| **kept).count();
         ratio(kept, recalled.len())
     });
+    let today_reviews = reviews
+        .iter()
+        .filter(|review| review.day == today)
+        .collect::<Vec<_>>();
     Stats {
         cards: cards.len(),
         schedule,
         leech,
-        reviews_today: reviews.iter().filter(|review| review.day == today).count(),
+        reviews_today: today_reviews.len(),
+        new_today: today_reviews.iter().filter(|review| review.was_new).count(),
+        again_today: today_reviews
+            .iter()
+            .filter(|review| review.rating == 1)
+            .count(),
         retention,
         retention_reviews: recalled.len(),
     }
@@ -164,6 +178,8 @@ mod tests {
         assert_eq!(stats.schedule.new, 1);
         assert_eq!(stats.schedule.young, 2);
         assert_eq!(stats.reviews_today, 2);
+        assert_eq!(stats.new_today, 1);
+        assert_eq!(stats.again_today, 1);
         assert_eq!(stats.retention_reviews, 2);
         assert_eq!(stats.retention, Some(0.5));
     }

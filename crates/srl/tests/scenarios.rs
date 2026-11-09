@@ -230,6 +230,8 @@ fn a_first_session_studies_every_new_card_once_in_written_order() {
     assert_eq!(stats["schedule"]["new"], 0);
     assert_eq!(stats["schedule"]["young"], 4);
     assert_eq!(stats["reviews_today"], 4);
+    assert_eq!(stats["new_today"], 4);
+    assert_eq!(stats["again_today"], 0);
     assert_eq!(store.json(&now, &["log", "--json"]).len(), 4);
 }
 

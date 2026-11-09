@@ -313,7 +313,7 @@ is not enough, because a review is about one card. With `--dry-run`,
 
 | Command | Does |
 |---|---|
-| `srl stats [SELECTOR] [--json]` | Cards per place in the schedule, leeches, reviews today, retention over the last 30 days (share of non-Again ratings on cards that were not new), for the matching cards (see below). Exit 1 if none matches. |
+| `srl stats [SELECTOR] [--json]` | Cards per place in the schedule, leeches, reviews today with the new cards and Again ratings among them, retention over the last 30 days (share of non-Again ratings on cards that were not new), for the matching cards (see below). Exit 1 if none matches. |
 | `srl log [SELECTOR] [--json]` | Print the log events of matching cards, in log order (see below); with `--json`, the events as stored. Exit 1 if there are none. |
 
 `srl stats` applies the selector as written, so it counts drafts and
@@ -328,6 +328,8 @@ young  41
 mature  37
 leech  2
 reviews today  25
+new today  8
+again today  3
 retention  88.5% of 400 reviews in 30 days
 ```
 
@@ -335,14 +337,18 @@ retention  88.5% of 400 reviews in 30 days
   the leeches among them (see [scheduling.md](scheduling.md), "Schedule" and
   "Leeches").
 - `reviews today` counts the reviews of the matching cards on today's study
-  day.
+  day. Among them, `new today` counts the first reviews of cards that were
+  new (since their last reset), and `again today` those rated Again. They
+  are the day's whole study, whoever recorded it: a frontend can show them
+  as its counts, the same after a reload.
 - `retention` looks at the last 30 study days, today included. It counts
   the reviews of matching cards that were not new at the time, and gives
   the share that were not Again. Without such reviews it is `-`.
 
 With `--json` it prints one object:
 `{"cards": N, "schedule": {"new": N, "due": N, "young": N, "mature": N},
-"leech": N, "reviews_today": N, "retention": R, "retention_reviews": N}`,
+"leech": N, "reviews_today": N, "new_today": N, "again_today": N,
+"retention": R, "retention_reviews": N}`,
 where `retention` is a number from 0 to 1, or `null`.
 
 `srl log` prints one line per event, its fields separated by two spaces:
