@@ -35,7 +35,8 @@ macOS and Windows (it is tried on Linux only).
   Details side shows too. The modal is as tall as the window, so it
   doesn't move as the card, then its history, come in.
 - Showing the answer scrolls smoothly to put it in the middle of the
-  window. Browse doesn't: turning a card to its answer there leaves the
+  window, or, when it is taller than the window, its top at the top of
+  the window, so its start shows. Browse doesn't: turning a card to its answer there leaves the
   page where it is.
 - After the answer it shows the context, the note the item names with
   `see`, under the note's path. A note in anything but Markdown (by the

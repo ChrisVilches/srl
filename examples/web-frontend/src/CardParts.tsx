@@ -29,7 +29,8 @@ export const WITH_KEY = 'inline-flex items-center justify-center gap-1';
 // the revealed prompt, the answer and the context. BADGES go after the kind,
 // and START before it, at the left. Its ID and the rest are in CardDetails.
 // With SCROLL_TO_ANSWER, as when studying, revealing the card scrolls
-// smoothly to put the answer in the middle of the window.
+// smoothly to put the answer in the middle of the window, or its top at the
+// window's top when it is taller than the window, so that its start shows.
 export function CardFace({
   card,
   revealed,
@@ -45,7 +46,10 @@ export function CardFace({
 }) {
   const answer = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (scrollToAnswer && revealed) answer.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const shown = answer.current;
+    if (!scrollToAnswer || !revealed || !shown) return;
+    const fits = shown.offsetHeight <= window.innerHeight;
+    shown.scrollIntoView({ behavior: 'smooth', block: fits ? 'center' : 'start' });
   }, [scrollToAnswer, revealed, card]);
 
   return (
