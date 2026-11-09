@@ -80,6 +80,8 @@ The open findings cluster in three places:
 | L7 | The domain layer still leans on modules with I/O | Structure | Low | Moderate |
 | L9 | What a card with varying content means is unspecified | Specification | Low | Easy |
 | L10 | What symbolic links in a store mean is unspecified, and a loop multiplies collections | Specification | Low | Easy |
+| L11 | A collection named as a Windows device can't exist on Windows | Specification | Low | Easy |
+| L12 | A `[sources]` without sources makes a store that silently has no items | Specification | Low | Easy |
 
 ---
 
@@ -440,13 +442,83 @@ links. The code follows them, to files and folders alike, so:
   times on Linux, each copy an error for the IDs it repeats.
 - **A link can make a file outside the store a collection or a note**,
   read and, for a collection, written, although the store is described as
-  one folder that holds everything.
+  one folder that holds everything. A note `leak.md` linked to a file
+  elsewhere is shown whole as the context of any item whose `see` names
+  it, and a linked folder's collections are changed by `srl add` and
+  `srl edit`.
 
-**Possible fixes:** say in [store.md](store.md) whether links are
-followed. Either never follow links to folders (simplest, and what most
-tools that walk a tree do by default), or follow them but visit each
-folder once; and say whether a file a link points to outside the store
-is read.
+Linking a folder of notes kept elsewhere into a store is a reasonable
+thing to do, so the choice takes something away from someone.
+
+**Possible fixes**, each said in [store.md](store.md), "Which files are
+read", and tested:
+
+1. **Never follow links to folders**; a link to a file is read as the
+   file. The simplest rule, and what most tools that walk a tree do by
+   default: loops can't happen, but a linked folder of notes is no longer
+   read.
+2. **Follow links, visiting each real folder once.** Loops end and linked
+   folders keep working, but files outside the store are still read and
+   written, so the store is no longer one folder.
+3. **Follow only links that lead inside the store.** The safest, but it
+   resolves paths, which differs between platforms (junctions on Windows,
+   names compared without case on macOS and Windows), so it needs care
+   and probably a **TODO (platform)** note.
+
+### L11. A collection named as a Windows device can't exist on Windows
+
+**Severity Low · Difficulty Easy**
+
+Windows reserves the names `CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9`
+and `LPT1` to `LPT9` for devices, whatever their case and extension:
+`con.jsonl` and `notes/Aux.md` name devices, not files. The checks of a
+new collection's name ([cli.md](cli.md), `srl add`) refuse empty parts,
+`.`, `..` and hidden parts, but not these, so:
+
+- **`srl add con.jsonl` works on Linux and macOS, and fails on Windows**
+  with the system's error, against "`srl` behaves the same on Linux,
+  macOS and Windows".
+- **A store made elsewhere can't be used on Windows** when it holds such
+  a file: git and file syncing tools can't create it there, so the
+  store's collection, or a note `see` names, is missing.
+
+**Possible fixes:**
+
+1. **Refuse these names everywhere**, in every part of a new
+   collection's name, as hidden parts are refused, and say so in
+   [sources.md](sources.md), "Collections". Behaves the same on every
+   platform and keeps stores portable, at the cost of a rule almost no
+   one meets. Existing files with such names could be refused too, as an
+   error of their collection, or left alone.
+2. **Accept the difference**: a **TODO (platform)** note in
+   [formats.md](formats.md) saying such names fail on Windows, and a
+   comment above the code that checks names.
+
+### L12. A `[sources]` without sources makes a store that silently has no items
+
+**Severity Low · Difficulty Easy**
+
+`[sources]` replaces the default source rather than adding to it
+([sources.md](sources.md), "Configuration"), so an empty `[sources]`
+table, left behind while editing the configuration, gives a store with
+no source at all. Its collections are still on disk, but nothing says
+they are no longer read:
+
+- `srl find` and `srl collections` exit 1, as for an empty store;
+- `srl check` exits 0, reporting nothing;
+- only `srl add` says why: "the store has no source".
+
+**Possible fixes:**
+
+1. **Make an empty `[sources]` an error of the configuration**
+   ("`[sources]` names no source; remove it to use the default source").
+   One rule, and the mistake can't go unnoticed. A store that really
+   wants no items has no use for `srl`.
+2. **Treat an empty `[sources]` as no `[sources]`**, giving the default
+   source. Forgiving, but it is one more rule to explain, and a table
+   that means its absence is surprising.
+3. **Keep it, and have `srl check` warn** that the store has no source.
+   Leaves `srl find` as silent as now.
 
 ---
 
@@ -472,8 +544,8 @@ Worth keeping as they are:
    decide on per-device logs.
 3. **H2**: let commands that write the log record despite unrelated
    errors in any source.
-4. **M4**, **L2**, **L9**: small rule changes, best made
-   before more programs depend on current behaviour.
+4. **M4**, **L2**, **L9**, **L10**, **L11**, **L12**: small rule
+   changes, best made before more programs depend on current behaviour.
 5. **M3**: state kinds as the extension mechanism, and settle their
    contract, since every plugin builds on it.
 6. **H3**: per-machine config overlay and trust for kind programs.
