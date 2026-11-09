@@ -24,7 +24,7 @@ use crate::{CardId, Config, Error, History, Log, Memory, Result, Reviewed, Store
 
 /// The version of the tables below. Change it whenever they, or what they
 /// mean, change: a cache of another version is rebuilt.
-const SCHEMA_VERSION: i64 = 7;
+const SCHEMA_VERSION: i64 = 8;
 
 /// The tables. Their layout is not a contract (see `docs/store.md`).
 const SCHEMA: &str = "
