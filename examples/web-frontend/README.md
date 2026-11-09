@@ -68,8 +68,8 @@ macOS and Windows (it is tried on Linux only).
   selector, every card; the counters at the top are the
   cards reviewed today, the new ones among them, and the Again ratings,
   of every card whatever the selector, as `srl stats` counts them: read
-  when Study is shown, with each selector submitted and after each
-  review, so a reload keeps them and they include reviews recorded
+  when Study is shown and again after each review (see "What srl
+  answers"), so a reload keeps them and they include reviews recorded
   elsewhere. The
   page has one selector, the same in Study and Browse: submitting it in
   either changes it in both, as the other view finds when it is shown.
@@ -145,7 +145,9 @@ as how `ja_word` marks words, without studying:
   the card, not the card made from it. A card made stays made when
   another is chosen and when Browse is left and shown again, and a
   change to the store doesn't make it again; submitting the selector
-  forgets every card made, saving an item forgets its cards, and
+  shown again forgets every card made, as it finds the cards again,
+  while submitting another one keeps them, so a card made before shows
+  at once. Saving an item forgets its cards, and
   choosing another card or leaving Browse stops the one being made.
 - Keys: ↑/↓ (or `k`/`j`) choose a card. Turning it is done with the
   mouse only, so that space and Enter stay free for typing.

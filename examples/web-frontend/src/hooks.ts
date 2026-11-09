@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 
-// The page's selector, with the number of selectors submitted in any view,
-// so that submitting the same selector again counts as a new submission.
-// A new one is made only when either changes: by submitting, or by back or
-// forward coming to an address with another selector.
+// The page's selector, with the number of times a selector was submitted
+// again in any view, so that submitting the same selector again counts as a
+// new submission. A new one is made only when one of them changes, never
+// both at once: by submitting, or by back or forward coming to an address
+// with another selector.
 export type Submitted = { selector: string; n: number };
 
 // Calls LOAD with the selector when the view is shown, and with each new one

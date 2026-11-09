@@ -54,19 +54,26 @@ export default function App() {
   const { pathname, search } = useLocation();
 
   // The selector in the address, or else none, which is every card, with
-  // the number of selectors submitted, so that submitting the same one
-  // again finds its cards again.
+  // the number of times a selector was submitted again, so that submitting
+  // the same one again finds its cards again.
   const selector = selectorOfQuery(search);
   const [n, setN] = useState(0);
   const submitted = useMemo<Submitted>(() => ({ selector, n }), [selector, n]);
   // Submitting another selector goes to its address, a new entry of the
-  // browser's history; submitting the one there again stays on it.
+  // browser's history, which is a new submission by itself; submitting the
+  // one there again stays on it, and counts. Only one of the two changes,
+  // never both: the router changes the address a render after React
+  // changes N, so changing both would make a render with the old selector
+  // and the new N, which would read the old selector's cards again.
   const navigate = useNavigate();
   const onSelector = useCallback(
     (next: string) => {
       const search = queryOfSelector(next);
-      navigate({ pathname, search }, { replace: search === queryOfSelector(selector) });
-      setN((n) => n + 1);
+      if (search === queryOfSelector(selector)) {
+        setN((n) => n + 1);
+      } else {
+        navigate({ pathname, search });
+      }
     },
     [navigate, pathname, selector],
   );
