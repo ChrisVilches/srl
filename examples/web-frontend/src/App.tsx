@@ -1,4 +1,5 @@
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router';
 
@@ -9,6 +10,7 @@ import { CardBadges, CardFace, Counts, DANGER_BUTTON, ErrorView, Key, MAIN_BUTTO
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
+import { queries } from './queries';
 import { SelectorInput, TopBar } from './TopBar';
 
 // What App gives the view of its route: the page's selector, one for every
@@ -81,7 +83,10 @@ export function Study() {
   const { submitted, onSelector } = useView();
   const { selector } = submitted;
   const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: performance.now() }));
-  const [today, setToday] = useState<Today | null>(null);
+  // The counts are the study day's, from srl: they include reviews recorded
+  // elsewhere, a reload shows them as they were, and each review reads them
+  // again (src/main.tsx).
+  const today = useQuery(queries.today()).data ?? null;
   const [busy, setBusy] = useState(false);
 
   // Runs one step of the loop, showing any error from srl instead of the card.
@@ -119,17 +124,9 @@ export function Study() {
     }
   }, []);
 
-  // The counts are the study day's, from srl: they include reviews recorded
-  // elsewhere, and a reload shows them as they were.
-  const readToday = useCallback(async () => setToday(await api.today()), []);
+  const loadNext = useCallback((sel: string) => step(() => toNext(sel)), [step, toNext]);
 
-  const loadNext = useCallback(
-    (sel: string) => step(() => Promise.all([toNext(sel), readToday()])),
-    [step, toNext, readToday],
-  );
-
-  // Asks for a card, and reads the counts, when shown and with each selector
-  // submitted.
+  // Asks for a card when shown, and with each selector submitted.
   useSubmitted(submitted, loadNext);
 
   const reveal = useCallback(() => {
@@ -143,10 +140,10 @@ export function Study() {
       const { card } = phase;
       step(async () => {
         await api.review(card.id, rating);
-        await Promise.all([toNext(selector), readToday()]);
+        await toNext(selector);
       });
     },
-    [phase, selector, step, toNext, readToday],
+    [phase, selector, step, toNext],
   );
 
   // Suspending first asks why, in a dialog; the reason may be left empty.

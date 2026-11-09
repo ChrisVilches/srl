@@ -8,6 +8,7 @@ import { onStoreChange } from './api';
 import App, { Study } from './App';
 import { Browse } from './Browse';
 import './index.css';
+import { ONLY_WHEN_ASKED } from './queries';
 
 // The views, one route each, under App (see src/address.ts). Any other path
 // is Study.
@@ -24,13 +25,13 @@ const router = createBrowserRouter([
   },
 ]);
 
-// What the views read from srl, kept by what they asked for (Browse's
-// cards by selector, a card's history by its ID), so that a view shows the
-// answer for what its address says, never one that came late for
-// something asked before, and a view shown again shows at once what it
-// read last (README.md, "What srl answers"):
+// What the views read from srl (src/queries.ts), kept by what they asked
+// for, so that a view shows the answer for what its address says, never
+// one that came late for something asked before, and a view shown again
+// shows at once what it read last (README.md, "What srl answers"):
 // - Each change the page makes to the store (a review, a suspension, an
-//   item added or edited) makes everything read out of date: what is
+//   item added or edited) makes everything read out of date but what is
+//   read only when asked, such as a card made by its kind program: what is
 //   shown is read again at once, the rest when it is next shown.
 // - A change made elsewhere, as with srl or an editor, is seen once what
 //   was read is STALE_TIME old: when it is next shown, or when the window
@@ -44,7 +45,7 @@ const queryClient = new QueryClient({
     queries: { staleTime: STALE_TIME, gcTime: GC_TIME, retry: false, refetchOnReconnect: false },
   },
 });
-onStoreChange(() => queryClient.invalidateQueries());
+onStoreChange(() => queryClient.invalidateQueries({ predicate: (query) => !query.meta?.[ONLY_WHEN_ASKED] }));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,14 +1,15 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
-import { api, type FoundCard, type ShownCard } from './api';
+import { type FoundCard, type ShownCard } from './api';
 import { CardDetails, CardDetailsSkeleton } from './CardDetails';
 import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, Waiting, WITH_KEY } from './CardParts';
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
 import { useView } from './App';
-import { useKeys, useSettled, useSubmitted, type Submitted } from './hooks';
+import { useKeys, useSettled } from './hooks';
+import { queries } from './queries';
 import { SelectorInput, TopBar } from './TopBar';
 
 // The card browser: the cards of a selector as `srl find` lists them, and any
@@ -22,17 +23,8 @@ type List =
   | { kind: 'ready'; cards: FoundCard[] }
   | { kind: 'error'; message: string };
 
-// The cards found for a submission, as kept by TanStack Query (src/main.tsx).
-const findQuery = ({ selector, n }: Submitted) => ({
-  queryKey: ['find', selector, n],
-  queryFn: () => api.find(selector),
-});
-
-// A card being made, made (with how long it took), or that couldn't be.
-type Made =
-  | { kind: 'making'; since: number }
-  | { kind: 'ready'; card: ShownCard }
-  | { kind: 'error'; message: string };
+// A card being made, made, or that couldn't be.
+type Made = { kind: 'making' } | { kind: 'ready'; card: ShownCard } | { kind: 'error'; message: string };
 
 // How the chosen card is shown: as studying shows its prompt, as it shows it
 // once revealed (with the context), as srl cards --json prints it, its item
@@ -64,14 +56,13 @@ const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }
 export function Browse() {
   const { submitted, onSelector } = useView();
   const { selector } = submitted;
-  const [made, setMade] = useState<Record<string, Made>>({});
 
   // The cards of the selector submitted: of this submission, so that a
   // selector submitted again finds its cards anew. The list is always that
   // of the selector shown, never of one submitted before, whatever order
   // srl answers in; the cards found before are only kept as `before`. A
   // change to the store finds them again in place (src/main.tsx).
-  const found = useQuery({ ...findQuery(submitted), placeholderData: keepPreviousData });
+  const found = useQuery({ ...queries.find(submitted), placeholderData: keepPreviousData });
   const list: List =
     found.isSuccess && !found.isPlaceholderData
       ? { kind: 'ready', cards: found.data }
@@ -92,17 +83,34 @@ export function Browse() {
   const setSide = (s: Side) => {
     if (s !== side) navigate({ pathname: browsePath(selected, s), search });
   };
-  // The card being made, to stop when another is chosen or Browse is left.
-  const making = useRef<{ id: string; abort: AbortController } | null>(null);
-  useEffect(() => () => making.current?.abort.abort(), []);
-
-  // Each selector submitted forgets every card made, so that it makes its
-  // cards anew.
-  const forgetMade = useCallback(() => {
-    making.current?.abort.abort();
-    setMade({});
-  }, []);
-  useSubmitted(submitted, forgetMade);
+  // The chosen card, made with srl cards (queries.made): once, when first
+  // chosen, and again only when asked (Make again), when the selector is
+  // submitted again, or after its item is saved. It is made once it has
+  // stayed chosen for CHOICE_DELAY (settled), and only on a side that shows
+  // it (MADE_SIDES), so choosing a card on Edit or Details, or saving its
+  // item, makes nothing until another side is shown. Only a card of the list
+  // is made: one named by the address that isn't among the selector's cards
+  // is never asked for. Choosing another card, or leaving Browse, stops the
+  // one being made; a card made stays made while Browse is left.
+  const cards = list.kind === 'ready' ? list.cards : [];
+  const listed = cards.some((c) => c.id === selected);
+  const showsMade = MADE_SIDES.includes(side);
+  const settled = useSettled(selected, CHOICE_DELAY);
+  const making = useQuery({
+    ...queries.made(submitted.n, selected ?? ''),
+    enabled: showsMade && selected !== null && settled === selected && listed,
+  });
+  const made: Made | undefined =
+    selected === null
+      ? undefined
+      : making.isFetching
+        ? { kind: 'making' }
+        : making.isSuccess
+          ? { kind: 'ready', card: making.data }
+          : making.isError
+            ? { kind: 'error', message: making.error.message }
+            : undefined;
+  const makeAgain = () => making.refetch();
 
   // After the item ITEM was saved, the cards are found again in place, as
   // after any change: the list stays as it is until the new one replaces it,
@@ -111,54 +119,12 @@ export function Browse() {
   // the cards found again, the same finding, and throws srl's error, if any.
   const refresh = useCallback(
     async (item: string) => {
-      const ofItem = (id: string) => id === item || id.startsWith(`${item}.`);
-      if (making.current && ofItem(making.current.id)) making.current.abort.abort();
-      setMade((m) => Object.fromEntries(Object.entries(m).filter(([id]) => !ofItem(id))));
-      await queryClient.fetchQuery(findQuery(submitted));
+      const ofItem = (id: unknown) => id === item || String(id).startsWith(`${item}.`);
+      await queryClient.resetQueries({ queryKey: ['made', submitted.n], predicate: (query) => ofItem(query.queryKey[2]) });
+      await queryClient.fetchQuery(queries.find(submitted));
     },
     [submitted, queryClient],
   );
-
-  // Makes card ID with srl cards, stopping the card being made, if any.
-  // Each card is made once, when first chosen, and again only when asked.
-  const make = useCallback((id: string) => {
-    making.current?.abort.abort();
-    const abort = new AbortController();
-    making.current = { id, abort };
-    const since = performance.now();
-    setMade((m) => ({ ...m, [id]: { kind: 'making', since } }));
-    api.card(id, abort.signal).then(
-      (card) => setMade((m) => ({ ...m, [id]: { kind: 'ready', card } })),
-      (error: Error) => {
-        if (!abort.signal.aborted) {
-          setMade((m) => ({ ...m, [id]: { kind: 'error', message: error.message } }));
-        } else {
-          // Forgotten, unless the card is already being made again.
-          setMade(({ [id]: entry, ...rest }) =>
-            entry?.kind === 'making' && entry.since !== since ? { ...rest, [id]: entry } : rest,
-          );
-        }
-      },
-    ).finally(() => {
-      if (making.current?.abort === abort) making.current = null;
-    });
-  }, []);
-
-  // Choosing another card stops the one being made. The chosen card is made
-  // once it has stayed chosen for CHOICE_DELAY (settled). It is
-  // made only on a side that shows it (MADE_SIDES), so choosing a card on
-  // Edit or Details, or saving its item, makes nothing until another side is
-  // shown. Only a card of the list is made: one named by the address that
-  // isn't among the selector's cards is never asked for.
-  const cards = list.kind === 'ready' ? list.cards : [];
-  const listed = cards.some((c) => c.id === selected);
-  const showsMade = MADE_SIDES.includes(side);
-  const settled = useSettled(selected, CHOICE_DELAY);
-  useEffect(() => {
-    if (making.current && making.current.id !== selected) making.current.abort.abort();
-    if (!showsMade || selected === null || settled !== selected || !listed || made[selected] !== undefined) return;
-    make(selected);
-  }, [showsMade, selected, settled, listed, made, make]);
 
   // Keys: ↑/↓ (or k/j) choose a card, r makes it again once it has been made
   // (on a side that shows it).
@@ -168,8 +134,8 @@ export function Browse() {
     if (move !== undefined) {
       event.preventDefault();
       if (cards.length > 0) setSelected(cards[Math.max(0, Math.min(at + move, cards.length - 1))].id);
-    } else if (event.key === 'r' && showsMade && selected !== null && made[selected] !== undefined && made[selected].kind !== 'making') {
-      make(selected);
+    } else if (event.key === 'r' && showsMade && made !== undefined && made.kind !== 'making') {
+      makeAgain();
     }
   });
 
@@ -190,7 +156,7 @@ export function Browse() {
           )}
           {list.kind === 'ready' && cards.length === 0 && <p className="p-6 text-stone-400">No card matches.</p>}
           {list.kind === 'ready' && (
-            <CardList cards={cards} selected={selected} made={made} onChoose={setSelected} />
+            <CardList cards={cards} selected={selected} making={made?.kind === 'making' ? selected : null} onChoose={setSelected} />
           )}
         </div>
         <div className="overflow-y-auto px-4 py-6 [scrollbar-gutter:stable] sm:px-6">
@@ -204,11 +170,11 @@ export function Browse() {
               loading={selected !== null && list.kind === 'loading'}
               missing={selected !== null && list.kind === 'ready' && !listed ? selected : null}
               found={(list.kind === 'loading' ? list.before : cards).find((c) => c.id === selected) ?? null}
-              made={selected === null ? undefined : made[selected]}
+              made={made}
               settled={selected !== null && settled === selected}
               side={side}
               onSide={setSide}
-              onMake={() => selected !== null && make(selected)}
+              onMake={makeAgain}
               onSaved={refresh}
             />
           )}
@@ -258,12 +224,13 @@ function scrollToRow(row: HTMLButtonElement | null) {
 function CardList({
   cards,
   selected,
-  made,
+  making,
   onChoose,
 }: {
   cards: FoundCard[];
   selected: string | null;
-  made: Record<string, Made>;
+  // The card being made, if any.
+  making: string | null;
   onChoose: (id: string) => void;
 }) {
   return (
@@ -288,7 +255,7 @@ function CardList({
               <span className="font-mono text-stone-600 dark:text-stone-300">{card.id}</span>
               <KindBadge kind={card.kind} />
               <CardBadges status={card.status} schedule={card.schedule} leech={card.leech} />
-              {made[card.id]?.kind === 'making' && <span className="text-amber-600">making…</span>}
+              {card.id === making && <span className="text-amber-600">making…</span>}
             </div>
             <div className="mt-1 truncate text-sm">{card.excerpt}</div>
           </button>
@@ -395,7 +362,7 @@ function Preview({
       {/* Until the cards are found, the form waits for the card's item, as
           one skeleton from the page's opening to the form. */}
       {side === 'edit' && <EditItem id={found === null ? null : found.item} onSaved={onSaved} />}
-      {found !== null && showsMade && made?.kind === 'making' && <Making kind={found.kind} since={made.since} />}
+      {found !== null && showsMade && made?.kind === 'making' && <Making key={found.id} kind={found.kind} />}
       {showsMade && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
       {found !== null &&
         showsMade &&
@@ -420,9 +387,11 @@ function Preview({
   );
 }
 
-// A card being made, with how long it has taken so far: a kind program can
-// take a while. A card of a built-in kind gets no line under it.
-function Making({ kind, since }: { kind: string; since: number }) {
+// A card being made, with how long it has taken so far, from when this was
+// first shown: a kind program can take a while. A card of a built-in kind
+// gets no line under it.
+function Making({ kind }: { kind: string }) {
+  const [since] = useState(() => performance.now());
   return (
     <Waiting title="Making the card…" since={since}>
       {kind !== 'qa' && (

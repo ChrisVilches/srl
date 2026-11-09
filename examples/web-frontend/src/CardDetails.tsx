@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Fragment, type ReactNode } from 'react';
 
-import { api, type FoundCard, type LogEvent, type Rating } from './api';
+import { type FoundCard, type LogEvent, type Rating } from './api';
 import { Label, Loading, Skeleton } from './CardParts';
 import { Modal } from './Modal';
+import { queries } from './queries';
 
 // Everything srl says about a card, to trace it back to where it comes from
 // and what happened to it: its IDs and kind, its collection and source,
@@ -104,11 +105,7 @@ function None({ children }: { children: ReactNode }) {
 // card aren't shown while this one's are read; this card's, read before,
 // stay until the new ones come.
 function History({ card, read }: { card: FoundCard; read: boolean }) {
-  const log = useQuery({
-    queryKey: ['log', card.id],
-    queryFn: ({ signal }) => api.log(card.id, signal),
-    enabled: read,
-  });
+  const log = useQuery({ ...queries.log(card.id), enabled: read });
   const shown: { events: LogEvent[] } | { error: string } | null = log.isSuccess
     ? { events: log.data }
     : log.isError && !log.isFetching
@@ -216,15 +213,7 @@ export function CardDetailsSkeleton() {
 // opened and kept as other reads are (src/main.tsx). The modal is tall, so
 // it doesn't move as the card, then its history, come in.
 export function CardDetailsDialog({ id, open, onClose }: { id: string; open: boolean; onClose: () => void }) {
-  const found = useQuery({
-    queryKey: ['card', id],
-    queryFn: async () => {
-      const card = (await api.find(`id:${id}`)).find((c) => c.id === id);
-      if (!card) throw new Error(`srl find doesn't list the card ${id}.`);
-      return card;
-    },
-    enabled: open,
-  });
+  const found = useQuery({ ...queries.details(id), enabled: open });
   const shown: { card: FoundCard } | { error: string } | null = found.isSuccess
     ? { card: found.data }
     : found.isError && !found.isFetching

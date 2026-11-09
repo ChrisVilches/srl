@@ -142,9 +142,11 @@ as how `ja_word` marks words, without studying:
   (`r`) runs its kind program again once the card has been made, on
   Prompt, Revealed and
   JSON only, since Edit shows the item and Details what srl says about
-  the card, not the card made from it; submitting the selector, or
-  leaving Browse, forgets every card made, and leaving stops the one
-  being made.
+  the card, not the card made from it. A card made stays made when
+  another is chosen and when Browse is left and shown again, and a
+  change to the store doesn't make it again; submitting the selector
+  forgets every card made, saving an item forgets its cards, and
+  choosing another card or leaving Browse stops the one being made.
 - Keys: ↑/↓ (or `k`/`j`) choose a card. Turning it is done with the
   mouse only, so that space and Enter stay free for typing.
 - The chosen card and side are kept in the address, as
@@ -388,13 +390,13 @@ it, so it is done the way React Router means it to be, even where that
 costs something. The router is a data router (`createBrowserRouter` in
 `src/main.tsx`). Each view is a route, and only the route shown is
 mounted: leaving a view unmounts it, and coming back starts it anew, so
-Study asks `srl next` again, and Browse makes its cards again. That is
-accepted. Don't keep views mounted while hidden, keep their state outside
-them so that it survives, or work out from the address by hand what the
-router can give, such as a view's own part of the path (use
-`useParams()`, as Browse does for its card and side). The one exception
-is what the views read from srl, kept by TanStack Query (below): Browse's
-cards and Add's lists show at once when the view comes back.
+Study asks `srl next` again. That is accepted. Don't keep views mounted
+while hidden, keep their state outside them so that it survives, or work
+out from the address by hand what the router can give, such as a view's
+own part of the path (use `useParams()`, as Browse does for its card and
+side). The one exception is what the views read from srl, kept by
+TanStack Query (below): Browse's cards, the cards it made and Add's lists
+show at once when the view comes back.
 
 What leaving a view would lose that can't be made again, text typed and
 not yet saved, is guarded with `UnsavedGuard` (`src/Modal.tsx`, with the
@@ -409,10 +411,14 @@ the user typed uses it too.
 What a view shows from srl must be the answer for what its address asks
 now, whatever order srl's answers come in. So what the views read is read
 with TanStack Query's `useQuery`, kept by what was asked: Browse's cards
-by the selector submitted, Add's kinds, collections, notes and sources,
-and a card's details and history by its ID. A list that comes late for a
-selector submitted before never replaces the one asked for. Read what a
-view shows the same way, rather than setting it from a request's answer
+by the selector submitted and the cards it made by their ID, Add's kinds,
+collections, notes and sources, a card's details and history and an
+item to edit by their ID, Study's counts, and the `--on-change`
+program's status. A list that comes late for a selector submitted before
+never replaces the one asked for. Every read is in `src/queries.ts`, its
+key, what it asks and how, so that two views asking the same thing share
+it (Add and Edit share the kinds). Read what a view shows the same way,
+`useQuery(queries.X(…))`, rather than setting it from a request's answer
 with `useState`, which shows whichever answer comes last.
 
 What was read is kept, so a view shown again shows it at once, and is
@@ -421,19 +427,31 @@ read again when it may have changed (the client in `src/main.tsx`):
 - Each change the page makes to the store (a review, a suspension, an
   item added or edited) makes everything read out of date. What is shown
   is read again at once, in place: Browse's list after an item is edited,
-  Add's collections after an item made a new one. The rest is read again
-  when it is next shown.
+  Add's collections after an item made a new one, Study's counts after a
+  review, the `--on-change` program's status, which is then read every
+  second while the program is busy. The rest is read again when it is
+  next shown. This is done in one place, for every change: a request that
+  changes the store goes through `change()` in `src/api.ts`, never
+  `call()`, and nothing else is needed.
+- A card made by its kind program is the exception (`ONLY_WHEN_ASKED` in
+  `src/queries.ts`): a program may take long or cost something, as an
+  LLM does, so it is made again only when asked, never because the store
+  changed.
 - A change made elsewhere, with `srl` or an editor, is seen once what was
   read is 30 seconds old: when its view is next shown, or when the
   window gets the focus again, as when coming back from the editor.
 - What no view has shown for 10 minutes is forgotten, and an error, which
   is srl's and the same when asked again, isn't retried.
 
-Not read this way: `srl next` and the day's counts, which Study asks for
-each time, a card made with its kind program (Browse keeps those itself,
-and makes them again only when asked), and the item that Edit's form
-starts from, read once so that reading it again never changes what is
-being typed.
+Edit's form shows the item as read until it is edited, and from then on
+the edits, kept apart from it, so that reading the item again never
+changes what is being typed.
+
+Not read this way: `srl next`. It isn't something to show again but the
+next step of studying, which each review moves on: reading it again on
+its own, when the window gets the focus or the store changes, would
+replace the card being answered. Study asks for it once per card, and
+stops a request no longer wanted.
 
 ### Where the page is: the address, through the router
 

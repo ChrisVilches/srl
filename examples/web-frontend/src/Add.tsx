@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'r
 import { api, fieldLabel, type KindDescription, type NewItem, type SourceDescription } from './api';
 import { DraftCheckbox, ErrorView, Key, KindBadge, Label, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
 import { Modal, ResultBox, UnsavedGuard } from './Modal';
+import { queries } from './queries';
 import { TopBar } from './TopBar';
 
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
@@ -48,28 +49,29 @@ function rememberCollection(collection: string) {
   }
 }
 
-// What the form offers, as srl lists it: read anew after each change to the
-// store, as when an item added makes a new collection (src/main.tsx).
-const addQuery = {
-  queryKey: ['add'],
-  queryFn: async () => {
-    const [kinds, collections, notes, sources] = await Promise.all([
-      api.kinds(),
-      api.collections(),
-      api.notes(),
-      api.sources(),
-    ]);
-    return { kinds, collections, notes, sources };
-  },
-};
-
 export function Add() {
-  const read = useQuery(addQuery);
-  const store: Store = read.isSuccess
-    ? { kind: 'ready', ...read.data }
-    : read.isError && !read.isFetching
-      ? { kind: 'error', message: read.error.message }
-      : { kind: 'loading' };
+  // What the form offers, as srl lists it: read anew after each change to
+  // the store, as when an item added makes a new collection (src/main.tsx).
+  // The form waits for all of it; the first error is shown.
+  const kindsRead = useQuery(queries.kinds());
+  const collectionsRead = useQuery(queries.collections());
+  const notesRead = useQuery(queries.notes());
+  const sourcesRead = useQuery(queries.sources());
+  const reads = [kindsRead, collectionsRead, notesRead, sourcesRead];
+  const failed = reads.find((read) => read.isError && !read.isFetching);
+  const store: Store =
+    kindsRead.isSuccess && collectionsRead.isSuccess && notesRead.isSuccess && sourcesRead.isSuccess
+      ? {
+          kind: 'ready',
+          kinds: kindsRead.data,
+          collections: collectionsRead.data,
+          notes: notesRead.data,
+          sources: sourcesRead.data,
+        }
+      : failed?.error
+        ? { kind: 'error', message: failed.error.message }
+        : { kind: 'loading' };
+  const retry = () => reads.filter((read) => read.isError).forEach((read) => read.refetch());
   const [kindName, setKindName] = useState('qa');
   // Field texts by name, kept when the kind changes, so that a field of the
   // same name keeps its text.
@@ -150,7 +152,7 @@ export function Add() {
       <UnsavedGuard unsaved={unsaved} what="The item being written isn't added yet, and leaving Add loses it." />
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
         {store.kind === 'loading' && <FormSkeleton />}
-        {store.kind === 'error' && <ErrorView message={store.message} onRetry={() => read.refetch()} />}
+        {store.kind === 'error' && <ErrorView message={store.message} onRetry={retry} />}
         {store.kind === 'ready' && kind !== undefined && (
           <div className="flex flex-col gap-6" onKeyDown={onKeyDown}>
             <Section label="Kind">

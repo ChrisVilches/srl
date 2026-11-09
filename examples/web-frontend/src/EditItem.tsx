@@ -1,20 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
-import { api, fieldLabel, type KindDescription } from './api';
+import { api, fieldLabel } from './api';
 import { DraftCheckbox, ErrorView, Label, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
 import { Modal, ResultBox, UnsavedGuard } from './Modal';
+import { queries } from './queries';
 
 // Editing an item of any source: its fields and whether it is a draft, as
 // srl show --json gives them, written back whole with srl edit --stdin. The
 // page knows no source: srl finds the item by its ID and its source writes
 // it, so an item kept in a database is edited as one kept in a file.
 
-// What was read, with the ID of the item it was read for, so that the form
-// never shows an item read for another ID.
-type Loaded =
-  | { kind: 'loading' }
-  | { kind: 'ready'; id: string; item: Record<string, unknown> }
-  | { kind: 'error'; id: string; message: string };
+// The form's fields and Draft as edited, with the ID of the item they are
+// edits of, so that they are never shown for another item.
+type Edits = { id: string; texts: Record<string, string>; draft: boolean };
 
 // What became of the last save: shown in a modal until it is closed. Save
 // and Reset wait until then, so they stay dimmed under it.
@@ -34,66 +33,58 @@ const isField = (key: string) => /^[A-Z][A-Z0-9_]*$/.test(key);
 //
 // While ID is null, the item isn't known yet, as while Browse finds the
 // cards: the form waits, and reads the item once given its ID. The skeleton
-// stays the same one throughout, so that its pulse doesn't start over. Only
-// the item read for the ID given is shown: a read for an earlier ID that
-// ends later is dropped.
+// stays the same one throughout, so that its pulse doesn't start over.
+//
+// The item is read as other reads are (src/queries.ts), so it is read again
+// after a change to the store; the form shows it until it is edited, and
+// from then on the edits, which a new read never changes.
 export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: string) => Promise<void> }) {
-  const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
-  const [texts, setTexts] = useState<Record<string, string>>({});
-  const [draft, setDraft] = useState(false);
-  const [saving, setSaving] = useState<Saving>({ kind: 'idle' });
+  const queryClient = useQueryClient();
+  const read = useQuery({ ...queries.item(id ?? ''), enabled: id !== null });
   // What each field of the item's kind is shown as (see fieldLabel). A field
   // not among them, or any field if srl couldn't describe the kinds, is shown
   // by its name: labels only inform, so they never stop the form.
-  const [labels, setLabels] = useState<Record<string, string>>({});
+  const kinds = useQuery(queries.kinds());
+  const [edits, setEdits] = useState<Edits | null>(null);
+  const [saving, setSaving] = useState<Saving>({ kind: 'idle' });
 
-  // Shows the fields of ITEM, as srl has it.
-  const fill = (item: Record<string, unknown>) => {
-    setTexts(Object.fromEntries(Object.entries(item).filter(([key]) => isField(key)).map(([key, value]) => [key, String(value)])));
-    setDraft(item.draft === true);
-  };
+  if (id === null || kinds.isPending || (read.data === undefined && !(read.isError && !read.isFetching))) {
+    return <ItemSkeleton />;
+  }
+  if (read.data === undefined) {
+    return <ErrorView message={read.error?.message ?? ''} onRetry={() => read.refetch()} />;
+  }
+  const item = read.data;
+  const fields = kinds.data?.find((k) => k.name === item.kind)?.fields ?? [];
+  const labels = Object.fromEntries(fields.map((field) => [field.name, fieldLabel(field)]));
 
-  // Counts the calls of load, so that a read is dropped once load has been
-  // called again, for another ID or none.
-  const reads = useRef(0);
-
-  const load = () => {
-    const read = ++reads.current;
-    if (id === null) return;
-    setLoaded({ kind: 'loading' });
-    setSaving({ kind: 'idle' });
-    Promise.all([api.item(id), api.kinds().catch((): KindDescription[] => [])]).then(
-      ([item, kinds]) => {
-        if (read !== reads.current) return;
-        const fields = kinds.find((k) => k.name === item.kind)?.fields ?? [];
-        setLabels(Object.fromEntries(fields.map((field) => [field.name, fieldLabel(field)])));
-        setLoaded({ kind: 'ready', id, item });
-        fill(item);
-      },
-      (error: Error) => {
-        if (read === reads.current) setLoaded({ kind: 'error', id, message: error.message });
-      },
-    );
-  };
-  useEffect(load, [id]);
-
-  if (id === null || loaded.kind === 'loading' || loaded.id !== id) return <ItemSkeleton />;
-  if (loaded.kind === 'error') return <ErrorView message={loaded.message} onRetry={load} />;
+  // The fields and Draft shown: as edited, or else as srl has them.
+  const { texts, draft } =
+    edits?.id === id
+      ? edits
+      : {
+          texts: Object.fromEntries(
+            Object.entries(item).filter(([key]) => isField(key)).map(([key, value]) => [key, String(value)]),
+          ),
+          draft: item.draft === true,
+        };
+  const edit = (change: Partial<Omit<Edits, 'id'>>) => setEdits({ id, texts, draft, ...change });
 
   // A field or Draft differs from the item as srl has it: leaving would lose
   // the edits.
   const unsaved =
-    Object.entries(texts).some(([key, text]) => text !== String(loaded.item[key])) ||
-    draft !== (loaded.item.draft === true);
+    Object.entries(texts).some(([key, text]) => text !== String(item[key])) || draft !== (item.draft === true);
 
   const save = () => {
     // The whole item: its entries as read, the fields as edited. The keys
     // only srl gives are ignored by srl edit.
-    const item = { ...loaded.item, ...texts, draft };
+    const saved = { ...item, ...texts, draft };
     setSaving({ kind: 'busy' });
-    api.edit(item).then(
+    api.edit(saved).then(
       () => {
-        setLoaded({ kind: 'ready', id, item });
+        // srl has it as saved, until it is read again: the form shows it.
+        queryClient.setQueryData(queries.item(id).queryKey, saved);
+        setEdits(null);
         return onSaved(id).then(
           () => setSaving({ kind: 'saved' }),
           (error: Error) =>
@@ -108,21 +99,21 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
     <div className="flex flex-col gap-4">
       <UnsavedGuard unsaved={unsaved} what="The edits to this item aren't saved, and leaving its Edit side loses them." />
       <p className="text-sm text-stone-500">
-        Item <span className="font-mono">{String(loaded.item.id)}</span> of <span className="font-mono">{String(loaded.item.collection)}</span>{' '}
-        (source {String(loaded.item.source)}).
+        Item <span className="font-mono">{String(item.id)}</span> of <span className="font-mono">{String(item.collection)}</span>{' '}
+        (source {String(item.source)}).
       </p>
       {Object.entries(texts).map(([key, text]) => (
         <label key={key} className="flex flex-col gap-1">
           <Label>{labels[key] ?? key}</Label>
           <textarea
             value={text}
-            onChange={(event) => setTexts((t) => ({ ...t, [key]: event.target.value }))}
+            onChange={(event) => edit({ texts: { ...texts, [key]: event.target.value } })}
             rows={Math.min(12, Math.max(2, text.split('\n').length + 1))}
             className="rounded-lg border border-stone-300 bg-white p-2 font-mono text-sm dark:border-stone-700 dark:bg-stone-900"
           />
         </label>
       ))}
-      <DraftCheckbox checked={draft} onChange={setDraft} />
+      <DraftCheckbox checked={draft} onChange={(checked) => edit({ draft: checked })} />
       <Modal
         open={saving.kind === 'saved' || saving.kind === 'failed'}
         title={saving.kind === 'failed' ? saving.title : 'Saved'}
@@ -130,7 +121,7 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
       >
         {saving.kind === 'saved' && (
           <ResultBox tone="ok" mono>
-            {String(loaded.item.id)}
+            {String(item.id)}
           </ResultBox>
         )}
         {saving.kind === 'failed' && <ResultBox tone="error">{saving.message}</ResultBox>}
@@ -141,7 +132,7 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
         </button>
         <button
           onClick={() => {
-            fill(loaded.item);
+            setEdits(null);
             setSaving({ kind: 'idle' });
           }}
           disabled={saving.kind !== 'idle'}
