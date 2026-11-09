@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -187,7 +187,7 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Record a review, from JSON on standard input or for cards by ID.
+    /// Record a rating for a card.
     Review(ReviewArgs),
     /// Make matching cards new again.
     Reset {
@@ -227,26 +227,13 @@ pub(crate) struct AddArgs {
 
 #[derive(Debug, Args)]
 pub(crate) struct ReviewArgs {
-    /// Read `{"card": "ID", "rating": N, "response": "…", "by": "human"}` from standard input.
-    #[arg(long, conflicts_with_all = ["ids", "rating"])]
-    pub(crate) stdin: bool,
-    /// Cards to give the rating.
-    #[arg(required_unless_present = "stdin", requires = "rating")]
-    pub(crate) ids: Vec<String>,
+    /// The card to give the rating.
+    pub(crate) id: String,
     /// The rating: 1 Again, 2 Hard, 3 Good, 4 Easy.
-    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=4))]
-    pub(crate) rating: Option<u8>,
-    /// Who recorded the review.
-    #[arg(long, value_enum, default_value_t = By::Human, conflicts_with = "stdin")]
-    pub(crate) by: By,
+    #[arg(long, required = true, value_parser = clap::value_parser!(u8).range(1..=4))]
+    pub(crate) rating: u8,
     #[command(flatten)]
     pub(crate) dry_run: DryRun,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum By {
-    Human,
-    Agent,
 }
 
 #[cfg(test)]
@@ -290,9 +277,12 @@ mod tests {
     }
 
     #[test]
-    fn review_needs_ids_or_stdin() {
+    fn review_takes_one_card_and_its_rating() {
         assert!(parse(&["review"]).is_err());
-        assert!(parse(&["review", "--stdin"]).is_ok());
+        assert!(parse(&["review", "a7f3k2"]).is_err());
+        assert!(parse(&["review", "a7f3k2", "b8g4l3", "--rating", "3"]).is_err());
+        assert!(parse(&["review", "--stdin"]).is_err());
+        assert!(parse(&["review", "a7f3k2", "--rating", "3", "--by", "agent"]).is_err());
     }
 
     #[test]

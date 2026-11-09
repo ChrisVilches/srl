@@ -326,7 +326,7 @@ mod tests {
 
     use super::*;
     use crate::app::catalog::read_items;
-    use crate::{By, Config, Entry, Event, Log, Review};
+    use crate::{Config, Entry, Event, Log, Review};
 
     /// The collections of the tests, with their items.
     fn items() -> Vec<Item> {
@@ -375,8 +375,6 @@ mod tests {
                     t: "2026-01-01T12:00:00+00:00".to_owned(),
                     card: CardId::parse("aaa1").unwrap(),
                     rating: 1,
-                    response: None,
-                    by: By::Human,
                     hash: String::new(),
                 }),
                 day,

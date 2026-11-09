@@ -138,8 +138,7 @@ impl Store {
 
     /// Records a review as a frontend does.
     fn review(&self, now: &str, card: &str, rating: u8) {
-        let request = serde_json::json!({"card": card, "rating": rating});
-        self.expect(0, now, &["review", "--stdin"], &request.to_string());
+        self.ok(now, &["review", card, "--rating", &rating.to_string()]);
     }
 
     /// Studies until `srl next` has nothing left, giving every card

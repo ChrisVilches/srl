@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use serde::Serialize;
 use serde_json::Value;
 use srl_core::{
-    By, Card, CardId, CollectionInfo, Event, Item, KindDescription, SourceDescription, Stats,
-    Warning, Written,
+    Card, CardId, CollectionInfo, Event, Item, KindDescription, SourceDescription, Stats, Warning,
+    Written,
 };
 
 /// A line on standard output, as `println!` writes it, but ending `srl`
@@ -166,13 +166,7 @@ pub(crate) fn cards(cards: &[Card]) {
 pub(crate) fn events(events: &[&Event]) {
     for event in events {
         let what = match event {
-            Event::Review(review) => {
-                let by = match review.by {
-                    By::Human => "human",
-                    By::Agent => "agent",
-                };
-                format!("review  {}  {by}", review.rating)
-            }
+            Event::Review(review) => format!("review  {}", review.rating),
             Event::Reset(_) => "reset".to_owned(),
             Event::Suspend(suspended) => match &suspended.reason {
                 Some(reason) => format!("suspend  {}", reason.lines().next().unwrap_or("")),

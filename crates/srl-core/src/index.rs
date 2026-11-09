@@ -829,7 +829,7 @@ mod tests {
     fn review(t: &str, card: &str, rating: u8) -> String {
         format!(
             "{{\"type\":\"review\",\"t\":\"{t}\",\"card\":\"{card}\",\"rating\":{rating},\
-             \"response\":null,\"by\":\"human\",\"hash\":\"000000000000\"}}\n"
+             \"hash\":\"000000000000\"}}\n"
         )
     }
 

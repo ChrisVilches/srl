@@ -120,7 +120,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{By, Entry, Event, Index, Log, Lookup, Review, Store};
+    use crate::{Entry, Event, Index, Log, Lookup, Review, Store};
 
     const DAY: Date = Date::constant(2026, 10, 26);
 
@@ -146,8 +146,6 @@ mod tests {
                 t: format!("{day}T12:00:00+00:00"),
                 card: CardId::parse(id).unwrap(),
                 rating,
-                response: None,
-                by: By::Human,
                 hash: String::new(),
             }),
             day,

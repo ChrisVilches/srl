@@ -35,12 +35,10 @@ Every frontend runs the same loop, around the contract:
    context, each if it is not `null`. The note the context comes from is
    `see`; a frontend may name it.
 4. **Get a rating** from 1 to 4.
-5. **Record it:** the card ID and the rating to `srl review --stdin` (see
-   [cli.md](cli.md), "Studying").
+5. **Record it:** `srl review ID --rating N`, with the card's ID and the
+   rating (see [cli.md](cli.md), "Studying").
 
-The person rates every card; nothing is judged automatically. A frontend may
-also collect an answer before step 3 and pass it as `response`, which is
-only kept in the log.
+The person rates every card; nothing is judged automatically.
 
 A frontend may name the card's `kind` at any step, so that the person
 knows where the card came from, such as a kind whose program draws a new

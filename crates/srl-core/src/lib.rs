@@ -22,7 +22,7 @@ pub use app::catalog::{
 };
 pub use app::check::{Warning, orphans, warnings};
 pub use app::next::next;
-pub use app::review::{ReviewRequest, move_history, reset, review, suspend, unsuspend};
+pub use app::review::{move_history, reset, review, suspend, unsuspend};
 pub use app::write::{Added, Written, accept, add, assign_ids, edit};
 pub use config::Config;
 pub use domain::card::{Card, CardId, SUFFIX_SEPARATOR};
@@ -33,7 +33,7 @@ pub use domain::stats::{ScheduleCounts, Stats, stats};
 pub use error::{Error, Result, Spot};
 pub use index::Index;
 pub use kind::{FieldDescription, Kind, KindDescription, kinds};
-pub use log::{By, CardEvent, Entry, Event, Log, Move, Review, Suspend};
+pub use log::{CardEvent, Entry, Event, Log, Move, Review, Suspend};
 #[cfg(unix)]
 pub use process::stop_programs;
 pub use store::{Lookup, Store};

@@ -123,7 +123,7 @@ mod tests {
 
     use super::*;
     use crate::app::catalog::read_items;
-    use crate::{By, Config, Entry, Event, History, Log, Review};
+    use crate::{Config, Entry, Event, History, Log, Review};
 
     fn reviewed(id: &str, day: Date, rating: u8) -> Entry {
         Entry {
@@ -131,8 +131,6 @@ mod tests {
                 t: format!("{day}T12:00:00+00:00"),
                 card: CardId::parse(id).unwrap(),
                 rating,
-                response: None,
-                by: By::Human,
                 hash: String::new(),
             }),
             day,

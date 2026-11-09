@@ -12,7 +12,7 @@ where to find fuller ones to copy.
 while card=$(srl next --json -- "$1"); do
   jq -r .prompt <<<"$card"; read -r _
   jq -r '.prompt_revealed // .prompt, .answer // empty, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
-  jq -n --argjson card "$card" --argjson rating "$r" '{card: $card.id, rating: $rating}' | srl review --stdin
+  srl review "$(jq -r .id <<<"$card")" --rating "$r"
 done
 ```
 

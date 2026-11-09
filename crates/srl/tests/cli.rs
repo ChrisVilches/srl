@@ -908,9 +908,10 @@ fn next_card(d: &str, extra: &[&str]) -> serde_json::Value {
     json_lines(&output).remove(0)
 }
 
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
 fn record(d: &str, card: &serde_json::Value, rating: u8) {
-    let request = serde_json::json!({"card": card["id"], "rating": rating});
-    let output = srl_with_input(&["review", "--stdin", "--dir", d], &request.to_string());
+    let id = card["id"].as_str().unwrap();
+    let output = srl(&["review", id, "--rating", &rating.to_string(), "--dir", d]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
 }
 
@@ -935,11 +936,11 @@ fn the_study_loop_records_reviews_and_holds_back_siblings() {
     assert_eq!(log.len(), 3);
     assert_eq!(log[1]["card"], "k3m9q1.1");
     assert_eq!(log[1]["hash"].as_str().unwrap().len(), 12);
-    let human = srl(&["log", "id:k3m9q1", "--dir", d]);
+    let text = srl(&["log", "id:k3m9q1", "--dir", d]);
     assert!(
-        stdout(&human).contains("  k3m9q1.1  review  1  human"),
+        stdout(&text).ends_with("  k3m9q1.1  review  1\n"),
         "{}",
-        stdout(&human)
+        stdout(&text)
     );
 }
 
@@ -979,7 +980,7 @@ fn the_new_card_limit_holds_back_new_cards() {
 }
 
 #[test]
-fn reviews_by_id_need_cards_and_dry_runs_write_nothing() {
+fn reviews_need_cards_and_dry_runs_write_nothing() {
     let tmp = japanese();
     let d = dir(&tmp);
     let item_only = srl(&["review", "k3m9q1", "--rating", "3", "--dir", d]);
@@ -992,19 +993,17 @@ fn reviews_by_id_need_cards_and_dry_runs_write_nothing() {
     let dry = srl(&[
         "review",
         "k3m9q1.1",
-        "tuna01",
         "--rating",
         "2",
-        "--by",
-        "agent",
         "--dry-run",
         "--dir",
         d,
     ]);
     assert_eq!(dry.status.code(), Some(0), "{}", stderr(&dry));
     let events = json_lines(&dry);
-    assert_eq!(events.len(), 2);
-    assert_eq!(events[0]["by"], "agent");
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["card"], "k3m9q1.1");
+    assert_eq!(events[0]["rating"], 2);
     assert_eq!(srl(&["log", "--dir", d]).status.code(), Some(1));
 }
 
@@ -1012,14 +1011,14 @@ fn reviews_by_id_need_cards_and_dry_runs_write_nothing() {
 fn bad_reviews_record_nothing() {
     let tmp = japanese();
     let d = dir(&tmp);
-    for input in [
-        "{\"card\": \"x7k2m9\", \"rating\": 5}",
-        "{\"card\": \"zzz999\", \"rating\": 3}",
-        "{\"card\": \"x7k2m9\", \"rating\": 3, \"extra\": 1}",
-        "not json",
+    for args in [
+        &["review", "x7k2m9", "--rating", "5"][..],
+        &["review", "zzz999", "--rating", "3"],
+        &["review", "x7k2m9"],
+        &["review", "x7k2m9", "tuna01", "--rating", "3"],
     ] {
-        let output = srl_with_input(&["review", "--stdin", "--dir", d], input);
-        assert_eq!(output.status.code(), Some(2), "{input}");
+        let output = srl(&[args, &["--dir", d]].concat());
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
     }
     assert_eq!(srl(&["log", "--dir", d]).status.code(), Some(1));
 }
@@ -1102,10 +1101,10 @@ fn orphans_are_reported_and_their_history_moves() {
 fn a_move_is_suggested_only_for_an_item_with_one_orphan() {
     let tmp = japanese();
     let d = dir(&tmp);
-    let reviewed = srl(&[
-        "review", "k3m9q1.1", "k3m9q1.2", "--rating", "3", "--dir", d,
-    ]);
-    assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
+    for card in ["k3m9q1.1", "k3m9q1.2"] {
+        let reviewed = srl(&["review", card, "--rating", "3", "--dir", d]);
+        assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
+    }
     // Both clozes become c3: two orphans, and one new card k3m9q1.3.
     let text = read(&tmp, "japanese/grammar/wo.jsonl")
         .replace("{{c1::", "{{c3::")

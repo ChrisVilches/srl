@@ -228,7 +228,7 @@ it as `is:leech`.
 ## What scheduling ignores
 
 - Item content and edits.
-- Who recorded the review, and its `response`.
 
-Both are recorded in the log, so they can be analyzed later without having
-changed any scheduling.
+The item's question is recorded in the log, as the `hash` of each review
+(see [log.md](log.md), "`review`"), so edits can be analyzed later without
+having changed any scheduling.

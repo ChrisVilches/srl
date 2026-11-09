@@ -50,9 +50,6 @@ pub struct Review {
     pub card: CardId,
     /// 1–4, as given.
     pub rating: u8,
-    /// What was answered, if the review was recorded with it.
-    pub response: Option<String>,
-    pub by: By,
     /// The start of the SHA-256 of the item's text at review time, in hex.
     pub hash: String,
 }
@@ -84,14 +81,6 @@ pub struct Move {
     pub t: String,
     pub from: CardId,
     pub to: CardId,
-}
-
-/// Who recorded a review.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum By {
-    Human,
-    Agent,
 }
 
 impl Event {
@@ -354,8 +343,6 @@ mod tests {
             t: t.to_owned(),
             card: card("k3m9q1.2"),
             rating,
-            response: Some("ものともせず".to_owned()),
-            by: By::Agent,
             hash: "3fa91c0d22be".to_owned(),
         })
     }
@@ -366,8 +353,7 @@ mod tests {
         assert_eq!(
             line,
             serde_json::json!({"type": "review", "t": "2026-10-26T09:12:31+09:00",
-                "card": "k3m9q1.2", "rating": 3, "response": "ものともせず", "by": "agent",
-                "hash": "3fa91c0d22be"})
+                "card": "k3m9q1.2", "rating": 3, "hash": "3fa91c0d22be"})
         );
         let moved = Event::Move(Move {
             t: "2026-10-26T10:05:00+09:00".to_owned(),
@@ -461,9 +447,9 @@ mod tests {
             "not json".to_owned(),
             good.replace("\"rating\":3", "\"rating\":5"),
             good.replace("+09:00", ""),
-            good.replace("\"by\":\"agent\"", "\"by\":\"robot\""),
             good.replace("\"hash\"", "\"extra\":1,\"hash\""),
-            good.replace("\"ものともせず\"", "[\"ものともせず\"]"),
+            good.replace("\"hash\"", "\"by\":\"human\",\"hash\""),
+            good.replace("\"hash\"", "\"response\":null,\"hash\""),
             good.replace("k3m9q1.2", "K3M9Q1"),
             good.replace("\"review\"", "\"rename\""),
         ];

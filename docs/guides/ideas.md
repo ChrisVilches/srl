@@ -17,8 +17,8 @@ Ideas that would change `srl` itself are in [ideas.md](../ideas.md).
 - **Error classification.** On a wrong answer, an LLM labels the error and a
   fixed rule decides what to do: a slip needs nothing, confusion with another
   item adds an item that contrasts the two, a missing prerequisite points to
-  the item that should be studied first. Needs the answer you gave, kept as
-  the review's `response`.
+  the item that should be studied first. Needs the answer you gave, which
+  the log doesn't keep, so the program keeps its own record.
 - **Synthesis questions.** One question that needs two or three due items from
   different topics, written as a draft item of its own.
 - **Contextual questions.** Questions set in your own projects and interests,
@@ -68,8 +68,7 @@ Each part of `srl` already allows this:
   card it got; it never asks for it again.
 - **Reviews record only the card ID** (and `hash`, of the item's kind and fields), so
   a card that changes doesn't affect the log. What was actually asked is
-  not in the log. A frontend that wants it can pass it in `response`, or
-  the program can keep its own record.
+  not in the log. A program that wants it keeps its own record.
 - **A failing API stops studying:** `srl next` fails with the reason,
   every time, until the API works again or you suspend the card. A slow
   one is stopped after `card_timeout`, and fails too.

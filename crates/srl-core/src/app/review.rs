@@ -2,42 +2,12 @@
 //! `docs/scheduling.md`).
 
 use jiff::Zoned;
-use serde::Deserialize;
 
 use crate::log;
 use crate::{
-    By, CardEvent, CardId, Catalog, Error, Event, Item, Memories, Move, Place, Result, Review,
-    Store, Suspend,
+    CardEvent, CardId, Catalog, Error, Event, Item, Memories, Move, Place, Result, Review, Store,
+    Suspend,
 };
-
-/// What `srl review --stdin` reads: a card ID, its rating, and optionally
-/// the response and who recorded the review.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ReviewRequest {
-    pub card: CardId,
-    pub rating: u8,
-    #[serde(default)]
-    pub response: Option<String>,
-    #[serde(default = "human")]
-    pub by: By,
-}
-
-fn human() -> By {
-    By::Human
-}
-
-impl ReviewRequest {
-    /// Reads `{"card": "k3m9q1.2", "rating": N, "response": "…", "by": "human"}`.
-    /// `response` and `by` may be left out; `by` is then `human`.
-    pub fn parse(text: &str) -> Result<Self> {
-        let request = serde_json::from_str::<Self>(text).map_err(|error| Error::InvalidReview {
-            reason: format!("it is not a review ({error})"),
-        })?;
-        check_rating(request.rating)?;
-        Ok(request)
-    }
-}
 
 fn check_rating(rating: u8) -> Result<()> {
     if (1..=4).contains(&rating) {
@@ -49,35 +19,28 @@ fn check_rating(rating: u8) -> Result<()> {
     }
 }
 
-/// Records `request`'s rating for its card, which must be a card of the
-/// store. Returns the events; with `dry_run`, they are not written.
+/// Records `rating` for `card`, which must be a card of the store. Returns
+/// the event; with `dry_run`, it is not written.
 pub fn review(
     store: &Store,
     catalog: &Catalog,
-    requests: &[ReviewRequest],
+    card: &CardId,
+    rating: u8,
     now: &Zoned,
     dry_run: bool,
-) -> Result<Vec<Event>> {
-    let events = requests
-        .iter()
-        .map(|request| {
-            check_rating(request.rating)?;
-            let (item, _) = catalog
-                .card(&request.card)
-                .ok_or_else(|| Error::UnknownCard {
-                    id: request.card.to_string(),
-                })?;
-            Ok(Event::Review(Review {
-                t: log::time(now),
-                card: request.card.clone(),
-                rating: request.rating,
-                response: request.response.clone(),
-                by: request.by,
-                hash: log::hash(item),
-            }))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    write(store, events, dry_run)
+) -> Result<Event> {
+    check_rating(rating)?;
+    let (item, _) = catalog.card(card).ok_or_else(|| Error::UnknownCard {
+        id: card.to_string(),
+    })?;
+    let event = Event::Review(Review {
+        t: log::time(now),
+        card: card.clone(),
+        rating,
+        hash: log::hash(item),
+    });
+    write(store, vec![event.clone()], dry_run)?;
+    Ok(event)
 }
 
 /// Makes each of `selected` that is not new again new, with a `reset`
@@ -253,50 +216,37 @@ mod tests {
         )
     }
 
-    fn request(card: &str, rating: u8) -> ReviewRequest {
-        ReviewRequest {
-            card: CardId::parse(card).unwrap(),
-            rating,
-            response: None,
-            by: By::Human,
-        }
+    fn id(text: &str) -> CardId {
+        CardId::parse(text).unwrap()
     }
 
     #[test]
     fn a_review_is_recorded_for_its_card() {
         let (_tmp, store, catalog) = store();
-        let request = ReviewRequest::parse(
-            r#"{"card": "aaa2.2", "rating": 2, "response": "y", "by": "agent"}"#,
-        )
-        .unwrap();
-        let events = review(&store, &catalog, &[request], &now(), false).unwrap();
-        assert_eq!(logged(&store), events);
-        let Event::Review(first) = &events[0] else {
+        let event = review(&store, &catalog, &id("aaa2.2"), 2, &now(), false).unwrap();
+        assert_eq!(logged(&store), std::slice::from_ref(&event));
+        let Event::Review(recorded) = &event else {
             panic!("expected a review");
         };
-        assert_eq!(first.t, "2026-10-26T09:12:31+09:00");
-        assert_eq!(first.card.to_string(), "aaa2.2");
-        assert_eq!((first.rating, first.by), (2, By::Agent));
-        assert_eq!(first.response.as_deref(), Some("y"));
-        assert_eq!(first.hash.len(), 12);
+        assert_eq!(recorded.t, "2026-10-26T09:12:31+09:00");
+        assert_eq!(recorded.card.to_string(), "aaa2.2");
+        assert_eq!(recorded.rating, 2);
+        assert_eq!(recorded.hash.len(), 12);
     }
 
     #[test]
     fn bad_reviews_are_refused() {
-        for text in [
-            r#"{"card": "aaa1", "rating": 5}"#,
-            r#"{"card": "aaa1"}"#,
-            r#"{"card": "aaa1", "rating": 3, "mood": "good"}"#,
-            r#"{"card": "aaa1", "rating": 3, "response": ["a"]}"#,
-            r#"{"card": {"atoms": ["aaa1"]}, "rating": 3}"#,
-        ] {
-            assert!(ReviewRequest::parse(text).is_err(), "accepted {text}");
-        }
         let (_tmp, store, catalog) = store();
-        for card in ["aaa2", "zzz9", "aaa1.1"] {
+        for (card, rating) in [
+            ("aaa1", 0),
+            ("aaa1", 5),
+            ("aaa2", 3),
+            ("zzz9", 3),
+            ("aaa1.1", 3),
+        ] {
             assert!(
-                review(&store, &catalog, &[request(card, 3)], &now(), false).is_err(),
-                "accepted {card}"
+                review(&store, &catalog, &id(card), rating, &now(), false).is_err(),
+                "accepted {card} with {rating}"
             );
         }
         assert_eq!(logged(&store), [] as [Event; 0]);
@@ -305,7 +255,7 @@ mod tests {
     #[test]
     fn reset_only_touches_cards_that_are_not_new() {
         let (_tmp, store, catalog) = store();
-        review(&store, &catalog, &[request("aaa1", 3)], &now(), false).unwrap();
+        review(&store, &catalog, &id("aaa1"), 3, &now(), false).unwrap();
         let all = catalog.cards().collect::<Vec<_>>();
         let reset_ids = reset(&store, &all, &memories(&store), &now(), false).unwrap();
         assert_eq!(reset_ids, [CardId::parse("aaa1").unwrap()]);
@@ -347,20 +297,17 @@ mod tests {
     #[test]
     fn history_moves_only_from_an_orphan_to_an_untouched_card() {
         let (_tmp, store, catalog) = store();
-        let id = |text: &str| CardId::parse(text).unwrap();
         log::append(
             &store,
             &[Event::Review(Review {
                 t: "2026-10-01T09:00:00+09:00".to_owned(),
                 card: id("aaa1.1"),
                 rating: 3,
-                response: None,
-                by: By::Human,
                 hash: String::new(),
             })],
         )
         .unwrap();
-        review(&store, &catalog, &[request("aaa2.1", 3)], &now(), false).unwrap();
+        review(&store, &catalog, &id("aaa2.1"), 3, &now(), false).unwrap();
         let memories = memories(&store);
         let attempt = |from: &str, to: &str| {
             move_history(

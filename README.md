@@ -164,7 +164,7 @@ one:
 while card=$(srl next in:grammar --json); do
   jq -r .prompt <<<"$card"; read -r _
   jq -r '.prompt_revealed // .prompt, .answer // empty, "---", .context // empty' <<<"$card"; read -r -p 'rating 1-4: ' r
-  jq -n --argjson card "$card" --argjson rating "$r" '{card: $card.id, rating: $rating}' | srl review --stdin
+  srl review "$(jq -r .id <<<"$card")" --rating "$r"
 done
 ```
 
@@ -248,7 +248,7 @@ syntax for the agent to get wrong, and your note stays as you wrote it.
 
 It can also be your frontend, tutoring you in a chat: it takes the next
 card, judges your answer in your own words, and records the rating with
-`srl review --by agent`. And it can read `srl stats`, `srl log` and
+`srl review`. And it can read `srl stats`, `srl log` and
 `srl find is:leech` to find what you keep forgetting and propose
 rewrites. Giving an agent only a few tools, each running one `srl` command,
 keeps it from doing anything `srl` wouldn't accept.

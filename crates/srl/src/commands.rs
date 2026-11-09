@@ -13,11 +13,11 @@ use jiff::Zoned;
 use jiff::civil::Date;
 use serde::Serialize;
 use srl_core::{
-    Card, CardId, Catalog, Config, Error, Index, Item, Log, Lookup, Memories, Place, ReviewRequest,
-    Selector, Status, Store,
+    Card, CardId, Catalog, Config, Error, Index, Item, Log, Lookup, Memories, Place, Selector,
+    Status, Store,
 };
 
-use crate::args::{AddArgs, By, Cli, Command, ReviewArgs};
+use crate::args::{AddArgs, Cli, Command, ReviewArgs};
 use crate::{Outcome, output};
 
 pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
@@ -545,36 +545,15 @@ fn next(store: &Store, selector: &Selector, context: bool, json: bool) -> anyhow
     Ok(Outcome::Done)
 }
 
-/// `srl review`: records a review from standard input, or of cards by ID.
-/// Prints nothing, or with `--dry-run` the events it would write.
+/// `srl review`: records a rating for a card. Prints nothing, or with
+/// `--dry-run` the event it would write.
 fn review(store: &Store, args: &ReviewArgs) -> anyhow::Result<Outcome> {
     let (_, catalog) = load(store)?;
     let dry_run = args.dry_run.dry_run;
-    let requests = if args.stdin {
-        vec![ReviewRequest::parse(&stdin()?)?]
-    } else {
-        let rating = args
-            .rating
-            .context("--rating is required when reviewing cards by ID")?;
-        let by = match args.by {
-            By::Human => srl_core::By::Human,
-            By::Agent => srl_core::By::Agent,
-        };
-        args.ids
-            .iter()
-            .map(|id| {
-                Ok(ReviewRequest {
-                    card: CardId::parse(id)?,
-                    rating,
-                    response: None,
-                    by,
-                })
-            })
-            .collect::<srl_core::Result<Vec<_>>>()?
-    };
-    let events = srl_core::review(store, &catalog, &requests, &now()?, dry_run)?;
+    let card = CardId::parse(&args.id)?;
+    let event = srl_core::review(store, &catalog, &card, args.rating, &now()?, dry_run)?;
     if dry_run {
-        output::json_lines(&events)?;
+        output::json_lines(&[event])?;
     }
     Ok(Outcome::Done)
 }

@@ -362,7 +362,7 @@ suggested ratings, and every rating is given.
 
 Judging an answer is still possible, by a program outside `srl`: for
 example, one that runs code you wrote against tests decides the rating
-and records it with `--by agent`. The core stays the same either way.
+and records it with `srl review`. The core stays the same either way.
 
 Trade-off: nothing stops you from rating yourself too kindly.
 

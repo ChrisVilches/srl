@@ -274,16 +274,12 @@ the preview it gives.
 | Command | Does |
 |---|---|
 | `srl next [SELECTOR] [--no-context] [--json]` | Give a frontend the next card to show (see [scheduling.md](scheduling.md)): with `--json`, the card and what a frontend requires around it (see below); without, the card for people, in the format of `srl cards`. Exit 1 if there is none; exit 2 if the card it picks can't be made. |
-| `srl review --stdin` | Record a review: `{"card": "k3m9q1.2", "rating": N, "response": "…", "by": "human"}`. `response` and `by` may be left out (`by` is then `human`); no other key is allowed. Prints nothing. |
-| `srl review ID… --rating N [--by agent]` | Record the same rating for each card. Prints nothing. |
+| `srl review ID --rating N` | Record a review: the rating `N` (1 to 4) for the card `ID`. Prints nothing. |
 | `srl reset SELECTOR` | Make matching cards new again. Only cards that are not new get a `reset` event. Prints their IDs; exit 1 if there were none. |
 
 The rating is always given by whoever records the review (see
 [scheduling.md](scheduling.md), "Ratings"); `srl` never judges an answer.
-`response` is optional text: what was answered, if whoever records the
-review wants to keep it, such as an answer typed into a frontend (see
-[log.md](log.md)). `by` says who recorded the review, not how the rating
-was decided.
+A review is about one card, so `srl review` takes exactly one.
 
 `srl next --json` is the frontend contract: what it prints, one object
 with the card, where it is in its schedule, whether it is a leech, and its
@@ -308,9 +304,9 @@ coming back.
 > working with broken data are wanted, and still undecided (see
 > [overview.md](overview.md), "Open questions").
 
-Every card given to `srl review` must be a card of the store; an item ID
+The card given to `srl review` must be a card of the store; an item ID
 is not enough, because a review is about one card. With `--dry-run`,
-`srl review` prints the events it would write, one JSON line each, and
+`srl review` prints the event it would write, as one JSON line, and
 `srl reset` prints the IDs it would reset; neither writes to the log.
 
 ### Analysis
@@ -343,7 +339,7 @@ retention  88.5% of 400 reviews in 30 days
 - `reviews today` counts the reviews of the matching cards on today's study
   day. Among them, `new today` counts the first reviews of cards that were
   new (since their last reset), and `again today` those rated Again. They
-  are the day's whole study, whoever recorded it: a frontend can show them
+  are the day's whole study, whatever recorded it: a frontend can show them
   as its counts, the same after a reload.
 - `retention` looks at the last 30 study days, today included. It counts
   the reviews of matching cards that were not new at the time, and gives
@@ -368,7 +364,7 @@ With `--json` it prints one object:
 where `retention` is a number from 0 to 1, or `null`.
 
 `srl log` prints one line per event, its fields separated by two spaces:
-the time, the card, and then `review`, the rating and who recorded it;
+the time, the card, and then `review` and the rating;
 `reset`; `suspend` and the first line of its reason, if it has one;
 `unsuspend`; or `move` and the card the history came from. A `move` event
 belongs to the card it moved history to.

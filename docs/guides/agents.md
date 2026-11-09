@@ -31,8 +31,7 @@ the agent does it, outside `srl`, and records the rating it decided.
    ask about. They then show your note as their context, and your note
    stays as you wrote it. The one exception is `srl edit --stdin`, for an
    agent you allow to edit your items.
-3. **Reviews go through `srl review`.** An agent never writes to the log, and
-   marks its reviews with `--by agent` (or `"by": "agent"`).
+3. **Reviews go through `srl review`.** An agent never writes to the log.
 
 These rules are enforced by giving the agent only the tools it needs, not by
 `srl`.
@@ -49,7 +48,7 @@ use. For example:
 | `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_collections`, `srs_notes`, `srs_sources`, `srs_kinds`, `srs_check` | Reading (`srs_collections` and `srs_sources` tell which collections exist and where `srl add` may create new ones, `srs_notes` which notes an item may name with `see`, `srs_kinds` which fields an item can have; `srs_check` finds mistakes in what was written) |
 | `srs_add` | `srl add COLLECTION --stdin` (always draft: the tool sets `"draft": true` on every line, for example with `jq -c '.draft = true'`) |
 | `srs_edit` | `srl edit --stdin` (only if you want agents to edit items) |
-| `srs_next`, `srs_review` | Tutoring (`srs_review` always passes `--by agent`) |
+| `srs_next`, `srs_review` | Tutoring |
 | `read_file` | Reading source material (notes, articles) |
 
 There is deliberately no `srs_accept` tool. Which tools a given run gets is a
@@ -151,11 +150,11 @@ through `agi-repl`). The agent acts as the frontend: it calls `srl next
 up to your instructions, for example:
 
 - you answer in your own words, the agent judges the answer and records its
-  rating, with your answer as `response`;
+  rating;
 - the agent shows the answer and the context, you give the rating, and the
-  agent records it, with no `response`.
+  agent records it.
 
-Either way it records `srl review --by agent`. It can probe a mistake with
+Either way it records `srl review ID --rating N`. It can probe a mistake with
 follow-up questions, and propose a new draft item for a misconception it
 found.
 
@@ -177,5 +176,4 @@ history").
 ### Analyze
 
 The agent reads `srl stats`, `srl find is:leech` and `srl log` to report weak
-areas, and proposes rewrites of leeches as edits or new drafts. Where reviews
-kept a `response`, it can also look at what you actually answered.
+areas, and proposes rewrites of leeches as edits or new drafts.

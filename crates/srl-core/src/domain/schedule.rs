@@ -360,7 +360,7 @@ mod tests {
     use jiff::civil::date;
 
     use super::*;
-    use crate::{By, CardEvent, Entry, Move, Review, Suspend};
+    use crate::{CardEvent, Entry, Move, Review, Suspend};
 
     fn id() -> CardId {
         CardId::parse("a7f3k2").unwrap()
@@ -376,8 +376,6 @@ mod tests {
                 t: at(day),
                 card: id(),
                 rating,
-                response: None,
-                by: By::Human,
                 hash: String::new(),
             }),
             day,

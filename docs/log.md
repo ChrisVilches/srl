@@ -56,8 +56,6 @@ item was deleted keeps its events (see [scheduling.md](scheduling.md),
  "t": "2026-10-26T09:12:31+09:00",
  "card": "k3m9q1.2",
  "rating": 3,
- "response": null,
- "by": "human",
  "hash": "3fa91c0d22be"}
 ```
 
@@ -65,8 +63,6 @@ item was deleted keeps its events (see [scheduling.md](scheduling.md),
 |---|---|
 | `card` | The card's ID. |
 | `rating` | 1–4, as given (see [scheduling.md](scheduling.md), "Ratings"). |
-| `response` | What was answered, as text, if the review was recorded with one, for example an answer typed into a frontend. `null` if none was given, which is usual: rating yourself needs no typed answer. `srl` never reads it. |
-| `by` | `human` or `agent`: who recorded the review, a person or a program acting for them. It says nothing about how the rating was decided, or whether there is a `response`: a program may record a rating you gave it, or one it judged from your answer, for example by running code you wrote against tests. |
 | `hash` | The first 12 hex characters of the SHA-256 of the item's question at review time: its kind and fields as an item object, written as `srl` writes one into a JSONL collection (see [formats.md](formats.md), "How srl writes to collections"), without its other entries, and with its fields in the order of their names: `{"A":"…","Q":"…"}`, or `{"kind":"conj","VERB":"…"}` for an item of a kind program. So it changes when the question changes, and not when the item is moved, rewritten in another format, given an ID, accepted, given another `see`, or has its fields written in another order. Reviews recorded before this rule keep the hash they were given: before fields were put in the order of their names, that of the fields in the order they were written, and before that, that of the item as `srl show` printed it. |
 
 `hash` is never used by `srl`. It exists so that you can later ask questions
@@ -116,6 +112,6 @@ The log is JSONL, so ordinary tools work:
 ```sh
 srl log in:grammar --json                             # events of matching cards
 jq -c 'select(.rating == 1)' .srl/log/*.jsonl          # every Again
-duckdb -c "select by, avg(rating) from '.srl/log/*.jsonl'
-           where type = 'review' group by 1"           # average rating by who recorded it
+duckdb -c "select card, avg(rating) from '.srl/log/*.jsonl'
+           where type = 'review' group by 1"           # average rating per card
 ```

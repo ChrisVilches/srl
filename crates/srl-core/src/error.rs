@@ -131,7 +131,7 @@ pub enum Error {
     #[error("cannot write the event: {reason}; nothing more was written")]
     InvalidEvent { reason: String },
 
-    #[error("the review on standard input is not valid: {reason}; nothing was recorded")]
+    #[error("the review is not valid: {reason}; nothing was recorded")]
     InvalidReview { reason: String },
 
     #[error("cannot move the history of {from} to {to}: {reason}; nothing was recorded")]
