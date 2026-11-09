@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 
 import { api, type FoundCard, type LogEvent, type Rating } from './api';
 import { Label, Loading, Skeleton } from './CardParts';
@@ -182,12 +182,35 @@ function EventText({ event }: { event: LogEvent }) {
   }
 }
 
-// The shape of CardDetails while the card is found: its entries, in a grid.
+// The widths of the values of CardDetails' entries, in their order, and
+// whether each is wide.
+const SKELETON_VALUES: { width: string; wide?: boolean }[] = [
+  { width: 'w-14' },
+  { width: 'w-14' },
+  { width: 'w-10' },
+  { width: 'w-20' },
+  { width: 'w-14' },
+  { width: 'w-12' },
+  { width: 'w-24' },
+  { width: 'w-8' },
+  { width: 'w-72', wide: true },
+  { width: 'w-60', wide: true },
+];
+
+// The shape of CardDetails while the card is found: its entries, in the
+// same grid, each a line of text tall. A suspended card's reason, above
+// them, isn't shown: most cards have none.
 export function CardDetailsSkeleton() {
   return (
-    <Loading label="Finding the card" className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-4">
-      {Array.from({ length: 8 }, (_, i) => (
-        <Skeleton key={i} className={`h-4 ${i % 2 === 0 ? 'w-16' : 'w-24'}`} />
+    <Loading
+      label="Finding the card"
+      className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 sm:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)]"
+    >
+      {SKELETON_VALUES.map(({ width, wide }, i) => (
+        <Fragment key={i}>
+          <Skeleton className="my-0.5 h-4 w-16" />
+          <Skeleton className={`my-0.5 h-4 max-w-full ${width} ${wide ? 'sm:col-span-3' : ''}`} />
+        </Fragment>
       ))}
     </Loading>
   );
