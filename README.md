@@ -6,9 +6,9 @@ A programmable data layer for spaced repetition.
 a plain-text log, schedules every card with
 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/ABC-of-FSRS),
 and exposes all of it through a CLI with JSON output. Out of the box,
-questions are data in structured files of your study folder (JSONL, JSON
-or XML), each naming the note it asks about, which is shown as its
-context. They can also be kept by a program of your own: in a database,
+questions are data in structured files of your study folder (JSONL or
+XML, and JSON when you ask for it), each naming the note it asks about,
+which is shown as its context. They can also be kept by a program of your own: in a database,
 behind a web service, in any format.
 
 `srl` has no study screen of its own. Instead, it is the one place where
@@ -45,10 +45,10 @@ so either can be replaced, rewritten or built by you.
 - **The CLI is the API.** Every command is non-interactive, with JSON
   output. Frontends and scripts use the same commands you do; there
   is no separate interface to learn.
-- **Small fixed contracts.** The collection formats, the card, the frontend
-  contract (`srl next --json`), the review event, the selector language
-  and the calls to source programs are rigid and documented, so the
-  programs around them can vary freely.
+- **Small fixed contracts.** The item object, the collection formats, the
+  card, the frontend contract (`srl next --json`), the review event, the
+  selector language and the calls to source programs are rigid and
+  documented, so the programs around them can vary freely.
 - **Items can live anywhere.** A store reads its items from its sources:
   JSONL, JSON and XML files by default, or programs you write.
   Scheduling, selectors, card types and frontends work the same whatever
@@ -216,7 +216,7 @@ or would be better kept: a database, a web service, another app's files.
 It never schedules anything and never sees the log: it only reads and
 writes items, and `srl` does the rest. The repository's
 [source-tinydb](examples/source-tinydb/) keeps items in a TinyDB
-database, one table per collection, in about a hundred lines of Python.
+database, one table per collection, in about 130 lines of Python.
 
 ### Scripts and analysis
 
