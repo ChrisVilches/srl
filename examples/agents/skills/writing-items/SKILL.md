@@ -78,8 +78,8 @@ collections, or renaming its collection never changes its schedule.
   </items>
   ```
 
-  A field over several lines loses its blank first and last line and the
-  indentation its lines share. Text with `<` or `&` goes in CDATA, which is
+  A field over several lines loses every blank line it starts and ends
+  with and the indentation its lines share. Text with `<` or `&` goes in CDATA, which is
   taken exactly. `srl` rewrites only the `<item>` elements it changes.
 
 Errors name the line (JSONL, XML) or the element (JSON) they are on.

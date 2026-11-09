@@ -150,14 +150,16 @@ lines is written as it reads, without escapes for line endings.
    - **Content that is CDATA sections only**, with nothing around them
      but blank space, is their text exactly as written:
      `<Q><![CDATA[a < b]]></Q>` is `a < b`.
-   - **Any other content is laid out**: if it spans several lines, a
-     first line and a last line that hold nothing but blank space are
-     removed, and then the indentation all of its other lines have in
-     common, spaces and tabs, is removed from each, so that a field reads
-     as indented under its element. Lines that hold nothing but blank
-     space don't count for the common indentation, and are left empty.
-     Text on one line is taken as it is. `<A></A>` and `<A/>` are empty
-     fields.
+   - **Any other content is laid out**: if it spans several lines, the
+     lines it starts and ends with that hold nothing but blank space are
+     removed, however many there are, so that a field may be set apart
+     from its tags by blank lines without them being part of its text.
+     Then the indentation all of its other lines have in common, spaces
+     and tabs, is removed from each, so that a field reads as indented
+     under its element. Lines that hold nothing but blank space don't
+     count for the common indentation, and are left empty. Text on one
+     line is taken as it is. `<A></A>` and `<A/>` are empty fields. A
+     text that does start or end with a line ending is written as CDATA.
 
    So the `Q` above is `Does this compile?`, a blank line, and the code,
    still indented by four spaces, since the common indentation is that of
@@ -198,7 +200,8 @@ changes items") change collections by these rules:
      one line when its text is one line, and laid out over several,
      indented as its element is, when it has several: those that rule 5
      reads back as written. A text that holds `<` or `&`, or that the
-     layout would change, such as one whose every line is indented, is
+     layout would change, such as one whose every line is indented or
+     one that starts or ends with a line ending, is
      written as CDATA. A text that holds a carriage return can't be
      written to XML, which reads it as a line ending; such a change is
      refused, and the item can be kept in a JSONL collection instead.

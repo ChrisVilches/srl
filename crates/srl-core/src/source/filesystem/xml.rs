@@ -392,17 +392,17 @@ fn read_field(
 }
 
 /// A field's text, laid out (see `docs/formats.md`, "XML", rule 5): on
-/// several lines, without a blank first and last line, and without the
-/// indentation its other lines have in common.
+/// several lines, without the blank lines it starts and ends with, and
+/// without the indentation its other lines have in common.
 fn laid_out(text: &str) -> String {
     if !text.contains('\n') {
         return text.to_owned();
     }
     let mut lines = text.split('\n').collect::<Vec<_>>();
-    if lines.first().is_some_and(|line| is_blank_line(line)) {
+    while lines.first().is_some_and(|line| is_blank_line(line)) {
         lines.remove(0);
     }
-    if lines.last().is_some_and(|line| is_blank_line(line)) {
+    while lines.last().is_some_and(|line| is_blank_line(line)) {
         lines.pop();
     }
     // Spaces and tabs are one byte each, so lengths in bytes are safe to
@@ -751,6 +751,21 @@ mod tests {
     }
 
     #[test]
+    fn every_blank_line_a_field_starts_or_ends_with_is_layout() {
+        let text = "<items>\n  <item>\n    <Q>\n\n      some question\n\n    </Q>\n    <A>\n  \t\n\n      first\n\n      second\n   \n\n    </A>\n    <B>\n\n\n    </B>\n    <C>text\n\n</C>\n    <D>\n\n      text</D>\n  </item>\n</items>";
+        let (_, fields) = item(text);
+        assert_eq!(fields[0].1, "some question");
+        // Blank lines between other lines are kept.
+        assert_eq!(fields[1].1, "first\n\nsecond");
+        assert_eq!(fields[2].1, "");
+        assert_eq!(fields[3].1, "text");
+        assert_eq!(fields[4].1, "text");
+        // A blank line written as CDATA is kept, as all of CDATA is.
+        let (_, fields) = item("<items><item><Q><![CDATA[\n\nq\n\n]]></Q></item></items>");
+        assert_eq!(fields[0].1, "\n\nq\n\n");
+    }
+
+    #[test]
     fn what_breaks_the_rules_is_an_error_with_its_line() {
         for (text, line) in [
             ("", 0),
@@ -821,6 +836,11 @@ mod tests {
             "a < b & c",
             "has ]]> in it",
             "a\n\n    code",
+            "\n\nblank lines first",
+            "blank lines last\n\n",
+            "\n",
+            "\n\n",
+            "\n  \n",
         ] {
             let written = field_element(&field("Q", text), "    ", "  ").unwrap();
             let file = format!("<items>\n  <item>\n    {written}\n  </item>\n</items>\n");
@@ -830,6 +850,12 @@ mod tests {
         assert_eq!(
             field_element(&field("A", "No.\n\nMore."), "    ", "  ").unwrap(),
             "<A>\n      No.\n\n      More.\n    </A>"
+        );
+        // A text that starts or ends with a line ending would lose it to the
+        // layout, so it is written as CDATA.
+        assert_eq!(
+            field_element(&field("A", "\nNo."), "    ", "  ").unwrap(),
+            "<A><![CDATA[\nNo.]]></A>"
         );
         assert!(field_element(&field("A", "a\r\nb"), "", "  ").is_err());
     }
