@@ -318,7 +318,8 @@ Every dialog of the page is `src/Modal.tsx`, the browser's own `<dialog>`.
 Radix UI's dialog, say, would need the `Content-Security-Policy` below to
 allow inline styles, since it adds `<style>` elements to the page. While a
 dialog is open, the views take no keys. A dialog taller than the window
-scrolls what it shows, keeping its title and Close button in view. Every
+scrolls what it shows, keeping its title and Close button in view, and
+the page under an open dialog doesn't scroll (`src/index.css`). Every
 dialog fades in while
 growing to its size, and out while shrinking, in 150 ms, by its class
 `modal` in `src/index.css`, and not at all with reduced motion. The

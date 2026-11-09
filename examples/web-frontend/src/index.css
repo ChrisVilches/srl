@@ -15,6 +15,14 @@
   color-scheme: dark;
 }
 
+/* The page doesn't scroll under an open modal: <dialog> makes it inert,
+   but a wheel over the backdrop, or past the end of the dialog's own
+   scrolling, would still scroll it. The kept gutter above keeps the page
+   from shifting when its scrollbar goes. */
+:root:has(dialog:modal) {
+  overflow: hidden;
+}
+
 /* Highlights (==…==) are the important part of a card: the blank in a cloze
    prompt, the revealed text in its revealed prompt (docs/cards.md). */
 @layer components {
