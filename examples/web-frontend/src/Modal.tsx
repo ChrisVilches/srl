@@ -12,15 +12,19 @@ import { DANGER_BUTTON, OUTLINE_BUTTON } from './CardParts';
 // (src/index.css); while it fades out, it keeps showing what it showed
 // when it was open, though its parent has moved on. A form whose button
 // opens one keeps its buttons disabled until it closes (README.md, "A
-// button whose answer is a modal").
+// button whose answer is a modal"). A TALL one is as tall as the window
+// whatever it shows, for one whose content comes in parts and would
+// otherwise grow and move with each.
 export function Modal({
   open,
   title,
+  tall,
   onClose,
   children,
 }: {
   open: boolean;
   title: string;
+  tall?: boolean;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -39,16 +43,19 @@ export function Modal({
       onClose={onClose}
       // A click on the backdrop is a click on the dialog itself.
       onClick={(event) => event.target === dialog.current && onClose()}
-      className="modal m-auto max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-stone-200 bg-white p-0 text-stone-900 shadow-xl backdrop:bg-stone-950/50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-100"
+      className={`modal m-auto max-h-[calc(100dvh-2rem)] ${tall ? 'h-[calc(100dvh-2rem)]' : ''} w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-stone-200 bg-white p-0 text-stone-900 shadow-xl backdrop:bg-stone-950/50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-100`}
     >
       {/* Only what it shows scrolls, between its title and its button. The
           box, not the <dialog>, is a flex column: a <dialog> shown as flex
           would be shown when closed too. Its height is the dialog's, less
-          the dialog's border. Its 4px more above and below keep a focus
-          ring inside it whole. */}
-      <div className="flex max-h-[calc(100dvh-2rem-2px)] flex-col gap-4 py-6">
+          the dialog's border; in a tall one, what it shows fills the room
+          left, keeping the button at the bottom. Its 4px more above and
+          below keep a focus ring inside it whole. */}
+      <div className="flex h-full max-h-[calc(100dvh-2rem-2px)] flex-col gap-4 py-6">
         <h2 className="px-6 text-lg font-semibold">{shown.current.title}</h2>
-        <div className="-my-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-1">{shown.current.children}</div>
+        <div className="-my-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-1">
+          {shown.current.children}
+        </div>
         <button onClick={onClose} className={`mx-6 self-end ${OUTLINE_BUTTON}`}>
           Close
         </button>

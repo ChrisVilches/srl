@@ -194,7 +194,8 @@ export function CardDetailsSkeleton() {
 }
 
 // The details of card ID in a modal, as srl find gives them each time it is
-// opened.
+// opened. The modal is tall, so it doesn't move as the card, then its
+// history, come in.
 export function CardDetailsDialog({ id, open, onClose }: { id: string; open: boolean; onClose: () => void }) {
   const [found, setFound] = useState<{ id: string; card: FoundCard } | { id: string; error: string } | null>(null);
   useEffect(() => {
@@ -214,7 +215,7 @@ export function CardDetailsDialog({ id, open, onClose }: { id: string; open: boo
 
   const shown = found?.id === id ? found : null;
   return (
-    <Modal open={open} title="Card details" onClose={onClose}>
+    <Modal open={open} title="Card details" tall onClose={onClose}>
       {shown === null ? (
         <CardDetailsSkeleton />
       ) : 'error' in shown ? (

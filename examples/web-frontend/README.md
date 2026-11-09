@@ -32,7 +32,8 @@ macOS and Windows (it is tried on Linux only).
   for it, newest first, each with its time, as `srl log` gives them (a
   review's rating, who recorded it, the response if there is one and the
   hash of its question). They are `src/CardDetails.tsx`, which Browse's
-  Details side shows too.
+  Details side shows too. The modal is as tall as the window, so it
+  doesn't move as the card, then its history, come in.
 - Showing the answer scrolls smoothly to put it in the middle of the
   window. Browse doesn't: turning a card to its answer there leaves the
   page where it is.
