@@ -257,6 +257,18 @@ class Session:
         self.selector = selector  # the arguments given to srl next
         self.reviewed = self.new = self.again = 0
 
+    def read_today(self):
+        """Reads the counts from srl stats: the study day's, of every card.
+
+        They include reviews recorded elsewhere, and starting again keeps
+        them. A store with no card has none.
+        """
+        out, code = srl("stats", "--json")
+        stats = json.loads(out) if code == 0 else {}
+        self.reviewed = stats.get("reviews_today", 0)
+        self.new = stats.get("new_today", 0)
+        self.again = stats.get("again_today", 0)
+
     def counts(self):
         return Text.assemble(
             (str(self.reviewed), "bold"), " reviewed · ",
@@ -352,6 +364,9 @@ class Session:
     def run(self):
         """Studies until no card is left (returns True) or q is pressed."""
         while True:
+            # Before each card, so they are up to date after a review and in
+            # the summary.
+            self.read_today()
             out, code = srl("next", "--json", "--", *self.selector)
             if code == 1:
                 return True
@@ -399,9 +414,6 @@ class Session:
 
     def review(self, card, rating):
         srl("review", "--stdin", stdin=json.dumps({"card": card["id"], "rating": rating}))
-        self.reviewed += 1
-        self.new += card["schedule"] == "new"
-        self.again += rating == 1
 
 
 USAGE = "usage: srl-tui [SELECTOR]...\n"

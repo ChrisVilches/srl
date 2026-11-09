@@ -44,8 +44,11 @@ screen needs a modern terminal such as Windows Terminal.
   before studying it again, which `srl` keeps with the suspension (`srl
   find --json` gives it). Enter suspends, with no reason if nothing was
   typed; Escape doesn't suspend.
-- It ends with a summary: the cards reviewed, the new ones among them, and
-  the Again ratings. If `srl` fails, it prints what `srl` said and exits
+- The counters are the cards reviewed today, the new ones among them, and
+  the Again ratings, of every card whatever the selector, as `srl stats`
+  counts them: read before each card, so starting again keeps them and
+  they include reviews recorded elsewhere.
+- It ends with a summary: the counters. If `srl` fails, it prints what `srl` said and exits
   with 2.
 
 It is a uv project of its own, kept apart from `srl` and from the other
