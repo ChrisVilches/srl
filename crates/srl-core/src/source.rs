@@ -31,8 +31,8 @@ pub(crate) trait Source: fmt::Debug {
     fn read(&self) -> Result<Read>;
 
     /// Why `collection`, which doesn't exist yet, can't be created by `srl
-    /// add`, or `None` if it can.
-    fn refuses(&self, collection: &str) -> Option<String>;
+    /// add`, or `None` if it can. Only failing to answer is an error.
+    fn refuses(&self, collection: &str) -> Result<Option<String>>;
 
     /// Makes `changes`, or, with `dry_run`, only checks them. Gives the
     /// text of the items added, as they appear in their collections.
@@ -158,13 +158,22 @@ impl Sources {
     /// would be created in, or why it can't be created: exactly one source
     /// must accept it (see `docs/sources.md`, "Collections"). When none
     /// does, every source says why, by its name; when several do, they are
-    /// named.
-    pub(crate) fn for_new(&self, collection: &str) -> std::result::Result<usize, String> {
+    /// named. A source that fails to answer fails it.
+    pub(crate) fn for_new(&self, collection: &str) -> Result<usize> {
         let answers = self
             .named
             .iter()
             .map(|named| named.source.refuses(collection))
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>>>()?;
+        self.accepting(&answers).map_err(|reason| Error::CannotAdd {
+            collection: collection.to_owned(),
+            reason,
+        })
+    }
+
+    /// The one source whose answer in `answers`, given in the order of the
+    /// sources, accepts a new collection, or why there isn't one.
+    fn accepting(&self, answers: &[Option<String>]) -> std::result::Result<usize, String> {
         let accepting = answers
             .iter()
             .enumerate()
@@ -179,7 +188,9 @@ impl Sources {
                     .named
                     .iter()
                     .zip(answers)
-                    .filter_map(|(named, refusal)| Some(format!("{}: {}", named.name, refusal?)))
+                    .filter_map(|(named, refusal)| {
+                        Some(format!("{}: {}", named.name, refusal.as_ref()?))
+                    })
                     .collect::<Vec<_>>()
                     .join("; ");
                 Err(format!(

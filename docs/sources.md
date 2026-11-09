@@ -98,7 +98,9 @@ When none accepts it, every source gives its reason, after its name:
 its `include` doesn't match the path, its `exclude` matches it, or its
 extension names no format it knows, for `filesystem`; the globs of its
 `describe` don't match the name, for a program. When several do, they
-are named.
+are named. A program whose `describe` fails, or prints invalid output,
+fails `srl add` as itself (see "What srl checks"), not as a source that
+doesn't accept the name.
 
 ## What a source does
 
@@ -223,8 +225,9 @@ wherever it chooses, and is responsible for its freshness.
 - **Every line a program prints is read strictly**: a line that is not a
   JSON object, a key a call doesn't give, a value of the wrong type, an
   item object that isn't valid, a collection's name that isn't parts
-  joined by `/` (none empty or starting with `.`), a handle given twice in
-  one `read`, or a wrong number of lines is a failure of the program. So
+  joined by `/` (none empty or starting with `.`), a collection listed
+  twice by `collections`, a handle given twice in one `read`, or a wrong
+  number of lines is a failure of the program. So
   is a call that fails as a whole. Either is reported once, as a problem
   of the source, and stops every command that reads items until it is
   fixed.

@@ -119,12 +119,12 @@ impl Source for Filesystem {
         )))
     }
 
-    fn refuses(&self, collection: &str) -> Option<String> {
-        self.files.refuses(collection).or_else(|| {
+    fn refuses(&self, collection: &str) -> crate::Result<Option<String>> {
+        Ok(self.files.refuses(collection).or_else(|| {
             Format::of(collection)
                 .is_none()
                 .then(|| format!("its extension is none of {EXTENSIONS}"))
-        })
+        }))
     }
 
     /// Every file is changed and checked before the first one is written.

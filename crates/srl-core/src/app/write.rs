@@ -115,13 +115,7 @@ pub fn add(
     let (source, collection) = match catalog.located(collection) {
         Some(located) => (located.source, located.collection.clone()),
         None => (
-            catalog
-                .sources()
-                .for_new(collection)
-                .map_err(|reason| Error::CannotAdd {
-                    collection: collection.to_owned(),
-                    reason,
-                })?,
+            catalog.sources().for_new(collection)?,
             collection.to_owned(),
         ),
     };

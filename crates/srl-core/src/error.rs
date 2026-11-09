@@ -79,10 +79,7 @@ pub enum Error {
     #[error("{reason}; no item of kind {kind} can be read until the program works")]
     KindFailed { kind: String, reason: String },
 
-    #[error(
-        "the source {name} failed: {reason}; no item can be read or written until it works \
-         (see docs/sources.md, \"Source programs\")"
-    )]
+    #[error("the source {name} failed: {reason} (see docs/sources.md, \"Source programs\")")]
     SourceFailed { name: String, reason: String },
 
     #[error("cannot describe the kind {kind}: {reason}")]

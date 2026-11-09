@@ -121,12 +121,19 @@ impl Program {
 impl Source for Program {
     fn collections(&self) -> Result<Vec<String>> {
         let call = "collections";
+        let mut listed = HashSet::new();
         self.call(call, vec![Map::new()])?
             .into_iter()
             .map(|line| {
                 let reason = |reason: String| self.invalid(call, &reason);
                 only(&line, &["collection"]).map_err(reason)?;
-                collection(&line).map_err(reason)
+                let collection = collection(&line).map_err(reason)?;
+                if !listed.insert(collection.clone()) {
+                    return Err(reason(format!(
+                        "the collection `{collection}` is listed twice"
+                    )));
+                }
+                Ok(collection)
             })
             .collect()
     }
@@ -165,17 +172,12 @@ impl Source for Program {
     }
 
     /// A program says which collections it creates in `describe`.
-    fn refuses(&self, collection: &str) -> Option<String> {
-        let described = match self.describe() {
-            Ok(described) => described,
-            Err(error) => return Some(error.to_string()),
-        };
-        let creates = match globs(&described.include) {
-            Ok(creates) => creates,
-            Err(reason) => return Some(self.invalid("describe", &reason).to_string()),
-        };
-        (!creates.is_match(collection))
-            .then(|| "the globs of its `describe` don't match the name".to_owned())
+    fn refuses(&self, collection: &str) -> Result<Option<String>> {
+        let described = self.describe()?;
+        let creates =
+            globs(&described.include).map_err(|reason| self.invalid("describe", &reason))?;
+        Ok((!creates.is_match(collection))
+            .then(|| "the globs of its `describe` don't match the name".to_owned()))
     }
 
     /// Every change goes to the program in one call. The program is read

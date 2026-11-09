@@ -2556,6 +2556,10 @@ fn a_source_program_that_lies_about_its_items_stops_commands() {
             "is not a collection's name".to_owned(),
         ));
     }
+    cases.push((
+        "raw_call = \"collections\"\nraw_output = \"{\\\"collection\\\": \\\"vocab/words\\\"}\\n{\\\"collection\\\": \\\"vocab/words\\\"}\\n\"\n".to_owned(),
+        "its call `collections` printed invalid output: the collection `vocab/words` is listed twice".to_owned(),
+    ));
     for (more, expected) in cases {
         let tmp = store_with_program(&[], WORDS, &more);
         let output = srl(&["find", "--dir", dir(&tmp)]);
@@ -2576,6 +2580,24 @@ fn a_source_program_that_lies_about_its_items_stops_commands() {
     assert_refused(&added, "a write without answers");
     assert!(
         stderr(&added).contains("it printed 0 lines for 1 input lines"),
+        "{}",
+        stderr(&added)
+    );
+    assert_eq!(read(&tmp, "vocab.json"), WORDS);
+    // A program that can't say which collections it creates fails `srl add`
+    // as itself, not as a source that refuses the name.
+    let tmp = store_with_program(
+        &[],
+        WORDS,
+        "raw_call = \"describe\"\nraw_output = \"{\\\"description\\\": \\\"d\\\", \\\"creates\\\": [\\\"[\\\"]}\\n\"\n",
+    );
+    let added = srl_with_input(
+        &["add", "vocab/fish", "--stdin", "--dir", dir(&tmp)],
+        "{\"Q\": \"q\", \"A\": \"a\"}",
+    );
+    assert_refused(&added, "a describe that fails");
+    assert!(
+        stderr(&added).starts_with("srl: the source vocab failed: its call `describe` printed invalid output: `creates`: `[` is not a valid glob"),
         "{}",
         stderr(&added)
     );
@@ -2640,7 +2662,8 @@ fn a_reader_that_stops_reading_ends_srl_quietly_without_a_panic() {
     use std::io::{BufRead as _, BufReader};
     let items = (0..20_000)
         .map(|n| format!("{{\"id\": \"i{n}\", \"Q\": \"q\", \"A\": \"a\"}}\n"))
-        .collect::<String>();
+        .collect::<Vec<_>>()
+        .concat();
     let tmp = store(&[("a.jsonl", &items)]);
     let mut child = srl_command()
         .args(["find", "--dir", dir(&tmp)])
