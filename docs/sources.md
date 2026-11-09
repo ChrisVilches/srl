@@ -223,8 +223,9 @@ wherever it chooses, and is responsible for its freshness.
 ### What srl checks
 
 - **Every line a program prints is read strictly**: a line that is not a
-  JSON object, a key a call doesn't give, a value of the wrong type, an
-  item object that isn't valid, a collection's name that isn't parts
+  JSON object, a key a call doesn't give, a value of the wrong type, a
+  text that is blank, empty or only spaces (every text a call gives, such
+  as a `handle` or an `error`, says something), an item object that isn't valid, a collection's name that isn't parts
   joined by `/` (none empty or starting with `.`), a collection listed
   twice by `collections`, a handle given twice in one `read`, or a wrong
   number of lines is a failure of the program. So

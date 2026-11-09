@@ -2554,7 +2554,7 @@ fn a_source_program_that_lies_about_its_items_stops_commands() {
             "`AAA001` is not an item ID".to_owned(),
         ),
     ];
-    for name in ["/abs", "a//b", "a/./b", "a\\\\\\\\b", ""] {
+    for name in ["/abs", "a//b", "a/./b", "a\\\\\\\\b"] {
         cases.push((
             format!("raw_call = \"collections\"\nraw_output = \"{{\\\"collection\\\": \\\"{name}\\\"}}\\n\"\n"),
             "is not a collection's name".to_owned(),
@@ -2563,6 +2563,20 @@ fn a_source_program_that_lies_about_its_items_stops_commands() {
     cases.push((
         "raw_call = \"collections\"\nraw_output = \"{\\\"collection\\\": \\\"vocab/words\\\"}\\n{\\\"collection\\\": \\\"vocab/words\\\"}\\n\"\n".to_owned(),
         "its call `collections` printed invalid output: the collection `vocab/words` is listed twice".to_owned(),
+    ));
+    // Text the protocol asks for is never blank.
+    cases.push((
+        answer("{\\\"collection\\\": \\\"vocab/words\\\", \\\"error\\\": \\\" \\\"}".to_owned()),
+        "its call `read` printed invalid output: `error` is blank".to_owned(),
+    ));
+    cases.push((
+        answer(item("vocab/words", "", "aaa001")),
+        "its call `read` printed invalid output: `handle` is blank".to_owned(),
+    ));
+    cases.push((
+        "raw_call = \"collections\"\nraw_output = \"{\\\"collection\\\": \\\"\\\"}\\n\"\n"
+            .to_owned(),
+        "its call `collections` printed invalid output: `collection` is blank".to_owned(),
     ));
     for (more, expected) in cases {
         let tmp = store_with_program(&[], WORDS, &more);
@@ -2574,6 +2588,10 @@ fn a_source_program_that_lies_about_its_items_stops_commands() {
             stderr(&output)
         );
     }
+}
+
+#[test]
+fn a_source_program_s_answers_to_changes_are_checked_before_anything_counts() {
     // A write answered with too few lines changes nothing that srl reports
     // as done.
     let tmp = store_with_program(&[], WORDS, "raw_call = \"write\"\nraw_output = \"\"\n");
@@ -2588,6 +2606,30 @@ fn a_source_program_that_lies_about_its_items_stops_commands() {
         stderr(&added)
     );
     assert_eq!(read(&tmp, "vocab.json"), WORDS);
+    for (answer, dry_run) in [
+        ("{\\\"error\\\": \\\"\\\"}", false),
+        ("{\\\"preview\\\": \\\"\\\"}", true),
+    ] {
+        let more = format!("raw_call = \"write\"\nraw_output = \"{answer}\\n\"\n");
+        let tmp = store_with_program(&[], WORDS, &more);
+        let mut args = vec!["add", "vocab/words", "--stdin", "--dir", dir(&tmp)];
+        if dry_run {
+            args.push("--dry-run");
+        }
+        let added = srl_with_input(&args, "{\"Q\": \"q\", \"A\": \"a\"}");
+        assert_refused(&added, answer);
+        assert!(
+            stderr(&added).contains("its call `write` printed invalid output: `"),
+            "{answer}: {}",
+            stderr(&added)
+        );
+        assert!(
+            stderr(&added).contains("` is blank"),
+            "{answer}: {}",
+            stderr(&added)
+        );
+        assert_eq!(read(&tmp, "vocab.json"), WORDS);
+    }
     // A program that can't say which collections it creates fails `srl add`
     // as itself, not as a source that refuses the name.
     let tmp = store_with_program(

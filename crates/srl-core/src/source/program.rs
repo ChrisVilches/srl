@@ -284,9 +284,6 @@ impl Source for Program {
         let reason = |reason: String| self.invalid(call, &reason);
         only(&answer, &["description", "creates"]).map_err(reason)?;
         let description = text(&answer, "description").map_err(reason)?;
-        if description.trim().is_empty() {
-            return Err(reason("`description` is blank".to_owned()));
-        }
         let creates = match answer.get("creates") {
             Some(Value::Array(globs)) => globs
                 .iter()
@@ -323,9 +320,10 @@ fn only(line: &Map<String, Value>, keys: &[&str]) -> std::result::Result<(), Str
     }
 }
 
-/// The text of `key`, which must be there.
+/// The text of `key`, which must be there, and not blank.
 fn text(line: &Map<String, Value>, key: &str) -> std::result::Result<String, String> {
     match line.get(key) {
+        Some(Value::String(text)) if text.trim().is_empty() => Err(format!("`{key}` is blank")),
         Some(Value::String(text)) => Ok(text.clone()),
         Some(other) => Err(format!("`{key}` must be text, not {other}")),
         None => Err(format!("a line has no `{key}`")),
