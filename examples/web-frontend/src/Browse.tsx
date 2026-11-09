@@ -1,3 +1,4 @@
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
@@ -7,7 +8,7 @@ import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notic
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
 import { useView } from './App';
-import { useKeys, useSettled, useSubmitted } from './hooks';
+import { useKeys, useSettled, useSubmitted, type Submitted } from './hooks';
 import { SelectorInput, TopBar } from './TopBar';
 
 // The card browser: the cards of a selector as `srl find` lists them, and any
@@ -20,6 +21,9 @@ type List =
   | { kind: 'loading'; before: FoundCard[] }
   | { kind: 'ready'; cards: FoundCard[] }
   | { kind: 'error'; message: string };
+
+// The cards found for a submission, as kept by TanStack Query (src/main.tsx).
+const findKey = ({ selector, n }: Submitted) => ['find', selector, n];
 
 // A card being made, made (with how long it took), or that couldn't be.
 type Made =
@@ -57,8 +61,20 @@ const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }
 export function Browse() {
   const { submitted, onSelector } = useView();
   const { selector } = submitted;
-  const [list, setList] = useState<List>({ kind: 'loading', before: [] });
   const [made, setMade] = useState<Record<string, Made>>({});
+
+  // The cards of the selector submitted: of this submission, so that a
+  // selector submitted again finds its cards anew. The list is always that
+  // of the selector shown, never of one submitted before, whatever order
+  // srl answers in; the cards found before are only kept as `before`.
+  const found = useQuery({ queryKey: findKey(submitted), queryFn: () => api.find(selector), placeholderData: keepPreviousData });
+  const list: List =
+    found.isSuccess && !found.isPlaceholderData
+      ? { kind: 'ready', cards: found.data }
+      : found.isError && !found.isFetching
+        ? { kind: 'error', message: found.error.message }
+        : { kind: 'loading', before: found.data ?? [] };
+  const queryClient = useQueryClient();
 
   // Choosing a card replaces the address, so that moving through the list
   // stays out of the browser's history; turning to another side adds to
@@ -76,21 +92,13 @@ export function Browse() {
   const making = useRef<{ id: string; abort: AbortController } | null>(null);
   useEffect(() => () => making.current?.abort.abort(), []);
 
-  // Finding forgets every card made, so that a selector submitted again
-  // makes its cards anew.
-  const find = useCallback(async (sel: string) => {
+  // Each selector submitted forgets every card made, so that it makes its
+  // cards anew.
+  const forgetMade = useCallback(() => {
     making.current?.abort.abort();
     setMade({});
-    setList((l) => ({ kind: 'loading', before: l.kind === 'ready' ? l.cards : l.kind === 'loading' ? l.before : [] }));
-    try {
-      setList({ kind: 'ready', cards: await api.find(sel) });
-    } catch (error) {
-      setList({ kind: 'error', message: (error as Error).message });
-    }
   }, []);
-
-  // Finds the cards of each selector submitted, once shown.
-  useSubmitted(submitted, find);
+  useSubmitted(submitted, forgetMade);
 
   // After the item ITEM was saved, finds the cards again in place: the list
   // stays as it is until the new one replaces it, rows kept by card ID, so
@@ -101,9 +109,9 @@ export function Browse() {
       const ofItem = (id: string) => id === item || id.startsWith(`${item}.`);
       if (making.current && ofItem(making.current.id)) making.current.abort.abort();
       setMade((m) => Object.fromEntries(Object.entries(m).filter(([id]) => !ofItem(id))));
-      setList({ kind: 'ready', cards: await api.find(selector) });
+      queryClient.setQueryData(findKey(submitted), await api.find(selector));
     },
-    [selector],
+    [selector, submitted, queryClient],
   );
 
   // Makes card ID with srl cards, stopping the card being made, if any.
@@ -172,7 +180,7 @@ export function Browse() {
           {list.kind === 'loading' && <ListSkeleton />}
           {list.kind === 'error' && (
             <div className="p-6">
-              <ErrorView message={list.message} onRetry={() => find(selector)} />
+              <ErrorView message={list.message} onRetry={() => found.refetch()} />
             </div>
           )}
           {list.kind === 'ready' && cards.length === 0 && <p className="p-6 text-stone-400">No card matches.</p>}

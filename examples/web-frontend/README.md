@@ -274,7 +274,7 @@ bin/srl-web.js      the command: options, starting the server, opening the brows
 server/server.js    the server: the API below, and the built frontend from dist/
 server/srl.js       running srl and reading its exit codes
 server/on-change.js running the --on-change program
-src/                the frontend: React, React Router, Tailwind CSS, markdown-it, Heroicons
+src/                the frontend: React, React Router, TanStack Query, Tailwind CSS, markdown-it, Heroicons
 ```
 
 Icons come from Heroicons (`@heroicons/react`): a small set of general UI
@@ -402,6 +402,18 @@ first, and so does reloading or closing the page, which the router never
 sees, through the browser's `beforeunload`. Add uses it for the item
 being written, and Edit for the item's edits. A new form that holds work
 the user typed uses it too.
+
+### What srl answers: by what was asked, through TanStack Query
+
+What a view shows from srl must be the answer for what its address asks
+now, whatever order srl's answers come in. Browse's cards are read with
+TanStack Query's `useQuery`, kept by the selector submitted, so a list
+that comes late for a selector submitted before never replaces the one
+asked for. Read what a view shows the same way, rather than setting it
+from a request's answer with `useState`, which shows whichever answer
+comes last. The client in `src/main.tsx` forgets what no view shows any
+more (`gcTime: 0`), as the views themselves do (see above), and never
+reads again on its own.
 
 ### Where the page is: the address, through the router
 
