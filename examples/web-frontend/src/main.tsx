@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router';
 
 import { Add } from './Add';
+import { onStoreChange } from './api';
 import App, { Study } from './App';
 import { Browse } from './Browse';
 import './index.css';
@@ -24,18 +25,26 @@ const router = createBrowserRouter([
 ]);
 
 // What the views read from srl, kept by what they asked for (Browse's
-// cards, by selector), so that a view shows the answer for what its
-// address says, never one that came late for something asked before. It
-// is forgotten once no view shows it (gcTime 0): a view shown again reads
-// anew (README.md, "Routing the usual way"). srl's answers change only
-// when the store does, and an error is srl's, the same when asked again:
-// nothing is read again on its own, when the window gets the focus or
-// after an error.
+// cards by selector, a card's history by its ID), so that a view shows the
+// answer for what its address says, never one that came late for
+// something asked before, and a view shown again shows at once what it
+// read last (README.md, "What srl answers"):
+// - Each change the page makes to the store (a review, a suspension, an
+//   item added or edited) makes everything read out of date: what is
+//   shown is read again at once, the rest when it is next shown.
+// - A change made elsewhere, as with srl or an editor, is seen once what
+//   was read is STALE_TIME old: when it is next shown, or when the window
+//   gets the focus again, as when coming back from the editor.
+// - What no view has shown for GC_TIME is forgotten.
+// - An error is srl's, the same when asked again: it isn't retried.
+const STALE_TIME = 30_000; // ms
+const GC_TIME = 10 * 60_000; // ms
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { gcTime: 0, retry: false, refetchOnWindowFocus: false, refetchOnReconnect: false },
+    queries: { staleTime: STALE_TIME, gcTime: GC_TIME, retry: false, refetchOnReconnect: false },
   },
 });
+onStoreChange(() => queryClient.invalidateQueries());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

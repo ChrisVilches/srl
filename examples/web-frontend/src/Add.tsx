@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { api, fieldLabel, type KindDescription, type NewItem, type SourceDescription } from './api';
 import { DraftCheckbox, ErrorView, Key, KindBadge, Label, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
@@ -47,13 +48,35 @@ function rememberCollection(collection: string) {
   }
 }
 
+// What the form offers, as srl lists it: read anew after each change to the
+// store, as when an item added makes a new collection (src/main.tsx).
+const addQuery = {
+  queryKey: ['add'],
+  queryFn: async () => {
+    const [kinds, collections, notes, sources] = await Promise.all([
+      api.kinds(),
+      api.collections(),
+      api.notes(),
+      api.sources(),
+    ]);
+    return { kinds, collections, notes, sources };
+  },
+};
+
 export function Add() {
-  const [store, setStore] = useState<Store>({ kind: 'loading' });
+  const read = useQuery(addQuery);
+  const store: Store = read.isSuccess
+    ? { kind: 'ready', ...read.data }
+    : read.isError && !read.isFetching
+      ? { kind: 'error', message: read.error.message }
+      : { kind: 'loading' };
   const [kindName, setKindName] = useState('qa');
   // Field texts by name, kept when the kind changes, so that a field of the
   // same name keeps its text.
   const [texts, setTexts] = useState<Record<string, string>>({});
-  const [collection, setCollection] = useState<string | null>(null);
+  // The collection chosen, or, until one is, the one last added to while
+  // srl still lists it.
+  const [chosen, setCollection] = useState<string | null | undefined>(undefined);
   const [see, setSee] = useState<string | null>(null);
   const [draft, setDraft] = useState(false);
   const [result, setResult] = useState<Result>({ kind: 'none' });
@@ -62,30 +85,9 @@ export function Add() {
   // stay dimmed under the answer's modal instead of flashing back between.
   const waiting = busy || result.kind !== 'none';
 
-  const load = useCallback(async () => {
-    setStore({ kind: 'loading' });
-    try {
-      const [kinds, collections, notes, sources] = await Promise.all([
-        api.kinds(),
-        api.collections(),
-        api.notes(),
-        api.sources(),
-      ]);
-      setStore({ kind: 'ready', kinds, collections, notes, sources });
-      setCollection((current) =>
-        current !== null && collections.includes(current) ? current : rememberedCollection(collections),
-      );
-      setSee((current) => (current !== null && notes.includes(current) ? current : null));
-    } catch (error) {
-      setStore({ kind: 'error', message: (error as Error).message });
-    }
-  }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
-
   const kinds = store.kind === 'ready' ? store.kinds : [];
   const collections = store.kind === 'ready' ? store.collections : [];
+  const collection = chosen !== undefined ? chosen : rememberedCollection(collections);
   const notes = store.kind === 'ready' ? store.notes : [];
   const sources = store.kind === 'ready' ? store.sources : [];
   const kind = kinds.find((k) => k.name === kindName) ?? kinds[0];
@@ -148,7 +150,7 @@ export function Add() {
       <UnsavedGuard unsaved={unsaved} what="The item being written isn't added yet, and leaving Add loses it." />
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
         {store.kind === 'loading' && <FormSkeleton />}
-        {store.kind === 'error' && <ErrorView message={store.message} onRetry={load} />}
+        {store.kind === 'error' && <ErrorView message={store.message} onRetry={() => read.refetch()} />}
         {store.kind === 'ready' && kind !== undefined && (
           <div className="flex flex-col gap-6" onKeyDown={onKeyDown}>
             <Section label="Kind">

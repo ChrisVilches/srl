@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Fragment, type ReactNode } from 'react';
 
 import { api, type FoundCard, type LogEvent, type Rating } from './api';
 import { Label, Loading, Skeleton } from './CardParts';
@@ -98,26 +99,21 @@ function None({ children }: { children: ReactNode }) {
   return <span className="text-stone-400">{children}</span>;
 }
 
-// The card's log events, newest first, read once READ is true. The events of
-// another card aren't shown while this one's are read; this card's, read
-// before its row was found again, stay until the new ones come.
+// The card's log events, newest first, read once READ is true, and again
+// after each change to the store (src/main.tsx). The events of another
+// card aren't shown while this one's are read; this card's, read before,
+// stay until the new ones come.
 function History({ card, read }: { card: FoundCard; read: boolean }) {
-  const [history, setHistory] = useState<{ id: string; events: LogEvent[] } | { id: string; error: string } | null>(
-    null,
-  );
-  useEffect(() => {
-    if (!read) return;
-    const abort = new AbortController();
-    api.log(card.id, abort.signal).then(
-      (events) => setHistory({ id: card.id, events }),
-      (error: Error) => {
-        if (!abort.signal.aborted) setHistory({ id: card.id, error: error.message });
-      },
-    );
-    return () => abort.abort();
-  }, [card, read]);
-
-  const shown = history?.id === card.id ? history : null;
+  const log = useQuery({
+    queryKey: ['log', card.id],
+    queryFn: ({ signal }) => api.log(card.id, signal),
+    enabled: read,
+  });
+  const shown: { events: LogEvent[] } | { error: string } | null = log.isSuccess
+    ? { events: log.data }
+    : log.isError && !log.isFetching
+      ? { error: log.error.message }
+      : null;
   return (
     <section>
       <Label>History</Label>
@@ -216,27 +212,24 @@ export function CardDetailsSkeleton() {
   );
 }
 
-// The details of card ID in a modal, as srl find gives them each time it is
-// opened. The modal is tall, so it doesn't move as the card, then its
-// history, come in.
+// The details of card ID in a modal, as srl find gives them, read when it is
+// opened and kept as other reads are (src/main.tsx). The modal is tall, so
+// it doesn't move as the card, then its history, come in.
 export function CardDetailsDialog({ id, open, onClose }: { id: string; open: boolean; onClose: () => void }) {
-  const [found, setFound] = useState<{ id: string; card: FoundCard } | { id: string; error: string } | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    let current = true;
-    api.find(`id:${id}`).then(
-      (cards) => {
-        const card = cards.find((c) => c.id === id);
-        if (current) setFound(card ? { id, card } : { id, error: `srl find doesn't list the card ${id}.` });
-      },
-      (error: Error) => current && setFound({ id, error: error.message }),
-    );
-    return () => {
-      current = false;
-    };
-  }, [open, id]);
-
-  const shown = found?.id === id ? found : null;
+  const found = useQuery({
+    queryKey: ['card', id],
+    queryFn: async () => {
+      const card = (await api.find(`id:${id}`)).find((c) => c.id === id);
+      if (!card) throw new Error(`srl find doesn't list the card ${id}.`);
+      return card;
+    },
+    enabled: open,
+  });
+  const shown: { card: FoundCard } | { error: string } | null = found.isSuccess
+    ? { card: found.data }
+    : found.isError && !found.isFetching
+      ? { error: found.error.message }
+      : null;
   return (
     <Modal open={open} title="Card details" tall onClose={onClose}>
       {shown === null ? (

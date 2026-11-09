@@ -89,7 +89,7 @@ export type OnChangeStatus = { busy: boolean; last: { seq: number; error: string
 const changeListeners = new Set<() => void>();
 
 // Calls LISTENER after each change the page makes to the store: a review, a
-// suspension, an item added. Returns a function that stops it.
+// suspension, an item added or edited. Returns a function that stops it.
 export function onStoreChange(listener: () => void) {
   changeListeners.add(listener);
   return () => {

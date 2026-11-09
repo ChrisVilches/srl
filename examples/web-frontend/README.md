@@ -388,12 +388,13 @@ it, so it is done the way React Router means it to be, even where that
 costs something. The router is a data router (`createBrowserRouter` in
 `src/main.tsx`). Each view is a route, and only the route shown is
 mounted: leaving a view unmounts it, and coming back starts it anew, so
-Study asks `srl next` again, Browse finds its cards and makes them again,
-and Add reads the kinds and collections again. That is accepted. Don't
-keep views mounted while hidden, keep their state outside them so that
-it survives, or work out from the address by hand what the router can
-give, such as a view's own part of the path (use `useParams()`, as
-Browse does for its card and side).
+Study asks `srl next` again, and Browse makes its cards again. That is
+accepted. Don't keep views mounted while hidden, keep their state outside
+them so that it survives, or work out from the address by hand what the
+router can give, such as a view's own part of the path (use
+`useParams()`, as Browse does for its card and side). The one exception
+is what the views read from srl, kept by TanStack Query (below): Browse's
+cards and Add's lists show at once when the view comes back.
 
 What leaving a view would lose that can't be made again, text typed and
 not yet saved, is guarded with `UnsavedGuard` (`src/Modal.tsx`, with the
@@ -406,14 +407,33 @@ the user typed uses it too.
 ### What srl answers: by what was asked, through TanStack Query
 
 What a view shows from srl must be the answer for what its address asks
-now, whatever order srl's answers come in. Browse's cards are read with
-TanStack Query's `useQuery`, kept by the selector submitted, so a list
-that comes late for a selector submitted before never replaces the one
-asked for. Read what a view shows the same way, rather than setting it
-from a request's answer with `useState`, which shows whichever answer
-comes last. The client in `src/main.tsx` forgets what no view shows any
-more (`gcTime: 0`), as the views themselves do (see above), and never
-reads again on its own.
+now, whatever order srl's answers come in. So what the views read is read
+with TanStack Query's `useQuery`, kept by what was asked: Browse's cards
+by the selector submitted, Add's kinds, collections, notes and sources,
+and a card's details and history by its ID. A list that comes late for a
+selector submitted before never replaces the one asked for. Read what a
+view shows the same way, rather than setting it from a request's answer
+with `useState`, which shows whichever answer comes last.
+
+What was read is kept, so a view shown again shows it at once, and is
+read again when it may have changed (the client in `src/main.tsx`):
+
+- Each change the page makes to the store (a review, a suspension, an
+  item added or edited) makes everything read out of date. What is shown
+  is read again at once, in place: Browse's list after an item is edited,
+  Add's collections after an item made a new one. The rest is read again
+  when it is next shown.
+- A change made elsewhere, with `srl` or an editor, is seen once what was
+  read is 30 seconds old: when its view is next shown, or when the
+  window gets the focus again, as when coming back from the editor.
+- What no view has shown for 10 minutes is forgotten, and an error, which
+  is srl's and the same when asked again, isn't retried.
+
+Not read this way: `srl next` and the day's counts, which Study asks for
+each time, a card made with its kind program (Browse keeps those itself,
+and makes them again only when asked), and the item that Edit's form
+starts from, read once so that reading it again never changes what is
+being typed.
 
 ### Where the page is: the address, through the router
 

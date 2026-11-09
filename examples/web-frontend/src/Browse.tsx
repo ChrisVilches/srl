@@ -23,7 +23,10 @@ type List =
   | { kind: 'error'; message: string };
 
 // The cards found for a submission, as kept by TanStack Query (src/main.tsx).
-const findKey = ({ selector, n }: Submitted) => ['find', selector, n];
+const findQuery = ({ selector, n }: Submitted) => ({
+  queryKey: ['find', selector, n],
+  queryFn: () => api.find(selector),
+});
 
 // A card being made, made (with how long it took), or that couldn't be.
 type Made =
@@ -66,8 +69,9 @@ export function Browse() {
   // The cards of the selector submitted: of this submission, so that a
   // selector submitted again finds its cards anew. The list is always that
   // of the selector shown, never of one submitted before, whatever order
-  // srl answers in; the cards found before are only kept as `before`.
-  const found = useQuery({ queryKey: findKey(submitted), queryFn: () => api.find(selector), placeholderData: keepPreviousData });
+  // srl answers in; the cards found before are only kept as `before`. A
+  // change to the store finds them again in place (src/main.tsx).
+  const found = useQuery({ ...findQuery(submitted), placeholderData: keepPreviousData });
   const list: List =
     found.isSuccess && !found.isPlaceholderData
       ? { kind: 'ready', cards: found.data }
@@ -100,18 +104,19 @@ export function Browse() {
   }, []);
   useSubmitted(submitted, forgetMade);
 
-  // After the item ITEM was saved, finds the cards again in place: the list
-  // stays as it is until the new one replaces it, rows kept by card ID, so
-  // its scroll stays; only the cards of ITEM (its ID, or its ID and a
-  // suffix) are forgotten, to be made anew. Throws srl's error, if any.
+  // After the item ITEM was saved, the cards are found again in place, as
+  // after any change: the list stays as it is until the new one replaces it,
+  // rows kept by card ID, so its scroll stays. Only the cards of ITEM (its
+  // ID, or its ID and a suffix) are forgotten, to be made anew. Waits for
+  // the cards found again, the same finding, and throws srl's error, if any.
   const refresh = useCallback(
     async (item: string) => {
       const ofItem = (id: string) => id === item || id.startsWith(`${item}.`);
       if (making.current && ofItem(making.current.id)) making.current.abort.abort();
       setMade((m) => Object.fromEntries(Object.entries(m).filter(([id]) => !ofItem(id))));
-      queryClient.setQueryData(findKey(submitted), await api.find(selector));
+      await queryClient.fetchQuery(findQuery(submitted));
     },
-    [selector, submitted, queryClient],
+    [submitted, queryClient],
   );
 
   // Makes card ID with srl cards, stopping the card being made, if any.
