@@ -79,6 +79,7 @@ The open findings cluster in three places:
 | L6 | `srl-core` is a second, public interface | Structure | Low | Easy |
 | L7 | The domain layer still leans on modules with I/O | Structure | Low | Moderate |
 | L9 | What a card with varying content means is unspecified | Specification | Low | Easy |
+| L10 | What symbolic links in a store mean is unspecified, and a loop multiplies collections | Specification | Low | Easy |
 
 ---
 
@@ -424,6 +425,28 @@ region. Two things about such cards are left unsaid:
 cards are supported and their memory state is the skill's; and, if
 analysis of such cards matters, an optional field in review events, such
 as a hash of the card as shown, passed back by the frontend.
+
+### L10. What symbolic links in a store mean is unspecified, and a loop multiplies collections
+
+**Severity Low · Difficulty Easy**
+
+[store.md](store.md), "Which files are read", chooses files by globs and
+skips folders whose name starts with `.`, but says nothing of symbolic
+links. The code follows them, to files and folders alike, so:
+
+- **A link to a folder above it is followed until the system refuses**: a
+  link `loop/up` to `..` makes every collection of the store appear again
+  as `loop/up/a.jsonl`, `loop/up/loop/up/a.jsonl` and so on, about forty
+  times on Linux, each copy an error for the IDs it repeats.
+- **A link can make a file outside the store a collection or a note**,
+  read and, for a collection, written, although the store is described as
+  one folder that holds everything.
+
+**Possible fixes:** say in [store.md](store.md) whether links are
+followed. Either never follow links to folders (simplest, and what most
+tools that walk a tree do by default), or follow them but visit each
+folder once; and say whether a file a link points to outside the store
+is read.
 
 ---
 

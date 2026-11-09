@@ -2310,3 +2310,327 @@ fn a_source_program_of_a_web_service_checks_its_settings_with_it_and_caches_its_
         stderr(&output)
     );
 }
+
+/// Asserts that `output` is a refusal: status 2, nothing on standard
+/// output, and no panic, whatever `what` was.
+fn assert_refused(output: &Output, what: &str) {
+    assert_eq!(output.status.code(), Some(2), "{what}: {}", stderr(output));
+    assert_eq!(output.stdout, b"", "{what}");
+    assert!(
+        !stderr(output).contains("panicked"),
+        "{what}: {}",
+        stderr(output)
+    );
+}
+
+/// A folder holding `secret.md`, which no store may show, and a store in
+/// its folder `store`, with `files` written in it: the folder and the
+/// store's path.
+#[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
+fn store_beside_a_secret(files: &[(&str, &str)]) -> (TempDir, String) {
+    let outer = TempDir::new().unwrap();
+    fs::write(outer.path().join("secret.md"), "TOP SECRET\n").unwrap();
+    let store = outer.path().join("store");
+    let store = store.to_str().unwrap().to_owned();
+    assert_eq!(srl(&["init", &store]).status.code(), Some(0));
+    for (path, text) in files {
+        let file = Path::new(&store).join(path);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(file, text).unwrap();
+    }
+    (outer, store)
+}
+
+/// Every format of the `filesystem` driver, at the top of the store.
+const EVERY_FORMAT: &str =
+    "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"*.jsonl\", \"*.json\", \"*.xml\"]\n";
+
+#[test]
+fn hostile_collection_files_are_errors_in_the_store_not_crashes() {
+    let deep =
+        |open: &str, close: &str| format!("{}{}", open.repeat(100_000), close.repeat(100_000));
+    let laughs = "<!DOCTYPE items [<!ENTITY a \"aaaaaaaaaa\"><!ENTITY b \"&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;\"><!ENTITY c \"&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;\">]>\n<items><item id=\"aaa1\"><Q>&c;</Q><A>a</A></item></items>\n";
+    let external = "<!DOCTYPE items [<!ENTITY x SYSTEM \"secret.txt\">]>\n<items><item id=\"aaa1\"><Q>&x;</Q><A>a</A></item></items>\n";
+    let doctype = "a.xml: line 1: a file holds one `<items>` element";
+    for (path, text, expected) in [
+        ("a.json", deep("[", "]"), "a.json: "),
+        (
+            "a.jsonl",
+            format!("{{\"Q\": {}}}\n", deep("[", "]")),
+            "a.jsonl: line 1: ",
+        ),
+        (
+            "a.xml",
+            format!(
+                "<items><item id=\"aaa1\"><Q>{}</Q><A>a</A></item></items>\n",
+                deep("<b>", "</b>")
+            ),
+            "the field `<Q>` holds an element",
+        ),
+        // No entity is ever expanded, nor a file outside the collection read.
+        ("a.xml", laughs.to_owned(), doctype),
+        ("a.xml", external.to_owned(), doctype),
+        (
+            "a.xml",
+            "<items><item id=\"aaa1\"><Q>&nope;</Q><A>a</A></item></items>\n".to_owned(),
+            "unrecognized entity `nope`",
+        ),
+        (
+            "a.jsonl",
+            "{\"id\": \"aaa1\", \"id\": \"bbb1\", \"Q\": \"q\", \"A\": \"a\"}\n".to_owned(),
+            "the key `id` appears twice",
+        ),
+        (
+            "a.json",
+            "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}".to_owned(),
+            "is not a JSON array",
+        ),
+    ] {
+        let tmp = store(&[
+            (".srl/config.toml", EVERY_FORMAT),
+            ("secret.txt", "TOP SECRET\n"),
+            (path, text.as_str()),
+        ]);
+        for command in ["find", "check"] {
+            let output = srl(&[command, "--dir", dir(&tmp)]);
+            let what = format!("{command} {expected}");
+            assert_refused(&output, &what);
+            assert!(
+                stderr(&output).contains(expected),
+                "{what}: {}",
+                stderr(&output)
+            );
+            assert!(!stderr(&output).contains("TOP SECRET"), "{what}");
+        }
+    }
+    // A collection that isn't UTF-8 is refused too, naming it.
+    let tmp = store(&[]);
+    write_bytes(
+        &tmp,
+        "a.jsonl",
+        b"{\"id\": \"aaa1\", \"Q\": \"\xff\", \"A\": \"a\"}\n",
+    );
+    let output = srl(&["find", "--dir", dir(&tmp)]);
+    assert_refused(&output, "not UTF-8");
+    assert!(stderr(&output).contains("a.jsonl"), "{}", stderr(&output));
+}
+
+#[test]
+fn see_never_names_a_file_outside_the_notes_whatever_its_source() {
+    for see in [
+        "../secret.md".to_owned(),
+        "sub/../../secret.md".to_owned(),
+        // The secret's own absolute path, with the platform's separators.
+        String::new(),
+        "./sub/n.md".to_owned(),
+        "sub//n.md".to_owned(),
+        "sub/n.md/".to_owned(),
+        "sub\\n.md".to_owned(),
+        "dir.md".to_owned(),
+        ".srl/config.toml".to_owned(),
+        "a.jsonl".to_owned(),
+    ] {
+        let (outer, d) = store_beside_a_secret(&[
+            ("sub/n.md", "# n\n"),
+            ("dir.md/inside.md", "# inside\n"),
+            (
+                "a.jsonl",
+                "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n",
+            ),
+        ]);
+        let see = if see.is_empty() {
+            outer.path().join("secret.md").to_str().unwrap().to_owned()
+        } else {
+            see
+        };
+        let item = serde_json::json!({"id": "bbb1", "see": see, "Q": "q", "A": "a"});
+        fs::write(Path::new(&d).join("b.jsonl"), format!("{item}\n")).unwrap();
+        for args in [&["show", "bbb1"][..], &["next", "--json"], &["find"]] {
+            let output = srl(&[args, &["--dir", d.as_str()]].concat());
+            assert_refused(&output, &format!("{args:?} with see {see}"));
+            assert!(
+                stderr(&output).contains("b.jsonl: item bbb1: `see`"),
+                "{see}: {}",
+                stderr(&output)
+            );
+            assert!(!stderr(&output).contains("TOP SECRET"), "{see}");
+        }
+    }
+}
+
+#[test]
+fn add_refuses_collection_names_that_leave_the_store_or_hide_in_it() {
+    let (outer, d) = store_beside_a_secret(&[("sub/n.md", "# n\n")]);
+    let item = "{\"Q\": \"q\", \"A\": \"a\"}\n";
+    for name in [
+        "../escape.jsonl",
+        "../../escape.jsonl",
+        "/escape.jsonl",
+        "sub/../../escape.jsonl",
+        "./escape.jsonl",
+        ".hidden/escape.jsonl",
+        ".srl/escape.jsonl",
+        "sub//escape.jsonl",
+        "sub/",
+        "",
+        "sub\\escape.jsonl",
+        "c:/escape.jsonl",
+    ] {
+        let added = srl_with_input(&["add", name, "--stdin", "--dir", &d], item);
+        assert_refused(&added, name);
+        assert!(
+            stderr(&added).contains("nothing was added"),
+            "{name}: {}",
+            stderr(&added)
+        );
+    }
+    // Nothing was written, inside the store or beside it.
+    let mut beside = fs::read_dir(outer.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .collect::<Vec<_>>();
+    beside.sort();
+    assert_eq!(beside, ["secret.md", "store"]);
+    assert_eq!(srl(&["collections", "--dir", &d]).status.code(), Some(1));
+}
+
+#[test]
+fn an_id_in_two_sources_or_a_collection_a_program_takes_from_a_file_is_an_error() {
+    let (dog, other) = (
+        "{\"id\": \"dog001\", \"Q\": \"q\", \"A\": \"a\"}\n",
+        "{\"id\": \"zzz001\", \"Q\": \"q\", \"A\": \"a\"}\n",
+    );
+    let items = "\n[sources.items]\ndriver = \"filesystem\"\n";
+    let tmp = store_with_program(&[("words.jsonl", dog)], WORDS, items);
+    let output = srl(&["find", "--dir", dir(&tmp)]);
+    assert_refused(&output, "the same ID in two sources");
+    assert!(
+        stderr(&output)
+            .contains("words.jsonl: item 1: the ID dog001 is also used by an item of vocab/words"),
+        "{}",
+        stderr(&output)
+    );
+    // The program lists a collection whose name is a file's of `items`.
+    let more = format!(
+        "raw_call = \"collections\"\nraw_output = \"{{\\\"collection\\\": \\\"words.jsonl\\\"}}\\n{{\\\"collection\\\": \\\"vocab/words\\\"}}\\n\"\n{items}"
+    );
+    let tmp = store_with_program(&[("words.jsonl", other)], WORDS, &more);
+    let output = srl(&["find", "--dir", dir(&tmp)]);
+    assert_refused(&output, "a collection two sources give");
+    assert!(
+        stderr(&output).contains("words.jsonl: the sources items and vocab both give it"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn a_source_program_that_lies_about_its_items_stops_commands() {
+    let item = |collection: &str, handle: &str, id: &str| {
+        format!(
+            "{{\\\"collection\\\": \\\"{collection}\\\", \\\"handle\\\": \\\"{handle}\\\", \\\"item\\\": {{\\\"id\\\": \\\"{id}\\\", \\\"Q\\\": \\\"q\\\", \\\"A\\\": \\\"a\\\"}}}}"
+        )
+    };
+    let answer = |output: String| format!("raw_call = \"read\"\nraw_output = \"{output}\\n\"\n");
+    let mut cases = vec![
+        (
+            answer(format!(
+                "{}\\n{}",
+                item("vocab/words", "h1", "aaa001"),
+                item("vocab/words", "h1", "bbb001")
+            )),
+            "the handle `h1` is given twice".to_owned(),
+        ),
+        (
+            answer(item("elsewhere", "h1", "aaa001")),
+            "elsewhere: the source vocab gives an item in it, but doesn't list it".to_owned(),
+        ),
+        (
+            answer(item("vocab/words", "h1", "AAA001")),
+            "`AAA001` is not an item ID".to_owned(),
+        ),
+    ];
+    for name in ["/abs", "a//b", "a/./b", "a\\\\\\\\b", ""] {
+        cases.push((
+            format!("raw_call = \"collections\"\nraw_output = \"{{\\\"collection\\\": \\\"{name}\\\"}}\\n\"\n"),
+            "is not a collection's name".to_owned(),
+        ));
+    }
+    for (more, expected) in cases {
+        let tmp = store_with_program(&[], WORDS, &more);
+        let output = srl(&["find", "--dir", dir(&tmp)]);
+        assert_refused(&output, &more);
+        assert!(
+            stderr(&output).contains(&expected),
+            "{more}: {}",
+            stderr(&output)
+        );
+    }
+    // A write answered with too few lines changes nothing that srl reports
+    // as done.
+    let tmp = store_with_program(&[], WORDS, "raw_call = \"write\"\nraw_output = \"\"\n");
+    let added = srl_with_input(
+        &["add", "vocab/words", "--stdin", "--dir", dir(&tmp)],
+        "{\"Q\": \"q\", \"A\": \"a\"}",
+    );
+    assert_refused(&added, "a write without answers");
+    assert!(
+        stderr(&added).contains("it printed 0 lines for 1 input lines"),
+        "{}",
+        stderr(&added)
+    );
+    assert_eq!(read(&tmp, "vocab.json"), WORDS);
+}
+
+#[test]
+fn a_bad_configuration_refuses_every_command_and_writes_nothing() {
+    for (config, expected) in [
+        ("new_per_day = \n", "is not a valid configuration"),
+        (
+            "[sources.Items]\ndriver = \"filesystem\"\n",
+            "sources.Items",
+        ),
+        (
+            "[sources.items]\ndriver = \"filesystem\"\nprogram = [\"x\"]\n",
+            "not both",
+        ),
+        (
+            "[sources.items]\nprogram = []\n",
+            "`sources.items.program` is empty",
+        ),
+        (
+            "[sources.items]\nprogram = [\"no-such-program-for-srl-tests\"]\n",
+            "cannot find its program `no-such-program-for-srl-tests`",
+        ),
+        (
+            "[sources.items]\ndriver = \"filesystem\"\ninclude = \"**/*.jsonl\"\n",
+            "expected a sequence",
+        ),
+        ("[context]\nbogus = 1\n", "unknown field `bogus`"),
+        ("[schedule]\ndesired_retention = 1.0\n", "desired_retention"),
+    ] {
+        let tmp = japanese();
+        let d = dir(&tmp);
+        write(&tmp, ".srl/config.toml", config);
+        let found = srl(&["find", "--dir", d]);
+        assert_refused(&found, config);
+        assert!(
+            stderr(&found).contains(expected),
+            "{config}: {}",
+            stderr(&found)
+        );
+        let added = srl_with_input(
+            &["add", "new.jsonl", "--stdin", "--dir", d],
+            "{\"Q\": \"q\", \"A\": \"a\"}\n",
+        );
+        assert_refused(&added, config);
+        assert!(!tmp.path().join("new.jsonl").exists(), "{config}");
+        let reviewed = srl(&["review", "tuna01", "--rating", "3", "--dir", d]);
+        assert_refused(&reviewed, config);
+        assert_eq!(
+            fs::read_dir(tmp.path().join(".srl/log")).unwrap().count(),
+            0,
+            "{config}"
+        );
+    }
+}
