@@ -31,7 +31,11 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 - **Exit codes:** 0 success (or something found), 1 nothing found or nothing
   left, 2 error. Stopped by a signal, `srl` first stops the programs it
   runs, then ends by that signal, with no exit code (see
-  [cards.md](cards.md), "Stopping a program").
+  [cards.md](cards.md), "Stopping a program"). When standard output or
+  standard error can't be written, `srl` stops the programs it runs and
+  ends with exit code 2: quietly when whoever reads it closed it, as
+  `head` does in `srl find | head -1`, and otherwise saying why on
+  standard error, if it can.
 - **Errors in sources stop every command that reads items** (see
   [items.md](items.md), "Errors"), except `srl id` for items without an ID,
   and `srl check`, which reports them.

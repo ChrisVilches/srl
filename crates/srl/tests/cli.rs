@@ -2634,3 +2634,27 @@ fn a_bad_configuration_refuses_every_command_and_writes_nothing() {
         );
     }
 }
+
+#[test]
+fn a_reader_that_stops_reading_ends_srl_quietly_without_a_panic() {
+    use std::io::{BufRead as _, BufReader};
+    let items = (0..20_000)
+        .map(|n| format!("{{\"id\": \"i{n}\", \"Q\": \"q\", \"A\": \"a\"}}\n"))
+        .collect::<String>();
+    let tmp = store(&[("a.jsonl", &items)]);
+    let mut child = srl_command()
+        .args(["find", "--dir", dir(&tmp)])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    // Like `srl find | head -1`: one line read, then the pipe is closed.
+    let mut first = String::new();
+    BufReader::new(child.stdout.take().unwrap())
+        .read_line(&mut first)
+        .unwrap();
+    assert_eq!(first, "i0  a.jsonl  q\n");
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(stderr(&output), "");
+}

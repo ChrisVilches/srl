@@ -1,12 +1,7 @@
 //! The only place that writes to standard output and standard error.
 
-#![expect(
-    clippy::print_stdout,
-    clippy::print_stderr,
-    reason = "this module is where output happens"
-)]
-
 use std::fmt::Display;
+use std::io::{self, Write as _};
 use std::path::PathBuf;
 
 use serde::Serialize;
@@ -16,31 +11,73 @@ use srl_core::{
     Warning, Written,
 };
 
+/// A line on standard output, as `println!` writes it, but ending `srl`
+/// when it can't be written (see [`wrote`]) instead of panicking.
+macro_rules! out {
+    ($($arg:tt)*) => {
+        wrote(writeln!(io::stdout().lock(), $($arg)*), Stream::Output)
+    };
+}
+
+/// A line on standard error, as `eprintln!` writes it, but ending `srl`
+/// when it can't be written (see [`wrote`]) instead of panicking.
+macro_rules! err {
+    ($($arg:tt)*) => {
+        wrote(writeln!(io::stderr().lock(), $($arg)*), Stream::Error)
+    };
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Stream {
+    Output,
+    Error,
+}
+
+/// Ends `srl` if `result`, a write to `stream`, failed: when whoever reads
+/// it closed it, such as `head` in `srl find | head -1`, quietly, and
+/// otherwise saying why on standard error, if it can. Either way, the
+/// programs it runs are stopped, and the exit code is 2 (see `docs/cli.md`,
+/// on exit codes).
+fn wrote(result: io::Result<()>, stream: Stream) {
+    let Err(error) = result else {
+        return;
+    };
+    if stream == Stream::Output && error.kind() != io::ErrorKind::BrokenPipe {
+        let _unwritable = writeln!(
+            io::stderr().lock(),
+            "srl: cannot write to standard output: {error}"
+        );
+    }
+    srl_core::stop_programs();
+    #[expect(clippy::exit, reason = "nothing more can be written")]
+    std::process::exit(2);
+}
+
 /// Prints one path per line.
 pub(crate) fn paths(paths: &[PathBuf]) {
     for path in paths {
-        println!("{}", path.display());
+        out!("{}", path.display());
     }
 }
 
 /// Prints one path of the store per line.
 pub(crate) fn store_paths(paths: &[String]) {
     for path in paths {
-        println!("{path}");
+        out!("{path}");
     }
 }
 
 /// Prints one ID per line.
 pub(crate) fn ids<T: Display>(ids: &[T]) {
     for id in ids {
-        println!("{id}");
+        out!("{id}");
     }
 }
 
 /// Prints the name of each collection, one per line.
 pub(crate) fn collections(collections: &[CollectionInfo]) {
     for collection in collections {
-        println!("{}", collection.collection);
+        out!("{}", collection.collection);
     }
 }
 
@@ -48,7 +85,7 @@ pub(crate) fn collections(collections: &[CollectionInfo]) {
 /// collection, separated by two spaces.
 pub(crate) fn written(written: &[Written]) {
     for done in written {
-        println!("{}  {}", done.id, done.collection);
+        out!("{}  {}", done.id, done.collection);
     }
 }
 
@@ -58,7 +95,7 @@ pub(crate) fn written(written: &[Written]) {
 pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
     for (item, card) in cards {
         let line = format!("{}  {}  {}", card, item.collection(), item.label());
-        println!("{}", line.trim_end());
+        out!("{}", line.trim_end());
     }
 }
 
@@ -68,7 +105,7 @@ pub(crate) fn card_lines(cards: &[(&Item, &CardId)]) {
 pub(crate) fn items(items: &[Value]) {
     for (index, item) in items.iter().enumerate() {
         if index > 0 {
-            println!();
+            out!();
         }
         for (key, value) in item.as_object().into_iter().flatten() {
             let value = match value {
@@ -94,12 +131,12 @@ pub(crate) fn items(items: &[Value]) {
 /// then each line indented by two spaces.
 fn entry(name: &str, value: &str) {
     if value.contains('\n') {
-        println!("{name}:");
+        out!("{name}:");
         for line in value.lines() {
-            println!("{}", format!("  {line}").trim_end());
+            out!("{}", format!("  {line}").trim_end());
         }
     } else {
-        println!("{}", format!("{name}: {value}").trim_end());
+        out!("{}", format!("{name}: {value}").trim_end());
     }
 }
 
@@ -110,16 +147,16 @@ fn entry(name: &str, value: &str) {
 pub(crate) fn cards(cards: &[Card]) {
     for (index, card) in cards.iter().enumerate() {
         if index > 0 {
-            println!();
+            out!();
         }
-        println!("{}", card.id());
-        println!("{}", card.prompt().trim_end());
-        println!("---");
+        out!("{}", card.id());
+        out!("{}", card.prompt().trim_end());
+        out!("---");
         let revealed = card.prompt_revealed().unwrap_or(card.prompt());
-        println!("{}", revealed.trim_end());
+        out!("{}", revealed.trim_end());
         if let Some(answer) = card.answer() {
-            println!("---");
-            println!("{}", answer.trim_end());
+            out!("---");
+            out!("{}", answer.trim_end());
         }
     }
 }
@@ -144,7 +181,7 @@ pub(crate) fn events(events: &[&Event]) {
             Event::Unsuspend(_) => "unsuspend".to_owned(),
             Event::Move(moved) => format!("move  {}", moved.from),
         };
-        println!("{}  {}  {what}", event.t(), event.card());
+        out!("{}  {}  {what}", event.t(), event.card());
     }
 }
 
@@ -164,15 +201,15 @@ pub(crate) fn stats(report: &Stats) {
         ("new today", report.new_today),
         ("again today", report.again_today),
     ] {
-        println!("{name}  {value}");
+        out!("{name}  {value}");
     }
     match report.retention {
-        Some(retention) => println!(
+        Some(retention) => out!(
             "retention  {:.1}% of {} reviews in 30 days",
             retention * 100.0,
             report.retention_reviews
         ),
-        None => println!("retention  -"),
+        None => out!("retention  -"),
     }
 }
 
@@ -182,11 +219,11 @@ pub(crate) fn stats(report: &Stats) {
 /// and descriptions are separated by two spaces.
 pub(crate) fn kinds(kinds: &[KindDescription]) {
     for kind in kinds {
-        println!("{}  {}", kind.name, kind.description);
+        out!("{}  {}", kind.name, kind.description);
         for field in &kind.fields {
             match &field.label {
-                Some(label) => println!("  {} ({label})  {}", field.name, field.description),
-                None => println!("  {}  {}", field.name, field.description),
+                Some(label) => out!("  {} ({label})  {}", field.name, field.description),
+                None => out!("  {}  {}", field.name, field.description),
             }
         }
     }
@@ -197,11 +234,11 @@ pub(crate) fn kinds(kinds: &[KindDescription]) {
 /// spaces, each name and value separated by two spaces.
 pub(crate) fn sources(sources: &[SourceDescription]) {
     for source in sources {
-        println!("{}  {}", source.name, source.description);
-        println!("  driver  {}", source.driver);
-        println!("  include  {}", source.creates.include.join(" "));
+        out!("{}  {}", source.name, source.description);
+        out!("  driver  {}", source.driver);
+        out!("  include  {}", source.creates.include.join(" "));
         if !source.creates.exclude.is_empty() {
-            println!("  exclude  {}", source.creates.exclude.join(" "));
+            out!("  exclude  {}", source.creates.exclude.join(" "));
         }
     }
 }
@@ -209,31 +246,39 @@ pub(crate) fn sources(sources: &[SourceDescription]) {
 /// Reports a likely mistake `srl check` found, on standard error, as
 /// `warning: COLLECTION: item ID: message`.
 pub(crate) fn warning(warning: &Warning) {
-    eprintln!(
+    err!(
         "srl: warning: {}: item {}: {}",
-        warning.collection, warning.id, warning.message
+        warning.collection,
+        warning.id,
+        warning.message
     );
 }
 
 /// Prints text as it is.
 pub(crate) fn text(text: &str) {
-    print!("{text}");
+    let mut stdout = io::stdout().lock();
+    wrote(
+        stdout
+            .write_all(text.as_bytes())
+            .and_then(|()| stdout.flush()),
+        Stream::Output,
+    );
 }
 
 /// Prints each item as one line of JSON.
 pub(crate) fn json_lines<T: Serialize>(items: &[T]) -> anyhow::Result<()> {
     for item in items {
-        println!("{}", serde_json::to_string(item)?);
+        out!("{}", serde_json::to_string(item)?);
     }
     Ok(())
 }
 
 /// Reports a failure the command carries on after, on standard error.
 pub(crate) fn problem(error: &srl_core::Error) {
-    eprintln!("srl: {error}");
+    err!("srl: {error}");
 }
 
 /// Prints an error as one plain message on standard error.
 pub(crate) fn error(error: &anyhow::Error) {
-    eprintln!("srl: {error:#}");
+    err!("srl: {error:#}");
 }
