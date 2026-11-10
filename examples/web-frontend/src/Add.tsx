@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'r
 import { api, fieldLabel, type KindDescription, type NewItem, type SourceDescription } from './api';
 import { DraftCheckbox, ErrorView, Key, KindBadge, Label, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
 import { Modal, ResultBox, UnsavedGuard } from './Modal';
+import { clozeHint, clozeShortcut } from './qaCloze';
 import { queries } from './queries';
 import { TopBar } from './TopBar';
 
@@ -183,11 +184,12 @@ export function Add() {
               // placeholder, or, before one is or if it was left blank, the
               // kind's description of the field: there while the box is
               // empty, out of the way once it is written in.
-              <Section key={field.name} label={fieldLabel(field)}>
+              <Section key={field.name} label={fieldLabel(field)} hint={clozeHint(kind.name, field.name)}>
                 <textarea
                   value={texts[field.name] ?? ''}
                   placeholder={lastAdded[kind.name]?.[field.name]?.trim() ? lastAdded[kind.name][field.name] : field.description}
                   onChange={(event) => setTexts((t) => ({ ...t, [field.name]: event.target.value }))}
+                  onKeyDown={clozeShortcut(kind.name, field.name)}
                   rows={3}
                   spellCheck={false}
                   className={`${INPUT} resize-y`}
