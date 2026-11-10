@@ -90,10 +90,7 @@ macOS and Windows (it is tried on Linux only).
   it as if submitted, so the box shows it and the cards are found or
   asked for again. Switching views with the tabs, submitting another
   selector (or emptying the box with its X), choosing a card in Browse
-  while none is chosen and turning it to another side each add to the
-  browser's history; choosing another card once one is chosen replaces
-  the address instead, so moving through the list doesn't fill the
-  history. Doing again what the address already shows, such as
+  and turning it to another side each add to the browser's history. Doing again what the address already shows, such as
   submitting its selector or clicking the side shown, adds nothing. A
   tab goes to its view's path, keeping the selector: Browse's tab goes
   to the list, with no card chosen. A view starts anew each time it is
@@ -165,8 +162,7 @@ as how `ja_word` marks words, without studying:
   side by side: the list takes the page until a card is chosen, and the
   card then takes it, with a **← Cards** button back to the list, which
   is as it was left, scrolled where it was. The button leaves the card,
-  going to `/browse` with the selector and adding to the history as
-  Browse's tab does, so the address always says whether the list or a
+  going to `/browse` with the selector as Browse's tab does, so the address always says whether the list or a
   card is shown. Which of the two layouts shows is up to the page's width only,
   so widening or narrowing the window moves between them as it goes.
 - It records nothing: no review, no suspension. Studying starts only when
@@ -480,13 +476,12 @@ the same way with back, forward, reload and bookmarks:
   `navigate()` from `useNavigate()`. Never call `window.history`, listen
   to `popstate`, or fire events of your own to make the page follow the
   address: the router does both.
-- **A change adds to the browser's history by default.** Pass
-  `{ replace: true }` only when going through many places on the way to
-  one, which back shouldn't step through: choosing a card in Browse's
-  list, with ↑/↓ or the mouse. Going to the address already shown adds
-  nothing: `<Link>` replaces by itself, and `navigate()` needs a check, as
-  `setSide` in `src/Browse.tsx` does, or `{ replace: true }`, as
-  `onSelector` in `src/App.tsx` does.
+- **Every change adds to the browser's history**, so back and forward
+  step through everything shown, such as each card chosen in Browse,
+  with ↑/↓ or the mouse. Going to the address already shown adds
+  nothing: `<Link>` replaces by itself, and `navigate()` needs a check,
+  as `setSelected` and `setSide` in `src/Browse.tsx` and `onSelector` in
+  `src/App.tsx` do.
 - **What follows from the address runs because the address changed**, not
   in the handler that changes it. A view loads its cards when the
   selector it derives changes (`useSubmitted` in `src/hooks.ts`), so

@@ -71,23 +71,21 @@ export function Browse() {
         : { kind: 'loading', before: found.data ?? [] };
   const queryClient = useQueryClient();
 
-  // Choosing a card from the list adds to the browser's history, so back
-  // goes back to the list; choosing another card once one is chosen
-  // replaces the address, so that moving through the list stays out of the
-  // history. Turning to another side adds to it, so back turns back.
+  // Choosing a card and turning it to another side each add to the
+  // browser's history, so back goes back through them.
   const params = useParams();
   const selected = params.card ?? null;
   const side = SIDES.find((s) => s === params.side) ?? 'prompt';
   const navigate = useNavigate();
   const { search } = useLocation();
-  const setSelected = (card: string) =>
-    navigate({ pathname: browsePath(card, side), search }, { replace: selected !== null });
+  const setSelected = (card: string) => {
+    if (card !== selected) navigate({ pathname: browsePath(card, side), search });
+  };
   const setSide = (s: Side) => {
     if (s !== side) navigate({ pathname: browsePath(selected, s), search });
   };
-  // Narrow, the button back to the list: it leaves the card, adding to the
-  // history as Browse's tab does, so the address says whether the list or a
-  // card is shown.
+  // Narrow, the button back to the list: it leaves the card, as Browse's
+  // tab does, so the address says whether the list or a card is shown.
   const toList = () => navigate({ pathname: browsePath(null, 'prompt'), search });
   // The chosen card, made with srl cards (queries.made): once, when first
   // chosen, and again only when asked (Make again), when the selector is
