@@ -10,7 +10,9 @@ import { currentTheme, setTheme } from './theme';
 // view's own controls. It spans the whole window in every view, however
 // wide the view's content is, so it doesn't change width between tabs. The
 // name links to the root, the study view with no selector in the address,
-// and loads the page anew.
+// and loads the page anew. Wide (md and up) it is one row; narrow, the
+// name, the tabs and the theme button make the first row and the view's
+// controls the second.
 //
 // A tab is a link to its view's path, keeping the selector, and opens it in
 // a new tab when clicked with a modifier or the middle button.
@@ -39,7 +41,9 @@ export function TopBar({ view, children }: { view: View; children: ReactNode }) 
           {tab('browse', 'Browse')}
           {tab('add', 'Add')}
         </nav>
-        {children}
+        {children != null && (
+          <div className="order-last flex w-full flex-wrap items-center gap-x-4 gap-y-2 md:contents">{children}</div>
+        )}
         <ThemeButton />
       </div>
     </header>
