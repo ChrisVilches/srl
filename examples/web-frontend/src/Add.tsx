@@ -76,6 +76,9 @@ export function Add() {
   // Field texts by name, kept when the kind changes, so that a field of the
   // same name keeps its text.
   const [texts, setTexts] = useState<Record<string, string>>({});
+  // The field texts of the item last added of each kind, by kind name: in
+  // memory only, so forgotten once the page leaves Add or is reloaded.
+  const [lastAdded, setLastAdded] = useState<Record<string, Record<string, string>>>({});
   // The collection chosen, or, until one is, the one last added to while
   // srl still lists it.
   const [chosen, setCollection] = useState<string | null | undefined>(undefined);
@@ -126,13 +129,16 @@ export function Add() {
     run(async () => ({ kind: 'checked', text: await api.check(collection, item()) }));
   };
 
-  // Once added, the fields are emptied for the next item; the kind, the
-  // collections and draft stay.
+  // Once added, the fields are emptied for the next item, and its texts
+  // become the placeholders of its kind's fields; the kind, the collections
+  // and draft stay.
   const add = () => {
     if (collection === null || waiting) return;
+    const added = Object.fromEntries(kind.fields.map((f) => [f.name, texts[f.name] ?? '']));
     run(async () => {
       const ids = await api.add(collection, item());
       rememberCollection(collection);
+      setLastAdded((last) => ({ ...last, [kind.name]: added }));
       setTexts((t) => Object.fromEntries(Object.entries(t).filter(([name]) => !kind.fields.some((f) => f.name === name))));
       return { kind: 'added', ids, collection };
     });
@@ -173,12 +179,14 @@ export function Add() {
             </Section>
 
             {kind.fields.map((field) => (
-              // The kind's description of the field is its placeholder: there
-              // while the box is empty, out of the way once it is written in.
+              // The field's text in the item last added of this kind is its
+              // placeholder, or, before one is or if it was left blank, the
+              // kind's description of the field: there while the box is
+              // empty, out of the way once it is written in.
               <Section key={field.name} label={fieldLabel(field)}>
                 <textarea
                   value={texts[field.name] ?? ''}
-                  placeholder={field.description}
+                  placeholder={lastAdded[kind.name]?.[field.name]?.trim() ? lastAdded[kind.name][field.name] : field.description}
                   onChange={(event) => setTexts((t) => ({ ...t, [field.name]: event.target.value }))}
                   rows={3}
                   spellCheck={false}

@@ -194,7 +194,11 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   `Answer` for `qa`), or its name if its kind gives none, with the
   kind's description of it as the
   box's placeholder: shown while the box is empty, gone once something
-  is typed, since a kind is soon learned. Changing
+  is typed, since a kind is soon learned. Once an item of the kind is
+  added, the placeholder is instead the field's text in the item last
+  added of that kind, each kind its own (still the description for a
+  field that item left blank). It is kept in memory only: leaving Add
+  or reloading the page forgets it. Changing
   the kind keeps the text of a field of the same name.
 - The **Collection** it is added to, of any source (a JSONL, JSON or
   XML file, or a table of a source program), is chosen among those `srl
