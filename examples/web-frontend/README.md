@@ -89,10 +89,11 @@ macOS and Windows (it is tried on Linux only).
   them all, and the page follows: coming back to another selector applies
   it as if submitted, so the box shows it and the cards are found or
   asked for again. Switching views with the tabs, submitting another
-  selector (or emptying the box with its X) and turning Browse's card to
-  another side each add to the browser's history; choosing another card
-  replaces the address instead, so moving through the list doesn't fill
-  the history. Doing again what the address already shows, such as
+  selector (or emptying the box with its X), choosing a card in Browse
+  while none is chosen and turning it to another side each add to the
+  browser's history; choosing another card once one is chosen replaces
+  the address instead, so moving through the list doesn't fill the
+  history. Doing again what the address already shows, such as
   submitting its selector or clicking the side shown, adds nothing. A
   tab goes to its view's path, keeping the selector: Browse's tab goes
   to the list, with no card chosen. A view starts anew each time it is
@@ -163,10 +164,10 @@ as how `ja_word` marks words, without studying:
 - On a narrow screen, such as a phone's, the list and the card don't fit
   side by side: the list takes the page until a card is chosen, and the
   card then takes it, with a **← Cards** button back to the list, which
-  is as it was left, scrolled where it was. Going back leaves the card,
-  as `/browse` with the selector, replacing the address as choosing a
-  card does, so the address always says whether the list or a card is
-  shown. Which of the two layouts shows is up to the page's width only,
+  is as it was left, scrolled where it was. The button leaves the card,
+  going to `/browse` with the selector and adding to the history as
+  Browse's tab does, so the address always says whether the list or a
+  card is shown. Which of the two layouts shows is up to the page's width only,
   so widening or narrowing the window moves between them as it goes.
 - It records nothing: no review, no suspension. Studying starts only when
   Study is shown, so a page opened on `/browse` runs no `srl next`.
