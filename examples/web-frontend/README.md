@@ -10,6 +10,14 @@ macOS and Windows (it is tried on Linux only).
 
 - Card text and context are rendered as CommonMark plus GFM tables, with
   `==highlights==` marked. Raw HTML in them is shown as text.
+- Math in them is rendered with KaTeX (`src/math.ts`): `$…$` inline and
+  `$$…$$` displayed. A `$` before a space, or one closing before a digit,
+  isn't math, so `$5 and $10` stays text, and `\$` is a dollar sign. A
+  cloze in a formula, `$E = {{c1::mc^2}}$`, is highlighted inside it. A
+  deletion ends at the first `}}`, as in Anki, so one that ends with a
+  brace of the formula needs a space: `{{c1::\sqrt{\pi} }}`. A formula
+  KaTeX can't read is shown as written, in red. srl asks for no math
+  (docs/cards.md, "Text formatting"); `srl-tui` shows it as written.
 - Showing the answer turns the question into its revealed prompt, with a
   cloze's blanks filled in (or leaves it as it is when the card has none,
   `prompt_revealed` being `null`), and adds the answer below it when there

@@ -3,9 +3,10 @@ import { useMemo } from 'react';
 
 import { highlight } from './highlight';
 import { highlightJson } from './JsonView';
+import { math } from './math';
 
 // CommonMark plus ==highlight== (docs/cards.md, "Text formatting"), and GFM
-// tables, which cards and Markdown notes use. Raw HTML in them is shown as
+// tables and $math$ (src/math.ts), which cards and Markdown notes use. Raw HTML in them is shown as
 // text, so a card or its context can never run scripts in the page. ```json code blocks are in colors; others
 // are left to markdown-it, which escapes them.
 const md = new MarkdownIt('commonmark', {
@@ -13,7 +14,8 @@ const md = new MarkdownIt('commonmark', {
   highlight: (code, language) => (language === 'json' ? highlightJson(code) : ''),
 })
   .enable('table')
-  .use(highlight);
+  .use(highlight)
+  .use(math);
 
 // Open links in a new tab, so that following one doesn't end the session.
 const defaultLinkOpen =

@@ -26,7 +26,9 @@
 /* Highlights (==…==) are the important part of a card: the blank in a cloze
    prompt, the revealed text in its revealed prompt (docs/cards.md). */
 @layer components {
-  .prose mark {
+  /* srl-mark is a highlight inside math (src/math.ts). */
+  .prose mark,
+  .prose .srl-mark {
     @apply rounded bg-amber-200/80 px-1 font-semibold text-amber-950;
     @apply dark:bg-amber-400/20 dark:text-amber-300;
   }

@@ -7,6 +7,7 @@ import { Add } from './Add';
 import { onStoreChange } from './api';
 import App, { Study } from './App';
 import { Browse } from './Browse';
+import 'katex/dist/katex.min.css';
 import './index.css';
 import { ONLY_WHEN_ASKED } from './queries';
 
