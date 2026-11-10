@@ -1,4 +1,4 @@
-import { InformationCircleIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router';
@@ -361,7 +361,7 @@ function SuspendDialog({
 function DoneView({ selector, today, onCheck }: { selector: string; today: Today | null; onCheck: () => void }) {
   return (
     <div className="m-auto flex flex-col items-center gap-4 text-center">
-      <div className="text-4xl">✓</div>
+      <CheckIcon aria-hidden className="h-10 w-10" />
       <h1 className="text-xl font-semibold">Nothing left to study</h1>
       <p className="text-stone-500">
         {selector ? (
