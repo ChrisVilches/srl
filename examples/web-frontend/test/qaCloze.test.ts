@@ -24,15 +24,18 @@ test('only an opening with a number counts', () => {
   assert.equal(deletion('format!("{{}}") {{c::x}} {{c2:y}}', 'x'), '{{c1::x}}');
 });
 
-test("only qa's question gets the shortcut and hint", () => {
+test("only qa's question gets the shortcut", () => {
   assert.notEqual(clozeShortcut('qa', 'Q'), undefined);
-  assert.notEqual(clozeHint('qa', 'Q'), undefined);
   for (const [kind, field] of [
     ['qa', 'A'],
     ['ja-words', 'Q'],
     ['other', 'WORD'],
   ]) {
     assert.equal(clozeShortcut(kind, field), undefined);
-    assert.equal(clozeHint(kind, field), undefined);
   }
+});
+
+test('only qa gets the hint', () => {
+  assert.notEqual(clozeHint('qa'), undefined);
+  assert.equal(clozeHint('ja-words'), undefined);
 });

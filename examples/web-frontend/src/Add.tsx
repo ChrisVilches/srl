@@ -97,6 +97,7 @@ export function Add() {
   const notes = store.kind === 'ready' ? store.notes : [];
   const sources = store.kind === 'ready' ? store.sources : [];
   const kind = kinds.find((k) => k.name === kindName) ?? kinds[0];
+  const cloze = kind !== undefined ? clozeHint(kind.name) : undefined;
   // A field of the kind holds text: the item would be lost by leaving.
   const unsaved = kind !== undefined && kind.fields.some((field) => (texts[field.name] ?? '').trim() !== '');
 
@@ -175,7 +176,16 @@ export function Add() {
                     </option>
                   ))}
                 </select>
-                <span className="text-sm text-stone-500">{kind.description}</span>
+                <span className="text-sm text-stone-500">
+                  {kind.description}
+                  {/* Not on a touch screen, which has no keys to press. */}
+                  {cloze && (
+                    <span className="pointer-coarse:hidden">
+                      {' '}
+                      <Key>{cloze.key}</Key> {cloze.text}
+                    </span>
+                  )}
+                </span>
               </div>
             </Section>
 
@@ -184,7 +194,7 @@ export function Add() {
               // placeholder, or, before one is or if it was left blank, the
               // kind's description of the field: there while the box is
               // empty, out of the way once it is written in.
-              <Section key={field.name} label={fieldLabel(field)} hint={clozeHint(kind.name, field.name)}>
+              <Section key={field.name} label={fieldLabel(field)}>
                 <textarea
                   value={texts[field.name] ?? ''}
                   placeholder={lastAdded[kind.name]?.[field.name]?.trim() ? lastAdded[kind.name][field.name] : field.description}

@@ -232,14 +232,16 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   **Ctrl+Shift+C** (⌘+Shift+C), as in Anki, makes the selected text a
   cloze deletion, numbered one more than the highest number already in
   the question, so it never takes one already there; with nothing
-  selected, it writes an empty one with the cursor inside. A hint over
-  the box says so. It is typing like any other, so undo takes it back,
+  selected, it writes an empty one with the cursor inside. The kind's
+  description says so, with the key, except on a touch screen. It is
+  typing like any other, so undo takes it back,
   and it checks nothing: srl does, when the item is checked or added,
   and shows its error for an empty deletion or one inside another. It is
   the one place the page knows a kind's syntax, kept to
-  `src/qaCloze.ts`, which gives the forms the box's key handler and hint
-  for `qa`'s question and nothing for any other field. Browse's Edit
-  has it too.
+  `src/qaCloze.ts`, which gives the forms the box's key handler for
+  `qa`'s question and nothing for any other field, and Add the hint for
+  `qa` alone. Browse's Edit has the key too, without the hint, as it
+  shows no kind's description.
 - What Check and Add give, the item, its ID or srl's error, is shown in
   a modal, `src/Modal.tsx` as every dialog of the page. It opens with its
   Close button focused, so Enter, space or Escape closes it and gives the

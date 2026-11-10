@@ -4,7 +4,8 @@ import type { KeyboardEvent } from 'react';
 // built-in kind (docs/cards.md, "Cloze deletions"), and of no other kind:
 // srl says nothing of a kind's syntax, so this is the page knowing qa, an
 // exception kept to this file. The forms ask it for their field's key
-// handler and hint, and get none for any other kind or field.
+// handler, and Add for a hint about it after the kind's description; any
+// other kind or field gets none.
 //
 // It knows only how a deletion is written: it doesn't check one. srl does,
 // when the item is checked, added or saved, and says what is wrong, such as
@@ -44,7 +45,9 @@ export function clozeShortcut(kind: string, field: string) {
   };
 }
 
-// The hint shown with the box of FIELD for KIND, or undefined unless it is
-// qa's question.
-export const clozeHint = (kind: string, field: string) =>
-  isQuestion(kind, field) ? 'Ctrl+Shift+C makes the selected text a cloze deletion, numbered after the last one.' : undefined;
+// The shortcut, as its key and what it does, said after the description of
+// KIND, or undefined unless it is qa.
+export const clozeHint = (kind: string) =>
+  kind === 'qa'
+    ? { key: 'ctrl+shift+c', text: 'makes the selected text of the question a cloze deletion, numbered after the last one.' }
+    : undefined;

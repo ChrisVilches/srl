@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { api, fieldLabel } from './api';
 import { DraftCheckbox, ErrorView, Label, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
 import { Modal, ResultBox, UnsavedGuard } from './Modal';
-import { clozeHint, clozeShortcut } from './qaCloze';
+import { clozeShortcut } from './qaCloze';
 import { queries } from './queries';
 
 // Editing an item of any source: its fields and whether it is a draft, as
@@ -106,7 +106,6 @@ export function EditItem({ id, onSaved }: { id: string | null; onSaved: (id: str
       {Object.entries(texts).map(([key, text]) => (
         <label key={key} className="flex flex-col gap-1">
           <Label>{labels[key] ?? key}</Label>
-          {clozeHint(String(item.kind), key) && <p className="-mt-1 text-sm text-stone-500">{clozeHint(String(item.kind), key)}</p>}
           <textarea
             value={text}
             onChange={(event) => edit({ texts: { ...texts, [key]: event.target.value } })}
