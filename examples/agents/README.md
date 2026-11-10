@@ -87,7 +87,9 @@ The prompt has the agent follow the rules in `docs/guides/agents.md`:
 
 - Items it writes are drafts, in collections of their own (JSONL files,
   such as `generated/rust.jsonl`), with `see` naming the note they are
-  about. It never writes items into your notes. You read them and `srl
+  about when it finds one in your store or writes one you asked for;
+  with no fitting note, they have no `see`. It never writes items into
+  your notes. You read them and `srl
   accept` the ones you want.
 - It changes your items or your schedule (`srl accept`, `srl edit`,
   `srl reset`, `srl suspend`, `srl move`) only when you ask.

@@ -129,9 +129,10 @@ leaves the old card's history behind; see the `fixing-problems` skill.
   answer, but never the answer itself.
 - **Cloze for sentences and fixed phrases**: vocabulary in context,
   grammar patterns, formulas. Hide the part worth remembering, not filler.
-- **Give every item a `see`** naming the note it asks about. The note is
-  shown after the answer, so the explanation does not need repeating in
-  `A`. An item without `see` has no context at all.
+- **Give an item a `see`** when a note covers what it asks about. The
+  note is shown after the answer, so the explanation does not need
+  repeating in `A`. An item without `see` has no context, which is fine
+  when there is no note to name; `A` can then carry a short explanation.
 - `==text==` in a field is a highlight in the card too.
 
 ## Adding items with `srl add`
@@ -161,12 +162,14 @@ JSONL
 ```
 
 As an agent, always give every item `"draft": true`, write into a
-collection of your own (for example `generated/rust.jsonl`), and give each
-item a `"see"` naming the note it is about (`srl notes` lists them). Items
-about different notes can go in one call. Use `--dry-run` to show the
-person the items before writing them. If an explanation is worth keeping,
-write it as a note of its own (a Markdown file the person agreed to), and
-name it with `see`.
+collection of your own (for example `generated/rust.jsonl`). `see` is
+optional, and never a reason not to write items. Unless the person named
+a note, look through `srl notes`, read the likely ones, and give an item
+a `"see"` naming the note it is about when one covers it. If the person
+asked you to write notes, write them first (Markdown files of their own)
+and name them with `see`. If they didn't and no note fits, write the items
+without `see`. Items about different notes, or about none, can go in one
+call. Use `--dry-run` to show the person the items before writing them.
 
 The person accepts drafts with `srl accept SELECTOR`, for example
 `srl accept path:generated/rust.jsonl` or `srl accept id:x7k2m9`.

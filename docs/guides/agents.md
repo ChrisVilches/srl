@@ -28,7 +28,7 @@ the agent does it, outside `srl`, and records the rating it decided.
 2. **Agents add to collections of their own, never to your notes.** Items
    an agent generates go into a collection of their own, such as
    `generated/wo-mono-tomo-sezu.jsonl`, with `see` naming the note they
-   ask about. They then show your note as their context, and your note
+   ask about when there is one. They then show your note as their context, and your note
    stays as you wrote it. The one exception is `srl edit --stdin`, for an
    agent you allow to edit your items.
 3. **Reviews go through `srl review`.** An agent never writes to the log.
@@ -85,7 +85,9 @@ blocks included, with nothing to count, and every mistake is an error that
 
 - **Add generated items to a collection of their own**, such as
   `generated/wo-mono-tomo-sezu.jsonl`, as drafts, each naming the note it
-  asks about with `see`, a path `srl notes` lists. The agent's notes, if
+  asks about with `see`, a path `srl notes` lists, when one covers it.
+  `see` is optional: an item with no fitting note has none. The agent's
+  notes, if
   it writes any, are files of their own too: a collection never holds
   prose, and a note never holds items.
 - **Mind the shell.** Backticks start command substitution, so any text

@@ -57,22 +57,27 @@ in any editor, and the store can be kept in git.
 2. **Items you write are drafts, in collections of their own.** Add them
    with `srl add COLLECTION --stdin`, with `"draft": true` on every line, into
    a new collection such as `generated/ownership.jsonl`, never into one of
-   the person's collections, and never into their notes. Give each item
-   `"see": "NOTE"`, the note it asks about (`srl notes` lists them), so it
-   is shown as its context; an item without `see` has none. Drafts are
-   never studied; the person reads them and runs `srl accept` for the ones
-   worth keeping.
-3. **Change the person's items or schedule only when they ask.** That means
+   the person's collections, and never into their notes. Drafts are never
+   studied; the person reads them and runs `srl accept` for the ones worth
+   keeping.
+3. **`see` is optional; never refuse to write items without it.** An item
+   with `"see": "NOTE"` shows that note as its context; one without `see`
+   has none, and is still a good item. Unless the person named a note,
+   look for one yourself: `srl notes` lists them, and reading the likely
+   ones tells you which covers the topic. If the person asked you to write
+   notes, write them first, as files of their own, and name them with
+   `see`. Otherwise, when no note fits, write the items without `see`.
+4. **Change the person's items or schedule only when they ask.** That means
    `srl accept`, `srl edit --stdin`, `srl suspend`, `srl unsuspend`,
    `srl reset`, `srl move` and editing their files. When they ask, run it
    with `--dry-run` first if what it would change isn't obvious, and say what
    it changed.
-4. **Record a review only in a study session the person started with
+5. **Record a review only in a study session the person started with
    you,** with the rating they gave or one they asked you to decide.
-5. **Frontends are the person's to run.** `srl` has no built-in study
+6. **Frontends are the person's to run.** `srl` has no built-in study
    command; people study with a frontend, such as `srl-web` or `srl-tui`,
    which is interactive. Tell them the command to run themselves.
-6. **When unsure of a detail, check instead of guessing:** `srl --help`,
+7. **When unsure of a detail, check instead of guessing:** `srl --help`,
    `srl COMMAND --help`, or try the command with `--dry-run`.
 
 ## Before anything else
