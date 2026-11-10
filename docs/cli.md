@@ -94,12 +94,13 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 `srl find --json` prints one object per card:
 
 ```json
-{"id": "k3m9q1.2", "item": "k3m9q1", "collection": "japanese/grammar.jsonl",
- "source": "items", "status": "active", "schedule": "due", "leech": false,
- "due": "2026-10-24", "suspend_reason": null}
+{"id": "k3m9q1.2", "item": "k3m9q1", "kind": "qa",
+ "collection": "japanese/grammar.jsonl", "source": "items", "status": "active",
+ "schedule": "due", "leech": false, "due": "2026-10-24", "suspend_reason": null}
 ```
 
-`status` says whether the card is studied (see [items.md](items.md),
+`kind` is the item's kind, as in `srl show --json` (see
+[cards.md](cards.md), "Kinds"). `status` says whether the card is studied (see [items.md](items.md),
 "Status"), `schedule` where it is in its schedule, and `leech` whether it
 keeps being forgotten (see [scheduling.md](scheduling.md), "Schedule" and
 "Leeches"). `due` is the study day the card is due, or `null` for a new card.

@@ -140,8 +140,8 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       return { stats: found ? JSON.parse(stdout) : null };
     },
 
-    // Each card as srl find --json gives it, with its item's kind and see,
-    // and the first line of its first field, as srl find prints without --json.
+    // Each card as srl find --json gives it, with its item's see and the
+    // first line of its first field, as srl find prints without --json.
     'GET /api/find': async (url) => {
       const { found, stdout } = await srl(['find', '--json', ...selectorArgs(url)]);
       const cards = found ? jsonLines(stdout) : [];
@@ -158,7 +158,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
           const item = items.get(card.item);
           // Field names are the item object's uppercase keys.
           const first = Object.entries(item).find(([key]) => /^[A-Z]/.test(key))?.[1] ?? '';
-          return { ...card, kind: item.kind, see: item.see, excerpt: first.split('\n')[0] };
+          return { ...card, see: item.see, excerpt: first.split('\n')[0] };
         }),
       };
     },

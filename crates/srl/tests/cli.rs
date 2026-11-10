@@ -454,9 +454,9 @@ fn find_json_prints_one_card_per_line() {
     assert_eq!(
         json_lines(&output),
         [
-            serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "collection": "japanese/grammar/wo.jsonl",
+            serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "kind": "qa", "collection": "japanese/grammar/wo.jsonl",
                 "source": "items", "status": "active", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
-            serde_json::json!({"id": "saba01", "item": "saba01", "collection": "kanji/fish.jsonl",
+            serde_json::json!({"id": "saba01", "item": "saba01", "kind": "qa", "collection": "kanji/fish.jsonl",
                 "source": "items", "status": "draft", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
         ]
     );
