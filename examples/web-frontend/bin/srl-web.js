@@ -3,7 +3,7 @@
 //
 // Starts a server on localhost that runs srl commands for a frontend in the
 // browser, and opens the browser on it. It takes no selector: the page has
-// its own, kept in its address (?selector=).
+// its own, kept in its address (?in=grammar&q=hello).
 
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -17,7 +17,7 @@ const USAGE = `usage: srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no
 
 Starts a web viewer for srl on http://localhost:PORT and opens it. The
 selector is chosen in the page and kept in its address, as
-http://localhost:PORT/?selector=in:grammar, which can be bookmarked.
+http://localhost:PORT/?in=grammar&q=hello, which can be bookmarked.
 
   --port N              the port to listen on (default 4317; 0 picks a free one)
   --dir DIR             the store, passed to srl as --dir (default: srl finds it)

@@ -73,10 +73,11 @@ macOS and Windows (it is tried on Linux only).
   page has one selector, the same in Study and Browse: submitting it in
   either changes it in both, as the other view finds when it is shown.
   The selector
-  submitted is kept in the address's query, one parameter per term:
-  `key:value` is `key=value`, text (quoted or not) is `text=…`, and a
-  negated term puts its `-` before the name, so `in:a,b -kind:qa "two
-  words"` is `?in=a,b&-kind=qa&text=two%20words`, and `in:a in:b` is
+  submitted is kept in the address's query, one parameter per key term,
+  `key:value` as `key=value` (a negated term puts its `-` before the
+  name), and its text terms together, as written, in one `q`, after the
+  keys: `in:a,b -kind:qa hello "two words"` is
+  `?in=a,b&-kind=qa&q=hello+%22two+words%22`, and `in:a in:b` is
   `?in=a&in=b`. Reloading the page rebuilds the selector from the
   parameters, in their order, whichever view the address shows, and an
   address with a selector can be bookmarked or written by hand; without

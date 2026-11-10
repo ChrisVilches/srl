@@ -5,9 +5,10 @@
 //   /browse[/CARD[/SIDE]] the card browser, with Browse's own parts (src/Browse.tsx)
 //   /add                  adding items
 //
-// The query holds the selector last submitted, one parameter per term, so
-// that reloading the page keeps it: in:a,b -kind:qa "two words" is
-// ?in=a,b&-kind=qa&text=two%20words. Switching views keeps the query.
+// The query holds the selector last submitted, so that reloading the page
+// keeps it: one parameter per key term, and the text terms together in q, as
+// written. in:a,b -kind:qa hello "two words" is
+// ?in=a,b&-kind=qa&q=hello+%22two+words%22. Switching views keeps the query.
 //
 // The address is the only place this state is kept: the page reads it from
 // the address on every render, through the router (react-router), and
@@ -22,45 +23,41 @@ export type View = 'study' | 'browse' | 'add';
 // The path of each view, which its tab links to.
 export const VIEW_PATHS: Record<View, string> = { study: '/', browse: '/browse', add: '/add' };
 
-// A term as a parameter: key:value is key=value, and text, quoted or not, is
-// text=TEXT without its quotes. A term negated with - gives its parameter
-// name the -.
-function termParam(term: string): [string, string] {
-  const neg = term.length > 1 && term.startsWith('-') ? '-' : '';
-  const body = term.slice(neg.length);
-  if (body.startsWith('"')) return [`${neg}text`, body.slice(1).replace(/"$/, '')];
-  const keyed = /^([a-z]+):(.*)$/s.exec(body);
-  return keyed ? [neg + keyed[1], keyed[2]] : [`${neg}text`, body];
-}
-
-// A parameter as a term, the other way. Text is quoted when it would
-// otherwise be read as something else, or split. Every other parameter is a
-// key, even one srl doesn't know, which srl then says is wrong.
-function paramTerm(name: string, value: string): string {
-  const neg = name.startsWith('-') ? '-' : '';
-  const key = name.slice(neg.length);
-  if (key !== 'text') return `${neg}${key}:${value}`;
-  return neg + (/^$|\s|^[-"]|^[a-z]+:/.test(value) ? `"${value}"` : value);
+// The key term KEY:VALUE, negated or not, as the parameter KEY=VALUE, the -
+// going to its name; null for a text term (docs/selectors.md: a term is a
+// key term when it starts with lowercase letters and a colon).
+function keyParam(term: string): [string, string] | null {
+  const keyed = /^(-?[a-z]+):(.*)$/s.exec(term);
+  return keyed ? [keyed[1], keyed[2]] : null;
 }
 
 // The terms of a selector, as docs/selectors.md splits them: by spaces, but a
 // quoted term, which runs to the next ", spaces included.
 const terms = (selector: string) => selector.match(/-?"[^"]*"?|\S+/g) ?? [];
 
-// Commas and colons are left as they are, so that the address reads as the
-// selector does.
-const encode = (s: string) => encodeURIComponent(s).replace(/%2C/gi, ',').replace(/%3A/gi, ':');
+// Commas and colons are left as they are, and spaces are +, so that the
+// address reads as the selector does.
+const encode = (s: string) =>
+  encodeURIComponent(s).replace(/%2C/gi, ',').replace(/%3A/gi, ':').replace(/%20/g, '+');
 
 // The selector of the query QUERY, its terms in the order of the
-// parameters; empty, every card, if there is none.
+// parameters; empty, every card, if there is none. q is selector text, read
+// as written. Every other parameter is a key, even one srl doesn't know,
+// which srl then says is wrong.
 export function selectorOfQuery(query: string): string {
-  return [...new URLSearchParams(query)].map(([name, value]) => paramTerm(name, value)).join(' ');
+  return [...new URLSearchParams(query)]
+    .map(([name, value]) => (name === 'q' ? value.trim() : `${name}:${value}`))
+    .filter((term) => term !== '')
+    .join(' ');
 }
 
-// The query of SELECTOR, without its ?: empty for the empty selector.
+// The query of SELECTOR, without its ?: empty for the empty selector. Its
+// key terms, in order, then its text terms together in q, as written.
 export function queryOfSelector(selector: string): string {
-  return terms(selector)
-    .map(termParam)
+  const all = terms(selector);
+  const keys = all.map(keyParam).filter((param) => param !== null);
+  const text = all.filter((term) => keyParam(term) === null).join(' ');
+  return [...keys, ...(text === '' ? [] : [['q', text]])]
     .map(([name, value]) => `${encode(name)}=${encode(value)}`)
     .join('&');
 }

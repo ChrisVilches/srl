@@ -1,5 +1,6 @@
 // The selector kept in the address (src/address.ts): written as one query
-// parameter per term, and read back as the same selector.
+// parameter per key term and the text terms together in q, and read back as
+// the same selector.
 //
 // Run with npm test. It is outside src/ so that the page's typecheck, which
 // has no Node types, leaves it out.
@@ -24,14 +25,17 @@ const ROUND_TRIPS: [string, string][] = [
   ['is:new is:active', 'is=new&is=active'],
   ['path:japanese/**', 'path=japanese%2F**'],
   ['id:k3m9q1.2', 'id=k3m9q1.2'],
-  ['word', 'text=word'],
-  ['"two words"', 'text=two%20words'],
-  ['-"two words"', '-text=two%20words'],
-  ['"std::move"', 'text=std::move'],
-  ['-"-x"', '-text=-x'],
-  ['ものともせず', 'text=%E3%82%82%E3%81%AE%E3%81%A8%E3%82%82%E3%81%9B%E3%81%9A'],
-  ['a&b=c', 'text=a%26b%3Dc'],
-  ['in:a,b -kind:qa "two words" in:c', 'in=a,b&-kind=qa&text=two%20words&in=c'],
+  ['word', 'q=word'],
+  // Words, each searched for on its own, stay words, and a quoted term
+  // keeps its quotes, so that it stays one.
+  ['hello how are you', 'q=hello+how+are+you'],
+  ['"two words"', 'q=%22two+words%22'],
+  ['-"two words" -x', 'q=-%22two+words%22+-x'],
+  ['"std::move"', 'q=%22std::move%22'],
+  ['"in:a"', 'q=%22in:a%22'],
+  ['ものともせず', 'q=%E3%82%82%E3%81%AE%E3%81%A8%E3%82%82%E3%81%9B%E3%81%9A'],
+  ['a&b=c+d', 'q=a%26b%3Dc%2Bd'],
+  ['in:a,b -kind:qa in:c hello "two words"', 'in=a,b&-kind=qa&in=c&q=hello+%22two+words%22'],
 ];
 
 for (const [selector, query] of ROUND_TRIPS) {
@@ -44,27 +48,23 @@ for (const [selector, query] of ROUND_TRIPS) {
 
 test('spaces between terms are not kept', () => {
   assert.equal(queryOfSelector('  in:a   in:b '), 'in=a&in=b');
+  assert.equal(queryOfSelector(' hello   you '), 'q=hello+you');
+});
+
+test('text goes after the key terms', () => {
+  assert.equal(queryOfSelector('hello in:a "two words" kind:qa'), 'in=a&kind=qa&q=hello+%22two+words%22');
 });
 
 test('the terms come back in the order of the parameters', () => {
   assert.equal(selectorOfQuery('kind=qa&in=b&in=a'), 'kind:qa in:b in:a');
+  assert.equal(selectorOfQuery('q=x&in=a'), 'x in:a');
 });
 
 test('a query written by hand is read too', () => {
-  assert.equal(selectorOfQuery('in=a%2Cb&text=two+words'), 'in:a,b "two words"');
-});
-
-test('text is quoted only when it needs to be', () => {
-  assert.equal(queryOfSelector('"word"'), 'text=word');
-  assert.equal(selectorOfQuery('text=word'), 'word');
-});
-
-test('text that would be read otherwise is quoted', () => {
-  assert.equal(selectorOfQuery('text=-x'), '"-x"');
-  assert.equal(selectorOfQuery('text=in:a'), '"in:a"');
-  assert.equal(selectorOfQuery('text='), '""');
+  assert.equal(selectorOfQuery('in=a%2Cb&q=two%20words'), 'in:a,b two words');
+  assert.equal(selectorOfQuery('q=&in=a'), 'in:a');
 });
 
 test('any other parameter is a key, for srl to say is wrong', () => {
-  assert.equal(selectorOfQuery('selector=in:grammar'), 'selector:in:grammar');
+  assert.equal(selectorOfQuery('text=hello'), 'text:hello');
 });
