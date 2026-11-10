@@ -49,5 +49,5 @@ export function clozeShortcut(kind: string, field: string) {
 // KIND, or undefined unless it is qa.
 export const clozeHint = (kind: string) =>
   kind === 'qa'
-    ? { key: 'ctrl+shift+c', text: 'makes the selected text of the question a cloze deletion, numbered after the last one.' }
+    ? { key: 'ctrl+shift+c', text: 'makes the selected text of the question a cloze deletion.' }
     : undefined;
