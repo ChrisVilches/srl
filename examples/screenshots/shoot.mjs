@@ -16,8 +16,8 @@ const firefox = process.env.FIREFOX ?? '/usr/bin/firefox';
 const PORT = 4417;
 // The color schemes to take the web shots in: 'dark', 'light' or both.
 const SCHEMES = ['dark'];
-// Page widths in CSS pixels. Browse needs more room: below about 1000 px
-// srl-web stacks its list above the card.
+// Page widths in CSS pixels. Browse needs more room: below 1024 px srl-web
+// shows only its list or only the card.
 const WIDTH = 980;
 const BROWSE_WIDTH = 1280;
 // Columns of the terminal in capture-tui.sh.

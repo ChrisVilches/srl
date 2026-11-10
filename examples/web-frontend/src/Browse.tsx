@@ -83,6 +83,10 @@ export function Browse() {
   const setSide = (s: Side) => {
     if (s !== side) navigate({ pathname: browsePath(selected, s), search });
   };
+  // Narrow, the button back to the list: it leaves the card, which replaces
+  // the address as choosing one does, so the address says whether the list
+  // or a card is shown.
+  const toList = () => navigate({ pathname: browsePath(null, 'prompt'), search }, { replace: true });
   // The chosen card, made with srl cards (queries.made): once, when first
   // chosen, and again only when asked (Make again), when the selector is
   // submitted again, or after its item is saved. It is made once it has
@@ -111,6 +115,11 @@ export function Browse() {
             ? { kind: 'error', message: making.error.message }
             : undefined;
   const makeAgain = () => making.refetch();
+
+  // Whether the card is shown rather than the list when they don't fit side
+  // by side: once one is chosen, unless the cards couldn't be found, which
+  // the list says.
+  const detail = selected !== null && list.kind !== 'error';
 
   // After the item ITEM was saved, the cards are found again in place, as
   // after any change: the list stays as it is until the new one replaces it,
@@ -146,8 +155,17 @@ export function Browse() {
         {list.kind === 'loading' && <Skeleton className="h-4 w-16" />}
         {list.kind === 'ready' && <Counts counts={[[cards.length, cards.length === 1 ? 'card' : 'cards']]} />}
       </TopBar>
-      <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-4 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-cols-[26rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
-        <div className="overflow-y-auto border-b border-stone-200 [scrollbar-gutter:stable] lg:border-r lg:border-b-0 dark:border-stone-800">
+      {/* Wide, the list and the card side by side. Narrow (under lg), one
+          at a time in the same cell: the list while no card is chosen, the
+          card once one is, with a button back to the list. The one not
+          shown is made invisible rather than removed, so the list keeps
+          its scroll and the card its Edit form. */}
+      <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] lg:grid-cols-[26rem_minmax(0,1fr)] lg:gap-4">
+        <div
+          className={`col-start-1 row-start-1 overflow-y-auto border-stone-200 [scrollbar-gutter:stable] lg:visible lg:border-r dark:border-stone-800 ${
+            detail ? 'invisible' : ''
+          }`}
+        >
           {list.kind === 'loading' && <ListSkeleton />}
           {list.kind === 'error' && (
             <div className="p-6">
@@ -159,7 +177,16 @@ export function Browse() {
             <CardList cards={cards} selected={selected} making={made?.kind === 'making' ? selected : null} onChoose={setSelected} />
           )}
         </div>
-        <div className="overflow-y-auto px-4 py-6 [scrollbar-gutter:stable] sm:px-6">
+        <div
+          className={`col-start-1 row-start-1 overflow-y-auto px-4 py-6 [scrollbar-gutter:stable] sm:px-6 lg:visible lg:col-start-2 ${
+            detail ? '' : 'invisible'
+          }`}
+        >
+          {detail && (
+            <button onClick={toList} className={`mb-4 py-1 text-sm lg:hidden ${QUIET_BUTTON}`}>
+              ← Cards
+            </button>
+          )}
           {/* Until the cards are found, a card the address names may or may
               not be among them: the preview waits, with its sides but not
               the card's details. A card chosen among the cards found before

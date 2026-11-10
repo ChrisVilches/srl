@@ -160,6 +160,14 @@ as how `ja_word` marks words, without studying:
   middle, whether after a reload or when choosing another with the keys. A card that isn't among the selector's cards,
   such as one whose item was deleted, is said so in place of the card,
   and an unknown side is Prompt.
+- On a narrow screen, such as a phone's, the list and the card don't fit
+  side by side: the list takes the page until a card is chosen, and the
+  card then takes it, with a **← Cards** button back to the list, which
+  is as it was left, scrolled where it was. Going back leaves the card,
+  as `/browse` with the selector, replacing the address as choosing a
+  card does, so the address always says whether the list or a card is
+  shown. Which of the two layouts shows is up to the page's width only,
+  so widening or narrowing the window moves between them as it goes.
 - It records nothing: no review, no suspension. Studying starts only when
   Study is shown, so a page opened on `/browse` runs no `srl next`.
 

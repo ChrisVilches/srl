@@ -151,8 +151,8 @@ for something else, and update this section when they change.
   `srl-web` is dark unless its theme button switches it to light; the
   user is used to dark.
 - **Web width:** 980 CSS pixels for Study and Add, so the page has little
-  empty space at its sides, and 1280 for Browse, which stacks its list
-  above the card when narrower (`WIDTH` and `BROWSE_WIDTH` in
+  empty space at its sides, and 1280 for Browse, which shows only its list
+  or only the card when narrower (`WIDTH` and `BROWSE_WIDTH` in
   `shoot.mjs`). Pages are taken at twice their size, and in full, past
   the bottom of the window.
 - **Terminal size:** 108 columns (`cols` in `capture-tui.sh`); the rows are
