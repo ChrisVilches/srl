@@ -10,7 +10,6 @@ use std::path::PathBuf;
 
 use serde_json::{Map, Value};
 
-use crate::config::globs;
 use crate::domain::item::object::{self, Object};
 use crate::process;
 use crate::source::{Change, Description, Listed, Problem, Read, ReadItem, Refusal, Source};
@@ -178,13 +177,13 @@ impl Source for Program {
         Ok(read)
     }
 
-    /// A program says which collections it creates in `describe`.
+    /// A program decides which collections it creates, in `accepts`.
     fn refuses(&self, collection: &str) -> Result<Option<String>> {
-        let described = self.describe()?;
-        let creates =
-            globs(&described.include).map_err(|reason| self.invalid("describe", &reason))?;
-        Ok((!creates.is_match(collection))
-            .then(|| "the globs of its `describe` don't match the name".to_owned()))
+        let call = "accepts";
+        let mut input = Map::new();
+        input.insert("collection".to_owned(), Value::from(collection));
+        let answer = self.call_each(call, vec![input])?.pop().unwrap_or_default();
+        ok_or_error(&answer, "`ok` nor `error`").map_err(|reason| self.invalid(call, &reason))
     }
 
     /// Every change goes to the program in one call. The program is read
@@ -227,13 +226,6 @@ impl Source for Program {
         let mut previews = String::new();
         for (at, line) in self.call_each(call, inputs)?.into_iter().enumerate() {
             let reason = |reason: String| self.invalid(call, &reason);
-            if line.contains_key("error") {
-                only(&line, &["error"]).map_err(reason)?;
-                return Err(Refusal::Change {
-                    at,
-                    reason: text(&line, "error").map_err(reason)?,
-                });
-            }
             if line.contains_key("preview") {
                 only(&line, &["preview"]).map_err(reason)?;
                 let preview = text(&line, "preview").map_err(reason)?;
@@ -241,11 +233,10 @@ impl Source for Program {
                 previews.push('\n');
                 continue;
             }
-            only(&line, &["ok"]).map_err(reason)?;
-            if line.get("ok") != Some(&Value::Bool(true)) {
-                return Err(
-                    reason("a line is neither `ok`, `preview` nor `error`".to_owned()).into(),
-                );
+            if let Some(error) =
+                ok_or_error(&line, "`ok`, `preview` nor `error`").map_err(reason)?
+            {
+                return Err(Refusal::Change { at, reason: error });
             }
         }
         if !dry_run {
@@ -289,25 +280,33 @@ impl Source for Program {
             .pop()
             .unwrap_or_default();
         let reason = |reason: String| self.invalid(call, &reason);
-        only(&answer, &["description", "creates"]).map_err(reason)?;
+        only(&answer, &["description", "settings"]).map_err(reason)?;
         let description = text(&answer, "description").map_err(reason)?;
-        let creates = match answer.get("creates") {
-            Some(Value::Array(globs)) => globs
-                .iter()
-                .map(|glob| {
-                    glob.as_str()
-                        .map(str::to_owned)
-                        .ok_or_else(|| reason(format!("`creates` holds {glob}, not text")))
-                })
-                .collect::<Result<Vec<_>>>()?,
-            _ => return Err(reason("`creates` must be a list of globs".to_owned())),
+        let Some(Value::Object(settings)) = answer.get("settings") else {
+            return Err(reason("`settings` must be an object".to_owned()));
         };
-        globs(&creates).map_err(|why| reason(format!("`creates`: {why}")))?;
         Ok(Description {
             summary: description,
-            include: creates,
-            exclude: Vec::new(),
+            settings: settings.clone(),
         })
+    }
+}
+
+/// The reason in a line `{"error": "…"}`, or `None` for `{"ok": true}`;
+/// any other line is none of `answers`. Errors are plain reasons.
+fn ok_or_error(
+    line: &Map<String, Value>,
+    answers: &str,
+) -> std::result::Result<Option<String>, String> {
+    if line.contains_key("error") {
+        only(line, &["error"])?;
+        return text(line, "error").map(Some);
+    }
+    only(line, &["ok"])?;
+    if line.get("ok") == Some(&Value::Bool(true)) {
+        Ok(None)
+    } else {
+        Err(format!("a line is neither {answers}"))
     }
 }
 

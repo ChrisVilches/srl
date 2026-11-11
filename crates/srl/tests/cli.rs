@@ -1932,9 +1932,44 @@ fn sources_read_their_collections_each_with_its_driver() {
     assert_eq!(sources[1]["name"], "vocab");
     assert_eq!(sources[1]["driver"], "filesystem");
     assert_eq!(
-        sources[1]["creates"]["include"],
-        serde_json::json!(["vocab/**/*.jsonl"])
+        sources[1]["settings"],
+        serde_json::json!({"include": ["vocab/**/*.jsonl"]})
     );
+}
+
+#[test]
+fn sources_show_the_settings_each_source_gives() {
+    let tmp = store_with_program(
+        &[],
+        WORDS,
+        "creates = [\"vocab/*\"]\n\n[sources.items]\ndriver = \"filesystem\"\nexclude = [\"templates/**\"]\n",
+    );
+    let d = dir(&tmp);
+    let sources = srl(&["sources", "--dir", d]);
+    assert_eq!(sources.status.code(), Some(0), "{}", stderr(&sources));
+    let shown = stdout(&sources);
+    assert!(
+        shown.contains(
+            "  driver  filesystem\n  include  **/*.jsonl **/*.xml\n  exclude  templates/**\n"
+        ),
+        "{shown}"
+    );
+    assert!(
+        shown.ends_with("  driver  program\n  data  vocab.json\n  creates  vocab/*\n"),
+        "{shown}"
+    );
+    let sources = srl(&["sources", "--json", "--dir", d]);
+    let sources = json_lines(&sources);
+    assert_eq!(
+        sources[0]["settings"],
+        serde_json::json!({"include": ["**/*.jsonl", "**/*.xml"], "exclude": ["templates/**"]})
+    );
+    assert_eq!(sources[1]["driver"], "program");
+    assert_eq!(
+        sources[1]["settings"],
+        serde_json::json!({"data": "vocab.json", "creates": ["vocab/*"]})
+    );
+    assert!(sources[1].get("creates").is_none());
 }
 
 #[test]
@@ -1980,8 +2015,8 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
     assert_eq!(
         stderr(&refused),
         "srl: cannot add to data/c.xml: no source accepts it (data: its `include` doesn't \
-         match the path; items: its `exclude` matches the path); `srl sources` says which \
-         collections each one creates; nothing was added\n"
+         match the path; items: its `exclude` matches the path); `srl sources` describes each \
+         one; nothing was added\n"
     );
     write(
         &tmp,
@@ -2143,6 +2178,13 @@ fn a_command_calls_a_source_program_a_fixed_number_of_times() {
     assert_eq!(calls(&tmp), ["collections 1", "read 1"]);
     assert!(srl(&["sources", "--dir", d]).status.success());
     assert_eq!(calls(&tmp), ["describe 1"]);
+    // A new collection is asked of the program once, before it is written.
+    let added = srl_with_input(
+        &["add", "fish", "--stdin", "--dir", d],
+        "{\"Q\": \"q\", \"A\": \"a\"}",
+    );
+    assert!(added.status.success(), "{}", stderr(&added));
+    assert_eq!(calls(&tmp)[..3], ["collections 1", "read 1", "accepts 1"]);
 }
 
 #[test]
@@ -2249,9 +2291,7 @@ fn a_change_a_source_program_refuses_or_doesn_t_make_fails_the_command() {
     );
     assert_eq!(added.status.code(), Some(2));
     assert!(
-        stderr(&added).contains(
-            "no source accepts it (vocab: the globs of its `describe` don't match the name)"
-        ),
+        stderr(&added).contains("no source accepts it (vocab: it matches none of `creates`)"),
         "{}",
         stderr(&added)
     );
@@ -2729,24 +2769,46 @@ fn a_source_program_s_answers_to_changes_are_checked_before_anything_counts() {
         );
         assert_eq!(read(&tmp, "vocab.json"), WORDS);
     }
-    // A program that can't say which collections it creates fails `srl add`
-    // as itself, not as a source that refuses the name.
+    // A program that can't say whether it creates a collection fails `srl
+    // add` as itself, not as a source that refuses the name.
+    for (answer, expected) in [
+        ("{\\\"error\\\": \\\" \\\"}", "`error` is blank"),
+        ("{\\\"ok\\\": false}", "a line is neither `ok` nor `error`"),
+        ("{\\\"ok\\\": true, \\\"why\\\": 1}", "the key `why`"),
+    ] {
+        let tmp = store_with_program(
+            &[],
+            WORDS,
+            &format!("raw_call = \"accepts\"\nraw_output = \"{answer}\\n\"\n"),
+        );
+        let added = srl_with_input(
+            &["add", "vocab/fish", "--stdin", "--dir", dir(&tmp)],
+            "{\"Q\": \"q\", \"A\": \"a\"}",
+        );
+        assert_refused(&added, "an accepts that fails");
+        assert!(
+            stderr(&added).starts_with(
+                "srl: the source vocab failed: its call `accepts` printed invalid output: "
+            ) && stderr(&added).contains(expected),
+            "{answer}: {}",
+            stderr(&added)
+        );
+        assert_eq!(read(&tmp, "vocab.json"), WORDS);
+    }
+    // So does one whose `describe` has no settings, for `srl sources`.
     let tmp = store_with_program(
         &[],
         WORDS,
-        "raw_call = \"describe\"\nraw_output = \"{\\\"description\\\": \\\"d\\\", \\\"creates\\\": [\\\"[\\\"]}\\n\"\n",
+        "raw_call = \"describe\"\nraw_output = \"{\\\"description\\\": \\\"d\\\", \\\"settings\\\": []}\\n\"\n",
     );
-    let added = srl_with_input(
-        &["add", "vocab/fish", "--stdin", "--dir", dir(&tmp)],
-        "{\"Q\": \"q\", \"A\": \"a\"}",
-    );
-    assert_refused(&added, "a describe that fails");
+    let sources = srl(&["sources", "--dir", dir(&tmp)]);
+    assert_eq!(sources.status.code(), Some(2));
     assert!(
-        stderr(&added).starts_with("srl: the source vocab failed: its call `describe` printed invalid output: `creates`: `[` is not a valid glob"),
+        stderr(&sources)
+            .contains("its call `describe` printed invalid output: `settings` must be an object"),
         "{}",
-        stderr(&added)
+        stderr(&sources)
     );
-    assert_eq!(read(&tmp, "vocab.json"), WORDS);
 }
 
 #[test]

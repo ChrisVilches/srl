@@ -8,8 +8,8 @@ description: How srl items are written (item objects, JSONL, JSON and XML collec
 Items live in **collections**: structured files of the store read by the
 built-in `filesystem` source, JSONL (`.jsonl`), JSON (`.json`) or XML
 (`.xml`), or whatever a source program keeps, such as a database table.
-`srl collections` lists them and `srl sources` says which files each
-source reads. **Notes are not collections**: the person's Markdown and
+`srl collections` lists them and `srl sources` describes each source
+and its settings (a `filesystem` source's globs say which files it reads). **Notes are not collections**: the person's Markdown and
 other study material hold no items. An item names the note it asks about
 with `see`, and that note is shown as its context. `srl notes` lists the
 files an item may name.
@@ -145,7 +145,7 @@ One item object per line on standard input. `COLLECTION` names the
 collection: for a file, its path relative to the store's folder, such as
 `generated/rust.jsonl`. A collection that doesn't exist is created where
 exactly one source of the store accepts it, in the format its extension
-names (`srl sources` says which globs each source reads; by default
+names (`srl sources` shows each `filesystem` source's globs; by default
 `**/*.jsonl` and `**/*.xml`). Each source adds the items its own way: a
 line each in JSONL, an element each before `</items>` in XML. A note is
 never a collection: `srl add` never writes to the person's notes. The new

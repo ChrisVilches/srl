@@ -17,7 +17,7 @@ Windows, but tried on Linux only.
 
 - Each table of the database is a collection, named by the table: the
   table `words` is the collection `words`. `srl add` may create any new
-  one.
+  one whose name has no `/`.
 - Each item is a document `{"item": {...}}` holding its item object, and
   its handle is its table and TinyDB's document ID, `words/17`: TinyDB
   numbers the documents of each table from 1, so the ID alone would name
@@ -52,15 +52,22 @@ class Source:
         if not isinstance(name, str) or not name:
             raise SourceError("the setting `database` is missing; give the database's file, such as vocab/vocab.json")
         Path(name).parent.mkdir(parents=True, exist_ok=True)
+        self.name = name
         self.db = TinyDB(name, ensure_ascii=False)
 
     def close(self):
         self.db.close()
 
 
-def describe(_source, inputs):
+def describe(source, inputs):
     return [{"description": "Items kept in a TinyDB database, one table per collection.",
-             "creates": ["*"]} for _ in inputs]
+             "settings": {"database": source.name}} for _ in inputs]
+
+
+def accepts(_source, inputs):
+    """`srl add` may create any table whose name has no `/`."""
+    return [{"error": "a table's name has no `/`"} if "/" in change["collection"] else {"ok": True}
+            for change in inputs]
 
 
 def handle(table, doc_id):
@@ -109,7 +116,7 @@ def write(source, inputs):
     return answers
 
 
-CALLS = {"describe": describe, "collections": collections, "read": read, "write": write}
+CALLS = {"describe": describe, "accepts": accepts, "collections": collections, "read": read, "write": write}
 
 
 def main():

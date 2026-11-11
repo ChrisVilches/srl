@@ -10,6 +10,7 @@ use std::io::Write as _;
 use std::path::Path;
 
 use globset::GlobSet;
+use serde_json::{Map, Value};
 
 use crate::config::globs;
 use crate::domain::item::object::Object;
@@ -41,13 +42,18 @@ impl CollectionFiles {
         }
     }
 
-    /// The source, described by `description`, with the files it reads as
-    /// the collections `srl add` may create.
+    /// The source, described by `description`, with its globs as its
+    /// settings: `include`, and `exclude` if it has some.
     pub(super) fn describe(&self, description: &str) -> Description {
+        let (include, exclude) = &self.globs;
+        let mut settings = Map::new();
+        settings.insert("include".to_owned(), Value::from(include.clone()));
+        if !exclude.is_empty() {
+            settings.insert("exclude".to_owned(), Value::from(exclude.clone()));
+        }
         Description {
             summary: description.to_owned(),
-            include: self.globs.0.clone(),
-            exclude: self.globs.1.clone(),
+            settings,
         }
     }
 

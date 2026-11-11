@@ -93,24 +93,25 @@ A collection that breaks a rule is an error in the store (see
 and `srl check` reports it, as `COLLECTION: message`.
 
 **A new collection**, for `srl add`, is created in the one source that
-accepts its name: for `filesystem`, a path that `include` matches and
-`exclude` doesn't, in a format it knows by its extension; for a program,
-a name that the globs of its `describe` match. Exactly one source must
-accept it; none or several is an error, which names every source
-concerned, so that no one has to guess which source was asked:
+accepts its name. Each source decides by its own rule: `filesystem`
+accepts a path that `include` matches and `exclude` doesn't, in a format
+it knows by its extension; a program accepts the names its `accepts`
+call takes (see "Calls"). Exactly one source must accept it; none or
+several is an error, which names every source concerned, so that no one
+has to guess which source was asked:
 
 ```
-srl: cannot add to notes/a.md: no source accepts it (items: its `include` doesn't match the path; vocab: the globs of its `describe` don't match the name); `srl sources` says which collections each one creates; nothing was added
-srl: cannot add to words.jsonl: more than one source accepts it (items, vocab); `srl sources` says which collections each one creates; nothing was added
+srl: cannot add to notes/a.md: no source accepts it (items: its `include` doesn't match the path; vocab: a table's name has no `/`); `srl sources` describes each one; nothing was added
+srl: cannot add to words.jsonl: more than one source accepts it (items, vocab); `srl sources` describes each one; nothing was added
 ```
 
 When none accepts it, every source gives its reason, after its name:
 its `include` doesn't match the path, its `exclude` matches it, or its
-extension names no format it knows, for `filesystem`; the globs of its
-`describe` don't match the name, for a program. When several do, they
-are named. A program whose `describe` fails, or prints invalid output,
-fails `srl add` as itself (see "What srl checks"), not as a source that
-doesn't accept the name.
+extension names no format it knows, for `filesystem`; the reason its
+`accepts` gives, for a program. When several do, they are named. A
+program whose `accepts` fails, or prints invalid output, fails `srl add`
+as itself (see "What srl checks"), not as a source that doesn't accept
+the name.
 
 ## What a source does
 
@@ -127,11 +128,15 @@ Every source does the same few things, each its own way:
   someone changed it in between. Every change to a source is made and
   checked before anything is written (see [items.md](items.md), "How srl
   changes items").
-- **It describes itself**, for `srl sources`: what it is, and which
-  collections `srl add` may create in it, as globs: the `filesystem`
-  source's `include` and `exclude`, or the globs a source program's
-  `describe` gives. `srl sources` gives its driver as `filesystem`, or
-  `program` for a source program.
+- **It decides which new collections it creates**, for `srl add` (see
+  "Collections").
+- **It describes itself**, for `srl sources`: what it is, and the
+  settings it shows, each by its name, as it chooses: the `filesystem`
+  source's `include`, and its `exclude` if it has some, or the settings
+  a source program's `describe` gives. Settings are not the same for
+  every source, since each driver has its own keys, and a program may
+  leave out any of its own, such as a secret. `srl sources` gives its
+  driver as `filesystem`, or `program` for a source program.
 
 A source doesn't show its collections as context, and doesn't look for
 likely mistakes in them: context is a file `see` names (see
@@ -192,7 +197,8 @@ with every process it started, when `srl` is stopped (see
 
 | Call | Input | Output |
 |---|---|---|
-| `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "creates": ["*"]}`: what the source is, in a sentence, and the globs of the collections `srl add` may create in it (`[]` for none), which `srl sources` shows as its `include` |
+| `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "settings": {"database": "vocab/vocab.json"}}`: what the source is, in a sentence, and the settings `srl sources` shows of it (`{}` for none) |
+| `accepts` | one line: `{"config": {…}, "collection": "words"}` | one line: `{"ok": true}` if `srl add` may create the collection in it, or `{"error": "…"}`, why not |
 | `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words"}`, or `{"collection": "words", "in": ["words", "vocab"]}` to give its `in` names |
 | `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "item": {…}}`; one line per problem: `{"collection": "words", "error": "…"}` |
 | `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, or `{…, "op": "replace", "collection": "words", "handle": "17", "before": {…}, "after": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
@@ -215,8 +221,17 @@ with every process it started, when `srl` is stopped (see
   writes none of them**; `srl` reports the first such line. `srl id` and
   `srl accept` are `replace`s too, whose `after` adds an `id` or removes
   `draft`.
+- **`describe`** gives `settings` as an object, each key a setting's
+  name, in the order `srl sources` shows them, and each value any JSON:
+  usually some of the program's keys as it read them. `srl` checks
+  nothing in them.
+- **`accepts`** is asked only of a collection that doesn't exist yet, by
+  its name, and decides by the program's own rule, such as a folder its
+  settings name. Its `error` is shown after the source's name when no
+  source accepts the collection (see "Collections").
 - `read` and `collections` answer one input with any number of lines;
-  `describe` and `write` answer each input line with one line, in order.
+  `describe`, `accepts` and `write` answer each input line with one
+  line, in order.
 
 There is no call for context, since context is a file of the store, nor
 for likely mistakes: a program reports what it can as problems of `read`.
@@ -230,7 +245,7 @@ many items or cards it handles, never once per item or per card:
 |---|---|
 | every command that reads items | 1 `collections` and 1 `read` |
 | `add`, `edit`, `accept`, `id` | 1 `write` for the changes to the source, with 1 `read` before it and 1 after it, to verify it |
-| `add` to a new collection | 1 `describe` |
+| `add` to a new collection | 1 `accepts` |
 | `collections` | 1 `collections` |
 | `sources` | 1 `describe` |
 
@@ -245,7 +260,8 @@ wherever it chooses, and is responsible for its freshness.
 - **Every line a program prints is read strictly**: a line that is not a
   JSON object, a key a call doesn't give, a value of the wrong type, a
   text that is blank, empty or only spaces (every text a call gives, such
-  as a `handle` or an `error`, says something), an item object that isn't valid, a collection's name that isn't parts
+  as a `handle` or an `error`, says something), `settings` that aren't
+  an object, an item object that isn't valid, a collection's name that isn't parts
   joined by `/` (none empty or starting with `.`), a collection listed
   twice by `collections`, an `in` that is empty, holds a value `in:`
   can't take, or gives a name twice, a handle given twice in one `read`, or a wrong

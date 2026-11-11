@@ -54,7 +54,7 @@ Items of the database may name a note with `see`, as any item may.
 - **Each table is a collection**, and its name is the collection's
   name: the table `words` is the collection `words`. A source has one
   database, so a table's name is enough to tell its collections apart.
-  `srl add` may create any new one (`describe` gives `*`). A table named
+  `srl add` may create any new one whose name has no `/` (`accepts` takes it). A table named
   as a file of the store, such as `notes.jsonl`, would be a collection two
   sources give, which is an error (see
   [docs/sources.md](../../docs/sources.md), "Collections"). `collections`

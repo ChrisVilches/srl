@@ -224,16 +224,32 @@ pub(crate) fn kinds(kinds: &[KindDescription]) {
 }
 
 /// Prints sources for people: for each, a line with its name and
-/// description, then a line for its driver and its globs, indented by two
-/// spaces, each name and value separated by two spaces.
+/// description, then a line for its driver and one for each of its
+/// settings, indented by two spaces, each name and value separated by two
+/// spaces. A setting's text is printed as it is, a list of texts joined
+/// by one space, and any other value as JSON.
 pub(crate) fn sources(sources: &[SourceDescription]) {
     for source in sources {
         out!("{}  {}", source.name, source.description);
         out!("  driver  {}", source.driver);
-        out!("  include  {}", source.creates.include.join(" "));
-        if !source.creates.exclude.is_empty() {
-            out!("  exclude  {}", source.creates.exclude.join(" "));
+        for (name, value) in &source.settings {
+            out!("  {name}  {}", setting(value));
         }
+    }
+}
+
+/// A setting of a source, as `srl sources` prints it for people.
+fn setting(value: &Value) -> String {
+    if let Some(text) = value.as_str() {
+        return text.to_owned();
+    }
+    match value.as_array() {
+        Some(values) if values.iter().all(Value::is_string) => values
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" "),
+        _ => value.to_string(),
     }
 }
 

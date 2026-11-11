@@ -66,15 +66,6 @@ export type FieldDescription = { name: string; label: string | null; description
 // What a field is shown as: its label, or its name when it has none.
 export const fieldLabel = (field: FieldDescription) => field.label ?? field.name;
 
-// A source of the store, as `srl sources --json` describes it
-// (docs/sources.md): `srl add` may create a collection whose name a
-// glob of `include` matches and none of `exclude` does.
-export type SourceDescription = {
-  name: string;
-  driver: string;
-  description: string;
-  creates: { include: string[]; exclude: string[] };
-};
 
 // An item object for `srl add --stdin` (docs/items.md, "The item object"): its header
 // entries kind, see and draft, and its fields.
@@ -149,7 +140,6 @@ export const api = {
   log: async (id: string, signal: AbortSignal) =>
     (await call<{ events: LogEvent[] }>(`/api/log?${new URLSearchParams({ id })}`, undefined, signal)).events,
   kinds: async () => (await call<{ kinds: KindDescription[] }>('/api/kinds')).kinds,
-  sources: async () => (await call<{ sources: SourceDescription[] }>('/api/sources')).sources,
   collections: async () => (await call<{ collections: string[] }>('/api/collections')).collections,
   // The notes: the files an item may name with `see`, as its context.
   notes: async () => (await call<{ notes: string[] }>('/api/notes')).notes,

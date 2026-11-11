@@ -14,6 +14,8 @@ mod program;
 
 use std::fmt;
 
+use serde_json::{Map, Value};
+
 use crate::config::Driver;
 use crate::domain::item::object::Object;
 use crate::{Config, Error, Result, Store};
@@ -38,7 +40,8 @@ pub(crate) trait Source: fmt::Debug {
     /// text of the items added, as they appear in their collections.
     fn write(&self, changes: &[Change], dry_run: bool) -> std::result::Result<String, Refusal>;
 
-    /// What the source is, for `srl sources`.
+    /// What the source is, and what it shows of its configuration, for
+    /// `srl sources`.
     fn describe(&self) -> Result<Description>;
 }
 
@@ -80,10 +83,9 @@ pub(crate) struct Problem {
 pub(crate) struct Description {
     /// What the source is, in a sentence.
     pub(crate) summary: String,
-    /// The globs of the collections `srl add` may create in it: those a
-    /// glob of `include` matches and none of `exclude` does.
-    pub(crate) include: Vec<String>,
-    pub(crate) exclude: Vec<String>,
+    /// What `srl sources` shows of its configuration, as the source
+    /// chooses: each setting by its name, in order.
+    pub(crate) settings: Map<String, Value>,
 }
 
 /// A change to the items of a source.
@@ -203,13 +205,11 @@ impl Sources {
                     .collect::<Vec<_>>()
                     .join("; ");
                 Err(format!(
-                    "no source accepts it ({refusals}); `srl sources` says which collections \
-                     each one creates"
+                    "no source accepts it ({refusals}); `srl sources` describes each one"
                 ))
             }
             several => Err(format!(
-                "more than one source accepts it ({}); `srl sources` says which collections \
-                 each one creates",
+                "more than one source accepts it ({}); `srl sources` describes each one",
                 several
                     .iter()
                     .filter_map(|index| self.named.get(*index))

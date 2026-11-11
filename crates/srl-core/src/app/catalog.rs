@@ -11,6 +11,7 @@ use std::fs;
 use globset::GlobSet;
 use jiff::civil::Date;
 use serde::Serialize;
+use serde_json::{Map, Value};
 
 use crate::domain::card::{Card, CardId};
 use crate::domain::item::object::Object;
@@ -441,16 +442,9 @@ pub struct SourceDescription {
     /// Its driver: `filesystem`, or `program` for a source program.
     pub driver: String,
     pub description: String,
-    /// The collections `srl add` may create in it, as globs: those a glob
-    /// of `include` matches and none of `exclude` does.
-    pub creates: Creates,
-}
-
-/// The globs of the collections a source may create.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct Creates {
-    pub include: Vec<String>,
-    pub exclude: Vec<String>,
+    /// What it shows of its configuration, as the source chooses: each
+    /// setting by its name, in order.
+    pub settings: Map<String, Value>,
 }
 
 /// Every source of the store, in the order of their names (`srl sources`).
@@ -464,10 +458,7 @@ pub fn sources(store: &Store, config: &Config) -> Result<Vec<SourceDescription>>
                 name: named.name.clone(),
                 driver: named.driver.as_str().to_owned(),
                 description: described.summary,
-                creates: Creates {
-                    include: described.include,
-                    exclude: described.exclude,
-                },
+                settings: described.settings,
             })
         })
         .collect()

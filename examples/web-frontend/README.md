@@ -213,10 +213,11 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   XML file, or a table of a source program), is chosen among those `srl
   collections` lists, by typing any part of its name (the letters in
   order), or is a new one: a name typed in full, offered as **New
-  collection** when exactly one source of the store could create it
-  there, as `srl sources` describes (a name its `include` globs
-  match and its `exclude` globs don't). `srl add` creates it, and has
-  the last word on whether it may; the source writes the item its own
+  collection** when it is a collection's name (parts joined by `/`,
+  none empty or starting with `.`). Which source creates it is each
+  source's own rule, so `srl add` decides, when the item is checked or
+  added, and says each source's reason when none accepts it; the source
+  writes the item its own
   way. Notes are never offered: they hold no items. The collections are
   read each time Add is shown.
 - The collection last added to is chosen again on the next visit. It is kept
@@ -333,7 +334,6 @@ scheduling here; that belongs to `srl`.
 | `GET /api/log?id=…` | `srl log id:ID --json` | `{"events": […]}`: the card's events, in log order, as stored; those of other cards of an item of the same ID are left out |
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `collection`, `see` and `context`, as `srl next --json` gives them (not its `source`) |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
-| `GET /api/sources` | `srl sources --json` | `{"sources": […]}`, each source as `srl sources` printed it |
 | `GET /api/collections` | `srl collections --json` | `{"collections": [COLLECTION…]}` |
 | `GET /api/notes` | `srl notes --json` | `{"notes": [PATH…]}` |
 | `POST /api/add` | `srl add COLLECTION --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"collection": COLLECTION, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as its source would add it, as written in its collection or a source program's preview |
@@ -445,7 +445,7 @@ What a view shows from srl must be the answer for what its address asks
 now, whatever order srl's answers come in. So what the views read is read
 with TanStack Query's `useQuery`, kept by what was asked: Browse's cards
 by the selector submitted and the cards it made by their ID, Add's kinds,
-collections, notes and sources, a card's details and history and an
+collections and notes, a card's details and history and an
 item to edit by their ID, Study's counts, and the `--on-change`
 program's status. A list that comes late for a selector submitted before
 never replaces the one asked for. Every read is in `src/queries.ts`, its

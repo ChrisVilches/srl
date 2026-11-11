@@ -248,7 +248,7 @@ srl find in:rust -is:new        # rust cards already studied
 | `srl find [SEL]` | list cards |
 | `srl collections` | list the collections (files of items, or a source program's tables) by name, also those without items (for `srl add COLLECTION`) |
 | `srl notes` | list the notes items may name with `see` |
-| `srl sources` | describe the store's sources, and where `srl add` may create a new collection |
+| `srl sources` | describe the store's sources, each with its driver and the settings it shows |
 | `srl kinds` | describe each kind and its fields, before writing an item of it |
 | `srl show ID` | print an item and its context; with `--json`, as the item object `srl edit` takes back |
 | `srl cards ID` | print the cards of an item |

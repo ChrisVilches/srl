@@ -72,9 +72,9 @@ collection may be read by two sources.
 A source can also be a **source program**, which keeps items its own way,
 such as in a database: `program` instead of `driver`, a command as in
 `[kinds]`. Every other key of its table is the program's own setting,
-which the program checks. It names its collections itself, and says in
-`describe` which new ones `srl add` may create in it (`srl sources` shows
-them as its `include`). Its items are studied, shown and changed like any
+which the program checks. It names its collections itself, decides by
+its own rule which new ones `srl add` may create in it, and chooses which
+of its settings `srl sources` shows. Its items are studied, shown and changed like any
 other, with `srl edit --stdin` since they are in no file. The `srl`
 repository's `examples/` has one, `source-tinydb` (items in a TinyDB
 database, one table per collection, the table `words` being the

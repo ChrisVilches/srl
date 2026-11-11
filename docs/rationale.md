@@ -161,7 +161,11 @@ does"), and nothing else in `srl` knows how any of them keeps its items.
   needs no setting at all, since the default source reads them.
 - **Each source's settings are its own**: a `filesystem` source takes its
   globs, and a program takes whatever keys it checks itself. No key means
-  something for one source and nothing for another.
+  something for one source and nothing for another. So each source also
+  shows its own settings in `srl sources`, and decides by its own rule
+  which new collections `srl add` creates in it, rather than every source
+  answering in the `filesystem` source's terms, as `include` and
+  `exclude` globs that a database has no use for.
 - **A collection is named everywhere as its source names it**, so
   that `srl add`, messages and selectors need no case for any source.
   Mounting each source under a prefix of its own, as Unix mounts file

@@ -7,7 +7,9 @@
 //!   `{"next": 1, "collections": {"vocab/words": {"items": [{"handle": "h1",
 //!   "item": {…}}]}}}`. A file that doesn't exist is a source without
 //!   collections.
-//! - `creates`: the globs `describe` gives; `["*"]` without it.
+//! - `creates`: the names of the new collections `accepts` takes, where a
+//!   trailing `*` stands for any text without `/`; `["*"]` without it.
+//!   `describe` gives it as a setting, with `data`.
 //! - `log`: each call appends a line to this file: its name and how many
 //!   lines it got.
 //! - `fail`: the call of this name fails as a whole, with `broken` on
@@ -118,8 +120,19 @@ fn answer(
     match call {
         "describe" => Ok(vec![json!({
             "description": "Items in a JSON file, for srl's tests.",
-            "creates": config.get("creates").cloned().unwrap_or(json!(["*"])),
+            "settings": {"data": config.get("data"), "creates": creates(config)},
         })]),
+        "accepts" => Ok(inputs
+            .iter()
+            .map(|input| {
+                let name = text(input, "collection");
+                if creates(config).iter().any(|created| matches(created, name)) {
+                    json!({"ok": true})
+                } else {
+                    json!({"error": "it matches none of `creates`"})
+                }
+            })
+            .collect()),
         "collections" => Ok(collections
             .keys()
             .map(|name| json!({"collection": name}))
@@ -139,6 +152,31 @@ fn answer(
             .collect()),
         "write" => write(config, inputs, &mut data, &place, version.as_deref()),
         _ => Err(format!("`{call}` is not a call")),
+    }
+}
+
+/// The `creates` setting, `["*"]` without it.
+fn creates(config: &Map<String, Value>) -> Vec<String> {
+    config.get("creates").and_then(Value::as_array).map_or_else(
+        || vec!["*".to_owned()],
+        |names| {
+            names
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect()
+        },
+    )
+}
+
+/// Whether `name` is `created`, a name of `creates`: the same, or, for one
+/// ending in `*`, its start followed by any text without `/`.
+fn matches(created: &str, name: &str) -> bool {
+    match created.strip_suffix('*') {
+        Some(start) => name
+            .strip_prefix(start)
+            .is_some_and(|rest| !rest.contains('/')),
+        None => created == name,
     }
 }
 

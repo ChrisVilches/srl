@@ -46,7 +46,6 @@ export const queries = {
   kinds: () => queryOptions({ queryKey: ['kinds'], queryFn: api.kinds }),
   collections: () => queryOptions({ queryKey: ['collections'], queryFn: api.collections }),
   notes: () => queryOptions({ queryKey: ['notes'], queryFn: api.notes }),
-  sources: () => queryOptions({ queryKey: ['sources'], queryFn: api.sources }),
 
   // The counts of today's study day.
   today: () => queryOptions({ queryKey: ['today'], queryFn: api.today }),

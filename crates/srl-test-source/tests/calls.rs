@@ -34,7 +34,7 @@ fn run(call: &str, input: &str) -> (bool, Vec<String>) {
 }
 
 #[test]
-fn describe_gives_the_globs_of_its_settings() {
+fn describe_gives_its_settings() {
     let (ok, lines) = run(
         "describe",
         "{\"config\": {\"data\": \"nowhere.json\", \"creates\": [\"words\"]}}\n",
@@ -42,8 +42,22 @@ fn describe_gives_the_globs_of_its_settings() {
     assert!(ok);
     assert_eq!(
         lines,
-        ["{\"description\":\"Items in a JSON file, for srl's tests.\",\"creates\":[\"words\"]}"]
+        [
+            "{\"description\":\"Items in a JSON file, for srl's tests.\",\"settings\":{\"data\":\"nowhere.json\",\"creates\":[\"words\"]}}"
+        ]
     );
+}
+
+#[test]
+fn accepts_takes_the_names_of_creates() {
+    let config = "\"config\": {\"data\": \"nowhere.json\", \"creates\": [\"words\", \"vocab/*\"]}";
+    let input = ["words", "vocab/a", "vocab/a/b", "other"]
+        .map(|name| format!("{{{config}, \"collection\": \"{name}\"}}\n"))
+        .concat();
+    let (ok, lines) = run("accepts", &input);
+    assert!(ok);
+    let refused = "{\"error\":\"it matches none of `creates`\"}";
+    assert_eq!(lines, ["{\"ok\":true}", "{\"ok\":true}", refused, refused]);
 }
 
 #[test]

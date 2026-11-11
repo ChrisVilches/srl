@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
-import { api, fieldLabel, type KindDescription, type NewItem, type SourceDescription } from './api';
+import { api, fieldLabel, type KindDescription, type NewItem } from './api';
 import { DraftCheckbox, ErrorView, Key, KindBadge, Label, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
 import { Modal, ResultBox, UnsavedGuard } from './Modal';
 import { clozeHint, clozeShortcut } from './qaCloze';
@@ -10,15 +10,16 @@ import { TopBar } from './TopBar';
 
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
 // collection to add it to, of any source, picked from
-// `srl collections`, or a new one where `srl sources` says one may be
-// created; its source writes the item its own way. Its context, if any, is
+// `srl collections`, or a new one typed by its name, which srl creates in
+// the one source that accepts it; its source writes the item its own way.
+// Its context, if any, is
 // a note picked from `srl notes`, never the collection. srl checks the item, with
 // `srl add --dry-run` (Check) and when it is added: the page knows no rule of
 // any kind, and shows what srl says.
 
 type Store =
   | { kind: 'loading' }
-  | { kind: 'ready'; kinds: KindDescription[]; collections: string[]; notes: string[]; sources: SourceDescription[] }
+  | { kind: 'ready'; kinds: KindDescription[]; collections: string[]; notes: string[] }
   | { kind: 'error'; message: string };
 
 // What the last Check or Add gave.
@@ -57,17 +58,15 @@ export function Add() {
   const kindsRead = useQuery(queries.kinds());
   const collectionsRead = useQuery(queries.collections());
   const notesRead = useQuery(queries.notes());
-  const sourcesRead = useQuery(queries.sources());
-  const reads = [kindsRead, collectionsRead, notesRead, sourcesRead];
+  const reads = [kindsRead, collectionsRead, notesRead];
   const failed = reads.find((read) => read.isError && !read.isFetching);
   const store: Store =
-    kindsRead.isSuccess && collectionsRead.isSuccess && notesRead.isSuccess && sourcesRead.isSuccess
+    kindsRead.isSuccess && collectionsRead.isSuccess && notesRead.isSuccess
       ? {
           kind: 'ready',
           kinds: kindsRead.data,
           collections: collectionsRead.data,
           notes: notesRead.data,
-          sources: sourcesRead.data,
         }
       : failed?.error
         ? { kind: 'error', message: failed.error.message }
@@ -95,7 +94,6 @@ export function Add() {
   const collections = store.kind === 'ready' ? store.collections : [];
   const collection = chosen !== undefined ? chosen : rememberedCollection(collections);
   const notes = store.kind === 'ready' ? store.notes : [];
-  const sources = store.kind === 'ready' ? store.sources : [];
   const kind = kinds.find((k) => k.name === kindName) ?? kinds[0];
   const cloze = kind !== undefined ? clozeHint(kind.name) : undefined;
   // A field of the kind holds text: the item would be lost by leaving.
@@ -209,7 +207,7 @@ export function Add() {
 
             <Section
               label="Collection"
-              hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its name, where a source of the store can create it (srl sources)."
+              hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its name, which srl creates in the one source of the store that accepts it."
             >
               <PathPicker
                 paths={collections}
@@ -218,7 +216,7 @@ export function Add() {
                 placeholder={
                   collections.length === 0 ? 'Type the name of a new collection…' : 'Find a collection, or type a new one…'
                 }
-                creatable={(collection) => creatable(sources, collection)}
+                creatable={wellFormed}
               />
             </Section>
 
@@ -483,40 +481,10 @@ function PathPicker({
   );
 }
 
-// Whether a source of the store can create COLLECTION, as
-// `srl add` decides it (docs/sources.md, "Collections"): exactly one source
-// whose `creates.include` globs (`srl sources --json`) match its name
-// and whose `creates.exclude` don't. srl checks it again, with the format
-// the extension names, when the item is checked or added.
-function creatable(sources: SourceDescription[], collection: string): boolean {
-  if (collection.split('/').some((part) => part === '' || part.startsWith('.'))) return false;
-  const accepting = sources.filter((source) => {
-    const { include, exclude } = source.creates;
-    return include.some((glob) => globMatches(glob, collection)) && !exclude.some((glob) => globMatches(glob, collection));
-  });
-  return accepting.length === 1;
-}
-
-// Whether `glob` matches `path` as srl matches globs: `*` within one folder,
-// `**` across folders. Only `*`, `**` and `?` are understood; anything else
-// is matched as written, and srl has the last word.
-function globMatches(glob: string, path: string): boolean {
-  const pattern = glob
-    .split(/(\*\*\/|\*\*|\*|\?)/)
-    .map((part) => {
-      switch (part) {
-        case '**/':
-          return '(?:.*/)?';
-        case '**':
-          return '.*';
-        case '*':
-          return '[^/]*';
-        case '?':
-          return '[^/]';
-        default:
-          return part.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-      }
-    })
-    .join('');
-  return new RegExp(`^${pattern}$`).test(path);
+// Whether COLLECTION is a collection's name (docs/sources.md, "Terms"):
+// parts joined by `/`, none empty or starting with `.`. Which source
+// creates it, if any, is each source's own rule, so srl decides it when the
+// item is checked or added, and says why when no source accepts it.
+function wellFormed(collection: string): boolean {
+  return !collection.split('/').some((part) => part === '' || part.startsWith('.'));
 }

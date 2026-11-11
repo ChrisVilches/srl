@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tinydb_source import Source, SourceError, collections, describe, read, write
+from tinydb_source import Source, SourceError, accepts, collections, describe, read, write
 
 ITEM = {"id": "cat001", "Q": "猫", "A": "cat"}
 
@@ -30,7 +30,14 @@ class Tests(unittest.TestCase):
             read(self.source, [{}]),
             [{"collection": "words", "handle": "words/1", "item": ITEM}],
         )
-        self.assertEqual(describe(self.source, [{}])[0]["creates"], ["*"])
+
+    def test_describe_gives_the_database_and_accepts_a_name_without_slash(self):
+        database = str(Path(self.folder.name) / "vocab" / "vocab.json")
+        self.assertEqual(describe(self.source, [{}])[0]["settings"], {"database": database})
+        self.assertEqual(
+            accepts(self.source, [{"collection": "words"}, {"collection": "a/b"}]),
+            [{"ok": True}, {"error": "a table's name has no `/`"}],
+        )
 
     def test_items_of_two_tables_have_different_handles(self):
         animals = {"Q": "犬"}

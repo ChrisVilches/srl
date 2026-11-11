@@ -17,9 +17,7 @@ mod process;
 mod source;
 mod store;
 
-pub use app::catalog::{
-    Catalog, CollectionInfo, Creates, SourceDescription, collections, notes, sources,
-};
+pub use app::catalog::{Catalog, CollectionInfo, SourceDescription, collections, notes, sources};
 pub use app::check::{Warning, orphans, warnings};
 pub use app::next::next;
 pub use app::review::{move_history, reset, review, suspend, unsuspend};

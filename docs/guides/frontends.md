@@ -34,9 +34,10 @@ names the item's collection, for people and for `srl add`, and `see` the
 note the item asks about, relative to the store's folder, for a frontend
 that opens it. An item is changed through `srl show ID --json` and `srl
 edit --stdin`, whatever its source. A form that adds items picks a
-collection from `srl collections`, or offers a new one where `srl sources`
-says a source can create it, and a note for `see` from `srl notes`: the
-two are separate lists, since a collection is never a context.
+collection from `srl collections`, or takes the name of a new one, which
+`srl add` creates in the one source that accepts it, or refuses with each
+source's reason; and a note for `see` from `srl notes`: the two are
+separate lists, since a collection is never a context.
 
 ## The examples
 
@@ -52,8 +53,8 @@ them, what they need and what may differ elsewhere.
   Markdown. Its card browser lists cards with `srl find` and makes any of
   them with `srl cards`, to see how a kind's cards look without studying.
   Its Add tab writes items: the fields of a kind from `srl kinds`, a collection of any source
-  from `srl collections`, or a new one where `srl sources` says a source
-  can create it, and a note as context from `srl notes`, checked with
+  from `srl collections`, or a new one typed by its name, and a note as
+  context from `srl notes`, checked with
   `srl add --dry-run` and added with `srl add`, so it knows no rule of
   any kind.
 - **`srl-tui`**, in `examples/python-frontend/`: a terminal frontend in
