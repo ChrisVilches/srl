@@ -56,8 +56,8 @@
   content: none;
 }
 .prose :not(pre) > code {
-  @apply rounded bg-stone-200/70 px-1 py-0.5 font-normal text-stone-800;
-  @apply dark:bg-stone-800 dark:text-stone-200;
+  @apply rounded bg-fuchsia-100 px-1 py-0.5 font-medium text-fuchsia-800 ring-1 ring-fuchsia-300;
+  @apply dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:ring-fuchsia-400/30;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
