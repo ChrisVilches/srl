@@ -74,7 +74,7 @@ byte for byte.
 
 ## Steps
 
-You need `srl` on `PATH`, tmux, uv (for `srl-tui`), Node.js 20 or later,
+You need `srl` on `PATH`, tmux, uv (for `srl-tui`), Node.js 22.22 or later,
 Firefox, the fonts Fira Code and Noto Sans Mono CJK JP, and MeCab with its
 IPA dictionary (for the `ja-words` cards; see `../kind-ja-words/`).
 
@@ -136,8 +136,8 @@ IPA dictionary (for the `ja-words` cards; see `../kind-ja-words/`).
   new items their IDs in place, so every copy gets the same cards:
   `SRL_DIR="$PWD/store" srl id` (after step 2). Write notes and items as
   plain Markdown that a terminal can show: sub- and superscripts as Unicode
-  characters (R₁, I²), which terminals show; no LaTeX, which neither
-  frontend renders.
+  characters (R₁, I²), which terminals show; no LaTeX math, which
+  `srl-web` renders but `srl-tui` shows as written.
 - **Size, fonts, colors:** see "The user's current preferences" below, and
   the names given there.
 
@@ -155,8 +155,10 @@ for something else, and update this section when they change.
   or only the card when narrower (`WIDTH` and `BROWSE_WIDTH` in
   `shoot.mjs`). Pages are taken at twice their size, and in full, past
   the bottom of the window.
-- **Terminal size:** 108 columns (`cols` in `capture-tui.sh`); the rows are
-  as many as the screen uses, so there is no empty space under the keys.
+- **Terminal size:** 108 columns and 38 rows (`cols` and `rows` in
+  `capture-tui.sh`). `shoot.mjs` leaves out the blank rows at the bottom,
+  so there is no empty space under the keys; a screen that needs more
+  than 38 rows is cut off, so raise `rows` for it.
 - **Terminal font:** Fira Code for Latin text, at 30 px with a line height
   of 1.12 (`tui.html`), so the rating labels sit centered in their colored
   boxes. CJK text is Noto Sans Mono CJK JP scaled to 120% (`size-adjust`

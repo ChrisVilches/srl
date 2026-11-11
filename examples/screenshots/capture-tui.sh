@@ -4,7 +4,7 @@
 #
 #   ./capture-tui.sh STORE OUT
 #
-# STORE is the demo store to study (a copy of store/, see README.md), OUT
+# STORE is the demo store to study (a copy of store/, see SKILL.md), OUT
 # the folder the .ansi files go to. No card is rated: a shot only shows a
 # card, and its answer when the shot asks for it.
 set -eu
