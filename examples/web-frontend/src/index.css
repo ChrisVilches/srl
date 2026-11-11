@@ -48,7 +48,10 @@
 
 /* Inline code in a box instead of the typography plugin's backticks. It
    stays inline, so a long one wraps like text (.prose's overflow-wrap
-   above), and each line of it gets its own padding and rounded ends. Not
+   above), and each line of it gets its own padding and rounded ends. The
+   ring is inside the box: outside it, it would be cut off at the left of a
+   table's scrolling box (src/Markdown.tsx), whose first cells have no
+   padding. Not
    in a layer: the plugin's styles are in the utilities layer, which would
    win over the components layer. */
 .prose :not(pre) > code::before,
@@ -56,7 +59,7 @@
   content: none;
 }
 .prose :not(pre) > code {
-  @apply rounded bg-fuchsia-100 px-1 py-0.5 font-medium text-fuchsia-800 ring-1 ring-fuchsia-300;
+  @apply rounded bg-fuchsia-100 px-1 py-0.5 font-medium text-fuchsia-800 ring-1 ring-fuchsia-300 ring-inset;
   @apply dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:ring-fuchsia-400/30;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
