@@ -161,7 +161,7 @@ These seven formats are fixed, because everything else depends on them:
 | **Frontend contract** | `srl` and frontends: `srl next --json` | [frontends.md](frontends.md) |
 | **Review event** | `srl review` and the scheduler or any analysis | [log.md](log.md) |
 | **Selector** | People, scripts and other programs, and every command that picks cards | [selectors.md](selectors.md) |
-| **Source program calls** | `srl` and source programs: `describe`, `collections`, `read`, `write` | [sources.md](sources.md), "Source programs" |
+| **Source program calls** | `srl` and source programs: `describe`, `accepts`, `collections`, `read`, `write` | [sources.md](sources.md), "Source programs" |
 
 When something new needs more than a contract offers, the contract is extended
 for everyone, deliberately. Individual programs never invent private

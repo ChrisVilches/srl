@@ -89,7 +89,7 @@ database = "vocab/vocab.json"    # the program's own setting; each table is a co
 **A new collection goes to the one source that accepts its name**; none
 or several is an error, `cannot add to COLLECTION`, that names every
 source concerned (and, for none, why each refused). `source-tinydb`
-accepts any name without a `/` (its glob is `*`), so beside the default
+accepts any name without a `/` (its `accepts` refuses the others), so beside the default
 `filesystem` source a new collection at the top of the store, such as
 `words.jsonl`, is accepted by both and refused: put new files in a
 folder (`generated/words.jsonl`), and a name without an extension
