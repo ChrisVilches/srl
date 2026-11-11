@@ -193,12 +193,14 @@ questions", once it is planned.
 - **Other file formats.** Items can come from any source, and a source
   can be a program (see [sources.md](sources.md), "Source programs"), so
   a format such as Org, AsciiDoc, items written in Markdown notes, or the
-  comments of source code can already be read by a program. What a
-  program can't do is what the `filesystem` driver does for itself: keep
-  every other byte of a hand-written file, verify each change against its
-  own parse, and write atomically. A format of the driver would, for a
-  format common enough to be worth it; or `srl` could offer programs a
-  way to give their changes as edits that `srl` applies itself.
+  comments of source code can already be read by a program. A program
+  can keep every other byte of a hand-written file and write atomically,
+  but `srl` can only check the result after its `write`, never undo it;
+  the `filesystem` driver does these itself, so `srl` promises them (see
+  [formats.md](formats.md), "How srl writes to collections"). A format
+  of the driver would give those promises, for a format common enough to
+  be worth it; or `srl` could offer programs a way to give their changes
+  as edits that `srl` applies itself.
 
 ## Sources
 
