@@ -15,7 +15,7 @@ const RULES: [string, string][] = [
 ];
 
 const EXAMPLES: [string, string][] = [
-  ['in:grammar', 'Cards whose collection has a part named grammar, its extension aside, such as japanese/grammar/ or grammar.jsonl'],
+  ['in:grammar', 'Cards whose collection its source names grammar: for a file, a folder or the file name, with or without its extension, such as japanese/grammar/ or grammar.jsonl'],
   ['in:grammar,kanji', 'Cards in grammar or in kanji'],
   ['in:japanese -in:kanji', 'Cards in japanese, but not in kanji'],
   ['path:japanese/*', 'Cards of the collections directly in japanese/; path:japanese/** for everything below it'],

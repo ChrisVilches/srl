@@ -58,6 +58,12 @@ with `/` between folders. JSON outputs give the name of the
 collection an item is in (`collection`). `srl collections` lists every
 collection, including those that hold no items (see [cli.md](cli.md)).
 
+Its **`in` names**, which `in:` matches (see [selectors.md](selectors.md)),
+are each folder of its path, its file name, and its file name without
+its extension (the part after the last `.`), each once:
+`japanese/v1.2/grammar.xml` has `japanese`, `v1.2`, `grammar.xml` and
+`grammar`.
+
 Files are UTF-8, and a file that isn't is an error of its collection.
 Both `\n` and `\r\n` line endings are read, and a UTF-8 byte order mark
 is ignored.

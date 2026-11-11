@@ -1,7 +1,5 @@
 //! The selector language (see `docs/selectors.md`).
 
-use std::path::Path;
-
 use globset::GlobSet;
 
 use crate::config::globs;
@@ -146,25 +144,13 @@ impl Selector {
     }
 }
 
-/// The names `in:` matches for a collection: each part before the last, and
-/// the last part without its extension, in NFC and lowercased.
-fn names(collection: &str) -> impl Iterator<Item = String> + '_ {
-    let (parents, last) = collection.rsplit_once('/').unwrap_or(("", collection));
-    let stem = Path::new(last)
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .unwrap_or(last);
-    parents
-        .split('/')
-        .filter(|part| !part.is_empty())
-        .chain([stem])
-        .map(|name| nfc(name).to_lowercase())
-}
-
 impl Filter {
     fn matches(&self, item: &Item, card: &CardId, memories: &Memories) -> bool {
         match self {
-            Self::In(wanted) => names(item.collection()).any(|name| wanted.contains(&name)),
+            Self::In(wanted) => item
+                .in_names()
+                .iter()
+                .any(|name| wanted.contains(&nfc(name).to_lowercase())),
             Self::Path(globs) => globs.is_match(nfc(item.collection())),
             Self::Source(names) => names.iter().any(|name| name == item.source()),
             Self::Id(ids) => ids.iter().any(|id| match id.suffix() {
@@ -414,21 +400,37 @@ mod tests {
     }
 
     #[test]
-    fn in_matches_a_folder_or_the_file_name_ignoring_case() {
+    fn in_matches_a_folder_or_the_file_name_with_or_without_extension_ignoring_case() {
         assert_eq!(pick("in:grammar"), ["aaa1"]);
         assert_eq!(pick("in:japanese"), ["aaa1", "aaa2.1", "aaa2.2"]);
         assert_eq!(pick("in:food"), ["aaa3"]);
+        assert_eq!(pick("in:WO.jsonl"), ["aaa1"]);
         assert_eq!(pick("in:foo"), Vec::<String>::new());
-        assert_eq!(pick("in:wo.jsonl"), Vec::<String>::new());
+        assert_eq!(pick("in:japanese/n5"), Vec::<String>::new());
+        assert_eq!(pick("in:japanese/n5.jsonl"), Vec::<String>::new());
     }
 
     #[test]
-    fn in_drops_only_the_last_parts_extension() {
-        assert_eq!(
-            names("v1.2/Grammar.notes.TXT").collect::<Vec<_>>(),
-            ["v1.2", "grammar.notes"]
-        );
-        assert_eq!(names("wo").collect::<Vec<_>>(), ["wo"]);
+    fn in_matches_only_the_names_the_source_gives() {
+        let mut items = items();
+        let item = &mut items[0];
+        item.origin.collection = "v1.2".to_owned();
+        item.origin.in_names = vec!["v1.2".to_owned(), "net/Routers".to_owned()];
+        let picked = |selector: &str| {
+            let selector = Selector::parse(selector, &Config::default()).unwrap();
+            let cards = items
+                .iter()
+                .flat_map(|item| item.cards().iter().map(move |card| (item, card)));
+            selector
+                .select(cards, &memories())
+                .into_iter()
+                .map(|(_, card)| card.to_string())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(picked("in:v1.2"), ["aaa1"]);
+        assert_eq!(picked("in:net/routers"), ["aaa1"]);
+        assert_eq!(picked("in:v1"), Vec::<String>::new());
+        assert_eq!(picked("in:grammar"), Vec::<String>::new());
     }
 
     #[test]

@@ -57,7 +57,9 @@ Items of the database may name a note with `see`, as any item may.
   `srl add` may create any new one (`describe` gives `*`). A table named
   as a file of the store, such as `notes.jsonl`, would be a collection two
   sources give, which is an error (see
-  [docs/sources.md](../../docs/sources.md), "Collections").
+  [docs/sources.md](../../docs/sources.md), "Collections"). `collections`
+  gives no `in` names, so `in:` selects a table by its whole name:
+  `in:v1.2` selects the table `v1.2`, and `in:v1` doesn't.
 - **Each item is a document `{"item": {...}}`**, holding its item object
   as `srl` writes one. Its handle is its table and TinyDB's document
   ID, such as `words/17`, since TinyDB numbers the documents of each

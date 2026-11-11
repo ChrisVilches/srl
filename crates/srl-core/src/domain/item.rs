@@ -140,6 +140,8 @@ pub(crate) struct Origin {
     /// The name of the collection the item is in, as its source
     /// gives it.
     pub(crate) collection: String,
+    /// The `in` names of the collection, as its source gives them.
+    pub(crate) in_names: Vec<String>,
     /// What names the item to its source when it is changed.
     pub(crate) handle: String,
     /// The item's position among the items its source read in its
@@ -176,6 +178,12 @@ impl Item {
     /// `/` between folders.
     pub fn collection(&self) -> &str {
         &self.origin.collection
+    }
+
+    /// The `in` names of the item's collection: the values of `in:` that
+    /// select it, as its source gives them (see `docs/selectors.md`).
+    pub fn in_names(&self) -> &[String] {
+        &self.origin.in_names
     }
 
     /// The name of the item's source.

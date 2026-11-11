@@ -69,9 +69,12 @@ impl Catalog {
         let mut unidentified = Vec::new();
         for (index, named) in sources.all().iter().enumerate() {
             let listed = named.source.collections()?;
-            let known = listed.iter().cloned().collect::<HashSet<_>>();
-            collections.extend(listed.into_iter().map(|collection| Located {
-                collection,
+            let known = listed
+                .iter()
+                .map(|listed| (listed.collection.clone(), listed.in_names.clone()))
+                .collect::<HashMap<_, _>>();
+            collections.extend(listed.into_iter().map(|listed| Located {
+                collection: listed.collection,
                 source: index,
             }));
             let read = named.source.read()?;
@@ -82,7 +85,8 @@ impl Catalog {
             }));
             let mut counts = HashMap::<String, usize>::new();
             for item in read.items {
-                if !known.contains(&item.collection) {
+                let in_names = known.get(&item.collection).cloned();
+                if in_names.is_none() {
                     problems.push(Error::Collection {
                         collection: item.collection.clone(),
                         reason: format!(
@@ -97,6 +101,7 @@ impl Catalog {
                 let origin = Origin {
                     source: index,
                     source_name: named.name.clone(),
+                    in_names: in_names.unwrap_or_else(|| vec![item.collection.clone()]),
                     collection: item.collection,
                     handle: item.handle,
                     position: *count,
@@ -397,6 +402,9 @@ pub struct CollectionInfo {
     pub collection: String,
     /// The name of its source.
     pub source: String,
+    /// Its `in` names: the values of `in:` that select it.
+    #[serde(rename = "in")]
+    pub in_names: Vec<String>,
 }
 
 /// Every collection of the store, in the order of their names, without
@@ -409,9 +417,10 @@ pub fn collections(store: &Store, config: &Config) -> Result<Vec<CollectionInfo>
                 .source
                 .collections()?
                 .into_iter()
-                .map(|collection| CollectionInfo {
-                    collection,
+                .map(|listed| CollectionInfo {
+                    collection: listed.collection,
                     source: named.name.clone(),
+                    in_names: listed.in_names,
                 }),
         );
     }
@@ -484,6 +493,7 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
             source: 0,
             source_name: crate::config::DEFAULT_SOURCE.to_owned(),
             collection: path.to_owned(),
+            in_names: crate::source::file_in_names(path),
             handle: index.to_string(),
             position: index + 1,
             read: Object {
@@ -597,6 +607,7 @@ pub(crate) fn check_new(new: &[Object], programs: &Programs) -> Vec<Error> {
             source: 0,
             source_name: String::new(),
             collection: String::new(),
+            in_names: Vec::new(),
             handle: String::new(),
             position: index + 1,
             read: object.clone(),

@@ -13,7 +13,7 @@ use serde_json::{Map, Value};
 use crate::config::globs;
 use crate::domain::item::object::{self, Object};
 use crate::process;
-use crate::source::{Change, Description, Problem, Read, ReadItem, Refusal, Source};
+use crate::source::{Change, Description, Listed, Problem, Read, ReadItem, Refusal, Source};
 use crate::{Error, Result, Store};
 
 /// A source program, as `[sources]` names it.
@@ -119,21 +119,28 @@ impl Program {
 }
 
 impl Source for Program {
-    fn collections(&self) -> Result<Vec<String>> {
+    fn collections(&self) -> Result<Vec<Listed>> {
         let call = "collections";
         let mut listed = HashSet::new();
         self.call(call, vec![Map::new()])?
             .into_iter()
             .map(|line| {
                 let reason = |reason: String| self.invalid(call, &reason);
-                only(&line, &["collection"]).map_err(reason)?;
+                only(&line, &["collection", "in"]).map_err(reason)?;
                 let collection = collection(&line).map_err(reason)?;
                 if !listed.insert(collection.clone()) {
                     return Err(reason(format!(
                         "the collection `{collection}` is listed twice"
                     )));
                 }
-                Ok(collection)
+                let in_names = match line.get("in") {
+                    Some(names) => in_names(names).map_err(reason)?,
+                    None => vec![collection.clone()],
+                };
+                Ok(Listed {
+                    collection,
+                    in_names,
+                })
             })
             .collect()
     }
@@ -328,6 +335,36 @@ fn text(line: &Map<String, Value>, key: &str) -> std::result::Result<String, Str
         Some(other) => Err(format!("`{key}` must be text, not {other}")),
         None => Err(format!("a line has no `{key}`")),
     }
+}
+
+/// The `in` names a line of `collections` gives: a list of texts that `in:`
+/// can take, none blank and none given twice.
+fn in_names(names: &Value) -> std::result::Result<Vec<String>, String> {
+    let Value::Array(names) = names else {
+        return Err(format!("`in` must be a list of texts, not {names}"));
+    };
+    if names.is_empty() {
+        return Err("`in` is an empty list; leave it out to use the collection's name".to_owned());
+    }
+    let mut given = Vec::<String>::new();
+    for name in names {
+        let Value::String(name) = name else {
+            return Err(format!("`in` must be a list of texts, not one with {name}"));
+        };
+        if name.is_empty()
+            || name.contains(|character: char| character.is_whitespace() || character == ',')
+        {
+            return Err(format!(
+                "`{name}` in `in` is not a value `in:` can take: one or more characters, no \
+                 spaces and no commas"
+            ));
+        }
+        if given.contains(name) {
+            return Err(format!("`{name}` is given twice in `in`"));
+        }
+        given.push(name.clone());
+    }
+    Ok(given)
 }
 
 /// The collection a line names: parts joined by `/`, none of them empty,

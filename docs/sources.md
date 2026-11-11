@@ -66,6 +66,16 @@ collection by its path, relative to the store's folder, and a source
 program by whatever it chooses, such as the name of a table. `srl
 collections` lists every collection, with the source that gives it.
 
+**A source also gives each collection its `in` names**: the values of
+`in:` that select it (see [selectors.md](selectors.md)). A `filesystem`
+source gives each folder of the path, the file name, and the file name
+without its extension: `japanese/grammar.jsonl` has `japanese`,
+`grammar.jsonl` and `grammar` (see [formats.md](formats.md), "Which files
+are collections"). A source program gives the names it chooses with
+`collections` (see "Calls"), or, by default, the collection's name alone.
+`in` names may be shared: `in:grammar` selects every collection that has
+the name, whatever its source.
+
 The rules, the same for every source:
 
 1. **No collection's name may be given by two sources.** Two
@@ -75,8 +85,8 @@ The rules, the same for every source:
    collections otherwise, such as under a folder of its own, `vocab/`.
 2. **A collection's name never names an item.** Every item of a
    collection is in the same collection, and items are told apart by
-   their IDs. `see`, `srl add`, `in:` and `path:` take collections'
-   names alone.
+   their IDs. `see`, `srl add` and `path:` take collections' names
+   alone, and `in:` their `in` names.
 
 A collection that breaks a rule is an error in the store (see
 [items.md](items.md), "Errors"): it stops every command that reads items,
@@ -161,6 +171,13 @@ database = "vocab/vocab.json"    # every key but program is the program's
   store with files of a `filesystem` source names its collections so that
   they can't be taken for a file, such as under a folder of its own, or
   takes the folder in its settings.
+- **A program gives each collection's `in` names as it likes**, or
+  leaves them out to have the collection's name alone. A program whose
+  collections are files, such as one that reads items from Markdown
+  notes, gives what a `filesystem` source does: `notes/routers.md` has
+  `notes`, `routers.md` and `routers`. One that keeps a database may give
+  a table's name alone, as the default does, or the topics it knows it
+  by.
 
 ### Calls
 
@@ -176,7 +193,7 @@ with every process it started, when `srl` is stopped (see
 | Call | Input | Output |
 |---|---|---|
 | `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "creates": ["*"]}`: what the source is, in a sentence, and the globs of the collections `srl add` may create in it (`[]` for none), which `srl sources` shows as its `include` |
-| `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words"}` |
+| `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words"}`, or `{"collection": "words", "in": ["words", "vocab"]}` to give its `in` names |
 | `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "item": {…}}`; one line per problem: `{"collection": "words", "error": "…"}` |
 | `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, or `{…, "op": "replace", "collection": "words", "handle": "17", "before": {…}, "after": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
 
@@ -188,6 +205,9 @@ with every process it started, when `srl` is stopped (see
   it one: a program never makes IDs itself. A problem is reported as an
   error in the store, at its collection; a program says in its message
   where in the collection it is, if that helps.
+- **`collections`** gives every collection, and may give its `in` names
+  as a list of at least one, each a value `in:` can take: without
+  spaces or commas. A collection without `in` has its name alone.
 - **`write`** gets every change one command makes to the source, in one
   call. An `item`, `before` or `after` is an item object as `srl` writes
   one. A program refuses a `replace` when the item under the handle is no
@@ -227,7 +247,8 @@ wherever it chooses, and is responsible for its freshness.
   text that is blank, empty or only spaces (every text a call gives, such
   as a `handle` or an `error`, says something), an item object that isn't valid, a collection's name that isn't parts
   joined by `/` (none empty or starting with `.`), a collection listed
-  twice by `collections`, a handle given twice in one `read`, or a wrong
+  twice by `collections`, an `in` that is empty, holds a value `in:`
+  can't take, or gives a name twice, a handle given twice in one `read`, or a wrong
   number of lines is a failure of the program. So
   is a call that fails as a whole. Either is reported once, as a problem
   of the source, and stops every command that reads items until it is

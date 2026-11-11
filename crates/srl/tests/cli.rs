@@ -1211,7 +1211,8 @@ fn collections_lists_every_collection_without_reading_it() {
     let output = srl(&["collections", "--json", "--dir", d]);
     assert_eq!(
         json_lines(&output)[1],
-        serde_json::json!({"collection": "japanese/grammar/wo.jsonl", "source": "items"})
+        serde_json::json!({"collection": "japanese/grammar/wo.jsonl", "source": "items",
+            "in": ["japanese", "grammar", "wo.jsonl", "wo"]})
     );
     let empty = store(&[]);
     assert_eq!(
@@ -1906,8 +1907,10 @@ fn sources_read_their_collections_each_with_its_driver() {
     assert_eq!(
         json_lines(&collections),
         [
-            serde_json::json!({"collection": "japanese/wo.jsonl", "source": "items"}),
-            serde_json::json!({"collection": "vocab/words.jsonl", "source": "vocab"}),
+            serde_json::json!({"collection": "japanese/wo.jsonl", "source": "items",
+                "in": ["japanese", "wo.jsonl", "wo"]}),
+            serde_json::json!({"collection": "vocab/words.jsonl", "source": "vocab",
+                "in": ["vocab", "words.jsonl", "words"]}),
         ]
     );
     let found = srl(&["find", "--dir", d]);
@@ -2140,6 +2143,34 @@ fn a_command_calls_a_source_program_a_fixed_number_of_times() {
     assert_eq!(calls(&tmp), ["collections 1", "read 1"]);
     assert!(srl(&["sources", "--dir", d]).status.success());
     assert_eq!(calls(&tmp), ["describe 1"]);
+}
+
+#[test]
+fn in_matches_a_source_program_s_collection_by_its_name_or_the_names_it_gives() {
+    let tmp = store_with_program(&[], WORDS, "");
+    let d = dir(&tmp);
+    let found = |selector: &str| lines(&srl(&["find", selector, "--dir", d])).len();
+    // Without `in`, its name, as written, and nothing else.
+    assert_eq!(found("in:vocab/words"), 2);
+    assert_eq!(found("in:vocab"), 0);
+    assert_eq!(found("in:words"), 0);
+    let tmp = store_with_program(
+        &[],
+        WORDS,
+        "raw_call = \"collections\"\nraw_output = '{\"collection\": \"vocab/words\", \"in\": [\"v1.2\", \"Words\"]}'\n",
+    );
+    let d = dir(&tmp);
+    let found = |selector: &str| lines(&srl(&["find", selector, "--dir", d])).len();
+    assert_eq!(found("in:v1.2"), 2);
+    assert_eq!(found("in:words"), 2);
+    assert_eq!(found("in:v1"), 0);
+    assert_eq!(found("in:vocab/words"), 0);
+    assert_eq!(
+        json_lines(&srl(&["collections", "--json", "--dir", d])),
+        [
+            serde_json::json!({"collection": "vocab/words", "source": "vocab", "in": ["v1.2", "Words"]})
+        ]
+    );
 }
 
 #[test]
@@ -2626,6 +2657,26 @@ fn a_source_program_that_lies_about_its_items_stops_commands() {
             .to_owned(),
         "its call `collections` printed invalid output: `collection` is blank".to_owned(),
     ));
+    // `in` lists values `in:` can take.
+    for (names, expected) in [
+        ("\"words\"", "`in` must be a list of texts"),
+        ("[1]", "`in` must be a list of texts"),
+        ("[]", "`in` is an empty list"),
+        ("[\"\"]", "`` in `in` is not a value `in:` can take"),
+        (
+            "[\"two words\"]",
+            "`two words` in `in` is not a value `in:` can take",
+        ),
+        ("[\"a,b\"]", "`a,b` in `in` is not a value `in:` can take"),
+        ("[\"w\", \"w\"]", "`w` is given twice in `in`"),
+    ] {
+        cases.push((
+            format!(
+                "raw_call = \"collections\"\nraw_output = '{{\"collection\": \"vocab/words\", \"in\": {names}}}'\n"
+            ),
+            format!("its call `collections` printed invalid output: {expected}"),
+        ));
+    }
     for (more, expected) in cases {
         let tmp = store_with_program(&[], WORDS, &more);
         let output = srl(&["find", "--dir", dir(&tmp)]);

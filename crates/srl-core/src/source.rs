@@ -22,9 +22,9 @@ use program::Program;
 
 /// The operations every source answers.
 pub(crate) trait Source: fmt::Debug {
-    /// The name of every collection of the source, including those without
-    /// items, in order.
-    fn collections(&self) -> Result<Vec<String>>;
+    /// Every collection of the source, including those without items, in
+    /// order.
+    fn collections(&self) -> Result<Vec<Listed>>;
 
     /// Every item of the source, and every problem found in it. Only
     /// failing to read the source at all is an error.
@@ -40,6 +40,15 @@ pub(crate) trait Source: fmt::Debug {
 
     /// What the source is, for `srl sources`.
     fn describe(&self) -> Result<Description>;
+}
+
+/// A collection, as its source lists it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Listed {
+    pub(crate) collection: String,
+    /// Its `in` names: the values of `in:` that select it, as its source
+    /// gives them (see `docs/selectors.md`).
+    pub(crate) in_names: Vec<String>,
 }
 
 /// What a source read: its items, and the problems it found.
@@ -218,4 +227,11 @@ impl Sources {
 #[cfg(test)]
 pub(crate) fn parse(path: &str, text: &str) -> files::Parsed {
     filesystem::parse(path, text)
+}
+
+/// The `in` names of the collection file at `path`: for tests that need
+/// items without a store.
+#[cfg(test)]
+pub(crate) fn file_in_names(path: &str) -> Vec<String> {
+    filesystem::in_names(path)
 }

@@ -11,7 +11,7 @@ use std::path::Path;
 
 use crate::Store;
 use crate::source::files::{CollectionFiles, Parsed, add_read, by_collection};
-use crate::source::{Change, Description, Read, Refusal, Source};
+use crate::source::{Change, Description, Listed, Read, Refusal, Source};
 
 /// A format of collection files, named by the files' extension.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +77,28 @@ pub(super) fn parse(path: &str, text: &str) -> Parsed {
     }
 }
 
+/// The `in` names of the file at `path` (see `docs/formats.md`, "Which
+/// files are collections"): each folder, its file name, and its file name
+/// without its extension, each once.
+pub(super) fn in_names(path: &str) -> Vec<String> {
+    let (folders, file) = path.rsplit_once('/').unwrap_or(("", path));
+    let stem = Path::new(file)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or(file);
+    let mut names = Vec::<String>::new();
+    for name in folders
+        .split('/')
+        .filter(|folder| !folder.is_empty())
+        .chain([file, stem])
+    {
+        if !names.iter().any(|known| known == name) {
+            names.push(name.to_owned());
+        }
+    }
+    names
+}
+
 /// Why a file is no collection of any format.
 fn unknown_format() -> String {
     format!(
@@ -100,8 +122,16 @@ impl Filesystem {
 }
 
 impl Source for Filesystem {
-    fn collections(&self) -> crate::Result<Vec<String>> {
-        self.files.paths()
+    fn collections(&self) -> crate::Result<Vec<Listed>> {
+        Ok(self
+            .files
+            .paths()?
+            .into_iter()
+            .map(|path| Listed {
+                in_names: in_names(&path),
+                collection: path,
+            })
+            .collect())
     }
 
     fn read(&self) -> crate::Result<Read> {

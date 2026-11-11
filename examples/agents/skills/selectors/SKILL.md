@@ -12,7 +12,7 @@ A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
 
 | Term | Matches |
 |---|---|
-| `in:NAME` | Cards whose item's collection (its path, for a file) has a folder named `NAME` anywhere, or is itself named `NAME` plus an extension (`NAME.jsonl`, `NAME.xml`, …). Ignores case. `in:grammar` matches `japanese/Grammar/wo.jsonl` and `grammar.xml`, not `grammar-notes.jsonl`. Notes are not collections, so a note named `grammar.md` alone matches nothing. |
+| `in:NAME` | Cards whose item's collection has `NAME` among the `in` names its source gives it. A file has each of its folders, its file name, and its file name without its extension: `in:grammar` matches `japanese/Grammar/wo.jsonl`, `grammar.jsonl` and `grammar.xml`, not `grammar-notes.jsonl`; `in:grammar.xml` only the last. A source program gives the names it chooses, or the collection's whole name: the table `v1.2` matches `in:v1.2`, not `in:v1`. `srl collections --json` shows each collection's `in` names. Ignores case. Notes are not collections, so a note named `grammar.md` alone matches nothing. |
 | `path:GLOB` | The item's collection: its path, relative to the store, for a file; whatever name a source program gives, such as `words` for the table `words` of a database. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is the collections directly in `japanese/`, `path:japanese/**` everything below it, `path:rust/ownership.xml` one collection. |
 | `source:NAME` | Cards whose item comes from the source `NAME`: `source:items` for a store without `[sources]` (`srl sources` lists them). |
 | `id:ID` | A card (`id:k3m9q1.2`), or every card of an item (`id:k3m9q1`). |

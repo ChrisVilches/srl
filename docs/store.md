@@ -85,8 +85,8 @@ character) and decomposed (NFD, `e` plus an accent). Most systems name files
 in NFC, but macOS often gives names in NFD, and a store copied between
 systems can hold both.
 
-- `srl` sorts collections' names and matches them against `path:` and `in:`,
-  matches paths against `include` and `exclude`, and compares `see` with
+- `srl` sorts collections' names and matches them against `path:`,
+  matches their `in` names against `in:`, matches paths against `include` and `exclude`, and compares `see` with
   the paths of notes, in NFC, so the form of a file's name never changes
   which cards a selector picks or their order. Globs and `in:` values are
   read in NFC too.
