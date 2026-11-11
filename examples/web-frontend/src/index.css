@@ -46,6 +46,22 @@
   }
 }
 
+/* Inline code in a box instead of the typography plugin's backticks. It
+   stays inline, so a long one wraps like text (.prose's overflow-wrap
+   above), and each line of it gets its own padding and rounded ends. Not
+   in a layer: the plugin's styles are in the utilities layer, which would
+   win over the components layer. */
+.prose :not(pre) > code::before,
+.prose :not(pre) > code::after {
+  content: none;
+}
+.prose :not(pre) > code {
+  @apply rounded bg-stone-200/70 px-1 py-0.5 font-normal text-stone-800;
+  @apply dark:bg-stone-800 dark:text-stone-200;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 /* Every modal (src/Modal.tsx, the only one with this class) fades in while
    growing to its size when it opens, and fades out while shrinking when it
    closes. @starting-style gives the state it opens from; display and

@@ -189,6 +189,3 @@ for something else, and update this section when they change.
   `shoot.mjs` clicks Revealed.
 - Playwright's own browsers are a large download that may stall; that is
   why the system's Firefox is used.
-- In `srl-web`, inline code in cards and contexts shows its backticks, from the
-  Tailwind typography plugin's default style. It is how `srl-web` looks,
-  not a fault of the shots.
