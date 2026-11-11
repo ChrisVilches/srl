@@ -141,6 +141,16 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
+    /// Move items to another collection, which must exist.
+    Move {
+        /// Item IDs.
+        #[arg(required = true)]
+        ids: Vec<String>,
+        /// The collection to move them to, as `srl collections` lists it.
+        collection: String,
+        #[command(flatten)]
+        dry_run: DryRun,
+    },
     /// Remove `draft` from the items of matching draft cards.
     Accept {
         #[command(flatten)]

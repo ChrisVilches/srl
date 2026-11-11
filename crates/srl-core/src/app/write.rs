@@ -1,5 +1,6 @@
-//! The commands that change items: `srl id`, `srl accept`, `srl add` and
-//! `srl edit --stdin` (see `docs/items.md`, "How srl changes items").
+//! The commands that change items: `srl id`, `srl accept`, `srl add`,
+//! `srl edit --stdin` and `srl move` (see `docs/items.md`, "How srl changes
+//! items").
 //!
 //! This module decides what changes, and checks every change before
 //! anything is written: item objects valid, IDs unique in the store, kinds
@@ -219,6 +220,99 @@ pub fn edit(catalog: &Catalog, input: &str, dry_run: bool) -> Result<Vec<ItemId>
         .into_iter()
         .filter_map(|object| object.entries.id)
         .collect())
+}
+
+/// `srl move ID... COLLECTION`: moves the items `ids` to `collection`,
+/// which must exist; an item already there is left as it is. Gives the IDs
+/// of the items moved, in the order of `ids`.
+///
+/// The source of `collection` is written first, with the items added and
+/// those removed from its own collections; then every other source, with
+/// the items removed from it. So an item is never in neither place: if a
+/// removal fails after the items were added, the error says so.
+pub fn move_items(
+    catalog: &Catalog,
+    ids: &[ItemId],
+    collection: &str,
+    dry_run: bool,
+) -> Result<Vec<ItemId>> {
+    refuse_problems(catalog, false)?;
+    let refuse = |reason: String| Error::CannotMove {
+        collection: collection.to_owned(),
+        reason,
+    };
+    let target = catalog.located(collection).ok_or_else(|| {
+        refuse(
+            "no collection has this name, and srl move moves items only to a collection that \
+             exists; `srl collections` lists them"
+                .to_owned(),
+        )
+    })?;
+    let mut seen = HashSet::new();
+    let mut moving = Vec::new();
+    for id in ids {
+        let item = catalog
+            .item(id)
+            .ok_or_else(|| refuse(format!("no item has the ID {id}")))?;
+        if !seen.insert(id) {
+            return Err(refuse(format!("the item {id} is given twice")));
+        }
+        if item.collection() != target.collection {
+            moving.push(item);
+        }
+    }
+    let removal = |item: &Item| {
+        (
+            item.origin.source,
+            Change::Remove {
+                collection: item.origin.collection.clone(),
+                handle: item.origin.handle.clone(),
+                before: item.origin.read.clone(),
+            },
+        )
+    };
+    let (here, elsewhere): (Vec<&Item>, Vec<&Item>) = moving
+        .iter()
+        .partition(|item| item.origin.source == target.source);
+    // Each change of the first write, with the item it is about.
+    let (whose, first): (Vec<&Item>, Vec<_>) = moving
+        .iter()
+        .map(|item| {
+            let add = Change::Add {
+                collection: target.collection.clone(),
+                item: item.origin.read.clone(),
+            };
+            (*item, (target.source, add))
+        })
+        .chain(here.iter().map(|item| (*item, removal(item))))
+        .unzip();
+    write(catalog, &first, dry_run).map_err(|refusal| match refusal {
+        Refusal::Change { at, reason } => refuse(match whose.get(at) {
+            Some(item) => format!("{}: {reason}", item.id()),
+            None => reason,
+        }),
+        Refusal::Error(error) => error,
+    })?;
+    let rest = elsewhere
+        .iter()
+        .map(|item| removal(item))
+        .collect::<Vec<_>>();
+    write(catalog, &rest, dry_run).map_err(|refusal| {
+        let reason = match refusal {
+            Refusal::Change { reason, .. } => reason,
+            Refusal::Error(error) => error.to_string(),
+        };
+        Error::MovedHalfway {
+            collection: target.collection.clone(),
+            ids: elsewhere
+                .iter()
+                .map(|item| item.id().to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+            reason,
+        }
+    })?;
+    Ok(moving.into_iter().map(|item| item.id().clone()).collect())
 }
 
 /// The change that replaces the item read at `origin` with `after`.

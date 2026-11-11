@@ -68,10 +68,10 @@ in any editor, and the store can be kept in git.
    notes, write them first, as files of their own, and name them with
    `see`. Otherwise, when no note fits, write the items without `see`.
 4. **Change the person's items or schedule only when they ask.** That means
-   `srl accept`, `srl edit --stdin`, `srl suspend`, `srl unsuspend`,
-   `srl reset` and editing their files. When they ask, run it
-   with `--dry-run` first if what it would change isn't obvious, and say what
-   it changed.
+   `srl accept`, `srl edit --stdin`, `srl move`, `srl suspend`,
+   `srl unsuspend`, `srl reset` and editing their files. When they ask,
+   run it with `--dry-run` first if what it would change isn't obvious,
+   and say what it changed.
 5. **Record a review only in a study session the person started with
    you,** with the rating they gave or one they asked you to decide.
 6. **Frontends are the person's to run.** `srl` has no built-in study
@@ -253,6 +253,7 @@ srl find in:rust -is:new        # rust cards already studied
 | `srl cards ID` | print the cards of an item |
 | `srl add COLLECTION --stdin` | add items to a collection (JSONL of item objects) |
 | `srl edit --stdin` | replace items (JSONL of item objects, each with its `id`) |
+| `srl move ID... COLLECTION` | move items to another collection that exists, keeping their schedule |
 | `srl find is:draft` / `srl accept SEL` | list drafts / accept them |
 | `srl next [SEL]` | give a frontend the next card to show; with `--json`, with its schedule, kind and context, as frontends read it |
 | `srl review ID --rating N` | record a rating |
@@ -282,7 +283,7 @@ Load a skill when the person needs more than the above:
 | Skill | When |
 |---|---|
 | `setting-up-a-store` | Creating stores, several stores, configuration, sources, kind programs, git and syncing. |
-| `writing-items` | The item object, the collection formats (JSONL, JSON, XML), `see` and notes, cloze rules, writing good questions, `srl add` and `srl edit --stdin`. |
+| `writing-items` | The item object, the collection formats (JSONL, JSON, XML), `see` and notes, cloze rules, writing good questions, `srl add`, `srl edit --stdin` and `srl move`. |
 | `studying` | Study sessions with a frontend or in the chat, ratings, how the next card is chosen. |
 | `selectors` | Every selector term, combining them, quoting in each shell. |
 | `fixing-problems` | Errors in items, cards that can't be made, `srl check` and its warnings, lost history after an edit, suspending and resetting, revising suspended cards. |

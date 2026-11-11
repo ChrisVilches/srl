@@ -13,8 +13,8 @@ use jiff::Zoned;
 use jiff::civil::Date;
 use serde::Serialize;
 use srl_core::{
-    Card, CardId, Catalog, Config, Error, Index, Item, Log, Lookup, Memories, Place, Selector,
-    Status, Store,
+    Card, CardId, Catalog, Config, Error, Index, Item, ItemId, Log, Lookup, Memories, Place,
+    Selector, Status, Store,
 };
 
 use crate::args::{AddArgs, Cli, Command, ReviewArgs};
@@ -46,6 +46,11 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Cards { ids, json } => cards(&store()?, &ids, json.json),
         Command::Add(args) => add(&store()?, &args),
         Command::Edit { dry_run, .. } => edit(&store()?, dry_run.dry_run),
+        Command::Move {
+            ids,
+            collection,
+            dry_run,
+        } => move_items(&store()?, &ids, &collection, dry_run.dry_run),
         Command::Accept {
             selector: terms,
             dry_run,
@@ -426,6 +431,24 @@ fn edit(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
     let ids = srl_core::edit(&catalog, &stdin()?, dry_run)?;
     output::ids(&ids);
     Ok(found_anything(!ids.is_empty()))
+}
+
+/// `srl move ID... COLLECTION`: moves the items, and prints the IDs of
+/// those moved.
+fn move_items(
+    store: &Store,
+    ids: &[String],
+    collection: &str,
+    dry_run: bool,
+) -> anyhow::Result<Outcome> {
+    let ids = ids
+        .iter()
+        .map(|id| ItemId::parse(id))
+        .collect::<srl_core::Result<Vec<_>>>()?;
+    let (_, catalog) = load(store)?;
+    let moved = srl_core::move_items(&catalog, &ids, collection, dry_run)?;
+    output::ids(&moved);
+    Ok(found_anything(!moved.is_empty()))
 }
 
 /// `srl accept`: removes `draft` from the items of the matching draft

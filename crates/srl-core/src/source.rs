@@ -102,6 +102,23 @@ pub(crate) enum Change {
         before: Object,
         after: Object,
     },
+    /// Removes the item of `collection` named by `handle`, which was read
+    /// as `before`. Refused if the item is no longer `before`.
+    Remove {
+        collection: String,
+        handle: String,
+        before: Object,
+    },
+}
+
+impl Change {
+    /// The collection the change is about.
+    pub(crate) fn collection(&self) -> &str {
+        let (Self::Add { collection, .. }
+        | Self::Replace { collection, .. }
+        | Self::Remove { collection, .. }) = self;
+        collection
+    }
 }
 
 /// Why a source didn't make its changes: one of them, by its place, can't

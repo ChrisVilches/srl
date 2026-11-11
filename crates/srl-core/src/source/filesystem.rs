@@ -165,10 +165,18 @@ impl Source for Filesystem {
     }
 
     /// Every file is changed and checked before the first one is written.
+    /// Files that items are added to are written first, so that an item
+    /// moved from one file to another is never in neither.
     fn write(&self, changes: &[Change], dry_run: bool) -> Result<String, Refusal> {
         let mut appended = String::new();
         let mut written = Vec::new();
-        for (path, changes) in by_collection(changes) {
+        let mut files = by_collection(changes).into_iter().collect::<Vec<_>>();
+        files.sort_by_key(|(_, changes)| {
+            !changes
+                .iter()
+                .any(|(_, change)| matches!(change, Change::Add { .. }))
+        });
+        for (path, changes) in files {
             let format = Format::of(path).ok_or_else(|| Refusal::Change {
                 at: changes.first().map_or(0, |(at, _)| *at),
                 reason: unknown_format(),

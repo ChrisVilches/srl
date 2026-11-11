@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 
 use crate::domain::item::object::{self, Object, pairs_of};
 use crate::source::files::{
-    Keyed, Parsed, ParsedItem, changed_meanwhile, line_ending, position_of, verified,
+    Keyed, Parsed, ParsedItem, changed_meanwhile, line_ending, position_of, verified, without,
 };
 use crate::source::{Change, Refusal};
 
@@ -50,7 +50,7 @@ pub(super) fn parse(text: &str) -> Parsed {
 
 /// The JSON file at `path`, `old`, with `changes` made to it and checked,
 /// and the items added, as written. The array is written again whole,
-/// unless nothing changes.
+/// without the items removed, unless nothing changes.
 pub(super) fn changed(
     path: &str,
     old: Option<&str>,
@@ -68,8 +68,18 @@ pub(super) fn changed(
     }
     let mut any = false;
     let mut added = Vec::new();
+    // Positions among the items as read, removed once every other change
+    // is made, so that positions stay those of the file read.
+    let mut removed = Vec::new();
     for &(_, change) in changes {
         match change {
+            Change::Remove { handle, before, .. } => {
+                if old.is_none() {
+                    return Err(changed_meanwhile(path));
+                }
+                any = true;
+                removed.push(position_of(&expected, handle, before, path)?);
+            }
             Change::Replace {
                 handle,
                 before,
@@ -102,6 +112,8 @@ pub(super) fn changed(
             }
         }
     }
+    let expected = without(expected, &removed);
+    let objects = without(objects, &removed);
     let new = if any || old.is_none() {
         written(text, &objects)
     } else {
@@ -269,6 +281,25 @@ mod tests {
         assert_eq!(
             added,
             "{\n  \"id\": \"abd\",\n  \"Q\": \"r\",\n  \"A\": \"b\"\n}\n"
+        );
+    }
+
+    #[test]
+    fn a_removed_item_leaves_the_array() {
+        let text = "[{\"id\": \"aaa1\", \"Q\": \"q\"}, {\"id\": \"aaa2\", \"Q\": \"r\"}]";
+        let item = parse(text).items.remove(1);
+        let remove = Change::Remove {
+            collection: "a.json".to_owned(),
+            handle: "1".to_owned(),
+            before: Object {
+                entries: item.entries,
+                fields: item.fields,
+            },
+        };
+        let (new, _) = changed("a.json", Some(text), &[(0, &remove)]).unwrap();
+        assert_eq!(
+            new,
+            "[\n  {\n    \"id\": \"aaa1\",\n    \"Q\": \"q\"\n  }\n]\n"
         );
     }
 }

@@ -94,6 +94,20 @@ pub enum Error {
     #[error("cannot add to {collection}: {reason}; nothing was added")]
     CannotAdd { collection: String, reason: String },
 
+    #[error("cannot move to {collection}: {reason}; nothing was moved")]
+    CannotMove { collection: String, reason: String },
+
+    #[error(
+        "{ids} were added to {collection}, but not all removed from where they were: {reason}; \
+         an item in two collections now has its ID twice, which `srl check` reports: delete \
+         the copy outside {collection}"
+    )]
+    MovedHalfway {
+        collection: String,
+        ids: String,
+        reason: String,
+    },
+
     #[error(
         "{path} changed while srl was working on it, so it was not written; run the command \
          again"

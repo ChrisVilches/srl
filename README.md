@@ -98,9 +98,10 @@ be notes is set once for the store, `**/*.md` and `**/*.txt` unless
 `[context]` in `.srl/config.toml` says otherwise; `srl notes` lists them.
 
 A card's identity is its ID, so you can reword a question or move it to
-another collection without losing its schedule. Your folders and file
-names are your topics: `srl next in:vocabulary` studies every collection
-named `vocabulary` or under a `vocabulary` folder.
+another collection (by hand, or with `srl move`) without losing its
+schedule. Your folders and file names are your topics: `srl next
+in:vocabulary` studies every collection named `vocabulary` or under a
+`vocabulary` folder.
 
 ### Three formats
 

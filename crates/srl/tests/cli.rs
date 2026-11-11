@@ -1135,6 +1135,81 @@ fn orphans_are_reported() {
 }
 
 #[test]
+fn items_move_to_a_collection_that_exists_keeping_their_cards() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let reviewed = srl(&["review", "x7k2m9", "--rating", "3", "--dir", d]);
+    assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
+    let before = stdout(&srl(&["find", "id:x7k2m9", "--json", "--dir", d]));
+    let dry = srl(&[
+        "move",
+        "x7k2m9",
+        "kanji/fish.jsonl",
+        "--dry-run",
+        "--dir",
+        d,
+    ]);
+    assert_eq!(dry.status.code(), Some(0), "{}", stderr(&dry));
+    assert_eq!(stdout(&dry), "x7k2m9\n");
+    assert_eq!(read(&tmp, "japanese/grammar/wo.jsonl"), GRAMMAR);
+    let moved = srl(&["move", "x7k2m9", "kanji/fish.jsonl", "--dir", d]);
+    assert_eq!(moved.status.code(), Some(0), "{}", stderr(&moved));
+    assert_eq!(read(&tmp, "japanese/grammar/wo.jsonl"), line(GRAMMAR, 1));
+    assert_eq!(
+        read(&tmp, "kanji/fish.jsonl"),
+        format!("{FISH}{}", line(GRAMMAR, 0))
+    );
+    let after = stdout(&srl(&["find", "id:x7k2m9", "--json", "--dir", d]));
+    assert_eq!(
+        after,
+        before.replace("japanese/grammar/wo.jsonl", "kanji/fish.jsonl")
+    );
+    // Nothing to move: exit 1.
+    let again = srl(&["move", "x7k2m9", "kanji/fish.jsonl", "--dir", d]);
+    assert_eq!(again.status.code(), Some(1), "{}", stderr(&again));
+    for (args, message) in [
+        (
+            ["move", "x7k2m9", "kanji/new.jsonl"],
+            "cannot move to kanji/new.jsonl: no collection has this name",
+        ),
+        (
+            ["move", "zzz999", "kanji/fish.jsonl"],
+            "no item has the ID zzz999",
+        ),
+        (
+            ["move", "k3m9q1.1", "kanji/fish.jsonl"],
+            "is not an item ID",
+        ),
+    ] {
+        let refused = srl(&[args[0], args[1], args[2], "--dir", d]);
+        assert_eq!(refused.status.code(), Some(2));
+        assert!(stderr(&refused).contains(message), "{}", stderr(&refused));
+    }
+    assert!(!tmp.path().join("kanji/new.jsonl").exists());
+}
+
+#[test]
+fn an_item_xml_cannot_hold_is_not_moved_there() {
+    let tmp = store(&[
+        (
+            "a.jsonl",
+            "{\"id\":\"aaa1\",\"Q\":\"one\\r\\ntwo\",\"A\":\"a\"}\n",
+        ),
+        ("b.xml", "<items>\n</items>\n"),
+    ]);
+    let d = dir(&tmp);
+    let refused = srl(&["move", "aaa1", "b.xml", "--dir", d]);
+    assert_eq!(refused.status.code(), Some(2));
+    assert!(
+        stderr(&refused).contains("cannot move to b.xml: aaa1: "),
+        "{}",
+        stderr(&refused)
+    );
+    assert_eq!(read(&tmp, "b.xml"), "<items>\n</items>\n");
+    assert!(read(&tmp, "a.jsonl").contains("aaa1"));
+}
+
+#[test]
 fn excluded_files_and_dot_folders_are_not_read() {
     let tmp = japanese();
     let d = dir(&tmp);
@@ -2124,6 +2199,58 @@ fn a_source_program_s_items_are_given_ids_studied_changed_and_shown() {
         "{data}"
     );
     assert!(srl(&["check", "--dir", d]).status.success());
+}
+
+#[test]
+fn items_move_between_a_source_program_and_files() {
+    let tmp = store_with_program(
+        &[("kanji/fish.jsonl", FISH)],
+        WORDS,
+        "\n[sources.items]\ndriver = \"filesystem\"\n",
+    );
+    let d = dir(&tmp);
+    let moved = srl(&["move", "cat001", "tuna01", "kanji/fish.jsonl", "--dir", d]);
+    assert_eq!(moved.status.code(), Some(0), "{}", stderr(&moved));
+    // An item already in the collection is left as it is.
+    assert_eq!(stdout(&moved), "cat001\n");
+    assert_eq!(
+        read(&tmp, "kanji/fish.jsonl"),
+        format!("{FISH}{{\"id\":\"cat001\",\"Q\":\"猫\",\"A\":\"cat\"}}\n")
+    );
+    assert!(!read(&tmp, "vocab.json").contains("cat001"));
+    calls(&tmp);
+    let back = srl(&["move", "cat001", "saba01", "vocab/words", "--dir", d]);
+    assert_eq!(back.status.code(), Some(0), "{}", stderr(&back));
+    // The program gets the additions first, in one call, verified.
+    assert_eq!(
+        calls(&tmp),
+        ["collections 1", "read 1", "read 1", "write 2", "read 1"]
+    );
+    assert_eq!(read(&tmp, "kanji/fish.jsonl"), line(FISH, 0));
+    let data = read(&tmp, "vocab.json");
+    assert!(data.contains("cat001") && data.contains("saba01"), "{data}");
+    assert!(srl(&["check", "--dir", d]).status.success());
+}
+
+#[test]
+fn moving_within_a_source_program_is_one_call() {
+    let tmp = store_with_program(
+        &[],
+        r#"{"next": 3, "collections": {"vocab/words": {"items": [
+  {"handle": "h1", "item": {"id": "dog001", "Q": "犬", "A": "dog"}}]},
+  "vocab/animals": {"items": []}}}"#,
+        "",
+    );
+    let d = dir(&tmp);
+    calls(&tmp);
+    let moved = srl(&["move", "dog001", "vocab/animals", "--dir", d]);
+    assert_eq!(moved.status.code(), Some(0), "{}", stderr(&moved));
+    assert_eq!(
+        calls(&tmp),
+        ["collections 1", "read 1", "read 1", "write 2", "read 1"]
+    );
+    let found = json_lines(&srl(&["find", "--json", "--dir", d]));
+    assert_eq!(found[0]["collection"], "vocab/animals");
 }
 
 #[test]

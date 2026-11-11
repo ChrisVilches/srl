@@ -29,8 +29,8 @@ the agent does it, outside `srl`, and records the rating it decided.
    an agent generates go into a collection of their own, such as
    `generated/wo-mono-tomo-sezu.jsonl`, with `see` naming the note they
    ask about when there is one. They then show your note as their context, and your note
-   stays as you wrote it. The one exception is `srl edit --stdin`, for an
-   agent you allow to edit your items.
+   stays as you wrote it. The exceptions are `srl edit --stdin` and
+   `srl move`, for an agent you allow to edit your items.
 3. **Reviews go through `srl review`.** An agent never writes to the log.
 
 These rules are enforced by giving the agent only the tools it needs, not by
@@ -48,6 +48,7 @@ use. For example:
 | `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_collections`, `srs_notes`, `srs_sources`, `srs_kinds`, `srs_check` | Reading (`srs_collections` tells which collections exist and `srs_sources` what each source is and its settings, `srs_notes` which notes an item may name with `see`, `srs_kinds` which fields an item can have; `srs_check` finds mistakes in what was written) |
 | `srs_add` | `srl add COLLECTION --stdin` (always draft: the tool sets `"draft": true` on every line, for example with `jq -c '.draft = true'`) |
 | `srs_edit` | `srl edit --stdin` (only if you want agents to edit items) |
+| `srs_move` | `srl move ID... COLLECTION` (only if you want agents to move items) |
 | `srs_next`, `srs_review` | Tutoring |
 | `read_file` | Reading source material (notes, articles) |
 

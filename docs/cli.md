@@ -86,6 +86,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
 | `srl add COLLECTION --stdin` | Add new items to the collection `COLLECTION`, such as a file's path (see "Adding items" below). Prints the new item IDs. |
 | `srl edit --stdin` | Replace items, in any source, with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). Nothing else of their collections changes. Prints the IDs of the items. |
+| `srl move ID… COLLECTION` | Move the items of the IDs, from any source, to the collection `COLLECTION`, which must exist (see "Moving items" below). Prints the IDs of the items moved. |
 | `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
 | `srl suspend SELECTOR [--reason TEXT]` | Suspend matching active cards, saying why if `--reason` is given (see below). |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
@@ -175,6 +176,45 @@ gone.
 It prints the IDs of the items, one per line, in the order given, and
 exits with 1 if standard input held none. With `--dry-run` it prints the
 same and writes nothing.
+
+### Moving items
+
+```sh
+srl move x7k2m9 k3m9q1 japanese/grammar/archive.jsonl
+```
+
+moves each item, named by its item ID, to the collection named last, as
+`srl collections` lists it. Collections' names are unique across sources
+(see [sources.md](sources.md), "Collections"), so the name alone says
+where; an item may come from any source. The item keeps its ID, so its
+cards keep their history and their suspension.
+
+- **The collection must exist.** `srl move` never creates one; `srl add`
+  does.
+- **Nothing is written** if an ID is not an item's or is given twice,
+  if the collection doesn't exist, or if the collection's source refuses
+  an item, such as a text that XML can't hold. An item already in the
+  collection is left as it is.
+- **An item is added before it is removed**, so it is never in neither
+  place. The collection's source is written first: it gets the items
+  added to the collection, and those removed from its own collections, in
+  one change, so a move within a source is all or nothing. Then every
+  other source gets the items removed from it. In the `filesystem`
+  driver, a file items are added to is written before the files they are
+  removed from. If a removal fails after the items were added, for
+  example because a file changed meanwhile, the command says which
+  items were added; each that is still in its old collection too has its
+  ID twice, which every command reports (see [items.md](items.md),
+  "Errors"), until you delete the copy outside `COLLECTION`.
+- An item is written by each source in its own way: the `filesystem`
+  driver adds it as its format adds items, and removes it keeping the
+  rest of the file as it can (see [formats.md](formats.md), "How srl
+  writes to collections"), and a source program gets `add` and `remove`
+  changes (see [sources.md](sources.md), "Calls").
+
+It prints the IDs of the items moved, one per line, in the order given,
+and exits with 1 if none moved. With `--dry-run` it prints the same and
+writes nothing.
 
 `srl cards` prints cards in the format of [cards.md](cards.md) with
 `--json`, one per line. Without it, each card is printed for people: a line

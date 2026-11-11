@@ -59,8 +59,9 @@ kind (see [cards.md](cards.md), "Kinds"). An item has at least one field.
   same ID are an error, which happens when an item is copied: delete the
   ID from the copy and run `srl id`.
 - **The ID is the identity.** Edit the item, move it within its
-  collection, to another collection or to another source, rename its
-  collection: the item keeps its cards and their history.
+  collection, to another collection or to another source (by hand or
+  with `srl move`), rename its collection: the item keeps its cards and
+  their history.
 - An item gives one or more cards, and each card has its own ID, made from
   the item's: `x7k2m9`, or `p4n8d2.1` and `p4n8d2.2` (see
   [cards.md](cards.md), "Card IDs"). Because an item ID never contains `.`,
@@ -129,7 +130,7 @@ from the path in `see`, as it likes, with any fallbacks it wants (see
 
 ## How srl changes items
 
-Only four commands ever change an item:
+Only five commands ever change an item:
 
 | Command | Changes |
 |---|---|
@@ -137,6 +138,7 @@ Only four commands ever change an item:
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
 | `srl add COLLECTION` | Adds new items to the collection `COLLECTION`, or creates it. |
 | `srl edit --stdin` | Replaces the items it is given with new ones, for scripts and other programs. |
+| `srl move ID... COLLECTION` | Moves the items to the collection `COLLECTION`, which must exist. |
 
 Every other command only reads items. The rules, for every source:
 
@@ -154,17 +156,18 @@ Every other command only reads items. The rules, for every source:
    written, and running it again finishes the work.
 3. **Every change is reported.** `srl id` prints one line per item it gave
    an ID: the ID and its collection, separated by two spaces. `srl accept`,
-   `srl add` and `srl edit` print the IDs of the items they changed or
-   added (see [cli.md](cli.md)). With `--dry-run` they write nothing, and
-   print the same (`srl add`: the items as their source would add them).
+   `srl add`, `srl edit` and `srl move` print the IDs of the items they
+   changed, added or moved (see [cli.md](cli.md)). With `--dry-run` they
+   write nothing, and print the same (`srl add`: the items as their
+   source would add them).
 
 How a source writes its changes is its own: the `filesystem` driver keeps
 each file as close to how it was as its format allows, and writes
 atomically (see [formats.md](formats.md), "How srl writes to
 collections"); a source program writes
 its own way, and `srl` reads it again to check the result (see
-[sources.md](sources.md), "What srl checks"). `srl add`, `srl edit` and
-their formats are described in [cli.md](cli.md).
+[sources.md](sources.md), "What srl checks"). `srl add`, `srl edit`,
+`srl move` and their formats are described in [cli.md](cli.md).
 
 ## Errors
 

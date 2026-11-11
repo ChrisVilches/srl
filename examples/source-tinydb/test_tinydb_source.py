@@ -64,6 +64,15 @@ class Tests(unittest.TestCase):
         self.assertEqual(write(self.source, current), [{"ok": True}])
         self.assertEqual(read(self.source, [{}])[0]["item"], after)
 
+    def test_remove_takes_the_item_out_only_if_it_is_as_read(self):
+        write(self.source, [self.change("add", item=ITEM)])
+        stale = [self.change("remove", handle="words/1", before={**ITEM, "A": "dog"})]
+        self.assertTrue(all("error" in answer for answer in write(self.source, stale)))
+        self.assertEqual(len(read(self.source, [{}])), 1)
+        current = [self.change("remove", handle="words/1", before=ITEM)]
+        self.assertEqual(write(self.source, current), [{"ok": True}])
+        self.assertEqual(read(self.source, [{}]), [])
+
     def test_settings_are_checked(self):
         database = str(Path(self.folder.name) / "other.json")
         for config in [{}, {"database": 1}, {"database": database, "folder": "db"}]:

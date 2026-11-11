@@ -173,6 +173,16 @@ pub(super) fn position_of(
         .ok_or_else(|| changed_meanwhile(path))
 }
 
+/// `items` without those at the positions `removed`.
+pub(super) fn without<T>(items: Vec<T>, removed: &[usize]) -> Vec<T> {
+    items
+        .into_iter()
+        .enumerate()
+        .filter(|(position, _)| !removed.contains(position))
+        .map(|(_, item)| item)
+        .collect()
+}
+
 /// The refusal for a file that changed since it was read.
 pub(super) fn changed_meanwhile(path: &str) -> Refusal {
     Refusal::Error(Error::ChangedMeanwhile {
@@ -275,8 +285,10 @@ pub(super) fn add_read(read: &mut Read, path: &str, parsed: Parsed) {
 pub(super) fn by_collection(changes: &[Change]) -> BTreeMap<&str, Vec<(usize, &Change)>> {
     let mut by_file = BTreeMap::<&str, Vec<(usize, &Change)>>::new();
     for (at, change) in changes.iter().enumerate() {
-        let (Change::Add { collection, .. } | Change::Replace { collection, .. }) = change;
-        by_file.entry(collection).or_default().push((at, change));
+        by_file
+            .entry(change.collection())
+            .or_default()
+            .push((at, change));
     }
     by_file
 }

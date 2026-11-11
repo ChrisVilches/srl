@@ -9,6 +9,7 @@ use crate::domain::item::object::{self, Object};
 use crate::domain::item::{Entries, Field};
 use crate::source::files::{
     Parsed, ParsedItem, changed_meanwhile, keyed, line_ending, lines, position_of, verified,
+    without,
 };
 use crate::source::{Change, Refusal};
 
@@ -28,8 +29,9 @@ pub(super) fn parse(text: &str) -> Parsed {
 }
 
 /// The JSONL file at `path`, `old`, with `changes` made to it and checked,
-/// and the lines added. A changed item's line is written again; new items
-/// are appended, one line each.
+/// and the lines added. A changed item's line is written again, a removed
+/// item's line is removed with its line ending, and new items are
+/// appended, one line each.
 pub(super) fn changed(
     path: &str,
     old: Option<&str>,
@@ -42,8 +44,17 @@ pub(super) fn changed(
     let mut expected = keyed(parsed);
     let mut text = old.unwrap_or_default().to_owned();
     let mut added = Vec::new();
+    // Positions among the items as read, removed once every other change
+    // is made, so that positions and lines stay those of the file read.
+    let mut removed = Vec::new();
     for &(_, change) in changes {
         match change {
+            Change::Remove { handle, before, .. } => {
+                if old.is_none() {
+                    return Err(changed_meanwhile(path));
+                }
+                removed.push(position_of(&expected, handle, before, path)?);
+            }
             Change::Replace {
                 handle,
                 before,
@@ -72,6 +83,13 @@ pub(super) fn changed(
             }
         }
     }
+    let lines = item_lines(&text)
+        .enumerate()
+        .filter(|(position, _)| removed.contains(position))
+        .map(|(_, (line, _))| line)
+        .collect::<Vec<_>>();
+    let text = remove_lines(&text, &lines);
+    let expected = without(expected, &removed);
     let added = if added.is_empty() {
         String::new()
     } else {
@@ -113,6 +131,25 @@ fn replace_line(text: &str, line: usize, content: &str) -> String {
     };
     let after = raw.get(line..).unwrap_or_default().concat();
     format!("{before}{bom}{content}{ending}{after}")
+}
+
+/// `text` without its lines `lines` (counting from 1), each with its line
+/// ending, keeping a byte order mark.
+fn remove_lines(text: &str, lines: &[usize]) -> String {
+    let bom = if text.starts_with('\u{feff}') {
+        "\u{feff}"
+    } else {
+        ""
+    };
+    let kept = text
+        .strip_prefix(bom)
+        .unwrap_or(text)
+        .split_inclusive('\n')
+        .enumerate()
+        .filter(|(index, _)| !lines.contains(&(index + 1)))
+        .map(|(_, raw)| raw)
+        .collect::<String>();
+    format!("{bom}{kept}")
 }
 
 /// `text` with the lines `added` appended on a line of their own, in the
@@ -178,5 +215,29 @@ mod tests {
             "{\"Q\": \"q\",  \"draft\": true}\r\n\n{\"id\":\"abc\",\"Q\":\"new\"}\r\n"
         );
         assert_eq!(added, "");
+    }
+
+    /// The change that removes the item at `position` of `text`.
+    fn removal(text: &str, position: usize) -> Change {
+        let item = parse(text).items.remove(position);
+        Change::Remove {
+            collection: "a.jsonl".to_owned(),
+            handle: position.to_string(),
+            before: Object {
+                entries: item.entries,
+                fields: item.fields,
+            },
+        }
+    }
+
+    #[test]
+    fn a_removed_item_s_line_goes_and_every_other_byte_stays() {
+        let text = "\u{feff}{\"id\": \"aaa1\", \"Q\": \"q\"}\r\n\n{\"id\": \"aaa2\", \"Q\": \"r\"}\r\n{\"id\": \"aaa3\", \"Q\": \"s\"}";
+        let first = removal(text, 0);
+        let last = removal(text, 2);
+        let (new, _) = changed("a.jsonl", Some(text), &[(0, &first), (1, &last)]).unwrap();
+        assert_eq!(new, "\u{feff}\n{\"id\": \"aaa2\", \"Q\": \"r\"}\r\n");
+        let stale = removal("{\"id\": \"aaa1\", \"Q\": \"other\"}\n", 0);
+        assert!(changed("a.jsonl", Some(text), &[(0, &stale)]).is_err());
     }
 }

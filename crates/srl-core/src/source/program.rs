@@ -219,6 +219,16 @@ impl Source for Program {
                         input.insert("before".to_owned(), as_line(before));
                         input.insert("after".to_owned(), as_line(after));
                     }
+                    Change::Remove {
+                        collection,
+                        handle,
+                        before,
+                    } => {
+                        input.insert("op".to_owned(), Value::from("remove"));
+                        input.insert("collection".to_owned(), Value::from(collection.as_str()));
+                        input.insert("handle".to_owned(), Value::from(handle.as_str()));
+                        input.insert("before".to_owned(), as_line(before));
+                    }
                 }
                 input
             })
@@ -255,6 +265,14 @@ impl Source for Program {
                         let old = (collection.clone(), as_line(before).to_string());
                         if let Some(slot) = expected.iter_mut().find(|item| **item == old) {
                             *slot = (collection.clone(), as_line(after).to_string());
+                        }
+                    }
+                    Change::Remove {
+                        collection, before, ..
+                    } => {
+                        let old = (collection.clone(), as_line(before).to_string());
+                        if let Some(at) = expected.iter().position(|item| *item == old) {
+                            expected.remove(at);
                         }
                     }
                 }

@@ -12,7 +12,7 @@ use serde_json::Value;
 use crate::domain::item::object::{self, Object};
 use crate::domain::item::{Entries, Field, is_field_key};
 use crate::source::files::{
-    Parsed, ParsedItem, changed_meanwhile, keyed, line_ending, position_of, verified,
+    Parsed, ParsedItem, changed_meanwhile, keyed, line_ending, position_of, verified, without,
 };
 use crate::source::{Change, Refusal};
 
@@ -516,8 +516,22 @@ pub(super) fn changed(
     let ending = line_ending(text);
     let mut edits = Vec::<(Range<usize>, String)>::new();
     let mut added = Vec::new();
+    // Positions among the items as read, removed from `expected` once
+    // every other change is made, so that positions stay those of `spans`.
+    let mut removed = Vec::new();
     for &(at, change) in changes {
         match change {
+            Change::Remove { handle, before, .. } => {
+                if old.is_none() {
+                    return Err(changed_meanwhile(path));
+                }
+                let position = position_of(&expected, handle, before, path)?;
+                let span = spans
+                    .get(position)
+                    .expect("the position of an item should be among the file's items");
+                edits.push((whole_lines(text, span), String::new()));
+                removed.push(position);
+            }
             Change::Replace {
                 handle,
                 before,
@@ -551,6 +565,7 @@ pub(super) fn changed(
             }
         }
     }
+    let expected = without(expected, &removed);
     let mut new = with_added(text, document.root, &added, indentation);
     // The items are before the place new ones go, so editing them last,
     // from the end, keeps every place right.
@@ -566,6 +581,36 @@ pub(super) fn changed(
         all
     });
     Ok((new, added))
+}
+
+/// The bytes of `text` that removing the element at `span` removes: its
+/// lines, with their indentation and line ending, when nothing but blank
+/// space is beside it on them; otherwise the element alone.
+fn whole_lines(text: &str, span: &Range<usize>) -> Range<usize> {
+    let line_start = text
+        .get(..span.start)
+        .and_then(|before| before.rfind('\n'))
+        .map_or(0, |newline| newline + 1);
+    let rest = text.get(span.end..).unwrap_or_default();
+    let line_end = rest
+        .find('\n')
+        .map_or(text.len(), |newline| span.end + newline + 1);
+    let before = text.get(line_start..span.start).unwrap_or_default();
+    let before = before.strip_prefix('\u{feff}').unwrap_or(before);
+    let after = text
+        .get(span.end..line_end)
+        .unwrap_or_default()
+        .trim_end_matches(['\n', '\r']);
+    if is_blank_line(before) && is_blank_line(after) {
+        let bom = if line_start == 0 && text.starts_with('\u{feff}') {
+            '\u{feff}'.len_utf8()
+        } else {
+            0
+        };
+        line_start + bom..line_end
+    } else {
+        span.clone()
+    }
 }
 
 /// `text`, whose `<items>` is `root`, with the elements `added` before
@@ -890,6 +935,46 @@ mod tests {
             "<?xml version=\"1.0\"?>\r\n<items>\r\n\t<!-- Kept. -->\r\n\t<item id=\"aaa1\">\r\n\t\t<Q>new</Q>\r\n\t\t<A>\r\n\t\t\ttwo\r\n\t\t\tlines\r\n\t\t</A>\r\n\t</item>\r\n\t<item id=\"aaa2\">\r\n\t\t<Q>keep</Q>\r\n\t</item>\r\n\t<item id=\"aaa3\">\r\n\t\t<Q>added</Q>\r\n\t</item>\r\n</items>\r\n"
         );
         assert_eq!(added, "<item id=\"aaa3\">\n\t\t<Q>added</Q>\n\t</item>\n");
+    }
+
+    /// The change that removes the item at `position` of `text`.
+    fn removal(text: &str, position: usize) -> Change {
+        let item = parse(text).items.remove(position);
+        Change::Remove {
+            collection: "a.xml".to_owned(),
+            handle: position.to_string(),
+            before: Object {
+                entries: item.entries,
+                fields: item.fields,
+            },
+        }
+    }
+
+    #[test]
+    fn a_removed_item_s_lines_go_when_nothing_else_is_on_them() {
+        let text = "<items>\r\n\t<!-- Kept. -->\r\n\t<item id=\"aaa1\">\r\n\t\t<Q>q</Q>\r\n\t</item>\r\n\t<item id=\"aaa2\"><Q>r</Q></item> <!-- Kept. -->\r\n</items>\r\n";
+        let (new, _) = changed(
+            "a.xml",
+            Some(text),
+            &[(0, &removal(text, 0)), (1, &removal(text, 1))],
+        )
+        .unwrap();
+        assert_eq!(
+            new,
+            "<items>\r\n\t<!-- Kept. -->\r\n\t <!-- Kept. -->\r\n</items>\r\n"
+        );
+        let one_line = "<items><item id=\"aaa1\"><Q>q</Q></item></items>";
+        let (new, _) = changed("a.xml", Some(one_line), &[(0, &removal(one_line, 0))]).unwrap();
+        assert_eq!(new, "<items></items>");
+        let add = Change::Add {
+            collection: "a.xml".to_owned(),
+            item: object("aaa3", &[("Q", "s")]),
+        };
+        let (new, _) = changed("a.xml", Some(text), &[(0, &removal(text, 0)), (1, &add)]).unwrap();
+        assert_eq!(
+            new,
+            "<items>\r\n\t<!-- Kept. -->\r\n\t<item id=\"aaa2\"><Q>r</Q></item> <!-- Kept. -->\r\n\t<item id=\"aaa3\">\r\n\t\t<Q>s</Q>\r\n\t</item>\r\n</items>\r\n"
+        );
     }
 
     #[test]

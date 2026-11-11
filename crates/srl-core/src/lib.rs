@@ -21,7 +21,7 @@ pub use app::catalog::{Catalog, CollectionInfo, SourceDescription, collections, 
 pub use app::check::{Warning, orphans, warnings};
 pub use app::next::next;
 pub use app::review::{reset, review, suspend, unsuspend};
-pub use app::write::{Added, Written, accept, add, assign_ids, edit};
+pub use app::write::{Added, Written, accept, add, assign_ids, edit, move_items};
 pub use config::Config;
 pub use domain::card::{Card, CardId, SUFFIX_SEPARATOR};
 pub use domain::item::{Field, Item, ItemId};

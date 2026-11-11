@@ -1,6 +1,6 @@
 ---
 name: writing-items
-description: How srl items are written (item objects, JSONL, JSON and XML collections, cloze deletions, see and notes), how to write good questions, and how to add or replace items with srl add and srl edit --stdin. Load before writing items for the person, when an item gives an error, or when they ask how to write a particular kind of question.
+description: How srl items are written (item objects, JSONL, JSON and XML collections, cloze deletions, see and notes), how to write good questions, and how to add, replace or move items with srl add, srl edit --stdin and srl move. Load before writing items for the person, when an item gives an error, or when they ask how to write a particular kind of question.
 ---
 
 # Writing items
@@ -204,3 +204,18 @@ instead, the person opens the collection in their editor: `srl show
 x7k2m9` prints its collection, which is the file's path for a collection of
 the `filesystem` source. An item of a source program, such as in a
 database, has no file: change it with `srl edit --stdin`.
+
+## Moving items with `srl move`
+
+Only when the person asks. `srl move ID... COLLECTION` moves items, from
+any source, to a collection that already exists, named as
+`srl collections` lists it; it never creates one. The items keep their
+IDs, so their cards keep their schedule.
+
+```sh
+srl move x7k2m9 k3m9q1 japanese/grammar/archive.jsonl --dry-run
+srl move x7k2m9 k3m9q1 japanese/grammar/archive.jsonl
+```
+
+It prints the IDs of the items moved; an item already in the collection
+is left where it is.

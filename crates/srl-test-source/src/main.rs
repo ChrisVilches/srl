@@ -243,6 +243,25 @@ fn write(
                     answers.push(json!({"error": "the item changed since it was read"}));
                 }
             }
+            "remove" => {
+                let items = collections
+                    .get_mut(&name)
+                    .and_then(|collection| collection.get_mut("items"))
+                    .and_then(Value::as_array_mut);
+                let found = items.and_then(|items| {
+                    let at = items.iter().position(|item| {
+                        item.get("handle") == input.get("handle")
+                            && item.get("item") == input.get("before")
+                    })?;
+                    Some(items.remove(at))
+                });
+                if found.is_some() {
+                    answers.push(json!({"ok": true}));
+                } else {
+                    refused = true;
+                    answers.push(json!({"error": "the item changed since it was read"}));
+                }
+            }
             op => return Err(format!("`{op}` is not a change")),
         }
     }

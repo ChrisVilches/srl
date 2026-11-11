@@ -100,7 +100,7 @@ def write(source, inputs):
     answers = []
     for change in inputs:
         table = source.db.table(change["collection"])
-        if change["op"] == "replace":
+        if change["op"] in ("replace", "remove"):
             document = table.get(doc_id=doc_id(change["handle"]))
             if document is None or document.get("item") != change["before"]:
                 return [{"error": "the item changed in the database since srl read it; run the command again"} for _ in inputs]
@@ -111,6 +111,8 @@ def write(source, inputs):
         table = source.db.table(change["collection"])
         if change["op"] == "add":
             table.insert({"item": change["item"]})
+        elif change["op"] == "remove":
+            table.remove(doc_ids=[doc_id(change["handle"])])
         else:
             table.update({"item": change["after"]}, doc_ids=[doc_id(change["handle"])])
     return answers

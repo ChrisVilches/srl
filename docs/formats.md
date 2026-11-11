@@ -185,6 +185,7 @@ changes items") change collections by these rules:
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
 | `srl add COLLECTION` | Appends the new items to the collection `COLLECTION`, or creates it. |
 | `srl edit --stdin` | Replaces the items it is given with new ones. |
+| `srl move ID... COLLECTION` | Appends the items to the collection `COLLECTION`, and removes them from their collections. |
 
 1. **Each format keeps the file as close to how it was as it can**; what
    it can't keep is said below. An item `srl edit` is given unchanged is
@@ -195,12 +196,16 @@ changes items") change collections by these rules:
      item object of its entries and fields, in that order: only the
      entries that differ from their defaults, without spaces
      (`{"id":"x7k2m9","Q":"…"}`); its spacing, the order of its keys and
-     its escapes are not kept. New items are appended, one line each.
+     its escapes are not kept. New items are appended, one line each. A
+     removed item's line is removed with its line ending.
    - **XML: only the `<item>` elements of the items changed are written;
      every other byte of the file stays the same**, including comments,
      line endings and a byte order mark. A changed item's element is
      written again in place, and new items are added before `</items>`,
-     indented as the file's first item is, or by two spaces. `srl` writes
+     indented as the file's first item is, or by two spaces. A removed
+     item's element is removed with the lines it is on, their indentation
+     and line endings, when nothing but spaces and tabs is beside it on
+     them, and alone otherwise. `srl` writes
      an element with its entries as attributes, in the order `id`,
      `kind`, `see`, `draft`, and each field as an element of its own, on
      one line when its text is one line, and laid out over several,
@@ -216,7 +221,8 @@ changes items") change collections by these rules:
      the file and with its byte order mark. An item not changed is
      written with the keys and values it was read with, in their order;
      a changed or new one as the item object of its entries and fields,
-     as in JSONL. The file's layout is not kept.
+     as in JSONL, and a removed one not at all. The file's layout is not
+     kept.
 2. **A collection that changed while `srl` was working is not written.**
    Each item to change is found in the collection as it is right before
    it is written: by its ID, or, for `srl id`, by its place among the
@@ -225,7 +231,10 @@ changes items") change collections by these rules:
    says so. Right before writing, the file is read again and compared
    with what `srl` read. If it differs, for example because your editor
    saved it in between, the command stops and says so; files it wrote
-   before stay written, and running it again finishes the work.
+   before stay written, and running it again finishes the work, except
+   for `srl move`, which then says what to fix (see [cli.md](cli.md),
+   "Moving items"). Files that items are added to are written before
+   the others, so that a moved item is never in neither file.
 3. **A changed file is read again before it is written**, and must give
    exactly the items intended, or nothing is written: a mismatch is a bug
    in `srl`, reported as one.

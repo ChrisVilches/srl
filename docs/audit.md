@@ -82,6 +82,7 @@ The open findings cluster in three places:
 | L10 | What symbolic links in a store mean is unspecified, and a loop multiplies collections | Specification | Low | Easy |
 | L11 | A collection named as a Windows device can't exist on Windows | Specification | Low | Easy |
 | L12 | A `[sources]` without sources makes a store that silently has no items | Specification | Low | Easy |
+| L13 | Changes to several sources are not all checked before the first is written | Specification | Low | Easy |
 
 ---
 
@@ -224,8 +225,9 @@ enforces:
 
 When they change, the old cards become orphans, which `srl check` reports
 as notices with exit code 0 ([cli.md](cli.md), "Checking"). Nothing fails, and
-the history quietly restarts. This is exactly the silent loss the "fail
-loudly" principle is there to prevent.
+the history quietly restarts, with no way to give it to the new card. This
+is exactly the silent loss the "fail loudly" principle is there to
+prevent.
 
 **Possible fix, cheap and within today's design:** when `srl check` (or any
 call that re-asks) gets a `groups` answer that differs from a kept answer
@@ -255,7 +257,7 @@ specification reads as an exception, not as a part of the design:
 
 - a four-call protocol with batching, ordering and error-attribution rules;
 - a kept-answer cache keyed by command, with its own invalidation story;
-- a versioning and migration policy for third-party authors;
+- a versioning policy for third-party authors;
 - timeouts, per-call failure modes, and a `TODO (design)` for other run
   modes.
 
@@ -327,7 +329,7 @@ restating it (the rules of context, for example, are restated in
   history (see H4), or only warnings, so neither can gate a commit hook
   or CI as written.
 - Write commands exit 1 when they changed nothing (`srl id`, `srl accept`,
-  `srl reset`, `srl suspend`). The grep convention fits queries; for
+  `srl move`, `srl reset`, `srl suspend`). The grep convention fits queries; for
   writes it breaks `set -e` scripts on the normal "already done" case.
 
 **Fix:** decide once, document it in "Conventions", and change it before
@@ -523,6 +525,29 @@ they are no longer read:
    that means its absence is surprising.
 3. **Keep it, and have `srl check` warn** that the store has no source.
    Leaves `srl find` as silent as now.
+
+### L13. Changes to several sources are not all checked before the first is written
+
+**Severity Low · Difficulty Easy**
+
+[items.md](items.md), "How srl changes items", rule 1, says each source
+checks its own changes "before any source writes". `srl` gives each
+source its changes in turn, and a source checks and writes them in the
+same step (`Source::write`), so when one command changes items of
+several sources, such as `srl edit --stdin`, a later source's refusal,
+such as a carriage return its XML collection can't hold, comes after an
+earlier source has written. Nothing is lost, and running the command
+again finishes it, but the rule promises more. `srl move` says what it
+does instead ([cli.md](cli.md), "Moving items").
+
+**Possible fixes:**
+
+1. **Check every source first**: call each source with `dry_run`, then
+   write. One more `write` call per source program, against "How many
+   calls" in [sources.md](sources.md).
+2. **Narrow the rule** to what is checked before anything is written:
+   item objects, IDs, kinds and `see`, and each source's changes before
+   it writes them.
 
 ---
 

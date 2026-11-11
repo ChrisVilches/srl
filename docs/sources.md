@@ -201,7 +201,7 @@ with every process it started, when `srl` is stopped (see
 | `accepts` | one line: `{"config": {…}, "collection": "words"}` | one line: `{"ok": true}` if `srl add` may create the collection in it, or `{"error": "…"}`, why not |
 | `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words"}`, or `{"collection": "words", "in": ["words", "vocab"]}` to give its `in` names |
 | `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "item": {…}}`; one line per problem: `{"collection": "words", "error": "…"}` |
-| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, or `{…, "op": "replace", "collection": "words", "handle": "17", "before": {…}, "after": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
+| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, `{…, "op": "replace", "collection": "words", "handle": "17", "before": {…}, "after": {…}}`, or `{…, "op": "remove", "collection": "words", "handle": "17", "before": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
 
 - **`read`** gives every item with its collection; its `handle`, what
   names it when it is changed, unique in the source, such as a key of a
@@ -216,11 +216,13 @@ with every process it started, when `srl` is stopped (see
   spaces or commas. A collection without `in` has its name alone.
 - **`write`** gets every change one command makes to the source, in one
   call. An `item`, `before` or `after` is an item object as `srl` writes
-  one. A program refuses a `replace` when the item under the handle is no
-  longer `before`, and **a program that answers `error` to any change
-  writes none of them**; `srl` reports the first such line. `srl id` and
-  `srl accept` are `replace`s too, whose `after` adds an `id` or removes
-  `draft`.
+  one. A program refuses a `replace` or a `remove` when the item under
+  the handle is no longer `before`, and **a program that answers `error`
+  to any change writes none of them**; `srl` reports the first such line.
+  `srl id` and `srl accept` are `replace`s too, whose `after` adds an `id`
+  or removes `draft`. `srl move` gives the source its collection's
+  `add`s, and the `remove`s of items moved out of its collections (see
+  [cli.md](cli.md), "Moving items").
 - **`describe`** gives `settings` as an object, each key a setting's
   name, in the order `srl sources` shows them, and each value any JSON:
   usually some of the program's keys as it read them. `srl` checks
@@ -244,7 +246,7 @@ many items or cards it handles, never once per item or per card:
 | Command | Calls |
 |---|---|
 | every command that reads items | 1 `collections` and 1 `read` |
-| `add`, `edit`, `accept`, `id` | 1 `write` for the changes to the source, with 1 `read` before it and 1 after it, to verify it |
+| `add`, `edit`, `move`, `accept`, `id` | 1 `write` for the changes to the source, with 1 `read` before it and 1 after it, to verify it |
 | `add` to a new collection | 1 `accepts` |
 | `collections` | 1 `collections` |
 | `sources` | 1 `describe` |
@@ -272,6 +274,7 @@ wherever it chooses, and is responsible for its freshness.
 - **An item in a collection the source doesn't list** is an error in the
   store, as is breaking a rule of "Collections".
 - **After `write`, `srl` reads the source again**: every item not changed
-  must be as before, every `add` must have added exactly its item, and
-  every `replace` must give exactly `after`. If not, the command fails,
+  must be as before, every `add` must have added exactly its item, every
+  `replace` must give exactly `after`, and every `remove` must have
+  removed exactly its item. If not, the command fails,
   saying that the program didn't do what it was asked.
