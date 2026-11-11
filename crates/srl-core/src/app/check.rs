@@ -8,11 +8,8 @@ use serde::Serialize;
 use crate::kind::{Kind, has_near_deletion, has_revealing_hint};
 use crate::{CardId, Catalog, Error, Memories};
 
-/// Every orphan: an ID with reviews in the log, not moved away, but no
-/// card in the store. When it is the only orphan of an item that still
-/// exists, and that item has exactly one card with no events, the notice
-/// says how to move the history there (see `docs/scheduling.md`, "Moving
-/// history").
+/// Every orphan: an ID with reviews in the log but no card in the store
+/// (see `docs/scheduling.md`, "Orphans").
 pub fn orphans(catalog: &Catalog, memories: &Memories) -> Vec<Error> {
     let cards = catalog
         .cards()
@@ -26,34 +23,7 @@ pub fn orphans(catalog: &Catalog, memories: &Memories) -> Vec<Error> {
     orphans.sort();
     orphans
         .iter()
-        .map(|id| {
-            let alone = orphans
-                .iter()
-                .filter(|other| other.item() == id.item())
-                .count()
-                == 1;
-            let fresh = catalog
-                .item(id.item())
-                .map(|item| {
-                    item.cards()
-                        .iter()
-                        .filter(|card| !memories.get(card).touched)
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
-            let suggestion = match fresh.as_slice() {
-                [card] if alone => {
-                    format!("{card} is new. To keep the history: srl move {id} {card}")
-                }
-                _ => "its history stays in the log; give it to a card with `srl move` if you \
-                      want to keep it"
-                    .to_owned(),
-            };
-            Error::Orphan {
-                id: id.to_string(),
-                suggestion,
-            }
-        })
+        .map(|id| Error::Orphan { id: id.to_string() })
         .collect()
 }
 

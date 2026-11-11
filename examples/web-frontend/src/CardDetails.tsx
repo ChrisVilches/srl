@@ -164,12 +164,6 @@ function EventText({ event }: { event: LogEvent }) {
       );
     case 'unsuspend':
       return <>Unsuspended</>;
-    case 'move':
-      return (
-        <>
-          History moved from <code className="font-mono">{event.from}</code>
-        </>
-      );
   }
 }
 

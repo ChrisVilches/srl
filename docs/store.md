@@ -34,7 +34,7 @@ study/
 | collections (`**/*.jsonl` and `**/*.xml` by default) | yes | you, any editor, scripts and other programs; `srl id`, `srl accept`, `srl add` and `srl edit --stdin` (see [formats.md](formats.md), "How srl writes to collections") |
 | notes (`**/*.md` and `**/*.txt` by default) | yes | you, any editor, scripts and other programs; never `srl` |
 | `.srl/config.toml` | yes | you |
-| `.srl/log/` | yes | `srl review`, `srl reset`, `srl move`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |
+| `.srl/log/` | yes | `srl review`, `srl reset`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |
 | `.srl/.gitignore` | no | `srl init`; yours to change |
 | `.srl/cache/` | no | `srl`, automatically |
 | `.srl/tmp/` | no | `srl`, while it writes a collection |

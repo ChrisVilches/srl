@@ -158,7 +158,7 @@ that was valid a moment ago. The log only needs a valid card ID; the
 `hash` is the only thing that needs the item.
 
 **Possible fixes:** let the log-writing commands (`review`, `suspend`,
-`unsuspend`, `reset`, `move`) read only the collections that hold the cards they
+`unsuspend`, `reset`) read only the collections that hold the cards they
 name, or accept any well-formed card ID that the store knew at its last
 successful read (the index cache could keep that set). Keep the error
 loud: print it as a warning, but record the rating. This needs a decision,

@@ -33,7 +33,7 @@ crates/
     src/app/catalog.rs       every item of the store, read from its sources and checked by their kinds; the notes, and the context `see` names
     src/app/write.rs         items.md, "How srl changes items": what `srl id`, `srl accept`, `srl add` and `srl edit` change, checked before any source writes it
     src/app/check.rs         cli.md, "Checking": orphans and the warnings of `srl check`
-    src/app/review.rs        log.md and scheduling.md: recording reviews, resets, moves, suspensions
+    src/app/review.rs        log.md and scheduling.md: recording reviews, resets, suspensions
     src/app/next.rs          scheduling.md, "Choosing the next card" and "Siblings"
     src/source.rs       the `Source` port: what every source of items answers, and the store's sources (see "Sources" below)
     src/source/filesystem.rs  formats.md: the `filesystem` source, which picks a format by a file's extension

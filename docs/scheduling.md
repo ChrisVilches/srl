@@ -45,13 +45,11 @@ command that needs memory states replays the whole log, one rule per step:
 - A `reset` event makes the card new again: no memory state, no lapses.
   Its status, and the time of its last review for the sibling rule, are
   kept.
-- A `move` event gives everything the card `from` has to the card `to`, and
-  leaves `from` with nothing (see "Moving history").
 - `suspend` and `unsuspend` events only change the card's status (see
   [items.md](items.md), "Status").
 
 Events about cards that no longer exist are replayed like any other; their
-memory is kept, and used again if the card comes back or is moved.
+memory is kept, and used again if the card comes back.
 
 Weights in `.srl/config.toml` are given to FSRS as they are. It takes 21
 (FSRS-6), or 19 or 17 from older versions, and fills in the rest. Any other
@@ -170,36 +168,23 @@ the card is new again. Earlier events stay in the log for analysis.
 
 Editing an item never resets its cards.
 
-## Moving history
+## Orphans
 
-A card ID can stop existing while its history is still wanted: you changed
-an item's kind, renumbered a cloze, added the first cloze to an item
-(`x7k2m9` becomes `x7k2m9.1`), or changed an ID by hand. Its events stay in
-the log under the old ID. `srl` never guesses where they belong:
+A card ID can stop existing: you deleted its item, changed the item's
+kind, renumbered a cloze, added the first cloze to an item (`x7k2m9`
+becomes `x7k2m9.1`), or changed an ID by hand. Its events stay in the
+log under the old ID, and the new card starts new: history never passes
+from one card to another.
 
-- `srl check` reports each such **orphan**: an ID that has reviews in the
-  log, not moved away, but no card in the store. Deleted items leave orphans too, so they are
-  notices, not errors. When an orphan is the only one of an item that
-  still exists, and that item has exactly one card with no events,
-  `srl check` prints the command that would move the history there:
+`srl check` reports each such **orphan**, an ID that has reviews in the
+log but no card in the store, as a notice, not an error:
 
-  ```
-  x7k2m9 has reviews but no card; x7k2m9.1 is new. To keep the history: srl move x7k2m9 x7k2m9.1
-  ```
+```
+x7k2m9 has reviews but no card; its history stays in the log
+```
 
-  Otherwise it says only that the history stays in the log, so it never
-  suggests two moves to one card.
-
-- `srl move FROM TO` appends a `move` event. `FROM` must be an orphan, and
-  `TO` a card of the store with no events at all, so history is never
-  merged or overwritten. From that event on, `TO` has `FROM`'s memory
-  state, lapses, last review and status, and `FROM` has nothing.
-
-> **TODO (design):** `srl move` is hard to use by hand. To run it, a person
-> has to know what an orphan is, which new card took the old one's place,
-> and that a wrong move can't be undone. A helper that does this more
-> safely is wanted, in `srl` or in a frontend or wrapper; nothing about it
-> is decided (see [overview.md](overview.md), "Open questions").
+Its history is used again if a card of that ID comes back, for example
+when you undo the edit.
 
 ## Schedule
 

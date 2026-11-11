@@ -292,8 +292,7 @@ which is an error until you remove it.
 ## Why `.` separates a card's suffix
 
 A card ID must name its item from its text alone: the log keeps card IDs
-of items that no longer exist, and `srl check` and `srl move` work on
-exactly those. So the separator is a character no ID contains. `-` is
+of items that no longer exist, and `srl check` reports exactly those. So the separator is a character no ID contains. `-` is
 left to IDs, because people who name an item themselves write
 `jp-grammar-desu`. `.` is safe everywhere a card ID goes: file names on
 every platform, URLs, shells and selectors. `:` reads well too, but
@@ -339,7 +338,8 @@ away, such as two words of one sentence, are in different groups, and
 not held back at all.
 
 Trade-off: when you change a cloze number or an item's kind, a card's
-history is orphaned until you move it with `srl move`. `srl` never guesses.
+history is orphaned, and the new card starts again. `srl` never guesses
+where history belongs.
 
 ## Why `srl next` may skip a few cards at random
 

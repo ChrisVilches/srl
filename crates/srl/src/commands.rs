@@ -64,7 +64,6 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             selector: terms,
             dry_run,
         } => unsuspend(&store()?, &selector(&terms.terms)?, dry_run.dry_run),
-        Command::Move { from, to, dry_run } => move_history(&store()?, &from, &to, dry_run.dry_run),
         Command::Next {
             selector: terms,
             context,
@@ -474,24 +473,6 @@ fn unsuspend(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Resul
     let changed = srl_core::unsuspend(store, &selected, &loaded.memories, &loaded.now, dry_run)?;
     output::ids(&changed);
     Ok(found_anything(!changed.is_empty()))
-}
-
-/// `srl move FROM TO`: prints nothing, or with `--dry-run` the event.
-fn move_history(store: &Store, from: &str, to: &str, dry_run: bool) -> anyhow::Result<Outcome> {
-    let loaded = open(store)?;
-    let event = srl_core::move_history(
-        store,
-        &loaded.catalog,
-        &loaded.memories,
-        &CardId::parse(from)?,
-        &CardId::parse(to)?,
-        &loaded.now,
-        dry_run,
-    )?;
-    if dry_run {
-        output::json_lines(&[event])?;
-    }
-    Ok(Outcome::Done)
 }
 
 /// `srl next`: the next card, if there is one. With `--json`, the card

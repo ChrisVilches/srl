@@ -166,13 +166,6 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Give the history of an orphaned card ID to a card.
-    Move {
-        from: String,
-        to: String,
-        #[command(flatten)]
-        dry_run: DryRun,
-    },
     /// Give a frontend the next card to show (with --json). Exits with 1 if there is none.
     ///
     /// With --json, it maps the store to what a frontend requires: the card, in

@@ -316,7 +316,3 @@ Main design decisions still to take:
   a store and say what to fix; more checks in `srl check` that find
   problems before studying does, such as a card that can't be made; and
   settings that turn some errors into warnings. How is not decided.
-- **A helper for moving history.** Today `srl move FROM TO` is the only
-  way, and running it by hand takes more knowledge than a person should
-  need. A safer helper is wanted, in `srl` or built on top
-  ([scheduling.md](scheduling.md), "Moving history").

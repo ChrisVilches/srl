@@ -228,13 +228,12 @@ questions", once it is planned.
   - **The last line of the log.** It removes the last line of the log
     file whose name sorts last, which is the last event replayed (see
     [scheduling.md](scheduling.md), "Replay"), whatever its type:
-    `review`, `reset`, `move`, `suspend` or `unsuspend`. A file left empty
+    `review`, `reset`, `suspend` or `unsuspend`. A file left empty
     is deleted, so that the next `srl undo` reaches the month before. Run
     again, it removes the event before, and so on; there is no limit.
   - **It prints the line it removes**, exactly as it was in the file,
     with or without `--dry-run`, which prints the same line and removes
-    nothing. Events are JSON already, so it has no `--json`, like
-    `srl move --dry-run`, which prints the event it would write. A line
+    nothing. Events are JSON already, so it has no `--json`. A line
     that is not a valid event is removed and printed like any other, so
     a damaged last line never blocks it. Exit 1 when the log is empty.
   - **`--expect LINE`** removes the last line only if it is exactly

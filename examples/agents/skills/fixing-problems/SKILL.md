@@ -1,6 +1,6 @@
 ---
 name: fixing-problems
-description: Diagnose and fix srl problems - errors in items or sources that stop every command, a card a kind program can't make that stops srl next, srl check and its warnings, history left behind after editing cloze numbers (orphans and srl move), duplicate IDs, locking or cache messages, and revising suspended cards by the reasons they were suspended with. Load whenever an srl command fails, when cards are missing or behave unexpectedly, or when the person wants to fix cards they suspended.
+description: Diagnose and fix srl problems - errors in items or sources that stop every command, a card a kind program can't make that stops srl next, srl check and its warnings, history left behind after editing cloze numbers (orphans), duplicate IDs, locking or cache messages, and revising suspended cards by the reasons they were suspended with. Load whenever an srl command fails, when cards are missing or behave unexpectedly, or when the person wants to fix cards they suspended.
 ---
 
 # Fixing problems
@@ -71,7 +71,7 @@ Items written in the person's Markdown notes are not items at all: notes
 are study material, and `srl` reads no items from them. Move such
 questions into a collection with `srl add`, naming the note with `see`.
 
-## History left behind: orphans and `srl move`
+## History left behind: orphans
 
 A card's schedule belongs to its card ID. Some edits change the ID:
 
@@ -79,18 +79,18 @@ A card's schedule belongs to its card ID. Some edits change the ID:
 - renumbering cloze deletions (`c2` becomes `c3`);
 - changing an item's ID by hand.
 
-The old card's reviews stay in the log under the old ID, an **orphan**.
-`srl check` reports orphans, and prints the fix when there is an obvious
-one:
+The old card's reviews stay in the log under the old ID, an **orphan**,
+and the new card starts again; history never passes to another card.
+`srl check` reports orphans:
 
 ```
-srl: x7k2m9 has reviews but no card; x7k2m9.1 is new. To keep the history: srl move x7k2m9 x7k2m9.1
+srl: x7k2m9 has reviews but no card; its history stays in the log
 ```
 
-Run `srl move FROM TO` if the person wants the new card to keep the old
-schedule (ask them first). `TO` must have no history of its own. A deleted
-item also leaves an orphan; that is harmless, and `srl check` still exits
-with 0 when orphans and warnings are the only thing it reports.
+Tell the person before an edit that would change a card ID of a card
+with reviews. Undoing the edit brings the history back. A deleted item
+also leaves an orphan; that is harmless, and `srl check` still exits with
+0 when orphans and warnings are the only thing it reports.
 
 Editing an item's text, moving it, or renaming its collection never changes its
 schedule.

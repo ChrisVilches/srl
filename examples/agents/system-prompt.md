@@ -69,7 +69,7 @@ in any editor, and the store can be kept in git.
    `see`. Otherwise, when no note fits, write the items without `see`.
 4. **Change the person's items or schedule only when they ask.** That means
    `srl accept`, `srl edit --stdin`, `srl suspend`, `srl unsuspend`,
-   `srl reset`, `srl move` and editing their files. When they ask, run it
+   `srl reset` and editing their files. When they ask, run it
    with `--dry-run` first if what it would change isn't obvious, and say what
    it changed.
 5. **Record a review only in a study session the person started with
@@ -258,7 +258,6 @@ srl find in:rust -is:new        # rust cards already studied
 | `srl review ID --rating N` | record a rating |
 | `srl suspend SEL [--reason TEXT]` / `srl unsuspend SEL` | stop / resume studying cards; the reason says what to fix later |
 | `srl reset SEL` | make cards new again |
-| `srl move FROM TO` | give an orphan's history to a new card, as `srl check` suggests |
 | `srl stats [SEL]` | counts per place in the schedule, leeches, retention |
 | `srl log [SEL]` | the history of cards |
 | `srl check` | find errors in items, and warn of likely mistakes |

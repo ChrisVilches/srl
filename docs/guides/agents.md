@@ -170,10 +170,10 @@ cards keep lapsing, or adds cloze deletions to existing items with
 `srl edit --stdin`. Studying then needs no LLM at all.
 
 Adding the first cloze deletion to an item changes its card ID (`x7k2m9`
-becomes `x7k2m9.1`), which leaves the old card's history orphaned. The job
-should run `srl check` afterwards and report the `srl move` commands it
-suggests, for you to run (see [scheduling.md](../scheduling.md), "Moving
-history").
+becomes `x7k2m9.1`), which leaves the old card's history orphaned and
+starts the new card again (see [scheduling.md](../scheduling.md),
+"Orphans"). So the job adds clozes only to items whose card is still new,
+or asks you first.
 
 ### Analyze
 

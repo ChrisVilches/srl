@@ -8,7 +8,7 @@ state and every suspension is computed from it.
 
 - `.srl/log/YYYY-MM.jsonl`, one file per month, one event per line.
 - **Append-only.** Events are never changed or deleted. Only `srl review`,
-  `srl reset`, `srl move`, `srl suspend` and `srl unsuspend` write to the
+  `srl reset`, `srl suspend` and `srl unsuspend` write to the
   log; never edit it by hand.
 - Each event is written as a single line in one append, so several frontends
   can record reviews at the same time without corrupting the file.
@@ -47,7 +47,7 @@ Every event has a `type` and a time `t`: ISO 8601 to the second, with the
 local offset. Every field is always written, with `null` where it doesn't
 apply. Card IDs in events don't have to be cards of the store: a card whose
 item was deleted keeps its events (see [scheduling.md](scheduling.md),
-"Moving history").
+"Orphans").
 
 ### `review`
 
@@ -77,15 +77,6 @@ like "did my retention change after I rewrote this item?".
 The card is new again after this event (see [scheduling.md](scheduling.md),
 "Reset").
 
-### `move`
-
-```json
-{"type": "move", "t": "2026-10-26T10:05:00+09:00", "from": "x7k2m9", "to": "x7k2m9.1"}
-```
-
-Everything the card `from` has goes to the card `to`, and `from` is left
-with nothing (see [scheduling.md](scheduling.md), "Moving history").
-
 ### `suspend` and `unsuspend`
 
 ```json
@@ -102,8 +93,7 @@ A card is suspended when its last `suspend` or `unsuspend` event is a
 `suspend` (see [items.md](items.md), "Status"). Its reason is the
 `reason` of that last `suspend`: a new `suspend` replaces it, even with
 `null`, and an `unsuspend` clears it. A `reset` keeps it, as it keeps the
-suspension, and a `move` gives it to the card `to` with the rest of the
-history.
+suspension.
 
 ## Reading the log
 

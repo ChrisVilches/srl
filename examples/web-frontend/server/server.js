@@ -187,12 +187,11 @@ export function createSrlServer({ dir, staticDir, onChange }) {
     },
 
     // The card's log events, in log order. id: also matches the cards of an
-    // item of that ID, so only the card's own are kept: those naming it, and
-    // the moves of history to it.
+    // item of that ID, so only the card's own are kept.
     'GET /api/log': async (url, _body, signal) => {
       const id = requireId(url.searchParams.get('id'));
       const { found, stdout } = await srl(['log', '--json', '--', `id:${id}`], undefined, signal);
-      return { events: found ? jsonLines(stdout).filter((event) => event.card === id || event.to === id) : [] };
+      return { events: found ? jsonLines(stdout).filter((event) => event.card === id) : [] };
     },
 
     'GET /api/kinds': async () => ({ kinds: jsonLines((await srl(['kinds', '--json'])).stdout) }),

@@ -82,7 +82,7 @@ separator in one constant, `SUFFIX_SEPARATOR` in
 cards of existing stores get new IDs, so all their history in the log,
 which is kept under the old IDs, becomes orphaned (see
 [log.md](log.md)), and IDs written with the old separator elsewhere, in
-scripts, notes or `srl move`, no longer parse or name another card.
+scripts or notes, no longer parse or name another card.
 `srl` converts nothing; while it is in development, that is accepted.
 
 **Card IDs are ordered** by item ID, then by suffix: a card without a
@@ -93,8 +93,8 @@ A kind takes its suffixes from what you wrote, never from positions, so
 that adding, removing or reordering parts of an item doesn't give one
 card's history to another. When a card disappears anyway, because you
 changed the kind or a cloze number, its history stays in the log under its
-old ID; `srl check` reports it, and `srl move` gives it to another card
-(see [scheduling.md](scheduling.md), "Moving history").
+old ID, and `srl check` reports it (see [scheduling.md](scheduling.md),
+"Orphans").
 
 ## Kinds
 
@@ -276,7 +276,7 @@ detail of the program. A version that gives other suffixes for fields
 that haven't changed is a breaking change for every store that uses it:
 each card whose ID changed loses its history, which stays in the log as
 an orphan, starts again as a new card, and loses its suspension (see
-[scheduling.md](scheduling.md), "Moving history"). So:
+[scheduling.md](scheduling.md), "Orphans"). So:
 
 - **Derive suffixes from the fields alone**, by a rule you never change:
   `examples/kind-ja-words` makes a word's suffix from its bytes in hex,
@@ -284,33 +284,17 @@ an orphan, starts again as a new card, and loses its suspension (see
 - **Only add.** A new version may give cards to fields that gave none,
   or new cards beside the old ones; it never renames, renumbers or drops
   the suffixes it gave before.
-- **If a change is unavoidable, the author provides a way to keep the
-  history**, and never ships it silently. A store must never have to
-  choose between the new version and its review history. At least one
-  of:
-  - **Keep the old rule available.** Publish the new rule as a separate
-    program (another file, package or command), or behind an argument of
-    the same program that users add to its command in `[kinds]`, and
-    keep the old one working. A store then moves when it chooses, or
-    never; a new name for the kind doesn't do this by itself, since the
-    kind's name is the user's, chosen in `[kinds]`, and card IDs don't
-    contain it.
-  - **Provide a migration**: a command of the program, outside the four
-    calls, or a script beside it, that reads a store's items of the kind
-    (for example with `srl show --json`) and prints the `srl move OLD NEW`
-    of each card whose suffix changes. Only the program knows both
-    rules: `srl check` suggests a move only when an item has exactly one
-    orphan and one new card, and `srl` never guesses (see
-    [scheduling.md](scheduling.md), "Moving history").
-
-  And document the change where the program's users will read it: which
-  suffixes change, and the steps. After installing a new version,
-  `srl check` (which asks the program again about every item, see "How
-  srl calls them" below), then the migration, then `srl check` again,
-  which reports no
-  orphan of the kind once every history has moved. A wrong `srl move`
-  can't be undone, so a migration prints the commands, or runs them with
-  `--dry-run` first, rather than running them unasked.
+- **If a change is unavoidable, keep the old rule available**, and never
+  ship it silently. A store must never have to choose between the new
+  version and its review history. Publish the new rule as a separate
+  program (another file, package or command), or behind an argument of
+  the same program that users add to its command in `[kinds]`, and keep
+  the old one working. A store then changes when it chooses, or never,
+  knowing that the cards whose suffix changes start again; a new name
+  for the kind doesn't do this by itself, since the kind's name is the
+  user's, chosen in `[kinds]`, and card IDs don't contain it. Document
+  the change where the program's users will read it: which suffixes
+  change.
 
 Changing groups is not a breaking change: groups have no names, so
 moving cards between them touches no history (see below).

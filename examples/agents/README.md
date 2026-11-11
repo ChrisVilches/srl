@@ -92,7 +92,7 @@ The prompt has the agent follow the rules in `docs/guides/agents.md`:
   your notes. You read them and `srl
   accept` the ones you want.
 - It changes your items or your schedule (`srl accept`, `srl edit`,
-  `srl reset`, `srl suspend`, `srl move`) only when you ask.
+  `srl reset`, `srl suspend`) only when you ask.
 - It records reviews only in a study session you started with it.
 - It never writes to `.srl/`.
 

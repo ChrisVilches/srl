@@ -467,7 +467,11 @@ fn bad_selectors_exit_with_2_and_explain() {
     let tmp = japanese();
     let output = srl(&["find", "tag:x", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
-    assert!(stderr(&output).contains("in, source"), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("in, source"),
+        "{}",
+        stderr(&output)
+    );
 }
 
 #[test]
@@ -1112,7 +1116,7 @@ fn stats_counts_cards_reviews_and_retention() {
 }
 
 #[test]
-fn orphans_are_reported_and_their_history_moves() {
+fn orphans_are_reported() {
     let tmp = japanese();
     let d = dir(&tmp);
     record(d, &next_card(d, &[]), 3);
@@ -1124,48 +1128,9 @@ fn orphans_are_reported_and_their_history_moves() {
     write(&tmp, "japanese/grammar/wo.jsonl", &text);
     let check = srl(&["check", "--dir", d]);
     assert_eq!(check.status.code(), Some(0), "{}", stderr(&check));
-    assert!(
-        stderr(&check).contains("x7k2m9 has reviews but no card; x7k2m9.1 is new. To keep the history: srl move x7k2m9 x7k2m9.1"),
-        "{}",
-        stderr(&check)
-    );
-    let moved = srl(&["move", "x7k2m9", "x7k2m9.1", "--dir", d]);
-    assert_eq!(moved.status.code(), Some(0), "{}", stderr(&moved));
-    assert_eq!(srl(&["check", "--dir", d]).stderr, b"");
-    let young = srl(&["find", "is:young", "--dir", d]);
-    assert!(
-        stdout(&young).starts_with("x7k2m9.1  "),
-        "{}",
-        stdout(&young)
-    );
     assert_eq!(
-        srl(&["move", "x7k2m9", "x7k2m9.1", "--dir", d])
-            .status
-            .code(),
-        Some(2)
-    );
-}
-
-#[test]
-fn a_move_is_suggested_only_for_an_item_with_one_orphan() {
-    let tmp = japanese();
-    let d = dir(&tmp);
-    for card in ["k3m9q1.1", "k3m9q1.2"] {
-        let reviewed = srl(&["review", card, "--rating", "3", "--dir", d]);
-        assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
-    }
-    // Both clozes become c3: two orphans, and one new card k3m9q1.3.
-    let text = read(&tmp, "japanese/grammar/wo.jsonl")
-        .replace("{{c1::", "{{c3::")
-        .replace("{{c2::", "{{c3::");
-    write(&tmp, "japanese/grammar/wo.jsonl", &text);
-    let check = srl(&["check", "--dir", d]);
-    assert_eq!(check.status.code(), Some(0), "{}", stderr(&check));
-    assert_eq!(stderr(&check).lines().count(), 2, "{}", stderr(&check));
-    assert!(
-        !stderr(&check).contains("srl move k3m9q1"),
-        "{}",
-        stderr(&check)
+        stderr(&check),
+        "srl: x7k2m9 has reviews but no card; its history stays in the log\n"
     );
 }
 

@@ -43,8 +43,6 @@ pub struct Memory {
     /// Its last review, whether before or after a reset, for the sibling
     /// rule (see `docs/scheduling.md`, "Siblings").
     pub seen: Option<Seen>,
-    /// Whether any event is about this card.
-    pub touched: bool,
 }
 
 impl Memory {
@@ -155,7 +153,6 @@ impl Replayer {
                     suspended: old.suspended,
                     suspend_reason: old.suspend_reason,
                     seen: old.seen,
-                    touched: true,
                     ..Memory::default()
                 };
                 memories.insert(event.card.clone(), next);
@@ -166,7 +163,6 @@ impl Replayer {
                 let next = Memory {
                     suspended: true,
                     suspend_reason: event.reason.clone(),
-                    touched: true,
                     ..old
                 };
                 memories.insert(event.card.clone(), next);
@@ -177,21 +173,10 @@ impl Replayer {
                 let next = Memory {
                     suspended: false,
                     suspend_reason: None,
-                    touched: true,
                     ..old
                 };
                 memories.insert(event.card.clone(), next);
                 Ok((vec![event.card.clone()], None))
-            }
-            Event::Move(moved) => {
-                let history = memory(memories, &moved.from);
-                let next = Memory {
-                    touched: true,
-                    ..history
-                };
-                memories.insert(moved.to.clone(), next);
-                memories.insert(moved.from.clone(), Memory::default());
-                Ok((vec![moved.from.clone(), moved.to.clone()], None))
             }
         }
     }
@@ -320,7 +305,6 @@ fn step(fsrs: &FSRS, retention: f32, memory: &Memory, day: Date, rating: u8) -> 
         first_review: memory.first_review.or(Some(day)),
         last_review: Some(day),
         due: Some(due),
-        touched: true,
         ..memory.clone()
     })
 }
@@ -360,7 +344,7 @@ mod tests {
     use jiff::civil::date;
 
     use super::*;
-    use crate::{CardEvent, Entry, Move, Review, Suspend};
+    use crate::{CardEvent, Entry, Review, Suspend};
 
     fn id() -> CardId {
         CardId::parse("a7f3k2").unwrap()
@@ -415,7 +399,6 @@ mod tests {
     fn a_card_without_reviews_is_new() {
         let memories = replay(Vec::new(), date(2026, 10, 26));
         assert_eq!(memories.place(&id()), Place::New);
-        assert!(!memories.get(&id()).touched);
     }
 
     #[test]
@@ -481,7 +464,6 @@ mod tests {
             day,
         );
         assert!(!memories.is_suspended(&id()));
-        assert!(memories.get(&id()).touched);
     }
 
     #[test]
@@ -507,24 +489,6 @@ mod tests {
             ]),
             None
         );
-    }
-
-    #[test]
-    fn a_move_gives_the_history_to_another_card() {
-        let day = date(2026, 1, 1);
-        let to = CardId::parse("a7f3k2.1").unwrap();
-        let moved = Entry {
-            event: Event::Move(Move {
-                t: at(day),
-                from: id(),
-                to: to.clone(),
-            }),
-            day,
-        };
-        let memories = replay(vec![review(day, 3), moved], day);
-        assert_eq!(memories.get(&to).reviews, 1);
-        assert!(memories.get(&to).seen.is_some());
-        assert_eq!(memories.get(&id()), Memory::default());
     }
 
     #[test]

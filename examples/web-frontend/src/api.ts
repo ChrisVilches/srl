@@ -42,14 +42,12 @@ export type FoundCard = {
 
 export type Rating = 1 | 2 | 3 | 4;
 
-// An event of the log, as stored (docs/log.md, "Events"). A move belongs to
-// the card it moved history to.
+// An event of the log, as stored (docs/log.md, "Events").
 export type LogEvent = { t: string } & (
   | { type: 'review'; card: string; rating: Rating; hash: string }
   | { type: 'reset'; card: string }
   | { type: 'suspend'; card: string; reason: string | null }
   | { type: 'unsuspend'; card: string }
-  | { type: 'move'; from: string; to: string }
 );
 
 // A kind as `srl kinds --json` describes it (docs/cards.md, "Describing a

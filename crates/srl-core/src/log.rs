@@ -36,7 +36,6 @@ const HASH_LEN: usize = 12;
 pub enum Event {
     Review(Review),
     Reset(CardEvent),
-    Move(Move),
     Suspend(Suspend),
     Unsuspend(CardEvent),
 }
@@ -74,24 +73,13 @@ pub struct Suspend {
     pub reason: Option<String>,
 }
 
-/// One card's history goes to another (see `docs/log.md`, "`move`").
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Move {
-    pub t: String,
-    pub from: CardId,
-    pub to: CardId,
-}
-
 impl Event {
-    /// The card the event is about; for a `move`, the card that gets the
-    /// history.
+    /// The card the event is about.
     pub fn card(&self) -> &CardId {
         match self {
             Self::Review(review) => &review.card,
             Self::Reset(event) | Self::Unsuspend(event) => &event.card,
             Self::Suspend(event) => &event.card,
-            Self::Move(moved) => &moved.to,
         }
     }
 
@@ -100,7 +88,6 @@ impl Event {
             Self::Review(review) => &review.t,
             Self::Reset(event) | Self::Unsuspend(event) => &event.t,
             Self::Suspend(event) => &event.t,
-            Self::Move(moved) => &moved.t,
         }
     }
 
@@ -212,8 +199,7 @@ impl Log {
         }
     }
 
-    /// The events about the cards in `ids`, in log order. A `move` event is
-    /// about the card it moved history to.
+    /// The events about the cards in `ids`, in log order.
     pub fn of<'a>(&'a self, ids: &'a [&CardId]) -> impl Iterator<Item = &'a Entry> {
         self.entries
             .iter()
@@ -355,17 +341,6 @@ mod tests {
             serde_json::json!({"type": "review", "t": "2026-10-26T09:12:31+09:00",
                 "card": "k3m9q1.2", "rating": 3, "hash": "3fa91c0d22be"})
         );
-        let moved = Event::Move(Move {
-            t: "2026-10-26T10:05:00+09:00".to_owned(),
-            from: card("x7k2m9"),
-            to: card("x7k2m9.1"),
-        });
-        assert_eq!(
-            serde_json::to_value(&moved).unwrap(),
-            serde_json::json!({"type": "move", "t": "2026-10-26T10:05:00+09:00",
-                "from": "x7k2m9", "to": "x7k2m9.1"})
-        );
-        assert_eq!(moved.card(), &card("x7k2m9.1"));
         let suspended = Event::Suspend(Suspend {
             t: "2026-10-26T10:10:00+09:00".to_owned(),
             card: card("x7k2m9"),

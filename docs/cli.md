@@ -89,7 +89,6 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
 | `srl suspend SELECTOR [--reason TEXT]` | Suspend matching active cards, saying why if `--reason` is given (see below). |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
-| `srl move FROM TO` | Give the history of the orphan `FROM` to the card `TO` (see [scheduling.md](scheduling.md), "Moving history"). Prints nothing; with `--dry-run`, the event it would write. |
 
 `srl find --json` prints one object per card:
 
@@ -368,8 +367,7 @@ where `retention` is a number from 0 to 1, or `null`.
 `srl log` prints one line per event, its fields separated by two spaces:
 the time, the card, and then `review` and the rating;
 `reset`; `suspend` and the first line of its reason, if it has one;
-`unsuspend`; or `move` and the card the history came from. A `move` event
-belongs to the card it moved history to.
+or `unsuspend`.
 
 ## Checking
 
@@ -379,9 +377,7 @@ belongs to the card it moved history to.
   or a source program that fails (see [items.md](items.md), "Errors");
 - an invalid configuration;
 - log lines that are not valid events;
-- orphans, with the `srl move` command that would keep their history when
-  there is an obvious one (see [scheduling.md](scheduling.md), "Moving
-  history");
+- orphans (see [scheduling.md](scheduling.md), "Orphans");
 - likely mistakes in the items, as warnings (see below).
 
 Each problem is reported on standard error, one per line. Orphans and

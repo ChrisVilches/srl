@@ -134,15 +134,8 @@ pub enum Error {
     #[error("the review is not valid: {reason}; nothing was recorded")]
     InvalidReview { reason: String },
 
-    #[error("cannot move the history of {from} to {to}: {reason}; nothing was recorded")]
-    CannotMove {
-        from: String,
-        to: String,
-        reason: String,
-    },
-
-    #[error("{id} has reviews but no card; {suggestion}")]
-    Orphan { id: String, suggestion: String },
+    #[error("{id} has reviews but no card; its history stays in the log")]
+    Orphan { id: String },
 
     #[error("cannot schedule with FSRS: {reason}; check `[schedule]` in .srl/config.toml")]
     Fsrs { reason: String },

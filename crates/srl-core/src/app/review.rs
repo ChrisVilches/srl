@@ -1,12 +1,11 @@
-//! Recording reviews, resets, suspensions and moves (see `docs/log.md` and
+//! Recording reviews, resets and suspensions (see `docs/log.md` and
 //! `docs/scheduling.md`).
 
 use jiff::Zoned;
 
 use crate::log;
 use crate::{
-    CardEvent, CardId, Catalog, Error, Event, Item, Memories, Move, Place, Result, Review, Store,
-    Suspend,
+    CardEvent, CardId, Catalog, Error, Event, Item, Memories, Place, Result, Review, Store, Suspend,
 };
 
 fn check_rating(rating: u8) -> Result<()> {
@@ -122,47 +121,6 @@ fn card_events(ids: &[CardId], now: &Zoned, kind: fn(CardEvent) -> Event) -> Vec
             })
         })
         .collect()
-}
-
-/// Gives the history of the orphan `from` to the card `to`, which must have
-/// no events at all (see `docs/scheduling.md`, "Moving history").
-pub fn move_history(
-    store: &Store,
-    catalog: &Catalog,
-    memories: &Memories,
-    from: &CardId,
-    to: &CardId,
-    now: &Zoned,
-    dry_run: bool,
-) -> Result<Event> {
-    let refuse = |reason: &str| Error::CannotMove {
-        from: from.to_string(),
-        to: to.to_string(),
-        reason: reason.to_owned(),
-    };
-    if catalog.card(from).is_some() {
-        return Err(refuse(&format!(
-            "{from} is still a card of the store; only an orphan's history can move"
-        )));
-    }
-    if memories.get(from).seen.is_none() {
-        return Err(refuse(&format!("{from} has no reviews to move")));
-    }
-    if catalog.card(to).is_none() {
-        return Err(refuse(&format!("{to} is not a card of the store")));
-    }
-    if memories.get(to).touched {
-        return Err(refuse(&format!(
-            "{to} already has events, and history is never merged"
-        )));
-    }
-    let event = Event::Move(Move {
-        t: log::time(now),
-        from: from.clone(),
-        to: to.clone(),
-    });
-    write(store, vec![event.clone()], dry_run)?;
-    Ok(event)
 }
 
 fn write(store: &Store, events: Vec<Event>, dry_run: bool) -> Result<Vec<Event>> {
@@ -292,38 +250,5 @@ mod tests {
         );
         unsuspend(&store, &all[..1], &memories(&store), &now(), false).unwrap();
         assert_eq!(memories(&store).suspend_reason(&id), None);
-    }
-
-    #[test]
-    fn history_moves_only_from_an_orphan_to_an_untouched_card() {
-        let (_tmp, store, catalog) = store();
-        log::append(
-            &store,
-            &[Event::Review(Review {
-                t: "2026-10-01T09:00:00+09:00".to_owned(),
-                card: id("aaa1.1"),
-                rating: 3,
-                hash: String::new(),
-            })],
-        )
-        .unwrap();
-        review(&store, &catalog, &id("aaa2.1"), 3, &now(), false).unwrap();
-        let memories = memories(&store);
-        let attempt = |from: &str, to: &str| {
-            move_history(
-                &store,
-                &catalog,
-                &memories,
-                &id(from),
-                &id(to),
-                &now(),
-                true,
-            )
-        };
-        assert!(attempt("aaa1", "aaa2.2").is_err(), "a card of the store");
-        assert!(attempt("zzz1", "aaa2.2").is_err(), "no reviews");
-        assert!(attempt("aaa1.1", "zzz1").is_err(), "not a card");
-        assert!(attempt("aaa1.1", "aaa2.1").is_err(), "has events");
-        assert!(attempt("aaa1.1", "aaa1").is_ok());
     }
 }

@@ -173,7 +173,6 @@ pub(crate) fn events(events: &[&Event]) {
                 None => "suspend".to_owned(),
             },
             Event::Unsuspend(_) => "unsuspend".to_owned(),
-            Event::Move(moved) => format!("move  {}", moved.from),
         };
         out!("{}  {}  {what}", event.t(), event.card());
     }

@@ -73,8 +73,7 @@ kind (see [cards.md](cards.md), "Kinds"). An item has at least one field.
   from 1: `item 3`.
 - **Editing an item never resets its cards.** `srl reset` is the way to
   start over. When an edit makes a card disappear, its history is kept in
-  the log, and `srl move` can give it to another card (see
-  [scheduling.md](scheduling.md), "Moving history").
+  the log (see [scheduling.md](scheduling.md), "Orphans").
 
 ## Status
 
