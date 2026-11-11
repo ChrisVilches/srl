@@ -1,5 +1,30 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/noto-sans-mono/wght.css';
 @plugin '@tailwindcss/typography';
+
+/* Code is in Noto Sans Mono, shipped with srl-web, not in the device's mono
+   font: a phone's often lacks box drawing, arrows and shapes, and takes them
+   from a font that isn't monospace, so diagrams in code blocks lose their
+   columns. Fontsource's subsets leave these out, so they come from
+   src/fonts/noto-sans-mono-symbols.woff2, made from Noto Sans Mono Regular
+   (licence in src/fonts/OFL.txt) with:
+     pyftsubset NotoSansMono-Regular.ttf --unicodes=U+2190-23FF,U+2500-25FF \
+       --flavor=woff2 --output-file=noto-sans-mono-symbols.woff2
+   Each file is fetched only when the page shows a character it has. */
+@font-face {
+  font-family: 'Noto Sans Mono Symbols';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(./fonts/noto-sans-mono-symbols.woff2) format('woff2');
+  unicode-range: U+2190-23FF, U+2500-25FF;
+}
+
+@theme {
+  --font-mono:
+    'Noto Sans Mono Variable', 'Noto Sans Mono Symbols', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+}
 
 /* Dark when <html> has the dark class, set from the theme button
    (src/theme.ts), not from the system's setting. */
