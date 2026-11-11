@@ -412,23 +412,14 @@ None of this is urgent.
 can show different content at each review. That is a real use case, with
 or without AI: an arithmetic drill that draws new numbers, a conjugation
 card that picks a random verb from a list, a map quiz that shows a random
-region. Two things about such cards are left unsaid:
+region. What their memory state means is left unsaid. FSRS models
+remembering one fixed thing. For a varying card it measures a skill
+("multiplying two-digit numbers"), and differences in difficulty between
+draws show up as noise in it. That may be exactly what the author wants,
+but the specification never says it is intended, or what to expect.
 
-1. **What their memory state means.** FSRS models remembering one fixed
-   thing. For a varying card it measures a skill ("multiplying two-digit
-   numbers"), and differences in difficulty between draws show up as
-   noise in it. That may be exactly what the author wants, but the
-   specification never says it is intended, or what to expect.
-2. **The log doesn't record what was shown.** A review's `hash` covers the
-   item, not the card. For a fixed card that is enough, since the item
-   decides the card; for a varying one, later analysis can't tell what
-   was asked. Neither `srl next --json` nor `srl review` offers a generic
-   way to keep it.
-
-**Possible fixes:** a paragraph in [rationale.md](rationale.md) saying that varying
-cards are supported and their memory state is the skill's; and, if
-analysis of such cards matters, an optional field in review events, such
-as a hash of the card as shown, passed back by the frontend.
+**Possible fix:** a paragraph in [rationale.md](rationale.md) saying that
+varying cards are supported and their memory state is the skill's.
 
 ### L10. What symbolic links in a store mean is unspecified, and a loop multiplies collections
 
