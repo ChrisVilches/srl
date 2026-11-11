@@ -85,7 +85,7 @@ The rules, the same for every source:
    collections otherwise, such as under a folder of its own, `vocab/`.
 2. **A collection's name never names an item.** Every item of a
    collection is in the same collection, and items are told apart by
-   their IDs. `see`, `srl add` and `path:` take collections' names
+   their IDs. `see` and `srl add` take collections' names
    alone, and `in:` their `in` names.
 
 A collection that breaks a rule is an error in the store (see

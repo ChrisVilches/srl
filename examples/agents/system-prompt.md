@@ -183,7 +183,7 @@ they don't want, and accepts the rest:
 
 ```sh
 srl find is:draft                          # list drafts
-srl accept path:generated/ownership.jsonl  # make them studied
+srl accept in:generated in:ownership.jsonl # make them studied
 ```
 
 ## Studying
@@ -227,7 +227,6 @@ Terms separated by spaces must all match; a comma means or; `-` means not.
 | Term | Matches |
 |---|---|
 | `in:NAME` | collections whose source names them `NAME`: for a file, a folder, its file name, or its file name without the extension (`NAME.jsonl`, …); for a source program, the names it gives, or the whole name (`srl collections --json` shows them) |
-| `path:GLOB` | collections' names (a collection's path, for a file): `'path:rust/*'`, `'path:japanese/**'` (quote globs in the shell) |
 | `source:NAME` | items of one source of the store (`srl sources` lists them) |
 | `id:ID` | a card, or every card of an item |
 | `kind:K` | items of a kind: `qa` (also items with no `kind`) or a kind in `[kinds]` |

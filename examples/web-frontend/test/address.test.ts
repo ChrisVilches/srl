@@ -23,7 +23,7 @@ const ROUND_TRIPS: [string, string][] = [
   ['-in:n5', '-in=n5'],
   ['in:a -in:a', 'in=a&-in=a'],
   ['is:new is:active', 'is=new&is=active'],
-  ['path:japanese/**', 'path=japanese%2F**'],
+  ['in:net/routers', 'in=net%2Frouters'],
   ['id:k3m9q1.2', 'id=k3m9q1.2'],
   ['word', 'q=word'],
   // Words, each searched for on its own, stay words, and a quoted term

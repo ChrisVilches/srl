@@ -18,7 +18,6 @@ const EXAMPLES: [string, string][] = [
   ['in:grammar', 'Cards whose collection its source names grammar: for a file, a folder or the file name, with or without its extension, such as japanese/grammar/ or grammar.jsonl'],
   ['in:grammar,kanji', 'Cards in grammar or in kanji'],
   ['in:japanese -in:kanji', 'Cards in japanese, but not in kanji'],
-  ['path:japanese/*', 'Cards of the collections directly in japanese/; path:japanese/** for everything below it'],
   ['is:due', 'Cards due today; a card is new, due, young or mature in its schedule'],
   ['is:new in:grammar', 'New cards in grammar'],
   ['is:draft', 'Draft cards; a card is active, draft or suspended'],
@@ -52,8 +51,8 @@ export function SelectorHelp() {
       <h2 className="font-semibold text-stone-800 dark:text-stone-200">Writing a selector</h2>
       <p>
         A selector is a list of terms separated by spaces. A term is a <code className="font-mono">key:value</code>{' '}
-        or text. The keys are <code className="font-mono">in</code>, <code className="font-mono">path</code>,{' '}
-        <code className="font-mono">source</code>, <code className="font-mono">id</code>,{' '}
+        or text. The keys are <code className="font-mono">in</code>, <code className="font-mono">source</code>,{' '}
+        <code className="font-mono">id</code>,{' '}
         <code className="font-mono">kind</code> and <code className="font-mono">is</code>; any other key is an
         error. An empty selector is every card.
       </p>

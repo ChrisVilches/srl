@@ -172,7 +172,7 @@ without `see`. Items about different notes, or about none, can go in one
 call. Use `--dry-run` to show the person the items before writing them.
 
 The person accepts drafts with `srl accept SELECTOR`, for example
-`srl accept path:generated/rust.jsonl` or `srl accept id:x7k2m9`.
+`srl accept in:generated in:rust.jsonl` or `srl accept id:x7k2m9`.
 
 ## Replacing items with `srl edit --stdin`
 

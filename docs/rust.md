@@ -271,8 +271,8 @@ depend on the platform, and flag every place that does.
 
 - **Paths:** build them with `Path::join`, never by gluing strings with `/`
   or `\`. Collections' names and the paths of files are `String`s with `/` between
-  folders, because they are part of the formats (JSON output, `path:`
-  selectors, `see`); turn such a path into a file path only with
+  folders, because they are part of the formats (JSON output, `see`);
+  turn such a path into a file path only with
   `Store::file`.
 - **Platform locations** come from a crate, never from hard-coded paths such
   as `~/.local/share`: the default store uses `dirs::data_dir()`.
@@ -313,7 +313,7 @@ Known places:
 
 | Where | What differs | Status |
 |---|---|---|
-| `store.rs`, `note_paths`, `nfc`; [store.md](store.md) | macOS often lists file names in Unicode NFD, so paths could sort and match differently | Handled: paths are sorted and matched against `path:`, `in:` and `exclude` in NFC, on every platform |
+| `store.rs`, `note_paths`, `nfc`; [store.md](store.md) | macOS often lists file names in Unicode NFD, so paths could sort and match differently | Handled: paths are sorted and matched against `in:` and `exclude` in NFC, on every platform |
 | `source/files.rs`, `replace_file`; [formats.md](formats.md) | Replacing a collection atomically: a rename over an existing file, which Windows refuses while another program holds the file open without sharing | Handled: the rename's error is reported and the file left as it was. **TODO in code and spec**: not run on Windows |
 | `log.rs`, `lock`; [log.md](log.md) | Concurrent appends are serialized by an OS lock on `.srl/log/.lock` (`File::lock`: `flock` on Unix, `LockFileEx` on Windows). On network file systems locks depend on the server, and may fail or not be shared between machines | Handled on local disks, the same on every platform. **TODO in code and spec** for network file systems: a lock that fails makes the append fail |
 | `process.rs`, `Running`, `stop_programs`; `srl`'s `main.rs`; [cards.md](cards.md) | Stopping a program with every process it started: a process group and signal handlers on Unix, a job object on Windows | Handled. **TODO in code and spec**: on Unix, `SIGKILL` can't be caught; on Windows, a process started before the program is put in its job escapes it, and it is not run on Windows |
@@ -418,7 +418,7 @@ Current dependencies:
 | `sha2` | `srl-core` | The `hash` of review events |
 | `unicode-normalization` | `srl-core` | NFC for comparing collections' names and the paths of files |
 | `thiserror` | `srl-core` | Deriving the core's `Error` |
-| `globset` | `srl-core` | `path:` globs in selectors, and the `include` and `exclude` globs of sources and `[context]` |
+| `globset` | `srl-core` | The `include` and `exclude` globs of sources and `[context]` |
 | `serde` (derive), `serde_json` (`preserve_order`, `float_roundtrip`) | both | The JSON formats; fields keep their order, and numbers read back from the index cache are exactly the ones written |
 | `rusqlite` (`bundled`, `cache`) | `srl-core` | The index cache. `bundled` compiles SQLite in (a C compiler is needed to build), so no system library is required; `cache` reuses prepared statements |
 | `blake3` | `srl-core` | Hashing every file on every use for the index cache. Several times faster than SHA-256 on CPUs without SHA instructions |

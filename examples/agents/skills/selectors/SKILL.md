@@ -1,6 +1,6 @@
 ---
 name: selectors
-description: The complete srl selector language (in:, path:, source:, id:, kind:, is:, text search, comma, minus) and how to quote selectors in sh, bash, zsh, PowerShell and cmd. Load when building a selector that is more than one or two simple terms, when a selector gives an error, or when text search needs quotes.
+description: The complete srl selector language (in:, source:, id:, kind:, is:, text search, comma, minus) and how to quote selectors in sh, bash, zsh, PowerShell and cmd. Load when building a selector that is more than one or two simple terms, when a selector gives an error, or when text search needs quotes.
 ---
 
 # Selectors
@@ -13,7 +13,6 @@ A selector picks cards. `srl find`, `srl next`, `srl stats`, `srl log`,
 | Term | Matches |
 |---|---|
 | `in:NAME` | Cards whose item's collection has `NAME` among the `in` names its source gives it. A file has each of its folders, its file name, and its file name without its extension: `in:grammar` matches `japanese/Grammar/wo.jsonl`, `grammar.jsonl` and `grammar.xml`, not `grammar-notes.jsonl`; `in:grammar.xml` only the last. A source program gives the names it chooses, or the collection's whole name: the table `v1.2` matches `in:v1.2`, not `in:v1`. `srl collections --json` shows each collection's `in` names. Ignores case. Notes are not collections, so a note named `grammar.md` alone matches nothing. |
-| `path:GLOB` | The item's collection: its path, relative to the store, for a file; whatever name a source program gives, such as `words` for the table `words` of a database. `*` stays within a folder, `**` crosses folders: `path:japanese/*` is the collections directly in `japanese/`, `path:japanese/**` everything below it, `path:rust/ownership.xml` one collection. |
 | `source:NAME` | Cards whose item comes from the source `NAME`: `source:items` for a store without `[sources]` (`srl sources` lists them). |
 | `id:ID` | A card (`id:k3m9q1.2`), or every card of an item (`id:k3m9q1`). |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind` entry, or a kind named in `[kinds]` of `.srl/config.toml`. An unknown kind is an error. Without `kind:`, items of every kind match. |
@@ -69,10 +68,6 @@ A value can't be empty (`in:`, `in:a,,b`), and the values of `source:`,
 kind, a value listed for `is:`), so a typo such as `source:itmes`,
 `kind:ja-word` or `is:leeches` fails instead of matching nothing.
 
-Quote globs too: zsh fails on an unquoted `*` that matches no file, and
-other shells may replace it with file names. Write
-`srl find 'path:japanese/**'`.
-
 ## Examples
 
 ```sh
@@ -81,8 +76,8 @@ srl find in:rust -is:new             # rust cards already studied
 srl find is:leech                    # cards that keep being forgotten
 srl find "ものともせず"               # text search
 srl stats in:vocab is:active         # progress on studied vocabulary
-srl accept 'path:generated/**'       # accept every draft under generated/
-srl reset path:rust/ownership.xml    # start one collection over
+srl accept in:generated              # accept every draft under generated/
+srl reset in:ownership.xml           # start one collection over
 srl suspend id:k3m9q1                # stop studying every card of an item
 srl next kind:ja-words               # study only items of one kind
 ```

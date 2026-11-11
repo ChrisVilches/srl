@@ -467,7 +467,7 @@ fn bad_selectors_exit_with_2_and_explain() {
     let tmp = japanese();
     let output = srl(&["find", "tag:x", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
-    assert!(stderr(&output).contains("in, path"), "{}", stderr(&output));
+    assert!(stderr(&output).contains("in, source"), "{}", stderr(&output));
 }
 
 #[test]

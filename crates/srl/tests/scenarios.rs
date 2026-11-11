@@ -399,7 +399,7 @@ fn an_agents_questions_are_studied_like_any_other() {
     // Drafts wait for the person, who accepts them all.
     assert!(store.next(&now, &[]).is_none());
     assert_eq!(store.ok(&now, &["find", "is:draft"]).lines().count(), 3);
-    store.ok(&now, &["accept", "path:generated/capitals.jsonl"]);
+    store.ok(&now, &["accept", "in:generated", "in:capitals.jsonl"]);
     assert!(!store.read("generated/capitals.jsonl").contains("draft"));
     // Studied as any card: the person's notes are the context of the items
     // that name them, and the item without `see` has none.

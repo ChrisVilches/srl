@@ -138,7 +138,7 @@ Each line has the item's fields, `"draft": true`, and
 context of the new item. Questions about several notes can go in one call,
 each line with the note it asks about. You look at the drafts (`srl find
 is:draft`, or a frontend), remove what you don't want, and run
-`srl accept path:generated/wo-mono-tomo-sezu.jsonl`.
+`srl accept in:generated in:wo-mono-tomo-sezu.jsonl`.
 
 A request such as "test me on N1 grammar using food vocabulary" is the same
 workflow: the agent writes the questions as draft items, and you accept the

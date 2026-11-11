@@ -1,13 +1,10 @@
 //! The selector language (see `docs/selectors.md`).
 
-use globset::GlobSet;
-
-use crate::config::globs;
 use crate::store::nfc;
 use crate::{CardId, Config, Error, Item, Kind, Memories, Place, Result};
 
 /// The keys of `key:value` terms.
-const KEYS: &str = "in, path, source, id, kind, is";
+const KEYS: &str = "in, source, id, kind, is";
 
 /// A parsed selector: cards match when they match every term.
 #[derive(Debug, Clone)]
@@ -26,7 +23,6 @@ struct Term {
 enum Filter {
     /// Names in NFC, lowercased.
     In(Vec<String>),
-    Path(GlobSet),
     /// Names of sources.
     Source(Vec<String>),
     /// Card IDs, or item IDs that stand for all their cards.
@@ -151,7 +147,6 @@ impl Filter {
                 .in_names()
                 .iter()
                 .any(|name| wanted.contains(&nfc(name).to_lowercase())),
-            Self::Path(globs) => globs.is_match(nfc(item.collection())),
             Self::Source(names) => names.iter().any(|name| name == item.source()),
             Self::Id(ids) => ids.iter().any(|id| match id.suffix() {
                 Some(_) => id == card,
@@ -213,7 +208,6 @@ fn keyed(key: &str, values: &str, config: &Config) -> std::result::Result<Filter
                 .map(|value| nfc(value).to_lowercase())
                 .collect(),
         )),
-        "path" => globs(&values).map(Filter::Path),
         "source" => each(&values, |value| {
             if config.sources.contains_key(value) {
                 Ok(value.to_owned())
@@ -441,12 +435,6 @@ mod tests {
     }
 
     #[test]
-    fn path_star_stays_in_one_folder() {
-        assert_eq!(pick("path:japanese/*"), ["aaa2.1", "aaa2.2"]);
-        assert_eq!(pick("path:japanese/**"), ["aaa1", "aaa2.1", "aaa2.2"]);
-    }
-
-    #[test]
     fn an_item_id_stands_for_all_its_cards() {
         assert_eq!(pick("id:aaa2"), ["aaa2.1", "aaa2.2"]);
         assert_eq!(pick("id:aaa2.2,aaa3"), ["aaa2.2", "aaa3"]);
@@ -520,7 +508,7 @@ mod tests {
     #[test]
     fn unknown_selector_key_is_an_error() {
         let error = Selector::parse("ni:x", &Config::default()).unwrap_err();
-        assert!(error.to_string().contains("in, path"), "{error}");
+        assert!(error.to_string().contains("in, source"), "{error}");
         assert!(Selector::parse("tag:x", &Config::default()).is_err());
     }
 
@@ -534,7 +522,6 @@ mod tests {
             "id:a-",
             "status:draft",
             "state:new",
-            "path:[",
             "-",
             "\"\"",
             "\"open",
@@ -560,13 +547,12 @@ mod tests {
         for selector in [
             "in:caf\u{e9}",
             "in:cafe\u{301}",
-            "path:caf\u{e9}/*",
-            "path:CAFE\u{301}/*",
+            "in:CAFE\u{301}",
         ] {
             let matched = Selector::parse(selector, &Config::default())
                 .unwrap()
                 .matches(item, card, &memories);
-            assert_eq!(matched, !selector.starts_with("path:CAFE"), "{selector}");
+            assert!(matched, "{selector}");
         }
     }
 }

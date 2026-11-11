@@ -633,7 +633,7 @@ Which files are a source's collections, and which are notes, is two lists
 of globs each, `include` and `exclude`, in the source's table and in
 `[context]`, and `exclude` always wins. Globs say more than a list of
 extensions (only the files under one folder, say) with the same matching
-that `exclude` and `path:` already use. A collection's format is chosen
+that `exclude` already uses. A collection's format is chosen
 by its extension, so a glob that matches a file of another format makes
 it an error rather than silently reading nothing (see "Why three
 formats").

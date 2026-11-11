@@ -240,7 +240,7 @@ srl add generated/japanese.jsonl --stdin <<'JSONL'
 {"see": "japanese/grammar/wo-mono-tomo-sezu.md", "draft": true, "Q": "Make a sentence with 〜をものともせず about a football team.", "A": "…"}
 {"see": "japanese/grammar/wo-mono-tomo-sezu.md", "draft": true, "Q": "{{c1::嵐}}をものともせず、漁師たちは海へ出た。"}
 JSONL
-srl accept path:generated/japanese.jsonl   # after you've read them
+srl accept in:generated in:japanese.jsonl   # after you've read them
 ```
 
 Each item is stored as one line, just as it was sent, so there is no
