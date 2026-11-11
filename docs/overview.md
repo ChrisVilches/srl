@@ -206,7 +206,8 @@ it what `srl` is and does, or something done with it?**
 - **Examples**, in the repository's `examples/`: programs and files built
   on `srl`, to run, copy and change. `examples/README.md` lists them:
   - `examples/kind-ja-words/`: a kind program, one card per marked word
-    of a Japanese sentence (see [cards.md](cards.md), "Kind programs").
+    of a Japanese sentence (see [cards.md](cards.md), "Kind programs",
+    and [guides/kind-programs.md](guides/kind-programs.md)).
   - `examples/kind-llm-generated/`: a kind program whose card an LLM
     writes anew each time it is shown.
   - `examples/agents/`: a system prompt and skills that turn an LLM agent
@@ -271,6 +272,7 @@ Guides, not part of the specification:
 | Document | Contents |
 |---|---|
 | [guides/frontends.md](guides/frontends.md) | Writing a frontend, and the example frontends |
+| [guides/kind-programs.md](guides/kind-programs.md) | Writing a kind program that stays fast with a large dictionary, a database or a web service |
 | [guides/agents.md](guides/agents.md) | Operating `srl` with an LLM agent, with agi as the example |
 | [guides/ideas.md](guides/ideas.md) | Ideas for programs and workflows built on `srl` |
 

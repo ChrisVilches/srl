@@ -384,6 +384,10 @@ When something goes wrong, the place it happens says whose fault it is:
   reason, and so does output that doesn't follow "Describing a kind"
   below. No other command calls it.
 
+How to keep a kind program fast when it loads a large dictionary or
+database, or calls a web service, is in
+[guides/kind-programs.md](guides/kind-programs.md).
+
 `srl cards` makes every card it prints, so a kind whose content differs
 every time gives a new card each time: what `srl cards` prints is one
 card the kind could give, not the one `srl next` will show.
