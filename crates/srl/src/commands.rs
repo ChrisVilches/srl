@@ -294,6 +294,7 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
                     "id": card,
                     "item": item.id(),
                     "kind": item.kind().as_str(),
+                    "see": item.see(),
                     "collection": item.collection(),
                     "source": item.source(),
                     "status": Status::of(item, card, memories),

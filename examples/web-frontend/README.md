@@ -330,7 +330,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/next?sel=…` | `srl next SEL --json` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
 | `POST /api/review` | `srl review CARD --rating=N`, for `{"card": CARD, "rating": N}`; `N` must be 1, 2, 3 or 4 | `{}` |
 | `POST /api/suspend` | `srl suspend id:CARD --reason=REASON`, for `{"card": CARD, "reason": REASON}`; an empty or missing `reason` is none | `{}` |
-| `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --no-context` | `{"cards": […]}`: each card `srl find` printed, with its item's `see` and `excerpt`, the first line of its first field |
+| `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --no-context` | `{"cards": […]}`: each card `srl find` printed, with `excerpt`, the first line of its first field |
 | `GET /api/log?id=…` | `srl log id:ID --json` | `{"events": […]}`: the card's events, in log order, as stored; those of other cards of an item of the same ID are left out |
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `collection`, `see` and `context`, as `srl next --json` gives them (not its `source`) |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |

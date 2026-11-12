@@ -23,7 +23,7 @@ export type Card = ShownCard & { schedule: 'new' | 'due'; leech: boolean };
 export type Today = { reviewed: number; new: number; again: number };
 
 // A card as `srl find --json` lists it (docs/cli.md, "Items and cards"),
-// with its item's see and the first line of its first field.
+// with the first line of its item's first field.
 export type FoundCard = {
   id: string;
   item: string;
