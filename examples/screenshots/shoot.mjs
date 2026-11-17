@@ -97,7 +97,11 @@ async function web(out) {
       await sleep(900);
       await page.evaluate(() => document.activeElement.blur());
     };
-    const reveal = () => page.keyboard.press(' ');
+    // The ratings are greyed out for a second after the answer shows.
+    const reveal = async () => {
+      await page.keyboard.press(' ');
+      await sleep(1000);
+    };
 
     await size(WIDTH);
     await study('in:grammar');

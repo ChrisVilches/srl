@@ -64,6 +64,10 @@ macOS and Windows (it is tried on Linux only).
   their key, as **Make again** `r` does, everywhere on the page, but not
   on a touch screen (a coarse primary pointer, as on a phone), which has
   no keys to press.
+- The ratings, buttons and keys, wait a second after the answer shows,
+  greyed out, before they rate: a key or a tap pressed twice in a row by
+  accident doesn't rate a card before its answer is read
+  (`RATE_AFTER_MS` in `src/App.tsx`).
 - When the next card takes a while to make, as when its kind program asks
   an LLM, a spinner says so, with the seconds it has taken. Cards that
   come in under 300 ms replace the last one without it. Everything else

@@ -27,7 +27,7 @@ export const useView = () => useOutletContext<ViewContext>();
 type Phase =
   | { kind: 'loading'; since: number }
   | { kind: 'prompt'; card: Card }
-  | { kind: 'answer'; card: Card }
+  | { kind: 'answer'; card: Card; ratable: boolean }
   | { kind: 'done' }
   | { kind: 'error'; message: string };
 
@@ -41,6 +41,11 @@ const RATINGS: { rating: Rating; name: string; style: string }[] = [
 // How long the card shown stays while srl next makes the next one, before
 // the page says it is waiting: most cards come sooner, and swap at once.
 const WAIT_SHOWN_AFTER_MS = 300;
+
+// How long the ratings wait after the answer shows before they can be
+// pressed, so that a key or a tap pressed twice in a row doesn't rate the
+// card before its answer is read.
+const RATE_AFTER_MS = 1000;
 
 // The phase after getting the next card: its prompt, or done if none is left.
 async function nextPhase(selector: string, signal: AbortSignal): Promise<Phase> {
@@ -138,12 +143,19 @@ export function Study() {
 
   const reveal = useCallback(() => {
     if (phase.kind !== 'prompt') return;
-    setPhase({ kind: 'answer', card: phase.card });
+    setPhase({ kind: 'answer', card: phase.card, ratable: false });
+  }, [phase]);
+
+  // The answer shown becomes ratable after RATE_AFTER_MS.
+  useEffect(() => {
+    if (phase.kind !== 'answer' || phase.ratable) return;
+    const timer = setTimeout(() => setPhase({ ...phase, ratable: true }), RATE_AFTER_MS);
+    return () => clearTimeout(timer);
   }, [phase]);
 
   const rate = useCallback(
     (rating: Rating) => {
-      if (phase.kind !== 'answer') return;
+      if (phase.kind !== 'answer' || !phase.ratable) return;
       const { card } = phase;
       step(async () => {
         await api.review(card.id, rating);
@@ -299,8 +311,8 @@ function CardView({
               <button
                 key={rating}
                 onClick={() => onRate(rating)}
-                disabled={busy}
-                className={`min-w-20 flex-1 rounded-lg px-3 py-3 ${WITH_KEY} font-medium text-white disabled:opacity-50 ${style}`}
+                disabled={busy || !phase.ratable}
+                className={`min-w-20 flex-1 rounded-lg px-3 py-3 ${WITH_KEY} font-medium text-white transition-opacity disabled:opacity-50 ${style}`}
               >
                 {name} <Key>{rating}</Key>
               </button>
