@@ -29,25 +29,33 @@ type Result =
   | { kind: 'added'; ids: string[]; collection: string }
   | { kind: 'error'; message: string };
 
-// Where the collection last added to is remembered, in this browser, for
-// this address. It is offered again only while srl collections still lists
-// it.
-const LAST_COLLECTION = 'srl-web:last-collection';
+// Where the collection last added to with each kind is remembered, in this
+// browser, for this address: a JSON object of collections by kind name. A
+// kind's collection is offered again only while srl collections still lists
+// it; a kind with none starts without a collection.
+const LAST_COLLECTIONS = 'srl-web:last-collection-by-kind';
 
-function rememberedCollection(collections: string[]): string | null {
+function rememberedCollections(): Record<string, unknown> {
   try {
-    const remembered = localStorage.getItem(LAST_COLLECTION);
-    return remembered !== null && collections.includes(remembered) ? remembered : null;
+    const remembered: unknown = JSON.parse(localStorage.getItem(LAST_COLLECTIONS) ?? '{}');
+    return typeof remembered === 'object' && remembered !== null && !Array.isArray(remembered)
+      ? (remembered as Record<string, unknown>)
+      : {};
   } catch {
-    return null;
+    return {};
   }
 }
 
-function rememberCollection(collection: string) {
+function rememberedCollection(kind: string, collections: string[]): string | null {
+  const remembered = rememberedCollections()[kind];
+  return typeof remembered === 'string' && collections.includes(remembered) ? remembered : null;
+}
+
+function rememberCollection(kind: string, collection: string) {
   try {
-    localStorage.setItem(LAST_COLLECTION, collection);
+    localStorage.setItem(LAST_COLLECTIONS, JSON.stringify({ ...rememberedCollections(), [kind]: collection }));
   } catch {
-    // Not remembered: the next visit starts without a collection.
+    // Not remembered: the next visit starts without a collection for the kind.
   }
 }
 
@@ -79,8 +87,8 @@ export function Add() {
   // The field texts of the item last added of each kind, by kind name: in
   // memory only, so forgotten once the page leaves Add or is reloaded.
   const [lastAdded, setLastAdded] = useState<Record<string, Record<string, string>>>({});
-  // The collection chosen, or, until one is, the one last added to while
-  // srl still lists it.
+  // The collection chosen, or, until one is, the one last added to with the
+  // kind while srl still lists it. Choosing a kind forgets the choice.
   const [chosen, setCollection] = useState<string | null | undefined>(undefined);
   const [see, setSee] = useState<string | null>(null);
   const [draft, setDraft] = useState(false);
@@ -92,9 +100,10 @@ export function Add() {
 
   const kinds = store.kind === 'ready' ? store.kinds : [];
   const collections = store.kind === 'ready' ? store.collections : [];
-  const collection = chosen !== undefined ? chosen : rememberedCollection(collections);
   const notes = store.kind === 'ready' ? store.notes : [];
   const kind = kinds.find((k) => k.name === kindName) ?? kinds[0];
+  const collection =
+    chosen !== undefined ? chosen : kind !== undefined ? rememberedCollection(kind.name, collections) : null;
   const cloze = kind !== undefined ? clozeHint(kind.name) : undefined;
   // A field of the kind holds text: the item would be lost by leaving.
   const unsaved = kind !== undefined && kind.fields.some((field) => (texts[field.name] ?? '').trim() !== '');
@@ -137,7 +146,7 @@ export function Add() {
     const added = Object.fromEntries(kind.fields.map((f) => [f.name, texts[f.name] ?? '']));
     run(async () => {
       const ids = await api.add(collection, item());
-      rememberCollection(collection);
+      rememberCollection(kind.name, collection);
       setLastAdded((last) => ({ ...last, [kind.name]: added }));
       setTexts((t) => Object.fromEntries(Object.entries(t).filter(([name]) => !kind.fields.some((f) => f.name === name))));
       return { kind: 'added', ids, collection };
@@ -165,7 +174,10 @@ export function Add() {
               <div className="flex flex-wrap items-center gap-3">
                 <select
                   value={kind.name}
-                  onChange={(event) => setKindName(event.target.value)}
+                  onChange={(event) => {
+                    setKindName(event.target.value);
+                    setCollection(undefined);
+                  }}
                   className={`${INPUT} w-auto font-mono`}
                 >
                   {kinds.map((k) => (

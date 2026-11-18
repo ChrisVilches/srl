@@ -230,9 +230,12 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   writes the item its own
   way. Notes are never offered: they hold no items. The collections are
   read each time Add is shown.
-- The collection last added to is chosen again on the next visit. It is kept
-  in the browser's `localStorage`, so it is per browser and per address
-  (port), and forgotten when `srl collections` no longer lists it.
+- Each kind remembers the collection last added to with it: choosing the
+  kind, or coming back to Add, chooses that collection again, even over one
+  picked by hand; a kind that has none starts without a collection. They are
+  kept in the browser's `localStorage`, so they are per browser and per
+  address (port), and a kind's is not offered while `srl collections` no
+  longer lists it.
 - An optional **Context**, a note chosen the same way among those `srl
   notes` lists (your study material, by default the store's Markdown and
   text files), becomes the item's `see`. Without one, the item has no
