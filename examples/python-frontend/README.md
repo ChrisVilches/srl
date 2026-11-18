@@ -42,8 +42,11 @@ screen needs a modern terminal such as Windows Terminal.
   switches the focus, `s` suspends the card, `q` (or Ctrl-C) quits.
 - `s` first asks, on the last line, why the card is suspended: what to fix
   before studying it again, which `srl` keeps with the suspension (`srl
-  find --json` gives it). Enter suspends, with no reason if nothing was
-  typed; Escape doesn't suspend.
+  find --json` gives it), then for how many days, after which `srl` makes
+  the card active again by itself. Enter alone gives no reason, or no
+  days: the card stays suspended until it is unsuspended. Anything but a
+  whole number from 1 to 36500 asks for the days again, and Escape at
+  either question doesn't suspend.
 - The counters are the cards reviewed today, the new ones among them, and
   the Again ratings, of every card whatever the selector, as `srl stats`
   counts them: read before each card, so starting again keeps them and

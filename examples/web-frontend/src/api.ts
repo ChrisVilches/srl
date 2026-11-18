@@ -35,6 +35,8 @@ export type FoundCard = {
   due: string | null;
   // Why the card is suspended, if it was suspended with a reason.
   suspend_reason: string | null;
+  // The study day it is active again, if it was suspended for some days.
+  suspend_end: string | null;
   kind: string;
   see: string | null;
   excerpt: string;
@@ -46,7 +48,7 @@ export type Rating = 1 | 2 | 3 | 4;
 export type LogEvent = { t: string } & (
   | { type: 'review'; card: string; rating: Rating; hash: string }
   | { type: 'reset'; card: string }
-  | { type: 'suspend'; card: string; reason: string | null }
+  | { type: 'suspend'; card: string; reason: string | null; days: number | null }
   | { type: 'unsuspend'; card: string }
 );
 
@@ -119,8 +121,9 @@ export const api = {
   next: async (selector: string, signal: AbortSignal) =>
     (await call<{ card: Card | null }>(`/api/next?${new URLSearchParams({ sel: selector })}`, undefined, signal)).card,
   review: (card: string, rating: Rating) => change<object>('/api/review', { card, rating }),
-  // An empty REASON is no reason.
-  suspend: (card: string, reason: string) => change<object>('/api/suspend', { card, reason }),
+  // An empty REASON is no reason; null DAYS is until the card is unsuspended.
+  suspend: (card: string, reason: string, days: number | null) =>
+    change<object>('/api/suspend', { card, reason, days }),
   // Today's reviews of every card, the new cards and the Again ratings
   // among them, as srl stats --json counts them: none in a store with no card.
   today: async (): Promise<Today> => {

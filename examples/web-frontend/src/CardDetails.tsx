@@ -25,7 +25,8 @@ const RATING_NAMES: Record<Rating, { name: string; color: string }> = {
 export function CardDetails({ card, readHistory = true }: { card: FoundCard; readHistory?: boolean }) {
   return (
     <div className="flex flex-col gap-4 text-sm">
-      {/* A card suspended without a reason says so, with no reason. */}
+      {/* A card suspended without a reason says so, with no reason. One
+          suspended for some days says until when. */}
       {card.status === 'suspended' && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-500/40 dark:bg-amber-400/10">
           {card.suspend_reason === null ? (
@@ -36,6 +37,11 @@ export function CardDetails({ card, readHistory = true }: { card: FoundCard; rea
               <p className="mt-1 whitespace-pre-wrap">{card.suspend_reason}</p>
             </>
           )}
+          <p className="mt-1 text-amber-800 dark:text-amber-300">
+            {card.suspend_end === null
+              ? 'Until it is unsuspended'
+              : `Active again on ${card.suspend_end}`}
+          </p>
         </div>
       )}
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 sm:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
@@ -156,12 +162,16 @@ function EventText({ event }: { event: LogEvent }) {
     }
     case 'reset':
       return <>Reset: new again</>;
-    case 'suspend':
+    case 'suspend': {
+      const suspended = event.days === null ? 'Suspended' : `Suspended for ${event.days === 1 ? '1 day' : `${event.days} days`}`;
       return event.reason === null ? (
-        <>Suspended</>
+        <>{suspended}</>
       ) : (
-        <span className="whitespace-pre-wrap">Suspended: {event.reason}</span>
+        <span className="whitespace-pre-wrap">
+          {suspended}: {event.reason}
+        </span>
       );
+    }
     case 'unsuspend':
       return <>Unsuspended</>;
   }

@@ -6,8 +6,8 @@
 //   GET  /api/config       nothing                     → { on_change }
 //   GET  /api/next?sel=…   srl next SEL --json         → { card } or { card: null }
 //   POST /api/review       srl review CARD --rating N  ← { card, rating }
-//   POST /api/suspend      srl suspend id:CARD --reason REASON
-//                                                      ← { card, reason? }
+//   POST /api/suspend      srl suspend id:CARD --reason REASON [--days N]
+//                                                      ← { card, reason?, days? }
 //   GET  /api/stats        srl stats --json            → { stats } or, with no
 //                                                        card, { stats: null }
 //
@@ -122,13 +122,20 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       return {};
     },
 
-    // An empty or missing reason is no reason.
+    // An empty or missing reason is no reason; null or missing days is
+    // until the card is unsuspended.
     'POST /api/suspend': async (_url, body) => {
       const reason = body.reason ?? '';
       if (typeof reason !== 'string') {
         throw new BadRequest('reason must be text');
       }
-      await srl(['suspend', `id:${requireId(body.card)}`, `--reason=${reason}`]);
+      const days = body.days ?? null;
+      if (days !== null && !(Number.isInteger(days) && days >= 1 && days <= 36500)) {
+        throw new BadRequest('days must be a whole number from 1 to 36500');
+      }
+      const args = ['suspend', `id:${requireId(body.card)}`, `--reason=${reason}`];
+      if (days !== null) args.push(`--days=${days}`);
+      await srl(args);
       changed();
       return {};
     },

@@ -11,7 +11,8 @@ card and its context, `srl review ID --rating N` for the rating.
 Keys act at once, without Enter: space or Enter shows the answer, 1-4 rate,
 j/k or the arrows scroll the panel in focus, Ctrl-D/Ctrl-U by half of it,
 g/G to its top and bottom, Tab moves the focus between the card and the
-context, s suspends the card after asking why (Enter alone: no reason),
+context, s suspends the card after asking why and for how many days (Enter
+alone: no reason, or until it is unsuspended),
 q quits.
 """
 
@@ -212,6 +213,23 @@ def read_line(prompt):
             text += key
 
 
+def read_days():
+    """Reads for how many days to suspend a card, as read_line does: the
+    number, "" for until it is unsuspended, or None on Escape. Anything but
+    a whole number from 1 to 36500 asks again."""
+    prompt = "  for how many days? (Enter: until you unsuspend, Esc cancels): "
+    while True:
+        text = read_line(prompt)
+        if text is None:
+            return None
+        text = text.strip()
+        if not text:
+            return ""
+        if text.isascii() and text.isdigit() and 1 <= int(text) <= 36500:
+            return str(int(text))
+        prompt = "  days must be a whole number from 1 to 36500; for how many? "
+
+
 # The keys each side of the card takes, and the end of the bar that lists them.
 SCROLL_KEYS = {"j", "k", "up", "down", CTRL_D, CTRL_U, "g", "G"}
 QUESTION_KEYS = {" ", "\n", "s", "q"} | SCROLL_KEYS
@@ -405,11 +423,14 @@ class Session:
                 elif key == "G":
                     scroll[focus] = sys.maxsize
                 elif key == "s":
-                    # Why, so that the card can be fixed later; Enter alone
-                    # suspends without a reason, Escape doesn't suspend.
-                    reason = read_line("  why? (Enter suspends, Esc cancels): ")
-                    if reason is not None:
-                        srl("suspend", f"id:{card['id']}", f"--reason={reason.strip()}")
+                    # Why, so that the card can be fixed later, then for how
+                    # many days; Enter alone gives no reason, or no days (until
+                    # it is unsuspended). Escape at either doesn't suspend.
+                    reason = read_line("  why? (Enter: no reason, Esc cancels): ")
+                    days = None if reason is None else read_days()
+                    if days is not None:
+                        days = [f"--days={days}"] if days else []
+                        srl("suspend", f"id:{card['id']}", f"--reason={reason.strip()}", *days)
                         break
 
     def review(self, card, rating):

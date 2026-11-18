@@ -35,7 +35,8 @@ macOS and Windows (it is tried on Linux only).
   trace it back to where it comes from and what happened to it. Its card
   and item IDs, its kind (a built-in one too), its source, the name
   of its collection, the note its context comes from, its status (with the
-  reason, if it is suspended), its place in the schedule, the day it is
+  reason, if it is suspended, and the day it is active again, if it was
+  suspended for some days), its place in the schedule, the day it is
   due, whether it is a leech, and its history: every event of the log
   for it, newest first, each with its time, as `srl log` gives them (a
   review's rating and the hash of its question). They are `src/CardDetails.tsx`, which Browse's
@@ -60,7 +61,11 @@ macOS and Windows (it is tried on Linux only).
   card without recording a review, after asking why in a dialog: what to
   fix before studying it again. The reason may be left empty, or take
   several lines, kept as they are: Enter starts a new line, Escape
-  cancels, and only a click on the dialog's Suspend suspends. Buttons name
+  cancels, and only a click on the dialog's Suspend suspends. The dialog
+  also asks for how many days, after which srl makes the card active
+  again by itself; left empty, it stays suspended until it is
+  unsuspended, and anything but a whole number from 1 to 36500 disables
+  Suspend. Buttons name
   their key, as **Make again** `r` does, everywhere on the page, but not
   on a touch screen (a coarse primary pointer, as on a phone), which has
   no keys to press.
@@ -136,7 +141,8 @@ as how `ja_word` marks words, without studying:
   --json` prints it, in colors.
 - The **Details** side, after Edit, shows the card's details, the same
   as Study's modal, and is the only side that shows them. A suspended
-  card says so at their top, with the reason if it was given one, so
+  card says so at their top, with the reason if it was given one and
+  until when, so
   `is:suspended` lists the cards to fix, and what to fix. They come from
   the list, so they show at once; only the history is read, with `srl
   log`, once a card has stayed chosen for a moment, and again whenever
@@ -333,7 +339,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/on-change` | nothing | `{"busy": …, "last": …}`: whether a change is still waiting for its run, and the last run, `{"seq": N, "error": …}` with `error` `null` on success, or `null` before any |
 | `GET /api/next?sel=…` | `srl next SEL --json` | `{"card": …}`, what `srl` printed, or `null` when nothing is left |
 | `POST /api/review` | `srl review CARD --rating=N`, for `{"card": CARD, "rating": N}`; `N` must be 1, 2, 3 or 4 | `{}` |
-| `POST /api/suspend` | `srl suspend id:CARD --reason=REASON`, for `{"card": CARD, "reason": REASON}`; an empty or missing `reason` is none | `{}` |
+| `POST /api/suspend` | `srl suspend id:CARD --reason=REASON [--days=DAYS]`, for `{"card": CARD, "reason": REASON, "days": DAYS}`; an empty or missing `reason` is none, and a `null` or missing `days` is until the card is unsuspended | `{}` |
 | `GET /api/find?sel=…` | `srl find SEL --json`, then `srl show ITEM… --json --no-context` | `{"cards": […]}`: each card `srl find` printed, with `excerpt`, the first line of its first field |
 | `GET /api/log?id=…` | `srl log id:ID --json` | `{"events": […]}`: the card's events, in log order, as stored; those of other cards of an item of the same ID are left out |
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `collection`, `see` and `context`, as `srl next --json` gives them (not its `source`) |

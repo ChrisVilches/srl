@@ -24,7 +24,8 @@ srl-web in:grammar          # only collections in a folder named grammar
 For each card, space or Enter shows the answer, then the context (the
 note the item names with `see`; none for an item without `see`); `1`–`4` records the
 rating; `s` suspends the card without rating it, after asking why (what
-to fix before studying it again; it may be left empty). In `srl-tui`, the card
+to fix before studying it again) and for how many days (after which it is
+studied again); both may be left empty. In `srl-tui`, the card
 and the context scroll in panels of their own: `j`/`k` or the arrows
 scroll the one in focus (Ctrl-D/Ctrl-U by half of it, `g`/`G` to its top
 and bottom), Tab moves the focus, and `q` quits. Each keeps a count of the
@@ -147,7 +148,7 @@ read cards with `srl cards ID` or `srl find`, and ask.
 | Command | Does |
 |---|---|
 | `srl review ID --rating N` | Rate a card outside a session, even if not due (treated as an early review). |
-| `srl suspend SEL [--reason TEXT]` / `srl unsuspend SEL` | Stop / resume studying cards; the item doesn't change. The reason says what to fix; see the `fixing-problems` skill. |
+| `srl suspend SEL [--reason TEXT] [--days N]` / `srl unsuspend SEL` | Stop / resume studying cards; the item doesn't change. The reason says what to fix; with `--days`, the cards are active again by themselves after N days. See the `fixing-problems` skill. |
 | `srl reset SEL` | Make cards new again. Their history stays in the log. |
 
 `--dry-run` shows what `srl review` or `srl reset` would write.

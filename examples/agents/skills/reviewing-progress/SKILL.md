@@ -75,7 +75,9 @@ One line per event of the matching cards, in the order they were recorded:
 2026-10-26T10:00:00+09:00  k3m9q1.2  reset
 ```
 
-Events are `review` (with the rating), `reset`, `suspend` and `unsuspend`.
+Events are `review` (with the rating), `reset`, `suspend` (with its days
+and reason, if it has them) and `unsuspend`. A suspension for days ends
+without an event.
 `--json` prints them as stored.
 
 ## The log files directly

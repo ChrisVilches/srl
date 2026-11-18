@@ -103,10 +103,19 @@ schedule.
 - `srl suspend SEL --reason TEXT` also keeps why: what the person found
   wrong with the card, so that it can be fixed later. `srl find --json`
   gives it as `suspend_reason` (`null` when none was given), and `srl log`
-  shows it. Suspending cards that are already suspended with a new
-  `--reason` replaces their reason; without `--reason` they are left
-  alone. When you suspend a card the person complained about, put their
+  shows it. When you suspend a card the person complained about, put their
   complaint in `--reason`, in their words.
+- `srl suspend SEL --days N` suspends cards for N study days (1 to
+  36500): after that they are active again by themselves, with nothing
+  written to the log. `srl find --json` gives the day as `suspend_end`
+  (`null` when the suspension lasts until `srl unsuspend`). Use it when
+  the person wants a card out of the way for a while, not fixed.
+- The last suspension replaces the ones before, reason and days alike:
+  suspending an already suspended card with `--reason` or `--days`
+  suspends it again, dropping what it doesn't repeat, and a plain
+  `srl suspend` makes a suspension for days last until `srl unsuspend`.
+  Only a plain `srl suspend` of a card already suspended until it is
+  unsuspended leaves it alone.
 
 ## Revising suspended cards
 

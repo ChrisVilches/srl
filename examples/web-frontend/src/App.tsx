@@ -165,7 +165,8 @@ export function Study() {
     [phase, selector, step, toNext],
   );
 
-  // Suspending first asks why, in a dialog; the reason may be left empty.
+  // Suspending first asks why and for how long, in a dialog; both may be
+  // left empty.
   const [askingWhy, setAskingWhy] = useState(false);
   const askWhy = useCallback(() => {
     if (phase.kind !== 'prompt' && phase.kind !== 'answer') return;
@@ -173,12 +174,12 @@ export function Study() {
   }, [phase]);
 
   const suspend = useCallback(
-    (reason: string) => {
+    (reason: string, days: number | null) => {
       setAskingWhy(false);
       if (phase.kind !== 'prompt' && phase.kind !== 'answer') return;
       const { card } = phase;
       step(async () => {
-        await api.suspend(card.id, reason.trim());
+        await api.suspend(card.id, reason.trim(), days);
         await toNext(selector);
       });
     },
@@ -334,21 +335,30 @@ function CardView({
 
 // Asks why the card is suspended, so that it can be fixed later: srl keeps
 // the reason, and srl find --json gives it. Enter starts a new line, as in
-// any text box, Escape cancels. Suspending has no key, as a red button
-// has none: it takes a click.
+// any text box, Escape cancels. It also asks for how many days, after which
+// srl makes the card active again by itself; left empty, the card stays
+// suspended until it is unsuspended. Suspending has no key, as a red button
+// has none: it takes a click, and not while the days are not a whole number
+// from 1 to 36500.
 function SuspendDialog({
   open,
   onSuspend,
   onClose,
 }: {
   open: boolean;
-  onSuspend: (reason: string) => void;
+  onSuspend: (reason: string, days: number | null) => void;
   onClose: () => void;
 }) {
   const [reason, setReason] = useState('');
+  const [days, setDays] = useState('');
   useEffect(() => {
-    if (open) setReason('');
+    if (open) {
+      setReason('');
+      setDays('');
+    }
   }, [open]);
+  const dayCount = days.trim() === '' ? null : Number(days);
+  const daysValid = dayCount === null || (Number.isInteger(dayCount) && dayCount >= 1 && dayCount <= 36500);
 
   return (
     <Modal open={open} title="Suspend this card" onClose={onClose}>
@@ -363,7 +373,26 @@ function SuspendDialog({
           className="rounded-lg border border-stone-300 bg-white p-2 text-base text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
         />
       </label>
-      <button onClick={() => onSuspend(reason)} className={`self-start px-5 py-2.5 ${DANGER_BUTTON}`}>
+      <label className="flex flex-col gap-4 text-sm text-stone-500">
+        For how many days? Empty: until you unsuspend it
+        <input
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={36500}
+          step={1}
+          value={days}
+          onChange={(event) => setDays(event.target.value)}
+          placeholder="e.g. 7"
+          aria-invalid={!daysValid}
+          className="w-32 rounded-lg border border-stone-300 bg-white p-2 text-base text-stone-900 aria-[invalid=true]:border-rose-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+        />
+      </label>
+      <button
+        onClick={() => onSuspend(reason, dayCount)}
+        disabled={!daysValid}
+        className={`self-start px-5 py-2.5 ${DANGER_BUTTON}`}
+      >
         Suspend
       </button>
     </Modal>
