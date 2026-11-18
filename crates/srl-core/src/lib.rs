@@ -31,7 +31,7 @@ pub use domain::stats::{ScheduleCounts, Stats, stats};
 pub use error::{Error, Result, Spot};
 pub use index::Index;
 pub use kind::{FieldDescription, Kind, KindDescription, kinds};
-pub use log::{CardEvent, Entry, Event, Log, Review, Suspend};
+pub use log::{CardEvent, Entry, Event, Log, MAX_SUSPEND_DAYS, Review, Suspend};
 #[cfg(unix)]
 pub use process::stop_programs;
 pub use store::{Lookup, Store};

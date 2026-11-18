@@ -36,10 +36,14 @@ pub struct Memory {
     pub last_review: Option<Date>,
     /// The study day the card is due again.
     pub due: Option<Date>,
-    /// Whether the card is suspended.
+    /// Whether its last `suspend` or `unsuspend` is a `suspend`, whether or
+    /// not that suspension has ended (see [`Memories::is_suspended`]).
     pub suspended: bool,
-    /// Why, if its last `suspend` said, while it is suspended.
+    /// Why, if its last `suspend` said, while `suspended`.
     pub suspend_reason: Option<String>,
+    /// The study day its last `suspend` ends, if it said for how long,
+    /// while `suspended`.
+    pub suspend_end: Option<Date>,
     /// Its last review, whether before or after a reset, for the sibling
     /// rule (see `docs/scheduling.md`, "Siblings").
     pub seen: Option<Seen>,
@@ -152,6 +156,7 @@ impl Replayer {
                 let next = Memory {
                     suspended: old.suspended,
                     suspend_reason: old.suspend_reason,
+                    suspend_end: old.suspend_end,
                     seen: old.seen,
                     ..Memory::default()
                 };
@@ -160,9 +165,14 @@ impl Replayer {
             }
             Event::Suspend(event) => {
                 let old = memory(memories, &event.card);
+                // An end past the last date there is never comes.
+                let end = event
+                    .days
+                    .and_then(|days| entry.day.checked_add(Span::new().days(days)).ok());
                 let next = Memory {
                     suspended: true,
                     suspend_reason: event.reason.clone(),
+                    suspend_end: end,
                     ..old
                 };
                 memories.insert(event.card.clone(), next);
@@ -173,6 +183,7 @@ impl Replayer {
                 let next = Memory {
                     suspended: false,
                     suspend_reason: None,
+                    suspend_end: None,
                     ..old
                 };
                 memories.insert(event.card.clone(), next);
@@ -245,16 +256,30 @@ impl Memories {
         self.get(id).lapses >= self.leech_lapses
     }
 
-    /// Whether card `id` is suspended.
-    pub fn is_suspended(&self, id: &CardId) -> bool {
-        self.get(id).suspended
+    /// The memory of card `id` while it is suspended today: its last
+    /// `suspend` or `unsuspend` is a `suspend` whose end, if it has one, is
+    /// after today.
+    fn suspension(&self, id: &CardId) -> Option<&Memory> {
+        self.by_card.get(id).filter(|memory| {
+            memory.suspended && memory.suspend_end.is_none_or(|end| self.today < end)
+        })
     }
 
-    /// Why card `id` is suspended, if its last `suspend` said.
+    /// Whether card `id` is suspended today.
+    pub fn is_suspended(&self, id: &CardId) -> bool {
+        self.suspension(id).is_some()
+    }
+
+    /// Why card `id` is suspended, if it is and its last `suspend` said.
     pub fn suspend_reason(&self, id: &CardId) -> Option<String> {
-        self.by_card
-            .get(id)
+        self.suspension(id)
             .and_then(|memory| memory.suspend_reason.clone())
+    }
+
+    /// The study day card `id` is active again, if it is suspended and its
+    /// last `suspend` said for how long.
+    pub fn suspend_end(&self, id: &CardId) -> Option<Date> {
+        self.suspension(id).and_then(|memory| memory.suspend_end)
     }
 
     /// Whether card `id` was reviewed on today's study day.
@@ -377,11 +402,16 @@ mod tests {
     }
 
     fn suspend(day: Date, reason: Option<&str>) -> Entry {
+        suspend_for(day, reason, None)
+    }
+
+    fn suspend_for(day: Date, reason: Option<&str>, days: Option<u32>) -> Entry {
         Entry {
             event: Event::Suspend(Suspend {
                 t: at(day),
                 card: id(),
                 reason: reason.map(str::to_owned),
+                days,
             }),
             day,
         }
@@ -489,6 +519,55 @@ mod tests {
             ]),
             None
         );
+    }
+
+    #[test]
+    fn a_suspension_for_days_ends_by_itself() {
+        let day = date(2026, 1, 1);
+        let entries = || vec![suspend_for(day, Some("later"), Some(2))];
+        let during = replay(entries(), date(2026, 1, 2));
+        assert!(during.is_suspended(&id()));
+        assert_eq!(during.suspend_reason(&id()).as_deref(), Some("later"));
+        assert_eq!(during.suspend_end(&id()), Some(date(2026, 1, 3)));
+        let after = replay(entries(), date(2026, 1, 3));
+        assert!(!after.is_suspended(&id()));
+        assert_eq!(after.suspend_reason(&id()), None);
+        assert_eq!(after.suspend_end(&id()), None);
+    }
+
+    #[test]
+    fn the_last_suspend_decides_how_long() {
+        let day = date(2026, 1, 1);
+        let later = date(2026, 1, 10);
+        // A suspension for days after one without a limit ends.
+        let memories = replay(
+            vec![suspend(day, None), suspend_for(day, None, Some(1))],
+            later,
+        );
+        assert!(!memories.is_suspended(&id()));
+        // One without a limit after one for days doesn't.
+        let memories = replay(
+            vec![suspend_for(day, None, Some(1)), suspend(day, None)],
+            later,
+        );
+        assert!(memories.is_suspended(&id()));
+        assert_eq!(memories.suspend_end(&id()), None);
+    }
+
+    #[test]
+    fn a_reset_keeps_the_end_of_a_suspension() {
+        let day = date(2026, 1, 1);
+        let entries = || {
+            vec![
+                suspend_for(day, None, Some(3)),
+                card_event(day, Event::Reset),
+            ]
+        };
+        assert_eq!(
+            replay(entries(), day).suspend_end(&id()),
+            Some(date(2026, 1, 4))
+        );
+        assert!(!replay(entries(), date(2026, 1, 4)).is_suspended(&id()));
     }
 
     #[test]

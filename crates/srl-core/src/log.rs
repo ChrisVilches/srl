@@ -30,6 +30,10 @@ const LOCK_RETRY: Duration = Duration::from_millis(20);
 /// The number of hex characters of an item's SHA-256 in `hash`.
 const HASH_LEN: usize = 12;
 
+/// The most days a suspension can last (see `docs/log.md`, "`suspend` and
+/// `unsuspend`").
+pub const MAX_SUSPEND_DAYS: u32 = 36_500;
+
 /// One line of the log.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
@@ -71,6 +75,11 @@ pub struct Suspend {
     /// no `reason`, and are read as without one.
     #[serde(default)]
     pub reason: Option<String>,
+    /// For how many study days, or `None` until it is unsuspended. Lines
+    /// written before there were limits have no `days`, and are read as
+    /// without one.
+    #[serde(default)]
+    pub days: Option<u32>,
 }
 
 impl Event {
@@ -100,12 +109,20 @@ impl Event {
             .map_err(|error| format!("its time `{t}` is not ISO 8601 ({error})"))
     }
 
-    /// Checks what serde can't: the time and the rating.
+    /// Checks what serde can't: the time, the rating and the days of a
+    /// suspension.
     fn check(&self) -> std::result::Result<DateTime, String> {
         if let Self::Review(review) = self
             && !(1..=4).contains(&review.rating)
         {
             return Err(format!("its rating is {}, not 1 to 4", review.rating));
+        }
+        if let Self::Suspend(Suspend {
+            days: Some(days), ..
+        }) = self
+            && !(1..=MAX_SUSPEND_DAYS).contains(days)
+        {
+            return Err(format!("its days are {days}, not 1 to {MAX_SUSPEND_DAYS}"));
         }
         self.local()
     }
@@ -345,18 +362,26 @@ mod tests {
             t: "2026-10-26T10:10:00+09:00".to_owned(),
             card: card("x7k2m9"),
             reason: Some("too hard for now".to_owned()),
+            days: Some(7),
         });
         assert_eq!(
             serde_json::to_value(&suspended).unwrap(),
             serde_json::json!({"type": "suspend", "t": "2026-10-26T10:10:00+09:00",
-                "card": "x7k2m9", "reason": "too hard for now"})
+                "card": "x7k2m9", "reason": "too hard for now", "days": 7})
         );
-        // Lines written before there were reasons have none.
+        // Lines written before there were reasons or limits have none.
         let old: Event = serde_json::from_str(
             r#"{"type": "suspend", "t": "2026-10-26T10:10:00+09:00", "card": "x7k2m9"}"#,
         )
         .unwrap();
-        assert!(matches!(old, Event::Suspend(Suspend { reason: None, .. })));
+        assert!(matches!(
+            old,
+            Event::Suspend(Suspend {
+                reason: None,
+                days: None,
+                ..
+            })
+        ));
     }
 
     #[test]
@@ -427,6 +452,9 @@ mod tests {
             good.replace("\"hash\"", "\"response\":null,\"hash\""),
             good.replace("k3m9q1.2", "K3M9Q1"),
             good.replace("\"review\"", "\"rename\""),
+            r#"{"type":"suspend","t":"2026-10-26T10:10:00+09:00","card":"x7k2m9","reason":null,"days":0}"#.to_owned(),
+            r#"{"type":"suspend","t":"2026-10-26T10:10:00+09:00","card":"x7k2m9","reason":null,"days":36501}"#.to_owned(),
+            r#"{"type":"suspend","t":"2026-10-26T10:10:00+09:00","card":"x7k2m9","reason":null,"days":-1}"#.to_owned(),
         ];
         fs::write(&file, format!("{good}{}\n", bad.join("\n"))).unwrap();
         let log = Log::load(&store, &Schedule::default()).unwrap();

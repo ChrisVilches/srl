@@ -61,22 +61,29 @@ pub fn reset(
     Ok(ids)
 }
 
-/// Suspends each of `selected` that is active, with `reason` if given, and
-/// returns their IDs. With a reason, cards already suspended are suspended
-/// again, so that it replaces theirs. Drafts are left alone.
+/// Suspends each of `selected`, with `reason` and for `days` if given, and
+/// returns their IDs. The last suspension of a card replaces the ones
+/// before, so cards already suspended are suspended again, except, when
+/// there is neither, those suspended until they are unsuspended. Drafts are
+/// left alone.
 pub fn suspend(
     store: &Store,
     selected: &[(&Item, &CardId)],
     memories: &Memories,
     reason: Option<&str>,
+    days: Option<u32>,
     now: &Zoned,
     dry_run: bool,
 ) -> Result<Vec<CardId>> {
+    let unchanged = |card: &CardId| {
+        reason.is_none()
+            && days.is_none()
+            && memories.is_suspended(card)
+            && memories.suspend_end(card).is_none()
+    };
     let ids = selected
         .iter()
-        .filter(|(item, card)| {
-            !item.is_draft() && (reason.is_some() || !memories.is_suspended(card))
-        })
+        .filter(|(item, card)| !item.is_draft() && !unchanged(card))
         .map(|(_, card)| (*card).clone())
         .collect::<Vec<_>>();
     let events = ids
@@ -86,6 +93,7 @@ pub fn suspend(
                 t: log::time(now),
                 card: id.clone(),
                 reason: reason.map(str::to_owned),
+                days,
             })
         })
         .collect();
@@ -224,9 +232,10 @@ mod tests {
     fn suspend_and_unsuspend_skip_drafts_and_cards_already_there() {
         let (_tmp, store, catalog) = store();
         let all = catalog.cards().collect::<Vec<_>>();
-        let suspended = suspend(&store, &all, &memories(&store), None, &now(), false).unwrap();
+        let suspended =
+            suspend(&store, &all, &memories(&store), None, None, &now(), false).unwrap();
         assert_eq!(suspended.len(), 3);
-        let again = suspend(&store, &all, &memories(&store), None, &now(), false).unwrap();
+        let again = suspend(&store, &all, &memories(&store), None, None, &now(), false).unwrap();
         assert_eq!(again, [] as [CardId; 0]);
         let back = unsuspend(&store, &all[..1], &memories(&store), &now(), false).unwrap();
         assert_eq!(back, [CardId::parse("aaa1").unwrap()]);
@@ -240,9 +249,27 @@ mod tests {
         let (_tmp, store, catalog) = store();
         let all = catalog.cards().collect::<Vec<_>>();
         let id = CardId::parse("aaa1").unwrap();
-        suspend(&store, &all[..1], &memories(&store), None, &now(), false).unwrap();
+        suspend(
+            &store,
+            &all[..1],
+            &memories(&store),
+            None,
+            None,
+            &now(),
+            false,
+        )
+        .unwrap();
         assert_eq!(memories(&store).suspend_reason(&id), None);
-        let again = suspend(&store, &all, &memories(&store), Some("ugly"), &now(), false).unwrap();
+        let again = suspend(
+            &store,
+            &all,
+            &memories(&store),
+            Some("ugly"),
+            None,
+            &now(),
+            false,
+        )
+        .unwrap();
         assert_eq!(again.len(), 3);
         assert_eq!(
             memories(&store).suspend_reason(&id).as_deref(),
@@ -250,5 +277,49 @@ mod tests {
         );
         unsuspend(&store, &all[..1], &memories(&store), &now(), false).unwrap();
         assert_eq!(memories(&store).suspend_reason(&id), None);
+    }
+
+    #[test]
+    fn the_last_suspension_replaces_one_for_days() {
+        let (_tmp, store, catalog) = store();
+        let all = catalog.cards().collect::<Vec<_>>();
+        let id = CardId::parse("aaa1").unwrap();
+        let end = |store: &Store| memories(store).suspend_end(&id);
+        // Days suspend cards already suspended until they are unsuspended.
+        suspend(
+            &store,
+            &all[..1],
+            &memories(&store),
+            Some("ugly"),
+            None,
+            &now(),
+            false,
+        )
+        .unwrap();
+        let again = suspend(
+            &store,
+            &all[..1],
+            &memories(&store),
+            None,
+            Some(3),
+            &now(),
+            false,
+        );
+        assert_eq!(again.unwrap(), std::slice::from_ref(&id));
+        assert_eq!(end(&store), Some(jiff::civil::date(2026, 10, 29)));
+        assert_eq!(memories(&store).suspend_reason(&id), None);
+        // A suspension with neither makes one for days last.
+        let again = suspend(
+            &store,
+            &all[..1],
+            &memories(&store),
+            None,
+            None,
+            &now(),
+            false,
+        );
+        assert_eq!(again.unwrap(), std::slice::from_ref(&id));
+        assert_eq!(end(&store), None);
+        assert!(memories(&store).is_suspended(&id));
     }
 }

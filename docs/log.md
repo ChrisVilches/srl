@@ -36,7 +36,7 @@ skipped, like any invalid line; the next command reads the whole line.
 > `crates/srl-core/src/log.rs`) carries the same TODO.
 
 Reading the log, a line that is not a valid event (not JSON, a field
-missing or of the wrong type, an unknown field, a rating outside 1–4, a time
+missing or of the wrong type, an unknown field, a rating outside 1–4, `days` outside 1–36500, a time
 without an offset, an invalid card ID) is skipped and reported on standard
 error, with its file and line number. Every command carries on with the
 other events.
@@ -80,7 +80,7 @@ The card is new again after this event (see [scheduling.md](scheduling.md),
 ### `suspend` and `unsuspend`
 
 ```json
-{"type": "suspend", "t": "2026-10-26T10:10:00+09:00", "card": "x7k2m9", "reason": "Too hard for now; split it in two."}
+{"type": "suspend", "t": "2026-10-26T10:10:00+09:00", "card": "x7k2m9", "reason": "Too hard for now; split it in two.", "days": null}
 {"type": "unsuspend", "t": "2026-11-02T08:00:00+09:00", "card": "x7k2m9"}
 ```
 
@@ -88,12 +88,22 @@ The card is new again after this event (see [scheduling.md](scheduling.md),
 |---|---|
 | `card` | The card's ID. |
 | `reason` | `suspend` only: why the card was suspended, as text, if it was suspended with one (`srl suspend --reason`), so that it can be fixed later. `null` if none was given. Suspensions recorded before this rule have no `reason`, and are read as with `null`. |
+| `days` | `suspend` only: for how many study days the card is suspended (`srl suspend --days`), from 1 to 36500, or `null` for until it is unsuspended. Suspensions recorded before this rule have no `days`, and are read as with `null`. |
 
 A card is suspended when its last `suspend` or `unsuspend` event is a
-`suspend` (see [items.md](items.md), "Status"). Its reason is the
-`reason` of that last `suspend`: a new `suspend` replaces it, even with
-`null`, and an `unsuspend` clears it. A `reset` keeps it, as it keeps the
-suspension.
+`suspend` (see [items.md](items.md), "Status"), and that `suspend` has
+not ended. A `suspend` with `days` ends on the study day of its own time
+`t` plus `days` (see [scheduling.md](scheduling.md), "Days, not
+minutes"): suspended on study day D for 2 days, the card is active again
+on D + 2, and for 1 day, the next study day. Nothing is written to the
+log when it ends. The last `suspend` decides alone: a `suspend` with
+`days` after one without ends all the same, and one without after one
+with lasts until an `unsuspend`.
+
+While the card is suspended, its reason is the `reason` of that last
+`suspend`: a new `suspend` replaces it, even with `null`, and an
+`unsuspend` or the end of the suspension clears it. A `reset` keeps the
+suspension, with its reason and its end.
 
 ## Reading the log
 

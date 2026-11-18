@@ -168,10 +168,21 @@ pub(crate) fn events(events: &[&Event]) {
         let what = match event {
             Event::Review(review) => format!("review  {}", review.rating),
             Event::Reset(_) => "reset".to_owned(),
-            Event::Suspend(suspended) => match &suspended.reason {
-                Some(reason) => format!("suspend  {}", reason.lines().next().unwrap_or("")),
-                None => "suspend".to_owned(),
-            },
+            Event::Suspend(suspended) => {
+                let days = suspended.days.map(|days| match days {
+                    1 => "1 day".to_owned(),
+                    days => format!("{days} days"),
+                });
+                let reason = suspended
+                    .reason
+                    .as_deref()
+                    .map(|reason| reason.lines().next().unwrap_or(""));
+                std::iter::once("suspend")
+                    .chain(days.as_deref())
+                    .chain(reason)
+                    .collect::<Vec<_>>()
+                    .join("  ")
+            }
             Event::Unsuspend(_) => "unsuspend".to_owned(),
         };
         out!("{}  {}  {what}", event.t(), event.card());

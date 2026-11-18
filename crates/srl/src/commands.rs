@@ -58,11 +58,13 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Suspend {
             selector: terms,
             reason,
+            days,
             dry_run,
         } => suspend(
             &store()?,
             &selector(&terms.terms)?,
             reason.as_deref(),
+            days,
             dry_run.dry_run,
         ),
         Command::Unsuspend {
@@ -302,6 +304,7 @@ fn find(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcom
                     "leech": memories.is_leech(card),
                     "due": memories.get(card).due.map(|day| day.to_string()),
                     "suspend_reason": memories.suspend_reason(card),
+                    "suspend_end": memories.suspend_end(card).map(|day| day.to_string()),
                 })
             })
             .collect::<Vec<_>>();
@@ -474,6 +477,7 @@ fn suspend(
     store: &Store,
     selector: &Selector,
     reason: Option<&str>,
+    days: Option<u32>,
     dry_run: bool,
 ) -> anyhow::Result<Outcome> {
     let loaded = open(store)?;
@@ -483,6 +487,7 @@ fn suspend(
         &selected,
         &loaded.memories,
         reason.filter(|reason| !reason.is_empty()),
+        days,
         &loaded.now,
         dry_run,
     )?;

@@ -46,7 +46,8 @@ question each time, like an arithmetic drill.
 
 A frontend may offer more, with the other commands everyone has: suspending the
 card (`srl suspend id:ID`, with `--reason TEXT` if the person says why,
-so that they can fix the card later), opening the note its item names
+so that they can fix the card later, and `--days N` if they want it back
+by itself after N days), opening the note its item names
 (`see`, relative to the store's folder, in a program of its choice), or
 a summary at the end, counting the cards whose `schedule` was `new`.
 

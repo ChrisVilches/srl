@@ -456,9 +456,11 @@ fn find_json_prints_one_card_per_line() {
         [
             serde_json::json!({"id": "k3m9q1.2", "item": "k3m9q1", "kind": "qa", "see": "japanese/grammar/wo.md",
                 "collection": "japanese/grammar/wo.jsonl",
-                "source": "items", "status": "active", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
+                "source": "items", "status": "active", "schedule": "new", "leech": false, "due": null, "suspend_reason": null,
+                "suspend_end": null}),
             serde_json::json!({"id": "saba01", "item": "saba01", "kind": "qa", "see": null, "collection": "kanji/fish.jsonl",
-                "source": "items", "status": "draft", "schedule": "new", "leech": false, "due": null, "suspend_reason": null}),
+                "source": "items", "status": "draft", "schedule": "new", "leech": false, "due": null, "suspend_reason": null,
+                "suspend_end": null}),
         ]
     );
 }
@@ -718,6 +720,62 @@ fn a_suspension_keeps_its_reason_until_another_replaces_it() {
     assert!(log[1].ends_with("  tuna01  suspend  split it"), "{log:?}");
     srl(&["unsuspend", "id:tuna01", "--dir", d]);
     assert_eq!(reason(&tmp), serde_json::Value::Null);
+}
+
+#[test]
+fn a_suspension_for_days_ends_by_itself() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let day = "2026-01-05T09:00:00Z";
+    let two_days_later = "2026-01-07T09:00:00Z";
+    let found = |now: &str| {
+        json_lines(&srl_at(now, &["find", "id:tuna01", "--json", "--dir", d])).remove(0)
+    };
+    // A suspension until it is unsuspended, then one for two days: the
+    // last one decides.
+    srl_at(day, &["suspend", "id:tuna01", "--dir", d]);
+    let suspended = srl_at(
+        day,
+        &[
+            "suspend",
+            "id:tuna01",
+            "--days",
+            "2",
+            "--reason",
+            "later",
+            "--dir",
+            d,
+        ],
+    );
+    assert_eq!(lines(&suspended), ["tuna01"], "{}", stderr(&suspended));
+    let during = found("2026-01-06T09:00:00Z");
+    assert_eq!(during["status"], "suspended");
+    assert_eq!(during["suspend_reason"], "later");
+    assert_eq!(during["suspend_end"], "2026-01-07");
+    let after = found(two_days_later);
+    assert_eq!(after["status"], "active");
+    assert_eq!(after["suspend_reason"], serde_json::Value::Null);
+    assert_eq!(after["suspend_end"], serde_json::Value::Null);
+    let next = srl_at(two_days_later, &["next", "id:tuna01", "--dir", d]);
+    assert_eq!(next.status.code(), Some(0), "{}", stderr(&next));
+    // Nothing to unsuspend once it has ended.
+    let back = srl_at(two_days_later, &["unsuspend", "id:tuna01", "--dir", d]);
+    assert_eq!(back.status.code(), Some(1));
+    let log = lines(&srl(&["log", "id:tuna01", "--dir", d]));
+    assert!(
+        log[1].ends_with("  tuna01  suspend  2 days  later"),
+        "{log:?}"
+    );
+    // A suspension without days makes one for days last.
+    srl_at(day, &["suspend", "id:tuna01", "--days", "1", "--dir", d]);
+    let again = srl_at(day, &["suspend", "id:tuna01", "--dir", d]);
+    assert_eq!(lines(&again), ["tuna01"]);
+    assert_eq!(found(two_days_later)["status"], "suspended");
+    // Days are 1 to 36500.
+    for days in ["0", "36501", "x"] {
+        let refused = srl(&["suspend", "id:tuna01", "--days", days, "--dir", d]);
+        assert_eq!(refused.status.code(), Some(2), "{days}");
+    }
 }
 
 #[test]

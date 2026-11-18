@@ -158,14 +158,18 @@ pub(crate) enum Command {
         #[command(flatten)]
         dry_run: DryRun,
     },
-    /// Suspend matching active cards.
+    /// Suspend matching cards; a new suspension replaces the one before.
     Suspend {
         #[command(flatten)]
         selector: Selector,
-        /// Why, kept with the suspension; it replaces the reason of cards
-        /// already suspended.
+        /// Why, kept with the suspension.
         #[arg(long)]
         reason: Option<String>,
+        /// For how many study days, after which the cards are active again
+        /// (default: until they are unsuspended).
+        #[arg(long, value_name = "N",
+              value_parser = clap::value_parser!(u32).range(1..=i64::from(srl_core::MAX_SUSPEND_DAYS)))]
+        days: Option<u32>,
         #[command(flatten)]
         dry_run: DryRun,
     },

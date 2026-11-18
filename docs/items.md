@@ -85,7 +85,7 @@ and usable in selectors as `is:NAME` (see
 | Status | Studied? | Comes from |
 |---|---|---|
 | `draft` | no | The item has `draft`. |
-| `suspended` | no | The card was suspended with `srl suspend`, and not unsuspended since (see [log.md](log.md)). |
+| `suspended` | no | The card was suspended with `srl suspend`, not unsuspended since, and the suspension, if it was for a number of days, has not ended (see [log.md](log.md)). |
 | `active` | yes | Neither. |
 
 A card that is both a draft and suspended is `draft`.
@@ -96,7 +96,9 @@ SELECTOR` removes `draft` from the matching items. Suspending is about
 studying, not about the item, so it is recorded in the log and never
 changes the item. A suspension may say why (`srl suspend --reason`), such
 as what to fix in the item before studying it again; `srl find --json`
-gives it as `suspend_reason`.
+gives it as `suspend_reason`. It may also say for how many days (`srl
+suspend --days`), after which the card is active again by itself; `srl
+find --json` gives the study day as `suspend_end`.
 
 ## Context
 

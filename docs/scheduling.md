@@ -46,7 +46,10 @@ command that needs memory states replays the whole log, one rule per step:
   Its status, and the time of its last review for the sibling rule, are
   kept.
 - `suspend` and `unsuspend` events only change the card's status (see
-  [items.md](items.md), "Status").
+  [items.md](items.md), "Status"). A `suspend` for a number of days ends
+  on its study day plus those days, so whether the card is suspended
+  depends on the study day, like whether it is due (see
+  [log.md](log.md), "`suspend` and `unsuspend`").
 
 Events about cards that no longer exist are replayed like any other; their
 memory is kept, and used again if the card comes back.

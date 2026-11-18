@@ -347,6 +347,7 @@ mod tests {
                     t: "2026-01-01T12:00:00+00:00".to_owned(),
                     card: CardId::parse("aaa4").unwrap(),
                     reason: None,
+                    days: None,
                 }),
                 day,
             },
@@ -544,11 +545,7 @@ mod tests {
         let item = &items[0];
         let card = &item.cards()[0];
         let memories = memories();
-        for selector in [
-            "in:caf\u{e9}",
-            "in:cafe\u{301}",
-            "in:CAFE\u{301}",
-        ] {
+        for selector in ["in:caf\u{e9}", "in:cafe\u{301}", "in:CAFE\u{301}"] {
             let matched = Selector::parse(selector, &Config::default())
                 .unwrap()
                 .matches(item, card, &memories);

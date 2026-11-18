@@ -88,7 +88,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl edit --stdin` | Replace items, in any source, with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). Nothing else of their collections changes. Prints the IDs of the items. |
 | `srl move ID… COLLECTION` | Move the items of the IDs, from any source, to the collection `COLLECTION`, which must exist (see "Moving items" below). Prints the IDs of the items moved. |
 | `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
-| `srl suspend SELECTOR [--reason TEXT]` | Suspend matching active cards, saying why if `--reason` is given (see below). |
+| `srl suspend SELECTOR [--reason TEXT] [--days N]` | Suspend matching cards, saying why if `--reason` is given, and for N study days if `--days` is given (see below). |
 | `srl unsuspend SELECTOR` | Make matching suspended cards active again. |
 
 `srl find --json` prints one object per card:
@@ -96,7 +96,8 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 ```json
 {"id": "k3m9q1.2", "item": "k3m9q1", "kind": "qa", "see": "japanese/grammar/wo.md",
  "collection": "japanese/grammar.jsonl", "source": "items", "status": "active",
- "schedule": "due", "leech": false, "due": "2026-10-24", "suspend_reason": null}
+ "schedule": "due", "leech": false, "due": "2026-10-24", "suspend_reason": null,
+ "suspend_end": null}
 ```
 
 `kind` is the item's kind and `see` the path of its note, or `null`, as
@@ -107,7 +108,10 @@ keeps being forgotten (see [scheduling.md](scheduling.md), "Schedule" and
 "Leeches"). `due` is the study day the card is due, or `null` for a new card.
 `suspend_reason` is why the card is suspended, the `reason` of its last
 `suspend` event (see [log.md](log.md)), or `null` if the card is not
-suspended or was suspended without one. `srl show
+suspended or was suspended without one. `suspend_end` is the study day
+the card is active again, when its last `suspend` was for a number of
+days, or `null` if the card is not suspended or is suspended until it is
+unsuspended. `srl show
 --json` prints one item object per item, with every entry and the keys
 only `srl` gives (see [items.md](items.md), "The item object").
 `--no-context` leaves the context out, without reading the note (see
@@ -242,9 +246,15 @@ the reason, exit 2, and prints no card at all.
 `srl accept`, `srl suspend` and `srl unsuspend` apply the selector exactly
 as written, and change only matching cards that have the status they start
 from: `srl suspend in:x` doesn't touch drafts. One exception: `srl
-suspend --reason TEXT` suspends matching cards that are already suspended
-again too, so that the new reason replaces theirs; every card it changes
-gets the same reason. An empty `TEXT` is no reason. `srl accept` prints the item
+suspend` also suspends matching cards that are already suspended again,
+since the last suspension replaces the ones before, reason and days alike
+(see [log.md](log.md), "`suspend` and `unsuspend`"). Only without
+`--reason` and `--days` does it leave alone the cards already suspended
+until they are unsuspended. So `srl suspend --days 3` on a card
+suspended until it is unsuspended makes it active again in 3 days, and
+a plain `srl suspend` on a card suspended for days keeps it suspended
+until it is unsuspended, without a reason. Every card it changes gets the
+same reason and days. An empty `TEXT` is no reason; `N` is 1 to 36500. `srl accept` prints the item
 IDs it changed, the others the card IDs, one per line in the order they are
 written, and each exits with 1 if it changed nothing. `srl accept` changes
 items (see [items.md](items.md), "How srl changes items"); the others
@@ -407,8 +417,8 @@ where `retention` is a number from 0 to 1, or `null`.
 
 `srl log` prints one line per event, its fields separated by two spaces:
 the time, the card, and then `review` and the rating;
-`reset`; `suspend` and the first line of its reason, if it has one;
-or `unsuspend`.
+`reset`; `suspend`, its days as `N days` (`1 day`) if it has them, and
+the first line of its reason, if it has one; or `unsuspend`.
 
 ## Checking
 
