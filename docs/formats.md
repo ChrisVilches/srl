@@ -55,7 +55,8 @@ most (see [sources.md](sources.md), "Collections").
 
 A collection's **name** is its path, relative to the store's folder,
 with `/` between folders. JSON outputs give the name of the
-collection an item is in (`collection`). `srl collections` lists every
+collection an item is in (`collection`), and `collection:` takes it
+(see [selectors.md](selectors.md)). `srl collections` lists every
 collection, including those that hold no items (see [cli.md](cli.md)).
 
 Its **`in` names**, which `in:` matches (see [selectors.md](selectors.md)),

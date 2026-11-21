@@ -24,6 +24,7 @@ puts it after `--`.
 | Term | Matches |
 |---|---|
 | `in:NAME` | Cards whose item's collection has `NAME` among its **`in` names**, which its source gives (see [sources.md](sources.md), "Collections"). A collection of a `filesystem` source has each of its folders, its file name, and its file name without its extension (see [formats.md](formats.md), "Which files are collections"): `in:grammar` matches `japanese/Grammar/wo.jsonl`, `grammar.jsonl` and `grammar.xml`, but not `grammar-notes.jsonl`, and `in:grammar.xml` only the last of those. A source program gives the names it chooses, or, by default, the collection's name alone: its table `v1.2` matches `in:v1.2`, not `in:v1`. Names are compared ignoring case, in Unicode NFC. Only collections are matched: a note named `grammar.md` that items name with `see` doesn't make them match. |
+| `collection:NAME` | Cards whose item's collection is named `NAME`, the whole name its source gives it, as `srl collections` lists it (see [sources.md](sources.md), "Collections"): `collection:japanese/grammar.jsonl` matches that file alone, not `korean/grammar.jsonl`, and `collection:grammar.jsonl` neither of them. Names are compared as for `in:`: ignoring case, in Unicode NFC. |
 | `source:NAME` | Cards whose item comes from the source `NAME` of `.srl/config.toml` (see [sources.md](sources.md)): `source:items` is the cards of a store without `[sources]`, whose one source is `items`. |
 | `id:ID` | The card with that ID, or every card of the item with that ID: `id:k3m9q1` matches `k3m9q1.1` and `k3m9q1.2`. |
 | `kind:K` | Cards whose item is of kind `K`: `qa`, which includes items with no `kind` entry, or a kind named in `[kinds]` of `.srl/config.toml` (see [cards.md](cards.md), "Kinds"). A selector without `kind:` matches items of every kind. |
@@ -33,7 +34,9 @@ puts it after `--`.
 `in:` is a quick way to name a topic, taken from how you already arrange
 your collections, such as their folders and names: there are no tags
 to write. `srl collections --json` gives each collection's `in` names
-(see [cli.md](cli.md)).
+(see [cli.md](cli.md)). An `in` name may be shared by several collections,
+such as `questions.jsonl` by `a/questions.jsonl` and `b/questions.jsonl`;
+`collection:` picks one of them by its whole name.
 
 Keys and text are told apart by one rule: a term that starts with lowercase
 letters `a`–`z` and a colon is a `key:value` term, and anything else is text.
@@ -105,6 +108,7 @@ srl find in:japanese -in:n5               # all Japanese except the n5 folder
 srl find is:leech --json                  # every leech
 srl find "ものともせず"                    # text search
 srl reset in:ownership.xml                # start a collection over
+srl find collection:a/questions.jsonl     # one collection, by its name
 srl find in:vocab is:mature               # what you know well
 srl next kind:ja-words                    # study one kind of item
 srl find -kind:qa                         # every item of a kind program

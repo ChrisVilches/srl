@@ -429,6 +429,38 @@ fn find_takes_in_and_negated_terms_and_exits_1_when_nothing_matches() {
 }
 
 #[test]
+fn collection_takes_one_collection_by_its_whole_name() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    write(
+        &tmp,
+        "kanji/more/fish.jsonl",
+        "{\"id\":\"iwashi01\",\"Q\":\"鰯\",\"A\":\"いわし — sardine\"}\n",
+    );
+    assert_eq!(lines(&srl(&["find", "in:fish.jsonl", "--dir", d])).len(), 3);
+    assert_eq!(
+        lines(&srl(&["find", "collection:kanji/fish.jsonl", "--dir", d])).len(),
+        2
+    );
+    assert_eq!(
+        lines(&srl(&[
+            "find",
+            "collection:kanji/more/fish.jsonl",
+            "--dir",
+            d
+        ]))
+        .len(),
+        1
+    );
+    assert_eq!(
+        srl(&["find", "collection:fish.jsonl", "--dir", d])
+            .status
+            .code(),
+        Some(1)
+    );
+}
+
+#[test]
 fn in_names_collections_not_study_material() {
     let tmp = japanese();
     let d = dir(&tmp);
@@ -471,7 +503,7 @@ fn bad_selectors_exit_with_2_and_explain() {
     let output = srl(&["find", "tag:x", "--dir", dir(&tmp)]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
-        stderr(&output).contains("in, source"),
+        stderr(&output).contains("in, collection, source"),
         "{}",
         stderr(&output)
     );

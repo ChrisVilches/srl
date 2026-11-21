@@ -4,7 +4,7 @@ use crate::store::nfc;
 use crate::{CardId, Config, Error, Item, Kind, Memories, Place, Result};
 
 /// The keys of `key:value` terms.
-const KEYS: &str = "in, source, id, kind, is";
+const KEYS: &str = "in, collection, source, id, kind, is";
 
 /// A parsed selector: cards match when they match every term.
 #[derive(Debug, Clone)]
@@ -23,6 +23,8 @@ struct Term {
 enum Filter {
     /// Names in NFC, lowercased.
     In(Vec<String>),
+    /// Names of collections in NFC, lowercased.
+    Collection(Vec<String>),
     /// Names of sources.
     Source(Vec<String>),
     /// Card IDs, or item IDs that stand for all their cards.
@@ -147,6 +149,7 @@ impl Filter {
                 .in_names()
                 .iter()
                 .any(|name| wanted.contains(&nfc(name).to_lowercase())),
+            Self::Collection(wanted) => wanted.contains(&nfc(item.collection()).to_lowercase()),
             Self::Source(names) => names.iter().any(|name| name == item.source()),
             Self::Id(ids) => ids.iter().any(|id| match id.suffix() {
                 Some(_) => id == card,
@@ -202,12 +205,8 @@ fn keyed(key: &str, values: &str, config: &Config) -> std::result::Result<Filter
         return Err("it has an empty value".to_owned());
     }
     match key {
-        "in" => Ok(Filter::In(
-            values
-                .into_iter()
-                .map(|value| nfc(value).to_lowercase())
-                .collect(),
-        )),
+        "in" => Ok(Filter::In(names(values))),
+        "collection" => Ok(Filter::Collection(names(values))),
         "source" => each(&values, |value| {
             if config.sources.contains_key(value) {
                 Ok(value.to_owned())
@@ -238,6 +237,14 @@ fn keyed(key: &str, values: &str, config: &Config) -> std::result::Result<Filter
             "`{key}:` is not a key; use one of {KEYS}, or put the term in double quotes to search for the text"
         )),
     }
+}
+
+/// `values` in NFC, lowercased, as names are compared.
+fn names(values: Vec<&str>) -> Vec<String> {
+    values
+        .into_iter()
+        .map(|value| nfc(value).to_lowercase())
+        .collect()
 }
 
 /// Each of `values` parsed with `parse`, or the first error.
@@ -429,6 +436,19 @@ mod tests {
     }
 
     #[test]
+    fn collection_matches_the_whole_name_ignoring_case() {
+        assert_eq!(pick("collection:japanese/n5.jsonl"), ["aaa2.1", "aaa2.2"]);
+        assert_eq!(pick("collection:Japanese/grammar/WO.jsonl"), ["aaa1"]);
+        assert_eq!(
+            pick("collection:japanese/n5.jsonl,kanji/food.jsonl"),
+            ["aaa2.1", "aaa2.2", "aaa3"]
+        );
+        assert_eq!(pick("collection:n5.jsonl"), Vec::<String>::new());
+        assert_eq!(pick("collection:japanese"), Vec::<String>::new());
+        assert_eq!(pick("collection:japanese/n5"), Vec::<String>::new());
+    }
+
+    #[test]
     fn comma_is_or_space_is_and_minus_is_not() {
         assert_eq!(pick("in:grammar,food"), ["aaa1", "aaa3"]);
         assert_eq!(pick("in:japanese in:n5"), ["aaa2.1", "aaa2.2"]);
@@ -509,7 +529,10 @@ mod tests {
     #[test]
     fn unknown_selector_key_is_an_error() {
         let error = Selector::parse("ni:x", &Config::default()).unwrap_err();
-        assert!(error.to_string().contains("in, source"), "{error}");
+        assert!(
+            error.to_string().contains("in, collection, source"),
+            "{error}"
+        );
         assert!(Selector::parse("tag:x", &Config::default()).is_err());
     }
 
@@ -545,7 +568,12 @@ mod tests {
         let item = &items[0];
         let card = &item.cards()[0];
         let memories = memories();
-        for selector in ["in:caf\u{e9}", "in:cafe\u{301}", "in:CAFE\u{301}"] {
+        for selector in [
+            "in:caf\u{e9}",
+            "in:cafe\u{301}",
+            "in:CAFE\u{301}",
+            "collection:caf\u{e9}/x.jsonl",
+        ] {
             let matched = Selector::parse(selector, &Config::default())
                 .unwrap()
                 .matches(item, card, &memories);

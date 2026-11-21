@@ -64,7 +64,8 @@ is an error, so a typo fails instead of being ignored:
 is the collection's everywhere in `srl`. A `filesystem` source names a
 collection by its path, relative to the store's folder, and a source
 program by whatever it chooses, such as the name of a table. `srl
-collections` lists every collection, with the source that gives it.
+collections` lists every collection, with the source that gives it, and
+`collection:` selects one by its name (see [selectors.md](selectors.md)).
 
 **A source also gives each collection its `in` names**: the values of
 `in:` that select it (see [selectors.md](selectors.md)). A `filesystem`
@@ -85,7 +86,7 @@ The rules, the same for every source:
    collections otherwise, such as under a folder of its own, `vocab/`.
 2. **A collection's name never names an item.** Every item of a
    collection is in the same collection, and items are told apart by
-   their IDs. `see` and `srl add` take collections' names
+   their IDs. `see`, `srl add` and `collection:` take collections' names
    alone, and `in:` their `in` names.
 
 A collection that breaks a rule is an error in the store (see

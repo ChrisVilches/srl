@@ -552,14 +552,17 @@ source gives each folder and file name as it is ([formats.md](formats.md),
 name `my notes`, which `srl collections --json` lists, but `in:my notes`
 is two terms and `in:"my notes"` is text ([selectors.md](selectors.md)):
 `in:` can select it only by its other names, such as `words`. A comma
-splits the value the same way. `srl-web`'s filters leave such names out
-of their menu.
+splits the value the same way. The same goes for a collection's name
+and `collection:`: `collection:my notes/words.jsonl` is two terms, and a
+source program's collection named `my notes` can't be selected by its
+name at all. `srl-web`'s filters leave such names out of their menu.
 
 **Possible fixes:**
 
 1. **Leave such names out** of a collection's `in` names, so every `in`
    name can be written, as for source programs. The folder then selects
-   nothing, silently.
+   nothing, silently, and `collection:` still can't take such a
+   collection's name.
 2. **Let a quoted value follow a key**, `in:"my notes"`, so any name can be
    written. One more rule of the syntax, and quotes stop meaning "always
    text".
