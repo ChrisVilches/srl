@@ -32,14 +32,15 @@ database = "vocab/vocab.json"
 ```
 
 Its one setting, `database`, is the database's file, relative to the
-store's folder, created on the first item added. `srl` passes every key
+store's folder, created on the first table created. `srl` passes every key
 of the source but `program` on as it is, and the program refuses any
 other. The `filesystem` source doesn't read the database file, a `.json`
 file, unless its `include` says so.
 
-Then add items to a table, which is created if it doesn't exist:
+Then create a table, and add items to it:
 
 ```sh
+srl create words           # prints: words  vocab
 srl add words --stdin <<'JSONL'
 {"see": "japanese/animals.md", "Q": "What does 猫 mean?", "A": "Cat."}
 JSONL
@@ -54,9 +55,11 @@ Items of the database may name a note with `see`, as any item may.
 - **Each table is a collection**, and its name is the collection's
   name: the table `words` is the collection `words`. A source has one
   database, so a table's name is enough to tell its collections apart.
-  `srl add` may create any new one whose name has no `.` or `/`
+  `srl create` may create any new one whose name has no `.` or `/`
   (`accepts` takes it), so a name with an extension, such as
-  `notes.jsonl`, is left to the store's files. A table named as a file of
+  `notes.jsonl`, is left to the store's files. A new table is written
+  empty, so `collections` lists it before it has items; an item is added
+  only to a table that exists. A table named as a file of
   the store some other way would be a collection two sources give, which
   is an error (see [docs/sources.md](../../docs/sources.md),
   "Collections"). `collections` gives no `in` names, so `in:` selects a

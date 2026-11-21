@@ -180,11 +180,13 @@ export const api = {
   sources: async () => (await call<{ sources: string[] }>('/api/sources')).sources,
   // The notes: the files an item may name with `see`, as its context.
   notes: async () => (await call<{ notes: string[] }>('/api/notes')).notes,
-  // The item as its source would add it to COLLECTION,
-  // adding nothing.
+  // The item as its source would add it to COLLECTION, adding nothing. For
+  // a new COLLECTION (fresh), only its name is checked, and the text is the
+  // collection and the source srl would create it in.
   check: async (collection: string, item: NewItem) =>
-    (await call<{ text: string }>('/api/add', { collection, item, dry_run: true })).text,
-  // Adds the item to COLLECTION, and gives its new IDs.
+    await call<{ text: string; fresh: boolean }>('/api/add', { collection, item, dry_run: true }),
+  // Adds the item to COLLECTION, created first if it is new, and gives its
+  // new IDs.
   add: async (collection: string, item: NewItem) =>
     (await change<{ ids: string[] }>('/api/add', { collection, item })).ids,
   // The item of ID as srl show --json prints it: its entries, fields and the

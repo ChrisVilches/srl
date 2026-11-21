@@ -16,9 +16,10 @@ Needs uv, which installs TinyDB for it. Meant for Linux, macOS and
 Windows, but tried on Linux only.
 
 - Each table of the database is a collection, named by the table: the
-  table `words` is the collection `words`. `srl add` may create any new
-  one whose name has no `.` or `/`, leaving names with an extension to
-  the store's files.
+  table `words` is the collection `words`. `srl create` may create any
+  new one whose name has no `.` or `/`, leaving names with an extension
+  to the store's files; it is an empty table, listed while it has no
+  items too. An item is added only to a table that exists.
 - Each item is a document `{"item": {...}}` holding its item object. A
   change finds it in its table by the `id` of its item.
 
@@ -64,7 +65,7 @@ def describe(source, inputs):
 
 
 def accepts(_source, inputs):
-    """`srl add` may create any table whose name has no `.` or `/`."""
+    """`srl create` may create any table whose name has no `.` or `/`."""
     return [{"error": "a table's name has no `.` or `/`"}
             if "." in change["collection"] or "/" in change["collection"] else {"ok": True}
             for change in inputs]
@@ -90,11 +91,29 @@ def read(source, _inputs):
     return lines
 
 
+def create_table(source, name):
+    """Writes the table NAME, empty: TinyDB writes a table only once it
+    has a document, and `collections` must list it before then."""
+    data = source.db.storage.read() or {}
+    data[name] = {}
+    source.db.storage.write(data)
+
+
 def write(source, inputs):
     """Every change, or none: a change that can't be made refuses them all."""
     answers = []
+    tables = set(source.db.tables())
     for change in inputs:
-        table = source.db.table(change["collection"])
+        name = change["collection"]
+        if change["op"] == "create":
+            if name in tables:
+                return [{"error": f"the table {name} exists already"} for _ in inputs]
+            tables.add(name)
+            answers.append({"ok": True})
+            continue
+        if name not in tables:
+            return [{"error": f"no table is named {name}; srl create makes one"} for _ in inputs]
+        table = source.db.table(name)
         if change["op"] in ("replace", "remove"):
             document = find(table, change["before"])
             if document is None or document.get("item") != change["before"]:
@@ -103,6 +122,9 @@ def write(source, inputs):
     if not inputs or inputs[0]["dry_run"]:
         return answers
     for change in inputs:
+        if change["op"] == "create":
+            create_table(source, change["collection"])
+            continue
         table = source.db.table(change["collection"])
         if change["op"] == "add":
             table.insert({"item": change["item"]})

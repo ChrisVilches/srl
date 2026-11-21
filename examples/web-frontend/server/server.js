@@ -40,7 +40,11 @@
 //   POST /api/add          srl add COLLECTION --stdin [--dry-run], with ITEM as its
 //                          one line                    ← { collection, item, dry_run }
 //                                                      → { ids } or, with
-//                                                        dry_run, { text }
+//                                                        dry_run, { text, fresh }
+//                          A COLLECTION srl collections doesn't list is new: srl
+//                          create COLLECTION makes it first; with dry_run, srl
+//                          create --dry-run only checks its name, and gives its
+//                          source as text, with fresh true.
 //
 // Editing an item, of any source:
 //
@@ -255,14 +259,33 @@ export function createSrlServer({ dir, staticDir, onChange }) {
         throw new BadRequest('item must be a JSON object');
       }
       const dryRun = body.dry_run === true;
-      // The collection goes after `--`, so that one starting with `-` is never
-      // read as an option.
-      const args = ['add', '--stdin', ...(dryRun ? ['--dry-run'] : []), '--', body.collection];
-      const { stdout } = await srl(args, JSON.stringify(body.item) + '\n');
-      if (!dryRun) {
-        changed();
+      const dryRunFlag = dryRun ? ['--dry-run'] : [];
+      // srl add only adds to a collection that exists, so a new one is
+      // created first, in the source srl picks. A dry run can't add to a
+      // collection it doesn't create, so it checks only the name: the item
+      // is checked when it is added. The collection goes after `--`, so that
+      // one starting with `-` is never read as an option.
+      const listed = await srl(['collections', '--json']);
+      const fresh = !(listed.found && jsonLines(listed.stdout).some((c) => c.collection === body.collection));
+      if (fresh) {
+        const created = await srl(['create', ...dryRunFlag, '--', body.collection]);
+        if (dryRun) {
+          return { text: created.stdout, fresh };
+        }
       }
-      return dryRun ? { text: stdout } : { ids: stdout.split('\n').filter((line) => line.trim() !== '') };
+      const args = ['add', '--stdin', ...dryRunFlag, '--', body.collection];
+      let added = false;
+      try {
+        const { stdout } = await srl(args, JSON.stringify(body.item) + '\n');
+        added = true;
+        return dryRun ? { text: stdout, fresh } : { ids: stdout.split('\n').filter((line) => line.trim() !== '') };
+      } finally {
+        // A collection created for an item srl then refused stays, empty: the
+        // store changed all the same.
+        if (!dryRun && (added || fresh)) {
+          changed();
+        }
+      }
     },
 
     // The item of a card or item ID, as srl show --json prints it, to edit.

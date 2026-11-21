@@ -10,12 +10,15 @@ import { TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
 
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
 // collection to add it to, of any source, picked from
-// `srl collections`, or a new one typed by its name, which srl creates in
-// the one source that accepts it; its source writes the item its own way.
+// `srl collections`, or a new one typed by its name, which the server
+// creates with `srl create`, in the one source that accepts it, before it
+// adds the item; its source writes the item its own way.
 // Its context, if any, is
 // a note picked from `srl notes`, never the collection. srl checks the item, with
 // `srl add --dry-run` (Check) and when it is added: the page knows no rule of
-// any kind, and shows what srl says.
+// any kind, and shows what srl says. Check on a new collection checks only its
+// name, with `srl create --dry-run`, since nothing can be added to a
+// collection that doesn't exist yet.
 
 type Store =
   | { kind: 'loading' }
@@ -25,7 +28,7 @@ type Store =
 // What the last Check or Add gave.
 type Result =
   | { kind: 'none' }
-  | { kind: 'checked'; text: string }
+  | { kind: 'checked'; text: string; fresh: boolean }
   | { kind: 'added'; ids: string[]; collection: string }
   | { kind: 'error'; message: string };
 
@@ -138,7 +141,7 @@ export function Add() {
 
   const check = () => {
     if (collection === null || waiting) return;
-    run(async () => ({ kind: 'checked', text: await api.check(collection, item()) }));
+    run(async () => ({ kind: 'checked', ...(await api.check(collection, item())) }));
   };
 
   // Once added, the fields are emptied for the next item, and its texts
@@ -223,7 +226,7 @@ export function Add() {
 
               <Section
                 label="Collection"
-                hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its name, which srl creates in the one source of the store that accepts it."
+                hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its name, which srl creates in the one source of the store that accepts it right before adding the item."
               >
                 <PathPicker
                   paths={collections}
@@ -335,7 +338,10 @@ function Section({
 function ResultModal({ result, kind, onClose }: { result: Result; kind: string; onClose: () => void }) {
   const title = {
     none: '',
-    checked: 'Valid. srl would add:',
+    checked:
+      result.kind === 'checked' && result.fresh
+        ? 'A new collection. srl would create it in this source, and check the item when it is added:'
+        : 'Valid. srl would add:',
     added: result.kind === 'added' ? `Added to ${result.collection}` : '',
     error: 'srl refused the item',
   }[result.kind];
@@ -500,8 +506,8 @@ function PathPicker({
 
 // Whether COLLECTION is a collection's name (docs/sources.md, "Terms"):
 // parts joined by `/`, none empty or starting with `.`. Which source
-// creates it, if any, is each source's own rule, so srl decides it when the
-// item is checked or added, and says why when no source accepts it.
+// creates it, if any, is each source's own rule, so srl create decides it
+// when the item is checked or added, and says why when no source accepts it.
 function wellFormed(collection: string): boolean {
   return !collection.split('/').some((part) => part === '' || part.startsWith('.'));
 }

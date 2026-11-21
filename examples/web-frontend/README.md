@@ -287,9 +287,11 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   order), or is a new one: a name typed in full, offered as **New
   collection** when it is a collection's name (parts joined by `/`,
   none empty or starting with `.`). Which source creates it is each
-  source's own rule, so `srl add` decides, when the item is checked or
-  added, and says each source's reason when none accepts it; the source
-  writes the item its own
+  source's own rule, so `srl create` decides, when the item is checked or
+  added, and says each source's reason when none accepts it. The server
+  creates a new collection with `srl create` right before it adds the
+  item, so a collection created for an item srl then refuses stays,
+  empty. The source writes the item its own
   way. Notes are never offered: they hold no items. The collections are
   read each time Add is shown.
 - Each kind remembers the collection last added to with it: choosing the
@@ -305,7 +307,10 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   **Draft** makes the item a draft.
 - **Check** runs `srl add --dry-run` and shows the item as srl would
   add it: as it would be written in its collection, or the preview a source
-  program gives; **Add** (Ctrl+Enter) adds it and shows its ID, then empties
+  program gives. For a new collection, which nothing can be added to
+  before it exists, it runs `srl create --dry-run` instead, and shows
+  the source srl would create it in: the item is checked when it is
+  added. **Add** (Ctrl+Enter) adds it and shows its ID, then empties
   the fields. Leaving Add while a field of the kind holds text asks
   first, in a dialog, whether to leave and lose the item. The page knows
   no rule of any kind: srl checks the item, and the page shows what srl
@@ -441,7 +446,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/collections` | `srl collections --json` | `{"collections": [{"name": COLLECTION}…]}`: each collection by its name, which `collection:` takes |
 | `GET /api/sources` | `srl sources --json` | `{"sources": [NAME…]}` |
 | `GET /api/notes` | `srl notes --json` | `{"notes": [PATH…]}` |
-| `POST /api/add` | `srl add COLLECTION --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"collection": COLLECTION, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as its source would add it, as written in its collection or a source program's preview |
+| `POST /api/add` | `srl add COLLECTION --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"collection": COLLECTION, "item": ITEM}`; `ITEM` is its one line. A `COLLECTION` `srl collections` doesn't list is created first with `srl create`; with `dry_run`, only `srl create --dry-run` runs | `{"ids": […]}`, or `{"text": …, "fresh": false}`, what `srl add --dry-run` printed: the item as its source would add it, as written in its collection or a source program's preview; for a new collection, `{"text": …, "fresh": true}`, what `srl create --dry-run` printed: the collection and its source |
 | `GET /api/item?id=…` | `srl show ID --json --no-context` | `{"item": …}`, the item object `srl show` printed |
 | `POST /api/edit` | `srl edit --stdin`, for `{"item": ITEM}`; `ITEM` is its one line | `{"ids": […]}` |
 

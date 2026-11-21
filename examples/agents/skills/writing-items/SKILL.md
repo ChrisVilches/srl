@@ -140,12 +140,15 @@ leaves the old card's history behind; see the `fixing-problems` skill.
 srl add COLLECTION [--dry-run] --stdin
 ```
 
-One item object per line on standard input. `COLLECTION` names the
-collection: for a file, its path relative to the store's folder, such as
-`generated/rust.jsonl`. A collection that doesn't exist is created where
+One item object per line on standard input. `COLLECTION` names a
+collection that exists, as `srl collections` lists it: for a file, its
+path relative to the store's folder, such as `generated/rust.jsonl`. A
+new collection is created first with `srl create COLLECTION`, where
 exactly one source of the store accepts it, in the format its extension
 names (`srl sources` shows each `filesystem` source's globs; by default
-`**/*.jsonl` and `**/*.xml`). Each source adds the items its own way: a
+`**/*.jsonl` and `**/*.xml`); it prints the collection and the source it
+is in. `srl add` to a collection that doesn't exist is an error, and
+creates nothing. Each source adds the items its own way: a
 line each in JSONL, an element each before `</items>` in XML. A note is
 never a collection: `srl add` never writes to the person's notes. The new
 IDs are printed. Every line is checked first, by the same rules as
@@ -154,6 +157,7 @@ So `--dry-run` is the way to know whether an item is valid; `srl kinds`
 only describes the fields.
 
 ```sh
+srl create generated/rust.jsonl
 srl add generated/rust.jsonl --stdin <<'JSONL'
 {"draft": true, "see": "rust/ownership.md", "Q": "Does this compile?\n```rust\nlet a = String::new();\nlet b = a;\nprintln!(\"{a}\");\n```", "A": "No. `a` was moved into `b`."}
 {"draft": true, "see": "rust/borrowing.md", "Q": "A `&mut T` reference is {{c1::exclusive}}: no other reference to the value may exist."}
@@ -208,7 +212,7 @@ database, has no file: change it with `srl edit --stdin`.
 
 Only when the person asks. `srl move ID... COLLECTION` moves items, from
 any source, to a collection that already exists, named as
-`srl collections` lists it; it never creates one. The items keep their
+`srl collections` lists it; it never creates one (`srl create` does). The items keep their
 IDs, so their cards keep their schedule.
 
 ```sh

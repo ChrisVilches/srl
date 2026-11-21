@@ -125,10 +125,11 @@ New items can come from any table, for example a CSV file with `Q` and `A`
 columns:
 
 ```nu
+srl create generated/words.jsonl
 open words.csv
   | select Q A
   | insert draft true
-  | srl add generated/words.md --stdin
+  | srl add generated/words.jsonl --stdin
 ```
 
 ### Text and errors

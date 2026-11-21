@@ -56,8 +56,10 @@ in any editor, and the store can be kept in git.
    append-only and only `srl` writes it. You may read anything.
 2. **Items you write are drafts, in collections of their own.** Add them
    with `srl add COLLECTION --stdin`, with `"draft": true` on every line, into
-   a new collection such as `generated/ownership.jsonl`, never into one of
-   the person's collections, and never into their notes. Drafts are never
+   a collection of your own such as `generated/ownership.jsonl`, which you
+   create first with `srl create COLLECTION` if `srl collections` doesn't
+   list it, never into one of the person's collections, and never into
+   their notes. Drafts are never
    studied; the person reads them and runs `srl accept` for the ones worth
    keeping.
 3. **`see` is optional; never refuse to write items without it.** An item
@@ -111,6 +113,7 @@ value is dropped.
 ```
 
 ```sh
+srl create rust/ownership.jsonl
 srl add rust/ownership.jsonl --stdin <<'JSONL'
 {"see": "rust/ownership.md", "Q": "What happens to a value when its owner goes out of scope?", "A": "It is dropped."}
 {"see": "rust/ownership.md", "Q": "A {{c1::reference}} lets you use a value without taking {{c2::ownership}}."}
@@ -169,10 +172,13 @@ several small items over one large one.
 
 To add items from a command, as you do, send one item object per line: the
 header entries `draft` and `see` (the note the item is about), and the
-fields. Leave `id` out to get a new one. Its source writes each item its
-own way, in the format of the collection's file:
+fields. Leave `id` out to get a new one. The collection must exist:
+`srl create` makes a new one, in the one source that accepts its name, and
+prints it with that source. Its source writes each item its own way, in
+the format of the collection's file:
 
 ```sh
+srl create generated/ownership.jsonl
 srl add generated/ownership.jsonl --stdin <<'JSONL'
 {"draft": true, "see": "rust/ownership.md", "Q": "Can a variable be used after its value was moved?", "A": "No. The compiler rejects it."}
 {"draft": true, "see": "rust/ownership.md", "Q": "`let b = a;` {{c1::moves}} a `String`, but {{c2::copies}} an `i32`."}
@@ -252,7 +258,8 @@ srl find in:rust -is:new        # rust cards already studied
 | `srl kinds` | describe each kind and its fields, before writing an item of it |
 | `srl show ID` | print an item and its context; with `--json`, as the item object `srl edit` takes back |
 | `srl cards ID` | print the cards of an item |
-| `srl add COLLECTION --stdin` | add items to a collection (JSONL of item objects) |
+| `srl create COLLECTION` | create a collection, without items, in the source that accepts its name |
+| `srl add COLLECTION --stdin` | add items to a collection that exists (JSONL of item objects) |
 | `srl edit --stdin` | replace items (JSONL of item objects, each with its `id`) |
 | `srl move ID... COLLECTION` | move items to another collection that exists, keeping their schedule |
 | `srl find is:draft` / `srl accept SEL` | list drafts / accept them |

@@ -73,7 +73,7 @@ A source can also be a **source program**, which keeps items its own way,
 such as in a database: `program` instead of `driver`, a command as in
 `[kinds]`. Every other key of its table is the program's own setting,
 which the program checks. It names its collections itself, decides by
-its own rule which new ones `srl add` may create in it, and chooses which
+its own rule which new ones `srl create` may create in it, and chooses which
 of its settings `srl sources` shows. Its items are studied, shown and changed like any
 other, with `srl edit --stdin` since they are in no file. The `srl`
 repository's `examples/` has one, `source-tinydb` (items in a TinyDB
@@ -86,8 +86,10 @@ program = ["uv", "run", "--quiet", "--script", "sources/tinydb_source.py"]
 database = "vocab/vocab.json"    # the program's own setting; each table is a collection
 ```
 
-**A new collection goes to the one source that accepts its name**; none
-or several is an error, `cannot add to COLLECTION`, that names every
+**`srl create` puts a new collection in the one source that accepts its
+name**, and prints it with that source; `srl add` only adds to
+collections that exist. None or several is an error,
+`cannot create COLLECTION`, that names every
 source concerned (and, for none, why each refused). `source-tinydb`
 accepts any name without a `/` (its `accepts` refuses the others), so beside the default
 `filesystem` source a new collection at the top of the store, such as
