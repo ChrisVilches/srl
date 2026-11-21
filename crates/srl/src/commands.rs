@@ -215,9 +215,17 @@ fn check(store: &Store) -> anyhow::Result<Outcome> {
 }
 
 /// `srl collections`: lists every collection, without reading any item, so
-/// errors in them don't stop it. Exit 1 if the store has none.
+/// errors in them don't stop it; a collection two sources give does. Exit 1
+/// if the store has none.
 fn collections(store: &Store, json: bool) -> anyhow::Result<Outcome> {
-    let found = srl_core::collections(store, &Config::load(store)?)?;
+    let (found, problems) = srl_core::collections(store, &Config::load(store)?)?;
+    problems.iter().for_each(output::problem);
+    if !problems.is_empty() {
+        return Err(Error::ItemsInvalid {
+            count: problems.len(),
+        }
+        .into());
+    }
     if json {
         output::json_lines(&found)?;
     } else {

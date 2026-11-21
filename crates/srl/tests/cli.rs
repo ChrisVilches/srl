@@ -3011,6 +3011,18 @@ fn an_id_in_two_sources_or_a_collection_a_program_takes_from_a_file_is_an_error(
         "{}",
         stderr(&output)
     );
+    // Commands that read no item stop on it too, if they list collections.
+    let output = srl(&["collections", "--dir", dir(&tmp)]);
+    assert_refused(
+        &output,
+        "srl collections with a collection two sources give",
+    );
+    assert!(
+        stderr(&output).contains("words.jsonl: the sources items and vocab both give it"),
+        "{}",
+        stderr(&output)
+    );
+    assert_eq!(srl(&["sources", "--dir", dir(&tmp)]).status.code(), Some(0));
 }
 
 #[test]

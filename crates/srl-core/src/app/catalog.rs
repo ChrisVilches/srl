@@ -115,7 +115,13 @@ impl Catalog {
         // their sources; items of one collection in the order read.
         collections.sort_by_cached_key(|located| by_collection(&located.collection));
         written.sort_by_cached_key(|item: &Item| by_collection(&item.origin.collection));
-        problems.extend(clashes(&sources, &collections));
+        let named = sources.all();
+        problems.extend(clashes(collections.iter().map(|located| {
+            let source = named
+                .get(located.source)
+                .map_or("", |named| named.name.as_str());
+            (located.collection.as_str(), source)
+        })));
         let (items, checked) = check_items(written, &programs, cache);
         problems.extend(checked);
         let (items, duplicates) = unique(items);
@@ -392,8 +398,9 @@ pub struct CollectionInfo {
 }
 
 /// Every collection of the store, in the order of their names, without
-/// reading any item (`srl collections`).
-pub fn collections(store: &Store, config: &Config) -> Result<Vec<CollectionInfo>> {
+/// reading any item, and the collections that break a rule of collections
+/// (`srl collections`).
+pub fn collections(store: &Store, config: &Config) -> Result<(Vec<CollectionInfo>, Vec<Error>)> {
     let mut found = Vec::new();
     for named in Sources::new(store, config).all() {
         found.extend(
@@ -409,7 +416,12 @@ pub fn collections(store: &Store, config: &Config) -> Result<Vec<CollectionInfo>
         );
     }
     found.sort_by_cached_key(|collection| by_collection(&collection.collection));
-    Ok(found)
+    let problems = clashes(
+        found
+            .iter()
+            .map(|collection| (collection.collection.as_str(), collection.source.as_str())),
+    );
+    Ok((found, problems))
 }
 
 /// Every file of study material of the store: those items may name with
@@ -527,19 +539,17 @@ fn check_items(
 
 /// The collections that break a rule of collections (see
 /// `docs/sources.md`, "Collections"): a name that two sources give.
-fn clashes(sources: &Sources, collections: &[Located]) -> Vec<Error> {
-    let named = sources.all();
-    let name = |index: usize| named.get(index).map_or("", |source| source.name.as_str());
+/// `collections` are each collection's name and its source's, in the
+/// order of their names.
+fn clashes<'a>(collections: impl IntoIterator<Item = (&'a str, &'a str)>) -> Vec<Error> {
     let mut problems = Vec::new();
-    let mut seen = HashMap::<String, &Located>::new();
-    for located in collections {
-        if let Some(first) = seen.insert(nfc(&located.collection), located) {
+    let mut seen = HashMap::<String, &str>::new();
+    for (collection, source) in collections {
+        if let Some(first) = seen.insert(nfc(collection), source) {
             problems.push(Error::Collection {
-                collection: located.collection.clone(),
+                collection: collection.to_owned(),
                 reason: format!(
-                    "the sources {} and {} both give it; leave it out of one of them",
-                    name(first.source),
-                    name(located.source)
+                    "the sources {first} and {source} both give it; leave it out of one of them"
                 ),
             });
         }

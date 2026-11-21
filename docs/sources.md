@@ -94,7 +94,9 @@ The rules, the same for every source:
 
 A collection that breaks a rule is an error in the store (see
 [items.md](items.md), "Errors"): it stops every command that reads items,
-and `srl check` reports it, as `COLLECTION: message`.
+and `srl collections`, which reads none but lists every collection; `srl
+check` reports it, as `COLLECTION: message`. Commands that list no
+collection, such as `srl sources`, aren't stopped.
 
 **A new collection** is created by `srl create` (see [cli.md](cli.md),
 "Creating collections"), in the one source that accepts its name; `srl
