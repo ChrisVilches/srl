@@ -228,7 +228,7 @@ export function createSrlServer({ dir, staticDir, onChange }) {
     'GET /api/collections': async () => {
       const { found, stdout } = await srl(['collections', '--json']);
       return {
-        collections: found ? jsonLines(stdout).map((listed) => ({ name: listed.collection, in: listed.in })) : [],
+        collections: found ? jsonLines(stdout).map((listed) => ({ name: listed.collection })) : [],
       };
     },
 

@@ -7,7 +7,7 @@
 // An ID, of an item or a card, is a filter, typed in the dialog: the box
 // only ever searches text.
 
-export type Menu = 'in' | 'source' | 'kind' | 'status' | 'schedule' | 'leech' | 'id';
+export type Menu = 'collection' | 'source' | 'kind' | 'status' | 'schedule' | 'leech' | 'id';
 
 // Each filter's value, or null for any.
 export type Filters = Record<Menu, string | null>;
@@ -15,7 +15,7 @@ export type Filters = Record<Menu, string | null>;
 export type Search = { filters: Filters; text: string };
 
 // The filters, in the order of their terms.
-export const MENUS: Menu[] = ['in', 'source', 'kind', 'status', 'schedule', 'leech', 'id'];
+export const MENUS: Menu[] = ['collection', 'source', 'kind', 'status', 'schedule', 'leech', 'id'];
 
 // The values of the menus of is:, which srl doesn't list: docs/selectors.md
 // gives them.
@@ -26,7 +26,7 @@ export const IS_VALUES: Record<'status' | 'schedule' | 'leech', string[]> = {
 };
 
 export const NO_FILTERS: Filters = {
-  in: null,
+  collection: null,
   source: null,
   kind: null,
   status: null,
@@ -37,7 +37,7 @@ export const NO_FILTERS: Filters = {
 
 // The key of MENU's term: is for the menus of is:.
 export const keyOf = (menu: Menu) =>
-  menu === 'in' || menu === 'source' || menu === 'kind' || menu === 'id' ? menu : 'is';
+  menu === 'collection' || menu === 'source' || menu === 'kind' || menu === 'id' ? menu : 'is';
 
 // The menu of is: whose value VALUE is, or null.
 export const isMenuOf = (value: string) =>

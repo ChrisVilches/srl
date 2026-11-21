@@ -9,8 +9,9 @@
 // The query holds the search last submitted (src/filters.ts), so that
 // reloading the page keeps it: one parameter per filter, named by its key,
 // in the order of the menus (the ID last), then the text, as typed, in q. Collection
-// grammar, status active, schedule due and the text "hello you" are
-// ?in=grammar&is=active&is=due&q=hello+you. Switching views keeps the query.
+// japanese/grammar.jsonl, status active, schedule due and the text "hello you" are
+// ?collection=japanese/grammar.jsonl&is=active&is=due&q=hello+you. Switching
+// views keeps the query.
 //
 // The address is the only place this state is kept: the page reads it from
 // the address on every render, through the router (react-router), and
@@ -29,10 +30,10 @@ export type View = 'study' | 'browse' | 'add' | 'stats';
 // The path of each view, which its tab links to.
 export const VIEW_PATHS: Record<View, string> = { study: '/', browse: '/browse', add: '/add', stats: '/stats' };
 
-// Commas and colons are left as they are, and spaces are +, so that the
+// Commas, colons and slashes are left as they are, and spaces are +, so that the
 // address reads as the search does.
 const encode = (s: string) =>
-  encodeURIComponent(s).replace(/%2C/gi, ',').replace(/%3A/gi, ':').replace(/%20/g, '+');
+  encodeURIComponent(s).replace(/%2C/gi, ',').replace(/%3A/gi, ':').replace(/%2F/gi, '/').replace(/%20/g, '+');
 
 // The search of the query QUERY: no filter and no text if it has none. A
 // menu takes the first parameter of its key whose value it can take, and

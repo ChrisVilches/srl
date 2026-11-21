@@ -88,8 +88,8 @@ export const fieldLabel = (field: FieldDescription) => field.label ?? field.name
 
 
 // A collection as `srl collections --json` lists it (docs/cli.md, "Store"):
-// its name, and its in names, the values of in: that select it.
-export type Collection = { name: string; in: string[] };
+// its name, which collection: takes.
+export type Collection = { name: string };
 
 // An item object for `srl add --stdin` (docs/items.md, "The item object"): its header
 // entries kind, see and draft, and its fields.

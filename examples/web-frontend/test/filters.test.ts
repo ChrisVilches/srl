@@ -18,15 +18,15 @@ test('no filter and no text is every card', () => {
 
 test('each filter is a term, in the order of the menus, the ID last', () => {
   assert.equal(
-    selector({ id: 'k3m9q1', leech: 'leech', in: 'grammar', schedule: 'new', status: 'active', kind: 'qa', source: 'items' }),
-    'in:grammar source:items kind:qa is:active is:new is:leech id:k3m9q1',
+    selector({ id: 'k3m9q1', leech: 'leech', collection: 'grammar', schedule: 'new', status: 'active', kind: 'qa', source: 'items' }),
+    'collection:grammar source:items kind:qa is:active is:new is:leech id:k3m9q1',
   );
 });
 
 test('each word is text, whatever it looks like', () => {
   assert.equal(selector({}, 'hello  you'), '"hello" "you"');
   assert.equal(selector({}, 'in:x -x std::move'), '"in:x" "-x" "std::move"');
-  assert.equal(selector({ in: 'a' }, 'two words'), 'in:a "two" "words"');
+  assert.equal(selector({ collection: 'a' }, 'two words'), 'collection:a "two" "words"');
 });
 
 test('one word is text, even one that looks like an ID', () => {
@@ -41,5 +41,5 @@ test('a double quote separates words', () => {
 
 test('counts the filters set, the ID among them', () => {
   assert.equal(filterCount(NO_FILTERS), 0);
-  assert.equal(filterCount({ ...NO_FILTERS, in: 'a', leech: 'leech', id: 'k3m9q1' }), 3);
+  assert.equal(filterCount({ ...NO_FILTERS, collection: 'a', leech: 'leech', id: 'k3m9q1' }), 3);
 });

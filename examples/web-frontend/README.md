@@ -121,10 +121,12 @@ macOS and Windows (it is tried on Linux only).
   comma or a double quote, which a term can't hold. Enter in the Text or
   the ID applies.
   Whether it is an ID is srl's to say: one srl refuses shows srl's
-  error in the view, so the page knows no rule of IDs. Collection offers the `in`
-  names of every collection, each once (folders and file names, as `srl
-  collections --json` gives them), since `in:` takes those; a name `in:`
-  can't take, with a space or a comma, isn't offered. Source and Kind
+  error in the view, so the page knows no rule of IDs. Collection offers the
+  name of every collection, whole, as `srl collections` lists them, and
+  filters with `collection:`, so `a/questions.jsonl` and
+  `b/questions.jsonl` are two values, where `in:questions.jsonl` would be
+  both; a name `collection:` can't take, with a space or a comma, isn't
+  offered. A folder, such as `in:japanese`, isn't a filter. Source and Kind
   offer what `srl sources` and `srl kinds` list, read when the filters
   open and kept as Add's are; Status, Schedule and Leeches only are
   `is:`'s values, which the page knows. As in Add, the menus wait for all
@@ -141,8 +143,10 @@ macOS and Windows (it is tried on Linux only).
 - The search submitted is kept in the address's query: one parameter per
   filter set, named by its key, in the order of the menus, the ID last
   (`id`), then the text,
-  as typed, in `q`. Collection `grammar`, Status `active`, Schedule `due`
-  and the text `hello you` are `?in=grammar&is=active&is=due&q=hello+you`.
+  as typed, in `q`. Collection `japanese/grammar.jsonl`, Status `active`,
+  Schedule `due` and the text `hello you` are
+  `?collection=japanese/grammar.jsonl&is=active&is=due&q=hello+you`:
+  commas, colons and slashes are left as they are.
   Reloading the page rebuilds the search from the parameters, whichever
   view the address shows, and an address with a search can be bookmarked
   or written by hand: a menu takes the first parameter of its key whose
@@ -372,7 +376,7 @@ srl-web
 `srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open]`
 serves on `http://localhost:4317/` and opens the browser. To start on a
 search, open its address, such as
-`http://localhost:4317/?in=grammar`, or bookmark it. `--dir` is given
+`http://localhost:4317/?collection=japanese/grammar.jsonl`, or bookmark it. `--dir` is given
 to every `srl` command it runs; without it, `srl` finds the store as
 always (see [docs/store.md](../../docs/store.md), "Finding the store"),
 starting from the directory `srl-web` was started in.

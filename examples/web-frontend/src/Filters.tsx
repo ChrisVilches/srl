@@ -2,6 +2,7 @@ import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type KeyboardEvent } from 'react';
 
+import { type Collection } from './api';
 import { BAR_ICON_BUTTON, DANGER_BUTTON, ErrorView, Loading, MAIN_BUTTON, Skeleton } from './CardParts';
 import { filterCount, IS_VALUES, NO_FILTERS, writable, type Filters, type Menu, type Search } from './filters';
 import { Modal } from './Modal';
@@ -102,17 +103,20 @@ export function FilterLink({ search, onSearch }: { search: Search; onSearch: (se
 
 // The labels of the menus, for the values srl lists and those of is:.
 const LABELS: Record<Exclude<Menu, 'leech' | 'id'>, string> = {
-  in: 'Collection',
+  collection: 'Collection',
   source: 'Source',
   kind: 'Kind',
   status: 'Status',
   schedule: 'Schedule',
 };
 
-// The in names of every collection, each once, sorted: the values in: takes.
-// A name in: can't take, one with a space or a comma, isn't offered.
-const inNames = (collections: { in: string[] }[]) =>
-  [...new Set(collections.flatMap((collection) => collection.in))].filter(writable).sort((a, b) => a.localeCompare(b));
+// The name of every collection, in the order srl lists them: the values
+// collection: takes. Several collections may share an in name, such as
+// a/questions.jsonl and b/questions.jsonl, so the whole name is what picks
+// one. A name collection: can't take, one with a space or a comma, isn't
+// offered.
+const collectionNames = (collections: Collection[]) =>
+  collections.map((collection) => collection.name).filter(writable);
 
 // The text and the menus, set to the page's search, APPLIED, when it is
 // made, which is each time it opens (FilterButton gives it a new key):
@@ -139,7 +143,7 @@ function FilterDialog({
   const [filters, setFilters] = useState<Filters>(applied.filters);
   const [ownText, setOwnText] = useState(applied.text);
   const text = sharedText ?? { value: ownText, onChange: setOwnText };
-  const collections = useQuery({ ...queries.collections(), enabled: open, select: inNames });
+  const collections = useQuery({ ...queries.collections(), enabled: open, select: collectionNames });
   const sources = useQuery({ ...queries.sources(), enabled: open });
   const kinds = useQuery({ ...queries.kinds(), enabled: open });
   const reads = [collections, sources, kinds];
@@ -176,7 +180,7 @@ function FilterDialog({
   }
 
   const options: Record<Exclude<Menu, 'leech' | 'id'>, string[]> = {
-    in: collections.data,
+    collection: collections.data,
     source: sources.data,
     kind: kinds.data.map((kind) => kind.name),
     status: IS_VALUES.status,
