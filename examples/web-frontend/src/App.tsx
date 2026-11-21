@@ -271,7 +271,7 @@ function StatsLine({ stats }: { stats: Today }) {
 function NextCardSkeleton({ since }: { since: number }) {
   return (
     <CardSkeleton of={since}>
-      <div className="-mx-4 mt-auto border-t border-stone-200 px-4 py-4 sm:-mx-6 sm:px-6 dark:border-stone-800">
+      <div className="-mx-4 mt-auto -mb-8 border-t border-stone-200 px-4 py-4 sm:-mx-6 sm:px-6 dark:border-stone-800">
         <div className="flex items-center gap-2">
           <Skeleton className="h-12 flex-1" />
           <Skeleton className="h-12 w-24" />
@@ -318,7 +318,10 @@ function CardView({
         }
       />
 
-      <div className="sticky bottom-0 -mx-4 mt-auto border-t border-stone-200 bg-stone-50/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 dark:border-stone-800 dark:bg-stone-950/90">
+      {/* The bar takes the column's padding at its sides and bottom
+          (VIEW_COLUMN), so it rests at the bottom of the view once
+          scrolled to the end, where it sticks before. */}
+      <div className="sticky bottom-0 -mx-4 mt-auto -mb-8 border-t border-stone-200 bg-stone-50/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 dark:border-stone-800 dark:bg-stone-950/90">
         <div className="flex flex-wrap items-center gap-2">
           {phase.kind === 'prompt' ? (
             <button
