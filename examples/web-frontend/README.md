@@ -474,8 +474,8 @@ such as Chrome; in Firefox the dialog still goes at once when closed.
 
 The server listens on `127.0.0.1` only. So that other web pages open in
 the browser can't use it, it refuses requests whose `Host` is not
-localhost, requests that the browser says (with `Sec-Fetch-Site`) come
-from another site, and POST bodies that are not `application/json`. Every
+localhost, API requests that the browser says (with `Sec-Fetch-Site`)
+come from another site, and POST bodies that are not `application/json`. Every
 answer carries a `Content-Security-Policy` that lets the page run only its
 own scripts (which is why the theme is set by `public/theme.js` rather than
 an inline script) and keeps other pages from framing it.

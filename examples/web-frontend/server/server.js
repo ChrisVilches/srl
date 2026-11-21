@@ -319,8 +319,8 @@ export function createSrlServer({ dir, staticDir, onChange }) {
     }
     try {
       checkHost(req);
-      checkFetchSite(req);
       if (url.pathname.startsWith('/api/')) {
+        checkFetchSite(req);
         const route = routes[`${req.method} ${url.pathname}`];
         if (!route) {
           throw new BadRequest(`no route ${req.method} ${url.pathname}`);
@@ -387,7 +387,9 @@ function checkHost(req) {
 // a reverse proxy in front of this server. A GET /api/card from another
 // page, an <img> say, would otherwise run a kind program. Requests without
 // the header (curl, older browsers) are let through: the other checks still
-// apply to them.
+// apply to them. The built frontend's files are served whatever the header
+// says: a link on another site opens the page, and a phone's browser fetches
+// the manifest and icons itself when installing the app, not as same-origin.
 function checkFetchSite(req) {
   const site = req.headers['sec-fetch-site'];
   if (site !== undefined && site !== 'same-origin' && site !== 'none') {
