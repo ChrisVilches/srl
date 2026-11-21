@@ -88,28 +88,35 @@ macOS and Windows (it is tried on Linux only).
 - The cards are chosen with a **search**: the filters, set with menus,
   and a text. The page never shows or takes a selector: it makes the one
   srl gets from the search (`src/filters.ts`). The page has one search,
-  the same in Study and Browse: submitting it in either changes it in
-  both, as the other view finds when it is shown. The counters at the top are the
+  the same in Study, Browse and Stats: submitting it in one changes it in
+  all, as each view finds when it is shown. The counters at the top are the
   cards reviewed today, the new ones among them, and the Again ratings,
   of every card whatever the search, as `srl stats` counts them: read
   when Study is shown and again after each review (see "What srl
   answers"), so a reload keeps them and they include reviews recorded
   elsewhere.
-- The **box** at the top, "Search text…", is the text: words the items must contain, in
-  any field, ignoring case. Each word is searched for on its own, as
-  text whatever it looks like (`in:x` or `-x` too): srl gets each in
-  double quotes, and a double quote separates words, as a space does.
-  The box searches text only, even a word that looks like an ID: an ID
-  is a filter (below), so a search is always one selector.
-  Enter submits it, and the X at the right of the box, shown while it
-  holds text, empties it and submits no text, keeping the filters.
-- The **Filters** button (sliders), at the right of the box, opens the
-  filters: Collection, Source, Kind, Status and Schedule, each with one
+- The **text** is words the items must contain, in any field, ignoring
+  case. Each word is searched for on its own, as text whatever it looks
+  like (`in:x` or `-x` too): srl gets each in double quotes, and a
+  double quote separates words, as a space does. It is text only, even
+  a word that looks like an ID: an ID is a filter (below), so a search
+  is always one selector. It is written in the filters' **Text** box,
+  in every view. Browse also has it in a box at the top, "Search text…",
+  which is the same box as the filters' Text: what is typed in either
+  shows in the other, applied or not, and stays when the filters are
+  closed without applying, as it does in the box. Enter in the box
+  submits it, and the X at its right, shown while it holds text, empties
+  it and submits no text, keeping the filters.
+- The **Filters** button (sliders), at the right of Browse's box, and
+  in Study and Stats at the right of their bar (of its second row on a
+  phone, under the theme button), opens the filters: the **Text**,
+  Collection, Source, Kind, Status and Schedule, each with one
   value or Any, an **ID**, of an item (all its cards) or of a card, typed
   in a box, and **Leeches only**. Each one set is a term of the
   selector, so a card must match them all. The ID is applied without
   the spaces around it, and Apply is disabled while it holds a space, a
-  comma or a double quote, which a term can't hold; Enter in it applies.
+  comma or a double quote, which a term can't hold. Enter in the Text or
+  the ID applies.
   Whether it is an ID is srl's to say: one srl refuses shows srl's
   error in the view, so the page knows no rule of IDs. Collection offers the `in`
   names of every collection, each once (folders and file names, as `srl
@@ -120,12 +127,14 @@ macOS and Windows (it is tried on Linux only).
   `is:`'s values, which the page knows. As in Add, the menus wait for all
   of it, shown as one skeleton of the whole form, and srl's first error,
   with Try again, is shown in their place. **Apply**, at the right of
-  Cancel, submits the filters with the box's text, as Enter would, and is
-  disabled until the menus show. **Clear**, in red at the left of the
-  same row, far from them, is shown while any filter is set, applied or
-  not, and sets every menu to Any and empties the ID; Cancel, or closing the filters any other way, changes nothing. While any filter
-  is set, the button is filled and shows how many at the left of its
-  icon, since nothing else on the page says so.
+  Cancel, submits the text and the filters, and is disabled until the
+  menus show. **Clear**, in red at the left of the same row, far from
+  them, is shown while the text or any filter is set, applied or not,
+  and empties the text, sets every menu to Any and empties the ID;
+  Cancel, or closing the filters any other way, changes nothing but
+  Browse's box, as said above. While the text or any filter is set, the
+  button is filled and shows how many (the text counting one) at the
+  left of its icon, since nothing else on the page may say so.
 - The search submitted is kept in the address's query: one parameter per
   filter set, named by its key, in the order of the menus, the ID last
   (`id`), then the text,
@@ -138,14 +147,14 @@ macOS and Windows (it is tried on Linux only).
   parameter is left out. Without one, the page starts with no search,
   every card. The address is the only place a search comes from:
   `srl-web` takes none.
-- Each view has its own path: `/` for Study, `/browse` and `/add`. The
+- Each view has its own path: `/` for Study, `/browse`, `/add` and `/stats`. The
   address is the only place the view, the search and Browse's card and
   side are kept: the page shows whatever address it is on, and changing
   any of them goes to another address. So back and forward go through
   them all, and the page follows: coming back to another search applies
-  it as if submitted, so the box and the filters show it and the cards
+  it as if submitted, so the filters (and Browse's box) show it and the cards
   are found or asked for again. Switching views with the tabs, submitting another
-  search (or emptying the box with its X), choosing a card in Browse
+  search (or emptying Browse's box with its X), choosing a card in Browse
   and turning it to another side each add to the browser's history. Doing again what the address already shows, such as
   submitting its search or clicking the side shown, adds nothing. A
   tab goes to its view's path, keeping the search: Browse's tab goes

@@ -4,8 +4,9 @@ import { Activity } from './Activity';
 import { type Schedule } from './api';
 import { useView } from './App';
 import { Label, Loading, Skeleton } from './CardParts';
+import { FilterButton } from './Filters';
 import { queries } from './queries';
-import { SearchInput, TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
+import { TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
 
 // What srl says about studying, shown and never changed: the scheduling
 // settings in use, of the whole store, and the calendar of the search's
@@ -15,7 +16,8 @@ export function Stats() {
   return (
     <div className="flex h-dvh flex-col">
       <TopBar view="stats">
-        <SearchInput search={search} onSearch={onSearch} />
+        {/* The search, for the calendar, with its text in the filters. */}
+        <FilterButton search={search} onSearch={onSearch} className="max-md:ml-auto" />
       </TopBar>
       <main className={VIEW_SCROLL}>
         <div className={`${VIEW_COLUMN} gap-10`}>

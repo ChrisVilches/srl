@@ -1,20 +1,36 @@
 import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 
 import { BAR_ICON_BUTTON, DANGER_BUTTON, ErrorView, Loading, MAIN_BUTTON, Skeleton } from './CardParts';
-import { filterCount, IS_VALUES, NO_FILTERS, writable, type Filters, type Menu } from './filters';
+import { filterCount, IS_VALUES, NO_FILTERS, writable, type Filters, type Menu, type Search } from './filters';
 import { Modal } from './Modal';
 import { queries } from './queries';
 
-// A button that opens the menus of FILTERS, the page's (src/filters.ts).
-// Apply calls ON_FILTERS with what they are set to. While any filter is
-// set, the button is filled and shows how many, since nothing else on the
-// page says so: inside it, at the left of its icon, so that the icon stays
-// where it is (src/TopBar.tsx).
-export function FilterButton({ filters, onFilters }: { filters: Filters; onFilters: (filters: Filters) => void }) {
+// The text being written, which the dialog's Text box shows and changes:
+// Browse's search box's, so that the two are one box (src/TopBar.tsx).
+export type TextDraft = { value: string; onChange: (text: string) => void };
+
+// A button that opens the dialog of SEARCH, the page's (src/filters.ts): its
+// text and its filters. Apply calls ON_SEARCH with what they are set to.
+// The text is TEXT, another box's, when given; without it, the dialog has
+// its own, set to the search's each time it opens. While the text or any
+// filter is set, the button is filled and shows how many, since nothing
+// else on the page may say so: inside it, at the left of its icon, so that
+// the icon stays where it is (src/TopBar.tsx). CLASSNAME places it.
+export function FilterButton({
+  search,
+  onSearch,
+  text,
+  className = '',
+}: {
+  search: Search;
+  onSearch: (search: Search) => void;
+  text?: TextDraft;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
-  const count = filterCount(filters);
+  const count = filterCount(search.filters) + (search.text === '' ? 0 : 1);
   return (
     <>
       <button
@@ -22,7 +38,7 @@ export function FilterButton({ filters, onFilters }: { filters: Filters; onFilte
         onClick={() => setOpen(true)}
         aria-label={count === 0 ? 'Filters' : `Filters, ${count} set`}
         title={count === 0 ? 'Filters' : `Filters: ${count} set`}
-        className={`flex shrink-0 items-center gap-1.5 max-md:-mr-2 ${BAR_ICON_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'}`}
+        className={`flex shrink-0 items-center gap-1.5 max-md:-mr-2 ${BAR_ICON_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'} ${className}`}
       >
         {count > 0 && (
           <span aria-hidden className="text-sm font-semibold tabular-nums">
@@ -33,10 +49,11 @@ export function FilterButton({ filters, onFilters }: { filters: Filters; onFilte
       </button>
       <FilterDialog
         open={open}
-        filters={filters}
+        search={search}
+        text={text}
         onApply={(set) => {
           setOpen(false);
-          onFilters(set);
+          onSearch(set);
         }}
         onClose={() => setOpen(false)}
       />
@@ -58,27 +75,36 @@ const LABELS: Record<Exclude<Menu, 'leech' | 'id'>, string> = {
 const inNames = (collections: { in: string[] }[]) =>
   [...new Set(collections.flatMap((collection) => collection.in))].filter(writable).sort((a, b) => a.localeCompare(b));
 
-// The menus, set to the page's filters, APPLIED, each time it opens: what
-// they are set to counts only once applied. What they offer is read from
-// srl when it opens, and kept as everything read is (src/main.tsx), so it
-// is the same as Add reads. The menus wait for all of it, shown as one
-// skeleton until then, as Add's form does; the first error is shown in
-// their place.
+// The text and the menus, set to the page's search, APPLIED, each time it
+// opens: what they are set to counts only once applied. The text is TEXT
+// when given, another box's, which keeps what was typed when the dialog is
+// closed without applying, as that box does. What the menus offer is read
+// from srl when it opens, and kept as everything read is (src/main.tsx),
+// so it is the same as Add reads. The form waits for all of it, shown as
+// one skeleton until then, as Add's does; the first error is shown in its
+// place.
 function FilterDialog({
   open,
-  filters: applied,
+  search: applied,
+  text: sharedText,
   onApply,
   onClose,
 }: {
   open: boolean;
-  filters: Filters;
-  onApply: (filters: Filters) => void;
+  search: Search;
+  text?: TextDraft;
+  onApply: (search: Search) => void;
   onClose: () => void;
 }) {
-  const [filters, setFilters] = useState<Filters>(applied);
+  const [filters, setFilters] = useState<Filters>(applied.filters);
+  const [ownText, setOwnText] = useState(applied.text);
   useEffect(() => {
-    if (open) setFilters(applied);
+    if (open) {
+      setFilters(applied.filters);
+      setOwnText(applied.text);
+    }
   }, [open, applied]);
+  const text = sharedText ?? { value: ownText, onChange: setOwnText };
   const collections = useQuery({ ...queries.collections(), enabled: open, select: inNames });
   const sources = useQuery({ ...queries.sources(), enabled: open });
   const kinds = useQuery({ ...queries.kinds(), enabled: open });
@@ -92,11 +118,15 @@ function FilterDialog({
   // search is made.
   const id = filters.id?.trim() || null;
   const idValid = id === null || writable(id);
-  const applyFilters = () => onApply({ ...filters, id });
+  const applyFilters = () => onApply({ filters: { ...filters, id }, text: text.value.trim() });
+  // Enter in a box applies, as Apply would.
+  const applyOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && idValid) applyFilters();
+  };
 
   // Apply, at the right of Cancel; disabled until the menus are shown, and
-  // while the ID can't be one. Clear, far at their left, is shown while any
-  // filter is set, applied or not.
+  // while the ID can't be one. Clear, far at their left, is shown while the
+  // text or any filter is set, applied or not, and empties them all.
   const apply = (ready: boolean) => (
     <button onClick={applyFilters} disabled={!ready || !idValid} className={`px-4 py-2 text-sm ${MAIN_BUTTON}`}>
       Apply
@@ -125,14 +155,35 @@ function FilterDialog({
       closeLabel="Cancel"
       actions={apply(true)}
       aside={
-        filterCount(filters) > 0 && (
-          <button onClick={() => setFilters(NO_FILTERS)} className={`px-4 py-2 text-sm ${DANGER_BUTTON}`}>
+        (filterCount(filters) > 0 || text.value !== '') && (
+          <button
+            onClick={() => {
+              setFilters(NO_FILTERS);
+              text.onChange('');
+            }}
+            className={`px-4 py-2 text-sm ${DANGER_BUTTON}`}
+          >
             Clear
           </button>
         )
       }
       onClose={onClose}
     >
+      {/* The words the items must contain, each as text whatever it looks
+          like (src/filters.ts). */}
+      <label className="flex flex-col gap-1.5 text-sm text-stone-500">
+        Text
+        <input
+          value={text.value}
+          onChange={(event) => text.onChange(event.target.value)}
+          onKeyDown={applyOnEnter}
+          placeholder="Words the items must contain"
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          className={`${BOX} placeholder:text-stone-400`}
+        />
+      </label>
       <div className="grid gap-4 sm:grid-cols-2">
         {(Object.keys(LABELS) as Exclude<Menu, 'leech' | 'id'>[]).map((name) => (
           <label key={name} className="flex flex-col gap-1.5 text-sm text-stone-500">
@@ -140,22 +191,20 @@ function FilterDialog({
             <Select value={filters[name]} options={options[name]} onChange={(value) => set(name, value)} />
           </label>
         ))}
-        {/* The search box searches text only: an ID, of an item (all its
-            cards) or of a card, is typed here. Enter applies. */}
+        {/* The text is only ever text: an ID, of an item (all its cards) or
+            of a card, is typed here. */}
         <label className="flex flex-col gap-1.5 text-sm text-stone-500">
           ID
           <input
             value={filters.id ?? ''}
             onChange={(event) => set('id', event.target.value === '' ? null : event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && idValid) applyFilters();
-            }}
+            onKeyDown={applyOnEnter}
             placeholder="Of an item or a card"
             aria-invalid={!idValid}
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
-            className="h-10 w-full rounded-lg border border-stone-300 bg-white px-2 font-mono text-base text-stone-900 placeholder:font-sans placeholder:text-stone-400 aria-[invalid=true]:border-rose-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+            className={`${BOX} font-mono placeholder:font-sans placeholder:text-stone-400 aria-[invalid=true]:border-rose-500`}
           />
         </label>
       </div>
@@ -172,11 +221,19 @@ function FilterDialog({
   );
 }
 
-// The filters while srl reads what they offer: the menus, the ID and the
-// checkbox, as grey bars.
+// The look of the dialog's text boxes, as tall as its menus.
+const BOX =
+  'h-10 w-full rounded-lg border border-stone-300 bg-white px-2 text-base text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100';
+
+// The form while srl reads what the menus offer: the text, the menus, the
+// ID and the checkbox, as grey bars.
 function FiltersSkeleton() {
   return (
     <Loading label="Reading the collections, sources and kinds" className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <Skeleton className="h-5 w-12" />
+        <Skeleton className="h-10" />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {[...Object.keys(LABELS), 'id'].map((name) => (
           <div key={name} className="flex flex-col gap-1.5">

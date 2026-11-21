@@ -97,12 +97,13 @@ function ThemeButton() {
   );
 }
 
-// The search of a view (src/filters.ts): a box for the text, the words the
-// items must contain, and at its right the filters' button (src/Filters.tsx).
-// Submitting the box, or applying the filters, calls ON_SEARCH with both,
-// the box's text as it is. While the box holds text, an X at its right
-// empties it and, if a text is submitted, submits none, keeping the
-// filters and the box focused to type another.
+// Browse's search (src/filters.ts): a box for the text, the words the items
+// must contain, and at its right the filters' button (src/Filters.tsx),
+// whose Text box is this one: they share what is typed, applied or not.
+// Submitting the box, or applying the filters, calls ON_SEARCH with both.
+// While the box holds text, an X at its right empties it and, if a text is
+// submitted, submits none, keeping the filters and the box focused to type
+// another. The other views have the filters' button alone, the text in it.
 export function SearchInput({ search, onSearch }: { search: Search; onSearch: (search: Search) => void }) {
   const [draft, setDraft] = useState(search.text);
   const input = useRef<HTMLInputElement>(null);
@@ -145,10 +146,7 @@ export function SearchInput({ search, onSearch }: { search: Search; onSearch: (s
           </button>
         )}
       </form>
-      <FilterButton
-        filters={search.filters}
-        onFilters={(filters) => onSearch({ filters, text: draft.trim() })}
-      />
+      <FilterButton search={search} onSearch={onSearch} text={{ value: draft, onChange: setDraft }} />
     </div>
   );
 }

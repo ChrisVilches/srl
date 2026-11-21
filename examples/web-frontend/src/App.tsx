@@ -8,11 +8,12 @@ import { api, type Card, type Rating, type Today } from './api';
 import { CardDetailsDialog } from './CardDetails';
 import { CardBadges, CardFace, CardSkeleton, Counts, DANGER_BUTTON, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
 import { selectorOfSearch, type Search } from './filters';
+import { FilterButton } from './Filters';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
 import { queries } from './queries';
-import { SearchInput, TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
+import { TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
 
 // What App gives the view of its route: the page's search, one for every
 // view, with how to submit another, and the selector srl gets for it.
@@ -222,8 +223,10 @@ export function Study() {
   return (
     <div className="flex h-dvh flex-col">
       <TopBar view="study">
-        <SearchInput search={search} onSearch={onSearch} />
         {today && <StatsLine stats={today} />}
+        {/* The text is in the filters. On a phone the button is at the
+            right of the bar's second row, under the theme button. */}
+        <FilterButton search={search} onSearch={onSearch} className="max-md:ml-auto" />
       </TopBar>
       <main className={VIEW_SCROLL}>
         <div className={VIEW_COLUMN}>
