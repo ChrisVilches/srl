@@ -94,8 +94,8 @@ macOS and Windows (it is tried on Linux only).
   answers"), so a reload keeps them and they include reviews recorded
   elsewhere.
 - **Activity** (a calendar), between the filters and the counters,
-  opens a calendar like GitHub's in a modal, as tall as the window so
-  that it doesn't move as the calendar replaces its skeleton: the last 9
+  opens a calendar like GitHub's in a modal, whose skeleton is the
+  calendar's size, so the modal doesn't move as one replaces the other: the last 9
   weeks (`DAYS` in `src/Activity.tsx`), a column per week from Sunday, a
   square per study day, greener for more reviews, of the cards of the
   search, as `srl stats --days` counts them. With one word that is an ID

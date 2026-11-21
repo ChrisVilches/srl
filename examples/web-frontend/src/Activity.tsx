@@ -53,7 +53,7 @@ export function ActivityButton({ selectors }: { selectors: string[] }) {
       >
         <CalendarDaysIcon className="size-5" aria-hidden />
       </button>
-      <Modal open={open} title="Activity" tall onClose={() => setOpen(false)}>
+      <Modal open={open} title="Activity" onClose={() => setOpen(false)}>
         <Activity selectors={selectors} read={open} />
       </Modal>
     </>
@@ -61,8 +61,8 @@ export function ActivityButton({ selectors }: { selectors: string[] }) {
 }
 
 // The calendar, read once READ is true, and again after each change to the
-// store (src/main.tsx). Its modal is as tall as the window, so it doesn't
-// move as the calendar replaces its skeleton.
+// store (src/main.tsx). Its skeleton has the calendar's shape, so the modal
+// keeps its height as the calendar replaces it.
 function Activity({ selectors, read }: { selectors: string[]; read: boolean }) {
   const days = useQuery({ ...queries.days(selectors, DAYS), enabled: read });
   const searched = selectors[0] !== '';
@@ -88,9 +88,16 @@ function Activity({ selectors, read }: { selectors: string[]; read: boolean }) {
 
 // The grid of the calendar: the weekdays' names, then a column per week,
 // as wide as the room allows up to WEEK, with its month's name above the
-// first week of a month.
+// first week of a month. There are always WEEKS columns, the most DAYS can
+// take, starting on any weekday, so that the calendar and its skeleton are
+// the same size wherever the days start.
 const GRID = 'grid grid-flow-col justify-start grid-rows-[auto_repeat(7,minmax(0,1fr))] gap-1';
 const WEEK = 'minmax(0, 1.75rem)';
+const WEEKS = Math.ceil((DAYS + 6) / 7);
+const COLUMNS = { gridTemplateColumns: `auto repeat(${WEEKS}, ${WEEK})` };
+
+// A line of text-sm, which a skeleton's bar of text takes the height of.
+const LINE = 'flex h-5 items-center';
 
 // The day last pointed at, focused or tapped is told below the calendar,
 // today until then, so that a phone, which shows no tooltips, tells it too.
@@ -100,17 +107,16 @@ function Calendar({ days }: { days: DayCounts[] }) {
   const [pointed, setPointed] = useState<string | null>(null);
   const shown = days.find((day) => day.day === pointed) ?? today;
   const most = Math.max(1, ...days.map((day) => day.reviews));
-  // Blanks before the first day, so that each day is on its weekday's row.
+  // Blanks before the first day, so that each day is on its weekday's row,
+  // and after the last, up to WEEKS weeks.
   const cells: (DayCounts | null)[] = [...Array<null>(weekdayOf(days[0].day)).fill(null), ...days];
-  const weeks = Array.from({ length: Math.ceil(cells.length / 7) }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+  cells.push(...Array<null>(WEEKS * 7 - cells.length).fill(null));
+  const weeks = Array.from({ length: WEEKS }, (_, i) => cells.slice(i * 7, i * 7 + 7));
   const total = days.reduce((sum, day) => sum + day.reviews, 0);
   const studied = days.filter((day) => day.reviews > 0).length;
   return (
     <>
-      <div
-        className={GRID}
-        style={{ gridTemplateColumns: `auto repeat(${weeks.length}, ${WEEK})` }}
-      >
+      <div className={GRID} style={COLUMNS}>
         <span />
         {WEEKDAYS.map((name, i) => (
           <span key={name} className="self-center pr-1 text-xs leading-none text-stone-400">
@@ -119,16 +125,16 @@ function Calendar({ days }: { days: DayCounts[] }) {
         ))}
         {weeks.map((week, i) => {
           // The month's name over its first week, and over the first week shown.
-          const first = week.find((day) => day !== null)!;
+          const first = week.find((day) => day !== null);
           const monthStart = week.find((day) => day?.day.endsWith('-01'));
-          const month = monthStart ? monthOf(monthStart.day) : i === 0 ? monthOf(first.day) : '';
+          const month = monthStart ? monthOf(monthStart.day) : i === 0 && first ? monthOf(first.day) : '';
           return [
-            <span key={`month-${first.day}`} className="h-4 text-xs whitespace-nowrap text-stone-400">
+            <span key={`month-${i}`} className="h-4 text-xs whitespace-nowrap text-stone-400">
               {month}
             </span>,
             ...week.map((day, j) =>
               day === null ? (
-                <span key={`blank-${j}`} />
+                <span key={`blank-${i}-${j}`} />
               ) : (
                 <button
                   key={day.day}
@@ -170,26 +176,34 @@ function Calendar({ days }: { days: DayCounts[] }) {
 const describe = ({ day, reviews, new: fresh, again }: DayCounts) =>
   reviews === 0 ? `${day}: no reviews` : `${day}: ${reviews} reviews, ${fresh} new, ${again} again`;
 
-// The calendar's shape while srl counts: as many weeks as the most it can
-// take, which the calendar may take one fewer of.
+// The calendar's shape while srl counts, the same size: its grid, the
+// day's line, and the total with the legend, which wraps as they do.
 function CalendarSkeleton() {
-  const weeks = Math.ceil((DAYS + 6) / 7);
   return (
     <Loading label="Counting the reviews" className="flex flex-col gap-4">
-      <div className={GRID} style={{ gridTemplateColumns: `auto repeat(${weeks}, ${WEEK})` }}>
+      <div className={GRID} style={COLUMNS}>
         <span />
         {WEEKDAYS.map((name, i) => (
-          <span key={name} className="pr-1 text-xs leading-none text-transparent self-center">
+          <span key={name} className="self-center pr-1 text-xs leading-none text-transparent">
             {i % 2 === 1 ? name : ''}
           </span>
         ))}
-        {Array.from({ length: weeks }, (_, i) => [
+        {Array.from({ length: WEEKS }, (_, i) => [
           <span key={`month-${i}`} className="h-4" />,
           ...Array.from({ length: 7 }, (_, j) => <Skeleton key={j} className="aspect-square rounded-sm" />),
         ])}
       </div>
-      <Skeleton className="h-4 w-64" />
-      <Skeleton className="h-4 w-56" />
+      <div className={LINE}>
+        <Skeleton className="h-4 w-52 max-w-full" />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className={LINE}>
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <div className="flex h-4 items-center">
+          <Skeleton className="h-3 w-36" />
+        </div>
+      </div>
     </Loading>
   );
 }
