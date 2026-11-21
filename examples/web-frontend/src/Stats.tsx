@@ -54,7 +54,7 @@ const SETTINGS: { key: keyof Schedule; name: string; value: (schedule: Schedule)
     name: 'Days of stability that make a card mature',
     value: (s) => `${s.mature_days} days`,
   },
-  { key: 'weights', name: 'FSRS weights', value: (s) => s.weights.join(', ') },
+  { key: 'weights', name: 'FSRS weights, the 21 in use', value: (s) => s.weights.join(', ') },
 ];
 
 // The settings srl schedules with, those config.toml leaves out at their

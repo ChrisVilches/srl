@@ -322,8 +322,9 @@ changes nothing:
   defaults, each with what it is and its key, as `srl config --json`
   gives them, so the page knows no default: the desired retention, the
   hour the study day starts, new cards a day, the most cards skipped,
-  the lapses of a leech, the stability of a mature card, and the FSRS
-  weights, FSRS's own when the file has none. They are of the whole
+  the lapses of a leech, the stability of a mature card, and the
+  weights FSRS uses, its own when the file has none, and those of an
+  older FSRS (17 or 19) filled in to its 21. They are of the whole
   store, whatever the search.
 - **Activity**: a calendar like GitHub's (`src/Activity.tsx`) of the
   last 9 weeks (`DAYS`), a column per week from Sunday, a square per

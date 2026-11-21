@@ -1206,6 +1206,49 @@ fn config_prints_every_key_in_use_with_the_defaults_filled_in() {
 }
 
 #[test]
+fn config_gives_the_21_weights_fsrs_uses_for_those_of_an_older_fsrs() {
+    let weights = |count: usize| {
+        let listed = (1..=count)
+            .map(|n| format!("{n}.0"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let tmp = store(&[(
+            ".srl/config.toml",
+            &format!("[schedule]\nweights = [{listed}]\n"),
+        )]);
+        let output = srl(&["config", "--json", "--dir", dir(&tmp)]);
+        (output.status.code(), stdout(&output), stderr(&output))
+    };
+    let weights_of = |text: &str| -> serde_json::Value {
+        serde_json::from_str::<serde_json::Value>(text).unwrap()["schedule"]["weights"].clone()
+    };
+    // 21 as they are.
+    let (code, out, _) = weights(21);
+    assert_eq!(code, Some(0));
+    assert_eq!(weights_of(&out)[20], 21.0);
+    // FSRS-5's 19, then 0 and its decay.
+    let (code, out, _) = weights(19);
+    assert_eq!(code, Some(0));
+    let used = weights_of(&out);
+    assert_eq!(used.as_array().unwrap().len(), 21);
+    assert_eq!(
+        (used[18].clone(), used[19].clone(), used[20].clone()),
+        (19.0.into(), 0.0.into(), 0.5.into())
+    );
+    // FSRS-4.5's 17, with w4 and w6 changed as FSRS-6 reads them.
+    let (code, out, _) = weights(17);
+    assert_eq!(code, Some(0));
+    let used = weights_of(&out);
+    assert_eq!(used.as_array().unwrap().len(), 21);
+    assert_eq!(used[4], 5.0 + 2.0 * 6.0);
+    assert_eq!(used[6], 7.5);
+    // Any other count is refused, as when scheduling.
+    let (code, _, err) = weights(5);
+    assert_eq!(code, Some(2));
+    assert!(err.contains("the weights are not valid"), "{err}");
+}
+
+#[test]
 fn a_source_program_s_config_keeps_its_own_keys() {
     let tmp = store(&[(
         ".srl/config.toml",

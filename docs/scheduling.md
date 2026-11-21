@@ -56,7 +56,8 @@ memory is kept, and used again if the card comes back.
 
 Weights in `.srl/config.toml` are given to FSRS as they are. It takes 21
 (FSRS-6), or 19 or 17 from older versions, and fills in the rest. Any other
-count is an error.
+count is an error. `srl config` gives the 21 weights FSRS uses (see
+[cli.md](cli.md), "Store").
 
 Consequences:
 

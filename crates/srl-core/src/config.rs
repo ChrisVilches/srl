@@ -9,6 +9,7 @@ use jiff::civil::{Date, DateTime};
 use serde::{Deserialize, Serialize};
 
 use crate::domain::item::is_id_text;
+use crate::domain::schedule::weights_in_use;
 use crate::store::nfc;
 use crate::{Error, Result, Store};
 
@@ -269,14 +270,15 @@ pub struct Schedule {
     pub max_skip: u32,
     pub leech_lapses: u32,
     pub mature_days: u32,
-    /// Written as the weights FSRS uses: these, or its defaults when
-    /// `None`.
+    /// Written as the 21 weights FSRS uses: these, filled in when they are
+    /// 19 or 17, or its defaults when `None`.
     #[serde(serialize_with = "weights_used")]
     pub weights: Option<Vec<f64>>,
 }
 
-/// The weights FSRS uses: `weights`, or its default weights. Those are
-/// `f32`s, written as they read (`0.212`), not as the `f64` nearest them.
+/// The 21 weights FSRS uses (see `weights_in_use`). Those are `f32`s,
+/// written as they read (`0.212`), not as the `f64` nearest them. Weights
+/// FSRS refuses can't be written, and fail with its reason.
 #[expect(
     clippy::ref_option,
     reason = "serde's serialize_with passes a reference"
@@ -285,19 +287,17 @@ fn weights_used<S: serde::Serializer>(
     weights: &Option<Vec<f64>>,
     serializer: S,
 ) -> std::result::Result<S::Ok, S::Error> {
-    match weights {
-        Some(weights) => weights.serialize(serializer),
-        None => fsrs::DEFAULT_PARAMETERS
-            .iter()
-            .map(|weight| {
-                weight
-                    .to_string()
-                    .parse::<f64>()
-                    .expect("an f32 written out should read as an f64")
-            })
-            .collect::<Vec<_>>()
-            .serialize(serializer),
-    }
+    weights_in_use(weights.as_deref())
+        .map_err(serde::ser::Error::custom)?
+        .iter()
+        .map(|weight| {
+            weight
+                .to_string()
+                .parse::<f64>()
+                .expect("an f32 written out should read as an f64")
+        })
+        .collect::<Vec<_>>()
+        .serialize(serializer)
 }
 
 impl Default for Schedule {

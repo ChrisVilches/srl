@@ -346,6 +346,15 @@ fn interval_days(interval: f32) -> i64 {
     days
 }
 
+/// The 21 weights FSRS schedules with: its defaults without weights in
+/// `config.toml`, 21 as they are, and 19 or 17 of an older FSRS with the
+/// rest filled in and some changed, as FSRS does when given them.
+pub(crate) fn weights_in_use(configured: Option<&[f64]>) -> Result<Vec<f32>> {
+    fsrs::check_and_fill_parameters(&weights(configured)).map_err(|error| Error::Fsrs {
+        reason: format!("the weights are not valid ({error})"),
+    })
+}
+
 /// The FSRS weights: those of `config.toml`, or none for FSRS's defaults.
 fn weights(configured: Option<&[f64]>) -> Vec<f32> {
     configured

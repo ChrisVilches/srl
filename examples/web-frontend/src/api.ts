@@ -24,8 +24,9 @@ export type Today = { reviewed: number; new: number; again: number };
 
 // The [schedule] of the store's configuration, as srl config --json gives
 // it (docs/cli.md, "Store"): every key with the value in use, its default
-// when config.toml leaves it out, and FSRS's default weights when it has
-// none (docs/store.md, "Configuration").
+// when config.toml leaves it out, and the 21 weights FSRS uses: its defaults
+// when it has none, those of an older FSRS filled in (docs/store.md,
+// "Configuration").
 export type Schedule = {
   desired_retention: number;
   day_starts_at: number;
