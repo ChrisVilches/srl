@@ -175,9 +175,13 @@ export function Study() {
   // Suspending first asks why and for how long, in a dialog; both may be
   // left empty.
   const [askingWhy, setAskingWhy] = useState(false);
+  // How many times it was asked: the dialog's key, so that each asking
+  // makes it anew, empty.
+  const [askings, setAskings] = useState(0);
   const askWhy = useCallback(() => {
     if (phase.kind !== 'prompt' && phase.kind !== 'answer') return;
     setAskingWhy(true);
+    setAskings((n) => n + 1);
   }, [phase]);
 
   const suspend = useCallback(
@@ -250,7 +254,7 @@ export function Study() {
               <CardDetailsDialog id={phase.card.id} open={showingDetails} onClose={() => setShowingDetails(false)} />
             </>
           )}
-          <SuspendDialog open={askingWhy} onSuspend={suspend} onClose={() => setAskingWhy(false)} />
+          <SuspendDialog key={askings} open={askingWhy} onSuspend={suspend} onClose={() => setAskingWhy(false)} />
         </div>
       </main>
     </div>
@@ -379,14 +383,9 @@ function SuspendDialog({
   onSuspend: (reason: string, days: number | null) => void;
   onClose: () => void;
 }) {
+  // Empty when it is made, which is each time it is asked (its key).
   const [reason, setReason] = useState('');
   const [days, setDays] = useState('');
-  useEffect(() => {
-    if (open) {
-      setReason('');
-      setDays('');
-    }
-  }, [open]);
   const dayCount = days.trim() === '' ? null : Number(days);
   const daysValid = dayCount === null || (Number.isInteger(dayCount) && dayCount >= 1 && dayCount <= 36500);
 

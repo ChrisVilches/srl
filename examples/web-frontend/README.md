@@ -682,6 +682,31 @@ The rest comes with `src/Modal.tsx`: show the answer in `ResultBox`
 (green when srl did it, red with srl's message when it didn't), and let
 the modal give the focus back to the form when it closes.
 
+### State starts anew by its key, never from an effect
+
+State that must start over, such as a form emptied each time its dialog
+opens, or a box set to the search whenever the search changes, is never
+set from an effect (`useEffect(() => setX(…), [y])`): that renders once
+with the old state, then again with the new, and React's docs advise
+against it. Give the component a `key` that changes when it must start
+over, so that React makes it anew and its `useState` starts from its
+props:
+
+- **Each time a dialog opens:** a count of openings is its key, as
+  `openings` for the filters (`src/Filters.tsx`) and `askings` for the
+  suspend dialog (`src/App.tsx`). Closing keeps the key, so the dialog
+  keeps what it shows while it fades out.
+- **Whenever a value changes:** the value is the key, as the search's
+  text for Browse's box (`SearchInput` in `src/TopBar.tsx`).
+- **From a value read once:** a child made only once the value is there,
+  which starts from it, as `OnChangeDialog` from the first status of the
+  `--on-change` program (`src/OnChange.tsx`).
+
+What is made anew loses what it held, such as text typed and not
+submitted, or the focus: that is the trade-off. An effect stays the way
+to start or stop something outside React, such as a timer, a listener or
+a scroll.
+
 ## TODO
 
 - The collection and note pickers of the Add tab (`PathPicker` in

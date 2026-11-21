@@ -1,5 +1,5 @@
 import { MoonIcon, SunIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { VIEW_PATHS, type View } from './address';
@@ -102,12 +102,21 @@ function ThemeButton() {
 // whose Text box is this one: they share what is typed, applied or not.
 // Submitting the box, or applying the filters, calls ON_SEARCH with both.
 // While the box holds text, an X at its right empties it and, if a text is
-// submitted, submits none, keeping the filters and the box focused to type
-// another. The other views have the filters' button alone, the text in it.
+// submitted, submits none, keeping the filters. The other views have the
+// filters' button alone, the text in it.
+//
+// The box starts with the search's text, and starts anew whenever the text
+// submitted changes, as when back or forward comes to another search: it
+// is made again by its key, rather than set from an effect, which would
+// show the text typed before for a render first. So what was typed and not
+// submitted is dropped then, and the box isn't focused any more.
 export function SearchInput({ search, onSearch }: { search: Search; onSearch: (search: Search) => void }) {
+  return <SearchBox key={search.text} search={search} onSearch={onSearch} />;
+}
+
+function SearchBox({ search, onSearch }: { search: Search; onSearch: (search: Search) => void }) {
   const [draft, setDraft] = useState(search.text);
   const input = useRef<HTMLInputElement>(null);
-  useEffect(() => setDraft(search.text), [search.text]);
 
   return (
     <div className="flex min-w-48 flex-1 items-center gap-1">
@@ -134,9 +143,14 @@ export function SearchInput({ search, onSearch }: { search: Search; onSearch: (s
           <button
             type="button"
             onClick={() => {
-              setDraft('');
-              if (search.text !== '') onSearch({ ...search, text: '' });
-              input.current?.focus();
+              // A text submitted is submitted empty, which makes the box
+              // anew, empty; one only typed is emptied here.
+              if (search.text !== '') {
+                onSearch({ ...search, text: '' });
+              } else {
+                setDraft('');
+                input.current?.focus();
+              }
             }}
             aria-label="Clear the text"
             title="Clear the text"

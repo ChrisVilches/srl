@@ -1,6 +1,6 @@
 import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 
 import { BAR_ICON_BUTTON, DANGER_BUTTON, ErrorView, Loading, MAIN_BUTTON, Skeleton } from './CardParts';
 import { filterCount, IS_VALUES, NO_FILTERS, writable, type Filters, type Menu, type Search } from './filters';
@@ -30,12 +30,19 @@ export function FilterButton({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  // How many times the dialog was opened: its key, so that each opening
+  // makes it anew, set to the search, while closing keeps it as it is to
+  // fade out (src/Modal.tsx).
+  const [openings, setOpenings] = useState(0);
   const count = filterCount(search.filters) + (search.text === '' ? 0 : 1);
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true);
+          setOpenings((n) => n + 1);
+        }}
         aria-label={count === 0 ? 'Filters' : `Filters, ${count} set`}
         title={count === 0 ? 'Filters' : `Filters: ${count} set`}
         className={`flex shrink-0 items-center gap-1.5 max-md:-mr-2 ${BAR_ICON_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'} ${className}`}
@@ -48,6 +55,7 @@ export function FilterButton({
         <AdjustmentsHorizontalIcon className="size-5" aria-hidden />
       </button>
       <FilterDialog
+        key={openings}
         open={open}
         search={search}
         text={text}
@@ -75,8 +83,9 @@ const LABELS: Record<Exclude<Menu, 'leech' | 'id'>, string> = {
 const inNames = (collections: { in: string[] }[]) =>
   [...new Set(collections.flatMap((collection) => collection.in))].filter(writable).sort((a, b) => a.localeCompare(b));
 
-// The text and the menus, set to the page's search, APPLIED, each time it
-// opens: what they are set to counts only once applied. The text is TEXT
+// The text and the menus, set to the page's search, APPLIED, when it is
+// made, which is each time it opens (FilterButton gives it a new key):
+// what they are set to counts only once applied. The text is TEXT
 // when given, another box's, which keeps what was typed when the dialog is
 // closed without applying, as that box does. What the menus offer is read
 // from srl when it opens, and kept as everything read is (src/main.tsx),
@@ -98,12 +107,6 @@ function FilterDialog({
 }) {
   const [filters, setFilters] = useState<Filters>(applied.filters);
   const [ownText, setOwnText] = useState(applied.text);
-  useEffect(() => {
-    if (open) {
-      setFilters(applied.filters);
-      setOwnText(applied.text);
-    }
-  }, [open, applied]);
   const text = sharedText ?? { value: ownText, onChange: setOwnText };
   const collections = useQuery({ ...queries.collections(), enabled: open, select: inNames });
   const sources = useQuery({ ...queries.sources(), enabled: open });

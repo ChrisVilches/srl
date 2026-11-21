@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
+import { type OnChangeStatus } from './api';
 import { Modal } from './Modal';
 import { queries } from './queries';
 
@@ -21,16 +22,19 @@ const POLL_MS = 1000;
 export function OnChangeError() {
   const has = useQuery(queries.hasOnChange()).data === true;
   const status = useQuery({ ...queries.onChangeStatus(POLL_MS), enabled: has }).data;
-  // The seq of the last run whose outcome was seen: from the first status
-  // read, so that runs from before the page was opened are not shown, and
-  // then of the last error shown.
-  const [seen, setSeen] = useState<number | null>(null);
-  useEffect(() => {
-    if (seen === null && status !== undefined) setSeen(status.last?.seq ?? 0);
-  }, [seen, status]);
+  // Made once the first status is read, which it starts from; the status
+  // read before stays while it is read again, so it is made only once.
+  return status === undefined ? null : <OnChangeDialog status={status} />;
+}
+
+function OnChangeDialog({ status }: { status: OnChangeStatus }) {
+  // The seq of the last run whose outcome was seen: of the first status
+  // read, when this is made, so that runs from before the page was opened
+  // are not shown, and then of the last error shown.
+  const [seen, setSeen] = useState(status.last?.seq ?? 0);
   // The last run once every change has had its run, if it is new and failed.
-  const last = status !== undefined && !status.busy ? status.last : null;
-  const failed = last !== null && seen !== null && last.seq > seen && last.error !== null ? last : null;
+  const last = !status.busy ? status.last : null;
+  const failed = last !== null && last.seq > seen && last.error !== null ? last : null;
 
   return (
     <Modal
