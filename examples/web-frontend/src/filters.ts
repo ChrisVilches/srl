@@ -4,6 +4,11 @@
 // in double quotes, so that every word is text that the items must contain,
 // whatever it looks like (in:x, -x). A double quote can't be in a quoted
 // term, so it separates words, as a space does.
+//
+// A text of one word may also be an ID, of an item or a card, which the
+// items don't contain as text: such a search is two selectors, the word as
+// an ID (id:WORD) and as text, and finds the cards of either, those of the
+// ID first (src/api.ts).
 
 export type Menu = 'in' | 'source' | 'kind' | 'status' | 'schedule' | 'leech';
 
@@ -39,10 +44,15 @@ export const writable = (value: string) => /^[^\s,"]+$/.test(value);
 // How many filters are set.
 export const filterCount = (filters: Filters) => MENUS.filter((menu) => filters[menu] !== null).length;
 
-// The selector of SEARCH; empty, every card, when it has no filter and no
-// word.
-export function selectorOfSearch({ filters, text }: Search): string {
+// The selectors of SEARCH, in the order their cards come: with one word that
+// can be written as a term, the word as an ID, then as text; otherwise the
+// one selector of its words, empty, every card, when it has no filter and
+// no word. Whether the word is an ID is srl's to say, which it does by
+// refusing it (api.ts), so that no rule of IDs is written here.
+export function selectorsOfSearch({ filters, text }: Search): string[] {
   const keys = MENUS.flatMap((menu) => (filters[menu] === null ? [] : [`${keyOf(menu)}:${filters[menu]}`]));
-  const words = text.split(/[\s"]+/).filter((word) => word !== '').map((word) => `"${word}"`);
-  return [...keys, ...words].join(' ');
+  const words = text.split(/[\s"]+/).filter((word) => word !== '');
+  const asText = [...keys, ...words.map((word) => `"${word}"`)].join(' ');
+  if (words.length === 1 && writable(words[0])) return [[...keys, `id:${words[0]}`].join(' '), asText];
+  return [asText];
 }

@@ -9,10 +9,10 @@ import type { Submitted } from './hooks';
 // A view reads with useQuery(queries.X(…)) and never sets what it shows from
 // an answer itself (README.md, "What srl answers").
 export const queries = {
-  // The cards of a selector, for one submission of it: submitting it again
-  // finds them anew.
-  find: ({ selector, n }: Submitted) =>
-    queryOptions({ queryKey: ['find', selector, n], queryFn: () => api.find(selector) }),
+  // The cards of a search's selectors, for one submission of it: submitting
+  // it again finds them anew.
+  find: ({ selectors, n }: Submitted) =>
+    queryOptions({ queryKey: ['find', selectors, n], queryFn: () => api.findAll(selectors) }),
 
   // Card ID made from its item, by its kind program, which may take long or
   // cost something (an LLM): made only when asked, so not again after a

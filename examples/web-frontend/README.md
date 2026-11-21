@@ -93,6 +93,13 @@ macOS and Windows (it is tried on Linux only).
   any field, ignoring case. Each word is searched for on its own, as
   text whatever it looks like (`in:x` or `-x` too): srl gets each in
   double quotes, and a double quote separates words, as a space does.
+  A single word is also an ID, of an item or a card: the page asks srl
+  for `id:WORD` too, with the filters, and shows the cards of both, those
+  of the ID first (Browse lists each card once; Study gives the ID's next
+  card, and makes a card of the text only when the ID has none). Whether
+  the word is an ID is srl's to say: when srl refuses it as one, the page
+  searches the word as text only, so the page knows no rule of IDs. Two
+  words or more are only text.
   Enter submits it, and the X at the right of the box, shown while it
   holds text, empties it and submits no text, keeping the filters.
 - The **Filters** button (sliders), at the right of the box, opens the
@@ -478,7 +485,7 @@ the user typed uses it too.
 What a view shows from srl must be the answer for what its address asks
 now, whatever order srl's answers come in. So what the views read is read
 with TanStack Query's `useQuery`, kept by what was asked: Browse's cards
-by the selector of the search submitted and the cards it made by their ID, Add's kinds,
+by the search submitted and the cards it made by their ID, Add's kinds,
 collections and notes, a card's details and history and an
 item to edit by their ID, Study's counts, and the `--on-change`
 program's status. A list that comes late for a search submitted before

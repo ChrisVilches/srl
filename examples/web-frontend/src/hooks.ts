@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 
-// The page's selector, with the number of times a selector was submitted
-// again in any view, so that submitting the same selector again counts as a
-// new submission. A new one is made only when one of them changes, never
-// both at once: by submitting, or by back or forward coming to an address
-// with another selector.
-export type Submitted = { selector: string; n: number };
+// The selectors of the page's search (src/filters.ts), with the number of
+// times a search was submitted again in any view, so that submitting the
+// same search again counts as a new submission. A new one is made only when
+// one of them changes, never both at once: by submitting, or by back or
+// forward coming to an address with another search.
+export type Submitted = { selectors: string[]; n: number };
 
-// Calls LOAD with the selector when the view is shown, and with each new one
-// while it is. LOAD stays the same function, so that it runs only then.
-export function useSubmitted(submitted: Submitted, load: (selector: string) => void) {
+// Calls LOAD with the selectors when the view is shown, and with each new
+// search while it is. LOAD stays the same function, so that it runs only
+// then.
+export function useSubmitted(submitted: Submitted, load: (selectors: string[]) => void) {
   useEffect(() => {
-    load(submitted.selector);
+    load(submitted.selectors);
   }, [submitted, load]);
 }
 

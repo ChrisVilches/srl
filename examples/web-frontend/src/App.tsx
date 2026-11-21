@@ -7,7 +7,7 @@ import { queryOfSearch, searchOfQuery } from './address';
 import { api, type Card, type Rating, type Today } from './api';
 import { CardDetailsDialog } from './CardDetails';
 import { CardBadges, CardFace, Counts, DANGER_BUTTON, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
-import { selectorOfSearch, type Search } from './filters';
+import { selectorsOfSearch, type Search } from './filters';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
@@ -50,8 +50,8 @@ const WAIT_SHOWN_AFTER_MS = 300;
 const RATE_AFTER_MS = 1000;
 
 // The phase after getting the next card: its prompt, or done if none is left.
-async function nextPhase(selector: string, signal: AbortSignal): Promise<Phase> {
-  const card = await api.next(selector, signal);
+async function nextPhase(selectors: string[], signal: AbortSignal): Promise<Phase> {
+  const card = await api.nextOf(selectors, signal);
   return card ? { kind: 'prompt', card } : { kind: 'done' };
 }
 
@@ -61,12 +61,12 @@ export default function App() {
   const { pathname, search: query } = useLocation();
 
   // The search in the address, or else none, which is every card, and its
-  // selector, with the number of times a search was submitted again, so
+  // selectors, with the number of times a search was submitted again, so
   // that submitting the same one again finds its cards again.
   const search = useMemo(() => searchOfQuery(query), [query]);
-  const selector = selectorOfSearch(search);
+  const selectors = useMemo(() => selectorsOfSearch(search), [search]);
   const [n, setN] = useState(0);
-  const submitted = useMemo<Submitted>(() => ({ selector, n }), [selector, n]);
+  const submitted = useMemo<Submitted>(() => ({ selectors, n }), [selectors, n]);
   // Submitting another search goes to its address, a new entry of the
   // browser's history, which is a new submission by itself; submitting the
   // one there again stays on it, and counts. Only one of the two changes,
@@ -96,7 +96,7 @@ export default function App() {
 
 export function Study() {
   const { search, submitted, onSearch } = useView();
-  const { selector } = submitted;
+  const { selectors } = submitted;
   const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: performance.now() }));
   // The counts are the study day's, from srl: they include reviews recorded
   // elsewhere, a reload shows them as they were, and each review reads them
@@ -124,14 +124,14 @@ export function Study() {
 
   // Shows the next card, or, if srl takes a while to make it, that it waits.
   // A request stopped shows nothing.
-  const toNext = useCallback(async (sel: string) => {
+  const toNext = useCallback(async (sels: string[]) => {
     asking.current?.abort();
     const abort = new AbortController();
     asking.current = abort;
     const since = performance.now();
     const timer = setTimeout(() => setPhase({ kind: 'loading', since }), WAIT_SHOWN_AFTER_MS);
     try {
-      setPhase(await nextPhase(sel, abort.signal));
+      setPhase(await nextPhase(sels, abort.signal));
     } catch (error) {
       if (!abort.signal.aborted) throw error;
     } finally {
@@ -139,7 +139,7 @@ export function Study() {
     }
   }, []);
 
-  const loadNext = useCallback((sel: string) => step(() => toNext(sel)), [step, toNext]);
+  const loadNext = useCallback((sels: string[]) => step(() => toNext(sels)), [step, toNext]);
 
   // Asks for a card when shown, and with each selector submitted.
   useSubmitted(submitted, loadNext);
@@ -162,10 +162,10 @@ export function Study() {
       const { card } = phase;
       step(async () => {
         await api.review(card.id, rating);
-        await toNext(selector);
+        await toNext(selectors);
       });
     },
-    [phase, selector, step, toNext],
+    [phase, selectors, step, toNext],
   );
 
   // Suspending first asks why and for how long, in a dialog; both may be
@@ -183,10 +183,10 @@ export function Study() {
       const { card } = phase;
       step(async () => {
         await api.suspend(card.id, reason.trim(), days);
-        await toNext(selector);
+        await toNext(selectors);
       });
     },
-    [phase, selector, step, toNext],
+    [phase, selectors, step, toNext],
   );
 
   // The card's details, in a dialog.
@@ -227,10 +227,10 @@ export function Study() {
           <Waiting title="Loading…" since={phase.since} />
         )}
         {phase.kind === 'error' && (
-          <ErrorView message={phase.message} onRetry={() => loadNext(selector)} />
+          <ErrorView message={phase.message} onRetry={() => loadNext(selectors)} />
         )}
         {phase.kind === 'done' && (
-          <DoneView selector={selector} today={today} onCheck={() => loadNext(selector)} />
+          <DoneView searched={selectors[0] !== ''} today={today} onCheck={() => loadNext(selectors)} />
         )}
         {(phase.kind === 'prompt' || phase.kind === 'answer') && (
           <>
@@ -402,12 +402,12 @@ function SuspendDialog({
   );
 }
 
-function DoneView({ selector, today, onCheck }: { selector: string; today: Today | null; onCheck: () => void }) {
+function DoneView({ searched, today, onCheck }: { searched: boolean; today: Today | null; onCheck: () => void }) {
   return (
     <div className="m-auto flex flex-col items-center gap-4 text-center">
       <CheckIcon aria-hidden className="h-10 w-10" />
       <h1 className="text-xl font-semibold">Nothing left to study</h1>
-      <p className="text-stone-500">{selector ? 'No card is due for this search.' : 'No card is due.'}</p>
+      <p className="text-stone-500">{searched ? 'No card is due for this search.' : 'No card is due.'}</p>
       {today && <StatsLine stats={today} />}
       <button onClick={onCheck} className={OUTLINE_BUTTON}>
         Check again
