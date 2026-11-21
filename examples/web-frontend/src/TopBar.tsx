@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router';
 
 import { VIEW_PATHS, type View } from './address';
 import { QUIET_BUTTON } from './CardParts';
+import { FilterButton } from './Filters';
 import { currentTheme, setTheme } from './theme';
 
 // The bar at the top of each view: the switch between views, then the
@@ -75,7 +76,8 @@ function ThemeButton() {
 // placeholder is a selector that works, the same in every view. While it
 // holds text, an X at its right empties it and, if a selector is
 // submitted, submits none, every card, keeping the box focused to type
-// another.
+// another. The filters' button, at its right, writes the selector with
+// menus, from the box's text (src/Filters.tsx).
 export function SelectorInput({
   selector,
   onSelector,
@@ -88,39 +90,42 @@ export function SelectorInput({
   useEffect(() => setDraft(selector), [selector]);
 
   return (
-    <form
-      className="relative min-w-48 flex-1"
-      onSubmit={(event) => {
-        event.preventDefault();
-        input.current?.blur();
-        onSelector(draft.trim());
-      }}
-    >
-      <input
-        ref={input}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        placeholder="is:young in:grammar"
-        spellCheck={false}
-        autoCapitalize="off"
-        autoCorrect="off"
-        className="w-full rounded-md border border-stone-300 bg-transparent py-1.5 pr-9 pl-3 font-mono text-sm outline-none placeholder:text-stone-400 focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
-      />
-      {draft !== '' && (
-        <button
-          type="button"
-          onClick={() => {
-            setDraft('');
-            if (selector !== '') onSelector('');
-            input.current?.focus();
-          }}
-          aria-label="Clear the selector"
-          title="Clear the selector"
-          className="absolute inset-y-0 right-1 my-auto h-fit rounded-md p-1 text-stone-400 hover:bg-stone-200 hover:text-stone-600 dark:hover:bg-stone-800 dark:hover:text-stone-300"
-        >
-          <XMarkIcon className="size-4" aria-hidden />
-        </button>
-      )}
-    </form>
+    <div className="flex min-w-48 flex-1 items-center gap-1">
+      <form
+        className="relative min-w-0 flex-1"
+        onSubmit={(event) => {
+          event.preventDefault();
+          input.current?.blur();
+          onSelector(draft.trim());
+        }}
+      >
+        <input
+          ref={input}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="is:young in:grammar"
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          className="w-full rounded-md border border-stone-300 bg-transparent py-1.5 pr-9 pl-3 font-mono text-sm outline-none placeholder:text-stone-400 focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
+        />
+        {draft !== '' && (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft('');
+              if (selector !== '') onSelector('');
+              input.current?.focus();
+            }}
+            aria-label="Clear the selector"
+            title="Clear the selector"
+            className="absolute inset-y-0 right-1 my-auto h-fit rounded-md p-1 text-stone-400 hover:bg-stone-200 hover:text-stone-600 dark:hover:bg-stone-800 dark:hover:text-stone-300"
+          >
+            <XMarkIcon className="size-4" aria-hidden />
+          </button>
+        )}
+      </form>
+      <FilterButton selector={draft.trim()} onSelector={onSelector} />
+    </div>
   );
 }

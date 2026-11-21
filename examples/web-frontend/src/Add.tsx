@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
-import { api, fieldLabel, type KindDescription, type NewItem } from './api';
+import { api, fieldLabel, type Collection, type KindDescription, type NewItem } from './api';
 import { DraftCheckbox, ErrorView, Key, KindBadge, Label, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
 import { Modal, ResultBox, UnsavedGuard } from './Modal';
 import { clozeHint, clozeShortcut } from './qaCloze';
@@ -59,12 +59,15 @@ function rememberCollection(kind: string, collection: string) {
   }
 }
 
+// The names of the collections, the same list until srl lists others.
+const collectionNames = (collections: Collection[]) => collections.map((collection) => collection.name);
+
 export function Add() {
   // What the form offers, as srl lists it: read anew after each change to
   // the store, as when an item added makes a new collection (src/main.tsx).
   // The form waits for all of it; the first error is shown.
   const kindsRead = useQuery(queries.kinds());
-  const collectionsRead = useQuery(queries.collections());
+  const collectionsRead = useQuery({ ...queries.collections(), select: collectionNames });
   const notesRead = useQuery(queries.notes());
   const reads = [kindsRead, collectionsRead, notesRead];
   const failed = reads.find((read) => read.isError && !read.isFetching);

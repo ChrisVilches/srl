@@ -11,6 +11,11 @@
 //   GET  /api/stats        srl stats --json            → { stats } or, with no
 //                                                        card, { stats: null }
 //
+// The filters, which write a selector from menus, also read /api/kinds and
+// /api/collections (below):
+//
+//   GET  /api/sources      srl sources --json          → { sources: [name…] }
+//
 // The card browser, which shows any card without studying it:
 //
 //   GET  /api/find?sel=…   srl find SEL --json, then srl show ITEMS --json
@@ -27,7 +32,7 @@
 // Adding items, one at a time:
 //
 //   GET  /api/kinds        srl kinds --json            → { kinds: [kind…] }
-//   GET  /api/collections  srl collections --json      → { collections: [collection…] }
+//   GET  /api/collections  srl collections --json      → { collections: [{ name, in }…] }
 //   GET  /api/notes        srl notes --json            → { notes: [path…] }
 //   POST /api/add          srl add COLLECTION --stdin [--dry-run], with ITEM as its
 //                          one line                    ← { collection, item, dry_run }
@@ -205,8 +210,15 @@ export function createSrlServer({ dir, staticDir, onChange }) {
 
     'GET /api/collections': async () => {
       const { found, stdout } = await srl(['collections', '--json']);
-      return { collections: found ? jsonLines(stdout).map((listed) => listed.collection) : [] };
+      return {
+        collections: found ? jsonLines(stdout).map((listed) => ({ name: listed.collection, in: listed.in })) : [],
+      };
     },
+
+    // The names of the sources, which the filters offer for source:.
+    'GET /api/sources': async () => ({
+      sources: jsonLines((await srl(['sources', '--json'])).stdout).map((source) => source.name),
+    }),
 
     // The notes: the files items may name with `see`, as their context.
     'GET /api/notes': async () => {

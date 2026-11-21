@@ -33,7 +33,7 @@ function keyParam(term: string): [string, string] | null {
 
 // The terms of a selector, as docs/selectors.md splits them: by spaces, but a
 // quoted term, which runs to the next ", spaces included.
-const terms = (selector: string) => selector.match(/-?"[^"]*"?|\S+/g) ?? [];
+export const terms = (selector: string) => selector.match(/-?"[^"]*"?|\S+/g) ?? [];
 
 // Commas and colons are left as they are, and spaces are +, so that the
 // address reads as the selector does.

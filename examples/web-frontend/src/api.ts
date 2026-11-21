@@ -67,6 +67,10 @@ export type FieldDescription = { name: string; label: string | null; description
 export const fieldLabel = (field: FieldDescription) => field.label ?? field.name;
 
 
+// A collection as `srl collections --json` lists it (docs/cli.md, "Store"):
+// its name, and its in names, the values of in: that select it.
+export type Collection = { name: string; in: string[] };
+
 // An item object for `srl add --stdin` (docs/items.md, "The item object"): its header
 // entries kind, see and draft, and its fields.
 export type NewItem = Record<string, string | boolean>;
@@ -141,7 +145,9 @@ export const api = {
   log: async (id: string, signal: AbortSignal) =>
     (await call<{ events: LogEvent[] }>(`/api/log?${new URLSearchParams({ id })}`, undefined, signal)).events,
   kinds: async () => (await call<{ kinds: KindDescription[] }>('/api/kinds')).kinds,
-  collections: async () => (await call<{ collections: string[] }>('/api/collections')).collections,
+  collections: async () => (await call<{ collections: Collection[] }>('/api/collections')).collections,
+  // The names of the sources, as srl sources --json gives them.
+  sources: async () => (await call<{ sources: string[] }>('/api/sources')).sources,
   // The notes: the files an item may name with `see`, as its context.
   notes: async () => (await call<{ notes: string[] }>('/api/notes')).notes,
   // The item as its source would add it to COLLECTION,

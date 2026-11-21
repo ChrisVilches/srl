@@ -83,6 +83,7 @@ The open findings cluster in three places:
 | L11 | A collection named as a Windows device can't exist on Windows | Specification | Low | Easy |
 | L12 | A `[sources]` without sources makes a store that silently has no items | Specification | Low | Easy |
 | L13 | Changes to several sources are not all checked before the first is written | Specification | Low | Easy |
+| L14 | A folder or file name with a space or a comma is an `in` name no selector can write | Specification | Low | Easy |
 
 ---
 
@@ -540,6 +541,31 @@ does instead ([cli.md](cli.md), "Moving items").
    item objects, IDs, kinds and `see`, and each source's changes before
    it writes them.
 
+### L14. A folder or file name with a space or a comma is an `in` name no selector can write
+
+**Severity Low · Difficulty Easy**
+
+A source program's `in` names must be values `in:` can take, "without
+spaces or commas" ([sources.md](sources.md), "Calls"), but a `filesystem`
+source gives each folder and file name as it is ([formats.md](formats.md),
+"Which files are collections"). So `my notes/words.jsonl` has the `in`
+name `my notes`, which `srl collections --json` lists, but `in:my notes`
+is two terms and `in:"my notes"` is text ([selectors.md](selectors.md)):
+`in:` can select it only by its other names, such as `words`. A comma
+splits the value the same way. `srl-web`'s filters leave such names out
+of their menu.
+
+**Possible fixes:**
+
+1. **Leave such names out** of a collection's `in` names, so every `in`
+   name can be written, as for source programs. The folder then selects
+   nothing, silently.
+2. **Let a quoted value follow a key**, `in:"my notes"`, so any name can be
+   written. One more rule of the syntax, and quotes stop meaning "always
+   text".
+3. **Make such a name an error** of the store, as a Windows device name is
+   on Windows (L11). Strict, but refuses folders people already have.
+
 ---
 
 ## What holds up well
@@ -564,7 +590,7 @@ Worth keeping as they are:
    decide on per-device logs.
 3. **H2**: let commands that write the log record despite unrelated
    errors in any source.
-4. **M4**, **L2**, **L9**, **L10**, **L11**, **L12**: small rule
+4. **M4**, **L2**, **L9**, **L10**, **L11**, **L12**, **L14**: small rule
    changes, best made before more programs depend on current behaviour.
 5. **M3**: state kinds as the extension mechanism, and settle their
    contract, since every plugin builds on it.

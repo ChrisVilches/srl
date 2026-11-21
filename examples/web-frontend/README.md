@@ -100,6 +100,22 @@ macOS and Windows (it is tried on Linux only).
   address with a selector can be bookmarked or written by hand; without
   one, the page starts with no selector, every card. The address is the
   only place a selector comes from: `srl-web` takes none.
+- The **Filters** button (a funnel), at the right of the selector box,
+  writes the selector with menus, for those who would rather not type
+  one: Collection, Source, Kind, Status and Schedule, each with one value
+  or Any, and **Leeches only**. Collection offers the `in` names of every
+  collection, each once (folders and file names, as `srl collections
+  --json` gives them), since `in:` takes those; a name `in:` can't take,
+  with a space or a comma, isn't offered. Source and Kind offer what `srl
+  sources` and `srl kinds` list, read when the filters open and kept as
+  Add's are; Status, Schedule and Leeches only are `is:`'s values, which
+  the page knows. The menus show the box's text, submitted or not: each
+  reads the first term of its key with one value and no `-`, and the
+  menus of `is:` the first `is:` with one of their values. **Apply**
+  submits the box's text with those terms changed, taken out for Any, or
+  added after the rest, and every other term, such as text, `-in:x`,
+  `in:a,b` or a second `in:`, left as written. **Clear** sets every menu
+  to Any. The rules are `src/filters.ts`.
 - Each view has its own path: `/` for Study, `/browse` and `/add`. The
   address is the only place the view, the selector and Browse's card and
   side are kept: the page shows whatever address it is on, and changing
@@ -347,7 +363,8 @@ scheduling here; that belongs to `srl`.
 | `GET /api/log?id=…` | `srl log id:ID --json` | `{"events": […]}`: the card's events, in log order, as stored; those of other cards of an item of the same ID are left out |
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `collection`, `see` and `context`, as `srl next --json` gives them (not its `source`) |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
-| `GET /api/collections` | `srl collections --json` | `{"collections": [COLLECTION…]}` |
+| `GET /api/collections` | `srl collections --json` | `{"collections": [{"name": COLLECTION, "in": [NAME…]}…]}`: each collection and its `in` names |
+| `GET /api/sources` | `srl sources --json` | `{"sources": [NAME…]}` |
 | `GET /api/notes` | `srl notes --json` | `{"notes": [PATH…]}` |
 | `POST /api/add` | `srl add COLLECTION --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"collection": COLLECTION, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as its source would add it, as written in its collection or a source program's preview |
 | `GET /api/item?id=…` | `srl show ID --json --no-context` | `{"item": …}`, the item object `srl show` printed |
@@ -414,7 +431,9 @@ npm runs it in this folder, so choose the store with `SRL_DIR`, or `srl`
 uses the default store. `npm run build` checks the types and builds
 `dist/`. `npm test` runs the tests of `test/` with Node's own test
 runner: how the selector is written in the address's query and read back
-from it.
+from it, and what the filters read from a selector and write back, among
+others. Node finds a module of `src/` that another imports only by its
+whole name, `./address.ts`, which `tsconfig.json` allows.
 
 ### The server never blocks
 
