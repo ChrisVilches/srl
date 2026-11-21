@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use serde::Serialize;
 use serde_json::Value;
 use srl_core::{
-    Card, CardId, CollectionInfo, Config, Event, Item, KindDescription, SourceDescription, Stats,
-    Warning,
+    Card, CardId, CollectionInfo, Config, Created, Event, Item, KindDescription, SourceDescription,
+    Stats, Warning,
 };
 
 /// A line on standard output, as `println!` writes it, but ending `srl`
@@ -72,6 +72,12 @@ pub(crate) fn ids<T: Display>(ids: &[T]) {
     for id in ids {
         out!("{id}");
     }
+}
+
+/// Prints a collection `srl create` made: its name and its source,
+/// separated by two spaces.
+pub(crate) fn created(created: &Created) {
+    out!("{}  {}", created.collection, created.source);
 }
 
 /// Prints the name of each collection, one per line.

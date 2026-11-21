@@ -163,11 +163,19 @@ does"), and nothing else in `srl` knows how any of them keeps its items.
   globs, and a program takes whatever keys it checks itself. No key means
   something for one source and nothing for another. So each source also
   shows its own settings in `srl sources`, and decides by its own rule
-  which new collections `srl add` creates in it, rather than every source
+  which new collections `srl create` creates in it, rather than every source
   answering in the `filesystem` source's terms, as `include` and
   `exclude` globs that a database has no use for.
 - **A collection is named everywhere as its source names it**, so
-  that `srl add`, messages and selectors need no case for any source.
+  that `srl create`, `srl add`, messages and selectors need no case for
+  any source.
+- **Creating a collection is its own command.** If `srl add` created a
+  collection whose name it didn't know, adding an item would also ask
+  every source which one takes the name, and a mistyped name would
+  quietly become a new collection. With `srl create`, each command does
+  one thing that can be seen: `srl create` says which source the
+  collection is in, and `srl add` and `srl move` only write to
+  collections that exist.
   Mounting each source under a prefix of its own, as Unix mounts file
   systems, would need rules for prefixes inside prefixes and for
   collections hidden under a mount, and gives nothing a program can't do

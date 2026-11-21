@@ -31,7 +31,7 @@ crates/
     src/domain/random.rs     reproducible random numbers for new IDs and `srl next`
     src/app.rs          the application: what the commands do with the domain and the ports
     src/app/catalog.rs       every item of the store, read from its sources and checked by their kinds; the notes, and the context `see` names
-    src/app/write.rs         items.md, "How srl changes items": what `srl accept`, `srl add`, `srl edit` and `srl move` change, checked before any source writes it
+    src/app/write.rs         items.md, "How srl changes items": what `srl accept`, `srl add`, `srl edit` and `srl move` change, checked before any source writes it, and `srl create`
     src/app/check.rs         cli.md, "Checking": orphans and the warnings of `srl check`
     src/app/review.rs        log.md and scheduling.md: recording reviews, resets, suspensions
     src/app/next.rs          scheduling.md, "Choosing the next card" and "Siblings"
@@ -476,8 +476,8 @@ knows how it keeps its items.
 |---|---|
 | `collections()` | The names of the source's collections, by which `srl` names them everywhere. A file of the `filesystem` source is a collection, named by its path. |
 | `read()` | Every item, with its collection and its entries and fields; and every problem found, each at its collection. |
-| `refuses(collection)` | Why `srl add` can't create a collection, or nothing, by the source's own rule: `filesystem`'s globs and formats, or a source program's `accepts`. |
-| `write(changes, dry_run)` | Makes a list of changes: `Add` an item to a collection, `Replace` the item with the ID of `before`, read as `before`, with `after`, or `Remove` the item with the ID of `before`, read as `before`. Every change is made and checked before anything is written; a change refused is named by its place. |
+| `refuses(collection)` | Why `srl create` can't create a collection, or nothing, by the source's own rule: `filesystem`'s globs and formats, or a source program's `accepts`. |
+| `write(changes, dry_run)` | Makes a list of changes: `Create` a collection, without items, `Add` an item to a collection, `Replace` the item with the ID of `before`, read as `before`, with `after`, or `Remove` the item with the ID of `before`, read as `before`. Every change is made and checked before anything is written; a change refused is named by its place. |
 | `describe()` | What the source is, in a sentence, and the settings it shows, each by its name, for `srl sources`. |
 
 - **The catalog holds every item in memory** (`app/catalog.rs`, the type

@@ -44,6 +44,10 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
             show(&store()?, &ids, !context.no_context, json.json)
         }
         Command::Cards { ids, json } => cards(&store()?, &ids, json.json),
+        Command::Create {
+            collection,
+            dry_run,
+        } => create(&store()?, &collection, dry_run.dry_run),
         Command::Add(args) => add(&store()?, &args),
         Command::Edit { dry_run, .. } => edit(&store()?, dry_run.dry_run),
         Command::Move {
@@ -400,6 +404,15 @@ fn cards(store: &Store, ids: &[String], json: bool) -> anyhow::Result<Outcome> {
         output::cards(&found);
     }
     Ok(reported(&problems))
+}
+
+/// `srl create COLLECTION`: creates a collection, and prints it with its
+/// source.
+fn create(store: &Store, collection: &str, dry_run: bool) -> anyhow::Result<Outcome> {
+    let (_, catalog) = load(store)?;
+    let created = srl_core::create(&catalog, collection, dry_run)?;
+    output::created(&created);
+    Ok(Outcome::Done)
 }
 
 /// `srl add COLLECTION --stdin`: adds items to a collection, and prints

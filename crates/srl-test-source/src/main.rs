@@ -204,14 +204,25 @@ fn write(
             .and_then(Value::as_object_mut)
             .ok_or("`collections` is not an object")?;
         match text(input, "op") {
+            "create" => {
+                if collections.contains_key(&name) {
+                    refused = true;
+                    answers.push(json!({"error": "the collection exists already"}));
+                } else {
+                    collections.insert(name, json!({"items": []}));
+                    answers.push(json!({"ok": true}));
+                }
+            }
             "add" => {
-                let collection = collections
-                    .entry(name)
-                    .or_insert(json!({"context": null, "items": []}));
-                let items = collection
-                    .get_mut("items")
+                let Some(items) = collections
+                    .get_mut(&name)
+                    .and_then(|collection| collection.get_mut("items"))
                     .and_then(Value::as_array_mut)
-                    .ok_or("a collection's `items` is not a list")?;
+                else {
+                    refused = true;
+                    answers.push(json!({"error": "no collection has this name"}));
+                    continue;
+                };
                 let item = input.get("item").cloned().unwrap_or_default();
                 items.push(item.clone());
                 answers.push(if dry_run {

@@ -1,6 +1,6 @@
 //! The commands that change items: `srl accept`, `srl add`, `srl edit
 //! --stdin` and `srl move` (see `docs/items.md`, "How srl changes
-//! items").
+//! items"), and `srl create`, which makes a collection for them.
 //!
 //! This module decides what changes, and checks every change before
 //! anything is written: item objects valid, IDs unique in the store, kinds
@@ -24,6 +24,53 @@ pub struct Added {
     pub ids: Vec<ItemId>,
     /// The new items, as they appear in their collection.
     pub text: String,
+}
+
+/// What `srl create` did, or would do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Created {
+    pub collection: String,
+    /// The name of the source it is in.
+    pub source: String,
+}
+
+/// `srl create COLLECTION`: creates `collection`, without items, in the
+/// one source that accepts its name (see `docs/sources.md`,
+/// "Collections").
+pub fn create(catalog: &Catalog, collection: &str, dry_run: bool) -> Result<Created> {
+    refuse_problems(catalog)?;
+    check_collection(collection)?;
+    if let Some(located) = catalog.located(collection) {
+        let name = catalog
+            .sources()
+            .all()
+            .get(located.source)
+            .map_or("", |named| named.name.as_str());
+        return Err(Error::CannotCreate {
+            collection: collection.to_owned(),
+            reason: format!("it exists already, in the source {name}"),
+        });
+    }
+    let source = catalog.sources().for_new(collection)?;
+    let change = Change::Create {
+        collection: collection.to_owned(),
+    };
+    write(catalog, &[(source, change)], dry_run).map_err(|refusal| match refusal {
+        Refusal::Change { reason, .. } => Error::CannotCreate {
+            collection: collection.to_owned(),
+            reason,
+        },
+        Refusal::Error(error) => error,
+    })?;
+    Ok(Created {
+        collection: collection.to_owned(),
+        source: catalog
+            .sources()
+            .all()
+            .get(source)
+            .map(|named| named.name.clone())
+            .unwrap_or_default(),
+    })
 }
 
 /// `srl accept`: removes `draft` from `items` that have it. Gives the IDs
@@ -53,8 +100,8 @@ pub fn accept(catalog: &Catalog, items: &[&Item], dry_run: bool) -> Result<Vec<I
 }
 
 /// `srl add COLLECTION`: adds the items of `input`, one item object per
-/// line, to the collection `collection`, or creates it. An item without an
-/// `id` gets a new one.
+/// line, to the collection `collection`, which must exist. An item without
+/// an `id` gets a new one.
 pub fn add(
     catalog: &Catalog,
     collection: &str,
@@ -63,14 +110,15 @@ pub fn add(
     dry_run: bool,
 ) -> Result<Added> {
     refuse_problems(catalog)?;
-    check_collection(collection)?;
-    let (source, collection) = match catalog.located(collection) {
-        Some(located) => (located.source, located.collection.clone()),
-        None => (
-            catalog.sources().for_new(collection)?,
-            collection.to_owned(),
-        ),
-    };
+    let located = catalog
+        .located(collection)
+        .ok_or_else(|| Error::CannotAdd {
+            collection: collection.to_owned(),
+            reason: "no collection has this name; create it with `srl create`, or give one \
+                     `srl collections` lists"
+                .to_owned(),
+        })?;
+    let (source, collection) = (located.source, located.collection.clone());
     let lines = read_input(catalog, input)?;
     let mut given = HashSet::new();
     for (line, object) in &lines {
@@ -400,7 +448,7 @@ fn check_lines(new: &[Object], lines: &[(usize, Object)], catalog: &Catalog) -> 
 // collection with such a part is accepted here and then fails to be
 // created on Windows only. See docs/formats.md and docs/audit.md, L11.
 fn check_collection(collection: &str) -> Result<()> {
-    let invalid = |reason: &str| Error::CannotAdd {
+    let invalid = |reason: &str| Error::CannotCreate {
         collection: collection.to_owned(),
         reason: reason.to_owned(),
     };
@@ -519,7 +567,7 @@ mod tests {
     }
 
     #[test]
-    fn add_appends_items_or_creates_the_collection() {
+    fn add_appends_items_to_a_collection_that_exists() {
         let (_tmp, store) = store(&[
             ("a.jsonl", "{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}"),
             ("my notes/b c.md", "Prose.\n"),
@@ -538,15 +586,21 @@ mod tests {
             read(&store, "a.jsonl"),
             format!("{{\"id\": \"old\", \"Q\": \"q\", \"A\": \"a\"}}\n{expected}")
         );
-        let created = add(
-            &catalog(&store),
-            "new/b.jsonl",
-            "{\"Q\": \"q\", \"A\": \"a\"}",
-            4,
-            false,
-        )
-        .unwrap();
-        assert_eq!(read(&store, "new/b.jsonl"), created.text);
+        let item = "{\"Q\": \"q\", \"A\": \"a\"}";
+        let error = add(&catalog(&store), "new/b.jsonl", item, 4, false).unwrap_err();
+        assert!(error.to_string().contains("srl create"), "{error}");
+        assert!(!store.file("new").exists());
+        let created = create(&catalog(&store), "new/b.jsonl", false).unwrap();
+        assert_eq!(
+            created,
+            Created {
+                collection: "new/b.jsonl".to_owned(),
+                source: "items".to_owned(),
+            }
+        );
+        assert_eq!(read(&store, "new/b.jsonl"), "");
+        let added = add(&catalog(&store), "new/b.jsonl", item, 4, false).unwrap();
+        assert_eq!(read(&store, "new/b.jsonl"), added.text);
         // The temporary files were in `.srl/tmp/`, and are gone.
         let names = |dir: &Path| {
             fs::read_dir(dir)
@@ -590,7 +644,15 @@ mod tests {
                 "accepted {input}"
             );
         }
+        assert_eq!(read(&store, "a.jsonl"), text);
+        assert_eq!(read(&store, "a.md"), "# A\n");
+    }
+
+    #[test]
+    fn create_refuses_names_no_collection_may_have_and_collections_that_exist() {
+        let (_tmp, store) = store(&[("a.jsonl", ""), ("a.md", "# A\n")]);
         for path in [
+            "a.jsonl",
             "a.md",
             "a.txt",
             "/a.jsonl",
@@ -600,41 +662,45 @@ mod tests {
             "a\\b.jsonl",
         ] {
             assert!(
-                add(
-                    &catalog(&store),
-                    path,
-                    "{\"Q\": \"q\", \"A\": \"a\"}",
-                    3,
-                    false
-                )
-                .is_err(),
+                create(&catalog(&store), path, false).is_err(),
                 "accepted {path}"
             );
         }
-        assert_eq!(read(&store, "a.jsonl"), text);
+        let error = create(&catalog(&store), "a.jsonl", false).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "cannot create a.jsonl: it exists already, in the source items; nothing was created"
+        );
         assert_eq!(read(&store, "a.md"), "# A\n");
     }
 
     #[test]
-    fn add_takes_any_path_include_matches_in_a_format_srl_reads() {
+    fn create_takes_any_path_include_matches_in_a_format_srl_reads() {
         let (_tmp, store) = store(&[]);
         let mut config = Config::default();
         config.sources = crate::config::sources_of(&["cards/**"]);
-        let item = "{\"Q\": \"q\", \"A\": \"a\"}";
-        assert!(add(&catalog_with(&store, &config), "a.jsonl", item, 3, false).is_err());
-        let error = add(&catalog_with(&store, &config), "cards/a.md", item, 3, false)
+        assert!(create(&catalog_with(&store, &config), "a.jsonl", false).is_err());
+        let error = create(&catalog_with(&store, &config), "cards/a.md", false)
             .unwrap_err()
             .to_string();
         assert!(error.contains("extension"), "{error}");
-        add(
-            &catalog_with(&store, &config),
-            "cards/new/a.jsonl",
-            item,
-            3,
-            false,
-        )
-        .unwrap();
-        assert!(read(&store, "cards/new/a.jsonl").contains("\"Q\":\"q\""));
+        create(&catalog_with(&store, &config), "cards/new/a.jsonl", true).unwrap();
+        assert!(!store.file("cards").exists());
+        for (path, empty) in [
+            ("cards/new/a.jsonl", ""),
+            ("cards/b.json", "[]\n"),
+            ("cards/c.xml", "<items>\n</items>\n"),
+        ] {
+            create(&catalog_with(&store, &config), path, false).unwrap();
+            assert_eq!(read(&store, path), empty);
+        }
+        let catalog = catalog_with(&store, &config);
+        assert!(catalog.problems().is_empty(), "{:?}", catalog.problems());
+        let item = "{\"Q\": \"q\", \"A\": \"a\"}";
+        for path in ["cards/new/a.jsonl", "cards/b.json", "cards/c.xml"] {
+            add(&catalog_with(&store, &config), path, item, 3, false).unwrap();
+            assert!(read(&store, path).contains('q'), "{path}");
+        }
     }
 
     #[test]
@@ -777,6 +843,7 @@ mod tests {
             "{\"id\": \"old2\", \"Q\": \"q\", \"A\": \"a\"}\r\n{\"id\":\"new3\",\"Q\":\"t\",\"A\":\"a\"}\r\n"
         );
         let item = "{\"id\": \"new4\", \"Q\": \"u\", \"A\": \"a\"}";
+        create(&catalog(&store), "c/new.jsonl", false).unwrap();
         add(&catalog(&store), "c/new.jsonl", item, 3, false).unwrap();
         assert_eq!(
             read(&store, "c/new.jsonl"),

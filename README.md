@@ -274,6 +274,7 @@ cargo install srl
 ```sh
 srl init ~/notes          # make a folder of notes into a store
 cd ~/notes
+srl create rust.jsonl     # create a collection for your items
 echo '{"see": "rust/ownership.md", "Q": "Can a moved value be used again?", "A": "No."}' \
   | srl add rust.jsonl --stdin   # add an item about your note rust/ownership.md
 srl next                  # the next card to study (frontends use srl next --json)
@@ -281,8 +282,9 @@ srl review ID --rating 3  # rate it: 1 Again, 2 Hard, 3 Good, 4 Easy
 srl stats                 # what's new, due, young, mature
 ```
 
-`srl add` sends items as JSON lines to any collection: a JSONL or XML
-file, created if needed, or a collection of a source program. To write
+`srl add` sends items as JSON lines to any collection that exists: a
+JSONL or XML file, or a collection of a source program. `srl create`
+makes a new one, and says which source it is in. To write
 items by hand, write an XML collection in your editor, giving each item
 an ID of its own.
 

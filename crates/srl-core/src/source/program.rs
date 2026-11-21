@@ -115,6 +115,57 @@ impl Program {
         items.sort();
         Ok(items)
     }
+
+    /// Fails unless the program, whose items were `before`, made exactly
+    /// `changes`, as reading it again shows, and lists every collection it
+    /// created.
+    fn verify(&self, changes: &[Change], before: Vec<(String, String)>) -> Result<()> {
+        let mut expected = before;
+        let mut created = Vec::new();
+        for change in changes {
+            match change {
+                Change::Create { collection } => created.push(collection),
+                Change::Add { collection, item } => {
+                    expected.push((collection.clone(), as_line(item).to_string()));
+                }
+                Change::Replace {
+                    collection,
+                    before,
+                    after,
+                } => {
+                    let old = (collection.clone(), as_line(before).to_string());
+                    if let Some(slot) = expected.iter_mut().find(|item| **item == old) {
+                        *slot = (collection.clone(), as_line(after).to_string());
+                    }
+                }
+                Change::Remove { collection, before } => {
+                    let old = (collection.clone(), as_line(before).to_string());
+                    if let Some(at) = expected.iter().position(|item| *item == old) {
+                        expected.remove(at);
+                    }
+                }
+            }
+        }
+        expected.sort();
+        let listed = if created.is_empty() {
+            Vec::new()
+        } else {
+            self.collections()?
+        };
+        let all_listed = created
+            .iter()
+            .all(|name| listed.iter().any(|listed| listed.collection == **name));
+        if all_listed && self.snapshot()? == expected {
+            Ok(())
+        } else {
+            Err(Error::SourceFailed {
+                name: self.name.clone(),
+                reason: "its call `write` didn't make exactly the changes it was given, as \
+                         reading it again shows"
+                    .to_owned(),
+            })
+        }
+    }
 }
 
 impl Source for Program {
@@ -182,7 +233,7 @@ impl Source for Program {
 
     /// Every change goes to the program in one call. The program is read
     /// before and after it, and must have made exactly the changes asked
-    /// for.
+    /// for, and list every collection it created.
     fn write(&self, changes: &[Change], dry_run: bool) -> std::result::Result<String, Refusal> {
         let call = "write";
         let before = if dry_run {
@@ -196,6 +247,10 @@ impl Source for Program {
                 let mut input = Map::new();
                 input.insert("dry_run".to_owned(), Value::Bool(dry_run));
                 match change {
+                    Change::Create { collection } => {
+                        input.insert("op".to_owned(), Value::from("create"));
+                        input.insert("collection".to_owned(), Value::from(collection.as_str()));
+                    }
                     Change::Add { collection, item } => {
                         input.insert("op".to_owned(), Value::from("add"));
                         input.insert("collection".to_owned(), Value::from(collection.as_str()));
@@ -237,40 +292,7 @@ impl Source for Program {
             }
         }
         if !dry_run {
-            let mut expected = before;
-            for change in changes {
-                match change {
-                    Change::Add { collection, item } => {
-                        expected.push((collection.clone(), as_line(item).to_string()));
-                    }
-                    Change::Replace {
-                        collection,
-                        before,
-                        after,
-                    } => {
-                        let old = (collection.clone(), as_line(before).to_string());
-                        if let Some(slot) = expected.iter_mut().find(|item| **item == old) {
-                            *slot = (collection.clone(), as_line(after).to_string());
-                        }
-                    }
-                    Change::Remove { collection, before } => {
-                        let old = (collection.clone(), as_line(before).to_string());
-                        if let Some(at) = expected.iter().position(|item| *item == old) {
-                            expected.remove(at);
-                        }
-                    }
-                }
-            }
-            expected.sort();
-            if self.snapshot()? != expected {
-                return Err(Error::SourceFailed {
-                    name: self.name.clone(),
-                    reason: "its call `write` didn't make exactly the changes it was given, as \
-                             reading it again shows"
-                        .to_owned(),
-                }
-                .into());
-            }
+            self.verify(changes, before)?;
         }
         Ok(previews)
     }

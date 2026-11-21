@@ -130,7 +130,14 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
-    /// Add new items (JSONL of item objects from standard input) to a collection.
+    /// Create a collection, without items, in the one source that accepts its name.
+    Create {
+        /// The collection, such as a file's path.
+        collection: String,
+        #[command(flatten)]
+        dry_run: DryRun,
+    },
+    /// Add new items (JSONL of item objects from standard input) to a collection, which must exist.
     Add(AddArgs),
     /// Replace items with standard input (JSONL of items, each naming the item it replaces by `id`).
     Edit {
@@ -226,7 +233,7 @@ pub(crate) enum Command {
 
 #[derive(Debug, Args)]
 pub(crate) struct AddArgs {
-    /// The collection, such as a file's path; created if it doesn't exist.
+    /// The collection, such as a file's path, as `srl collections` lists it.
     pub(crate) collection: String,
     /// Read the items from standard input: one item object per line, of
     /// fields and the header entries `id` (new if left out), `kind`, `see`

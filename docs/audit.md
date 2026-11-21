@@ -343,7 +343,7 @@ more scripts depend on it.
 Without `--dir`, `SRL_DIR` or a `.srl` above the current directory, every
 command uses the default store in the platform's data directory
 ([store.md](store.md), "Finding the store"). Once that store exists, running
-`srl add notes/x.md --stdin` in the wrong folder writes into it without a
+`srl create notes.jsonl` in the wrong folder writes into it without a
 word. A store is otherwise "your study folder", so a hidden one in
 `~/.local/share` is an odd default. **Fix:** print the store used on
 standard error when it is the default, or drop the default.
@@ -439,7 +439,7 @@ links. The code follows them, to files and folders alike, so:
   one folder that holds everything. A note `leak.md` linked to a file
   elsewhere is shown whole as the context of any item whose `see` names
   it, and a linked folder's collections are changed by `srl add` and
-  `srl edit`.
+  `srl edit`, and new ones created in it by `srl create`.
 
 Linking a folder of notes kept elsewhere into a store is a reasonable
 thing to do, so the choice takes something away from someone.
@@ -466,10 +466,10 @@ read", and tested:
 Windows reserves the names `CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9`
 and `LPT1` to `LPT9` for devices, whatever their case and extension:
 `con.jsonl` and `notes/Aux.md` name devices, not files. The checks of a
-new collection's name ([cli.md](cli.md), `srl add`) refuse empty parts,
-`.`, `..` and hidden parts, but not these, so:
+new collection's name ([cli.md](cli.md), "Creating collections") refuse
+empty parts, `.`, `..` and hidden parts, but not these, so:
 
-- **`srl add con.jsonl` works on Linux and macOS, and fails on Windows**
+- **`srl create con.jsonl` works on Linux and macOS, and fails on Windows**
   with the system's error, against "`srl` behaves the same on Linux,
   macOS and Windows".
 - **A store made elsewhere can't be used on Windows** when it holds such
@@ -504,7 +504,7 @@ they are no longer read:
 
 - `srl find` and `srl collections` exit 1, as for an empty store;
 - `srl check` exits 0, reporting nothing;
-- only `srl add` says why: "the store has no source".
+- only `srl create` says why: "the store has no source".
 
 **Possible fixes:**
 

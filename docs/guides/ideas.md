@@ -86,7 +86,8 @@ Each part of `srl` already allows this:
 
 - **Import from Anki.** The cloze syntax is Anki's, so a note type with a
   front, a back and cloze deletions maps to `qa` items directly. An
-  importer writes them with `srl add`.
+  importer creates a collection with `srl create` and writes them with
+  `srl add`.
 
 ## Analysis
 

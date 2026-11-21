@@ -92,7 +92,8 @@ systems can hold both.
   read in NFC too.
 - Paths are printed as they are on disk (in `--json` output and errors), so
   that they always name the file.
-- A collection created by `srl add` gets the path you give it, as given.
+- A collection created by `srl create` gets the path you give it, as
+  given.
 
 ## Configuration: `.srl/config.toml`
 

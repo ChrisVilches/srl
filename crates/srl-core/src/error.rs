@@ -94,6 +94,9 @@ pub enum Error {
     #[error("cannot add to {collection}: {reason}; nothing was added")]
     CannotAdd { collection: String, reason: String },
 
+    #[error("cannot create {collection}: {reason}; nothing was created")]
+    CannotCreate { collection: String, reason: String },
+
     #[error("cannot move to {collection}: {reason}; nothing was moved")]
     CannotMove { collection: String, reason: String },
 

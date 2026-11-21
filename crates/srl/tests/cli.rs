@@ -64,6 +64,12 @@ fn lines(output: &Output) -> Vec<String> {
     stdout(output).lines().map(str::to_owned).collect()
 }
 
+/// Creates `collection` in the store at `tmp`, which must succeed.
+fn create(tmp: &TempDir, collection: &str) {
+    let created = srl(&["create", collection, "--dir", dir(tmp)]);
+    assert_eq!(created.status.code(), Some(0), "{}", stderr(&created));
+}
+
 #[test]
 fn help_succeeds_and_lists_commands() {
     let output = srl(&["--help"]);
@@ -129,7 +135,8 @@ fn jsonl_json_and_xml_collections_are_read_and_written_alike() {
         read(&tmp, "b.json"),
         "[\n  {\n    \"id\": \"jsn1\",\n    \"draft\": true,\n    \"Q\": \"q\",\n    \"A\": \"a\"\n  }\n]\n"
     );
-    // A new collection of each format is created by its extension.
+    // A new collection of each format is created by its extension, empty,
+    // and items are added to it as to any other.
     for (path, text) in [
         (
             "new/d.json",
@@ -145,6 +152,7 @@ fn jsonl_json_and_xml_collections_are_read_and_written_alike() {
         } else {
             "new2"
         };
+        create(&tmp, path);
         let added = srl_with_input(
             &["add", path, "--stdin", "--dir", dir(&tmp)],
             &format!("{{\"id\": \"{id}\", \"Q\": \"q\", \"A\": \"a\"}}\n"),
@@ -653,6 +661,29 @@ fn add_writes_items_with_their_header_entries() {
     let d = dir(&tmp);
     let input = "{\"Q\": \"Use 〜をものともせず\\nabout football.\", \"A\": \"…\", \"see\": \"japanese/grammar/wo.md\", \"draft\": true}\n{\"Q\": \"{{c1::嵐}}をものともせず\", \"draft\": true}\n";
     let args = ["add", "generated/wo.jsonl", "--stdin", "--dir", d];
+    // Only to a collection that exists: srl create makes it, and says in
+    // which source.
+    let missing = srl_with_input(&args, input);
+    assert_eq!(missing.status.code(), Some(2));
+    assert_eq!(
+        stderr(&missing),
+        "srl: cannot add to generated/wo.jsonl: no collection has this name; create it with \
+         `srl create`, or give one `srl collections` lists; nothing was added\n"
+    );
+    let dry = srl(&["create", "generated/wo.jsonl", "--dry-run", "--dir", d]);
+    assert_eq!(stdout(&dry), "generated/wo.jsonl  items\n");
+    assert!(!tmp.path().join("generated").exists());
+    let created = srl(&["create", "generated/wo.jsonl", "--dir", d]);
+    assert_eq!(created.status.code(), Some(0), "{}", stderr(&created));
+    assert_eq!(stdout(&created), "generated/wo.jsonl  items\n");
+    assert_eq!(read(&tmp, "generated/wo.jsonl"), "");
+    let again = srl(&["create", "generated/wo.jsonl", "--dir", d]);
+    assert_eq!(again.status.code(), Some(2));
+    assert_eq!(
+        stderr(&again),
+        "srl: cannot create generated/wo.jsonl: it exists already, in the source items; \
+         nothing was created\n"
+    );
     let dry = srl_with_input(&[&args[..], &["--dry-run"]].concat(), input);
     assert_eq!(dry.status.code(), Some(0), "{}", stderr(&dry));
     assert!(
@@ -663,7 +694,7 @@ fn add_writes_items_with_their_header_entries() {
         stdout(&dry)
     );
     assert_eq!(stdout(&dry).matches("\"see\":").count(), 1);
-    assert!(!tmp.path().join("generated").exists());
+    assert_eq!(read(&tmp, "generated/wo.jsonl"), "");
     let added = srl_with_input(&args, input);
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
     let ids = lines(&added);
@@ -682,13 +713,14 @@ fn add_writes_items_with_their_header_entries() {
 #[test]
 fn one_bad_line_adds_nothing() {
     let tmp = japanese();
+    create(&tmp, "a.jsonl");
     let output = srl_with_input(
         &["add", "a.jsonl", "--stdin", "--dir", dir(&tmp)],
         "{\"Q\": \"q\", \"A\": \"a\"}\n{\"Q\": \"no answer\"}\n",
     );
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("line 2"), "{}", stderr(&output));
-    assert!(!tmp.path().join("a.jsonl").exists());
+    assert_eq!(read(&tmp, "a.jsonl"), "");
 }
 
 #[test]
@@ -862,6 +894,7 @@ fn see_names_study_material_and_items_without_it_have_no_context() {
     // A collection is no study material: `see` can't name it, and neither
     // a file that isn't there or a file outside `[context]`.
     write(&tmp, "notes/table.csv", "a,b\n");
+    create(&tmp, "fish.jsonl");
     for (see, reason) in [
         ("generated/items.jsonl", "is not study material"),
         ("notes/table.csv", "is not study material"),
@@ -874,7 +907,7 @@ fn see_names_study_material_and_items_without_it_have_no_context() {
         assert_eq!(added.status.code(), Some(2), "accepted {see}");
         assert!(stderr(&added).contains(reason), "{see}: {}", stderr(&added));
     }
-    assert!(!tmp.path().join("fish.jsonl").exists());
+    assert_eq!(read(&tmp, "fish.jsonl"), "");
     // `[context]` chooses the files of study material.
     write(
         &tmp,
@@ -1594,12 +1627,12 @@ fn unknown_drivers_and_keys_are_configuration_errors() {
 }
 
 #[test]
-fn add_takes_paths_that_include_matches_and_exclude_does_not() {
+fn create_takes_paths_that_include_matches_and_exclude_does_not() {
     let tmp = japanese();
     let d = dir(&tmp);
     let item = "{\"Q\": \"q\", \"A\": \"a\"}\n";
 
-    let output = srl_with_input(&["add", "new.txt", "--stdin", "--dir", d], item);
+    let output = srl(&["create", "new.txt", "--dir", d]);
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("`include`"), "{}", stderr(&output));
     assert!(!tmp.path().join("new.txt").exists());
@@ -1609,11 +1642,12 @@ fn add_takes_paths_that_include_matches_and_exclude_does_not() {
         ".srl/config.toml",
         "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"drafts/**\"]\n",
     );
-    let output = srl_with_input(&["add", "drafts/a.jsonl", "--stdin", "--dir", d], item);
+    let output = srl(&["create", "drafts/a.jsonl", "--dir", d]);
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("`exclude`"), "{}", stderr(&output));
     assert!(!tmp.path().join("drafts").exists());
 
+    create(&tmp, "new.jsonl");
     let output = srl_with_input(&["add", "new.jsonl", "--stdin", "--dir", d], item);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     let id = stdout(&output).trim().to_owned();
@@ -1627,10 +1661,7 @@ fn add_takes_paths_that_include_matches_and_exclude_does_not() {
         ".srl/config.toml",
         "[sources.items]\ndriver = \"filesystem\"\ninclude = [\"cards/**\"]\n",
     );
-    let output = srl_with_input(
-        &["add", "cards/a.md", "--stdin", "--dir", dir(&other)],
-        item,
-    );
+    let output = srl(&["create", "cards/a.md", "--dir", dir(&other)]);
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("extension"), "{}", stderr(&output));
 }
@@ -2031,6 +2062,7 @@ fn add_checks_every_new_item_at_once_and_names_the_line_at_fault() {
     let tmp = store_with_kind(&[]);
     let d = dir(&tmp);
     let input = "{\"kind\": \"fake\", \"X\": \"a\", \"LOG\": \"calls.log\"}\n\n{\"kind\": \"fake\", \"GROUPS\": \"a b\", \"LOG\": \"calls.log\"}\n{\"kind\": \"fake\", \"INVALID\": \"no good\"}\n";
+    create(&tmp, "new.jsonl");
     let output = srl_with_input(
         &["add", "new.jsonl", "--stdin", "--dry-run", "--dir", d],
         input,
@@ -2094,6 +2126,7 @@ fn srl_now_is_the_time_of_reviews_and_of_the_study_day() {
 fn srl_seed_makes_new_ids_repeatable() {
     let ids = || {
         let tmp = store(&[]);
+        create(&tmp, "n.jsonl");
         let mut child = srl_command()
             .args(["add", "n.jsonl", "--stdin", "--dir", dir(&tmp)])
             .env("SRL_SEED", "7")
@@ -2171,6 +2204,8 @@ fn sources_read_their_collections_each_with_its_driver() {
     assert_eq!(shown["source"], "vocab");
     assert_eq!(shown["context"], "Prose.\n");
     let item = "{\"Q\": \"r\", \"A\": \"b\"}";
+    let created = srl(&["create", "vocab/new.jsonl", "--dir", d]);
+    assert_eq!(stdout(&created), "vocab/new.jsonl  vocab\n");
     let added = srl_with_input(&["add", "vocab/new.jsonl", "--stdin", "--dir", d], item);
     assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
     assert!(read(&tmp, "vocab/new.jsonl").contains("\"Q\":\"r\""));
@@ -2243,7 +2278,7 @@ fn a_collection_two_sources_give_is_an_error() {
 }
 
 #[test]
-fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
+fn create_makes_a_collection_in_the_one_source_that_accepts_it() {
     let tmp = store(&[]);
     let d = dir(&tmp);
     write(
@@ -2251,21 +2286,19 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
         ".srl/config.toml",
         "[sources.items]\ndriver = \"filesystem\"\nexclude = [\"data/**\"]\n\n[sources.data]\ndriver = \"filesystem\"\ninclude = [\"data/**/*.jsonl\"]\n",
     );
-    let item = "{\"Q\": \"q\", \"A\": \"a\"}";
-    let add = |collection: &str| srl_with_input(&["add", collection, "--stdin", "--dir", d], item);
-    assert_eq!(add("a.jsonl").status.code(), Some(0));
-    assert_eq!(add("data/b.jsonl").status.code(), Some(0));
-    assert!(read(&tmp, "data/b.jsonl").starts_with("{\"id\""));
-    let found = srl(&["find", "source:data", "--json", "--dir", d]);
-    assert_eq!(json_lines(&found)[0]["collection"], "data/b.jsonl");
+    let add = |collection: &str| srl(&["create", collection, "--dir", d]);
+    assert_eq!(stdout(&add("a.jsonl")), "a.jsonl  items\n");
+    assert_eq!(stdout(&add("data/b.jsonl")), "data/b.jsonl  data\n");
+    let collections = srl(&["collections", "--json", "--dir", d]);
+    assert_eq!(json_lines(&collections)[1]["source"], "data");
     // A name no source accepts: each source says why, by its name.
     let refused = add("data/c.xml");
     assert_eq!(refused.status.code(), Some(2));
     assert_eq!(
         stderr(&refused),
-        "srl: cannot add to data/c.xml: no source accepts it (data: its `include` doesn't \
+        "srl: cannot create data/c.xml: no source accepts it (data: its `include` doesn't \
          match the path; items: its `exclude` matches the path); `srl sources` describes each \
-         one; nothing was added\n"
+         one; nothing was created\n"
     );
     write(
         &tmp,
@@ -2282,13 +2315,12 @@ fn add_creates_a_collection_in_the_one_source_that_accepts_it() {
 }
 
 #[test]
-fn add_to_a_collection_a_program_and_a_file_source_both_accept_writes_nothing() {
+fn creating_a_collection_a_program_and_a_file_source_both_accept_writes_nothing() {
     // The program creates `*`, as it does without `creates`, which a file
     // at the top of the store matches too.
     let tmp = store_with_program(&[], WORDS, "\n[sources.items]\ndriver = \"filesystem\"\n");
     let d = dir(&tmp);
-    let item = "{\"Q\": \"q\", \"A\": \"a\"}";
-    let add = |collection: &str| srl_with_input(&["add", collection, "--stdin", "--dir", d], item);
+    let add = |collection: &str| srl(&["create", collection, "--dir", d]);
     let both = add("a.jsonl");
     assert_eq!(both.status.code(), Some(2));
     assert!(
@@ -2299,10 +2331,16 @@ fn add_to_a_collection_a_program_and_a_file_source_both_accept_writes_nothing() 
     assert!(!tmp.path().join("a.jsonl").exists());
     assert_eq!(read(&tmp, "vocab.json"), WORDS);
     // A name only one of them accepts is created in it.
-    assert_eq!(add("words").status.code(), Some(0));
+    assert_eq!(stdout(&add("words")), "words  vocab\n");
     assert!(read(&tmp, "vocab.json").contains("\"words\""));
-    assert_eq!(add("deck/b.jsonl").status.code(), Some(0));
+    assert_eq!(stdout(&add("deck/b.jsonl")), "deck/b.jsonl  items\n");
     assert!(tmp.path().join("deck/b.jsonl").exists());
+    // A program's new collection is listed, and takes items.
+    let item = "{\"Q\": \"q\", \"A\": \"a\"}";
+    let added = srl_with_input(&["add", "words", "--stdin", "--dir", d], item);
+    assert_eq!(added.status.code(), Some(0), "{}", stderr(&added));
+    let found = srl(&["find", "collection:words", "--dir", d]);
+    assert_eq!(lines(&found).len(), 1);
 }
 
 /// A store with `files`, whose one source `vocab` is the test source
@@ -2390,6 +2428,8 @@ fn a_source_program_s_items_are_studied_changed_and_shown() {
         "{\"id\": \"cat001\", \"Q\": \"猫\", \"A\": \"a cat\"}",
     );
     assert_eq!(edited.status.code(), Some(0), "{}", stderr(&edited));
+    let created = srl(&["create", "vocab/birds", "--dir", d]);
+    assert_eq!(stdout(&created), "vocab/birds  vocab\n");
     let added = srl_with_input(
         &["add", "vocab/birds", "--stdin", "--dir", d],
         "{\"Q\": \"鳥\", \"A\": \"bird\"}",
@@ -2472,13 +2512,29 @@ fn a_command_calls_a_source_program_a_fixed_number_of_times() {
     assert_eq!(calls(&tmp), ["collections 1", "read 1"]);
     assert!(srl(&["sources", "--dir", d]).status.success());
     assert_eq!(calls(&tmp), ["describe 1"]);
-    // A new collection is asked of the program once, before it is written.
-    let added = srl_with_input(
-        &["add", "fish", "--stdin", "--dir", d],
-        "{\"Q\": \"q\", \"A\": \"a\"}",
+    // A new collection is asked of the program once, before it is written,
+    // and must be listed after.
+    let created = srl(&["create", "fish", "--dir", d]);
+    assert!(created.status.success(), "{}", stderr(&created));
+    assert_eq!(
+        calls(&tmp),
+        [
+            "collections 1",
+            "read 1",
+            "accepts 1",
+            "read 1",
+            "write 1",
+            "collections 1",
+            "read 1"
+        ]
     );
-    assert!(added.status.success(), "{}", stderr(&added));
-    assert_eq!(calls(&tmp)[..3], ["collections 1", "read 1", "accepts 1"]);
+    let dry = srl(&["create", "birds", "--dry-run", "--dir", d]);
+    assert!(dry.status.success(), "{}", stderr(&dry));
+    assert_eq!(
+        calls(&tmp),
+        ["collections 1", "read 1", "accepts 1", "write 1"]
+    );
+    assert!(!read(&tmp, "vocab.json").contains("birds"));
 }
 
 #[test]
@@ -2578,19 +2634,32 @@ fn a_change_a_source_program_refuses_or_doesn_t_make_fails_the_command() {
         "{}",
         stderr(&added)
     );
+    // A collection it creates must be listed after.
+    let created = srl(&["create", "fish", "--dir", d]);
+    assert_eq!(created.status.code(), Some(2));
+    assert!(
+        stderr(&created).contains("didn't make exactly the changes"),
+        "{}",
+        stderr(&created)
+    );
     // A collection the program doesn't create is refused before it is asked
     // to write.
     let tmp = store_with_program(&[], WORDS, "creates = [\"vocab/words\"]\n");
     let d = dir(&tmp);
-    let added = srl_with_input(
-        &["add", "vocab/fish", "--stdin", "--dir", d],
-        "{\"Q\": \"q\", \"A\": \"a\"}",
-    );
-    assert_eq!(added.status.code(), Some(2));
+    let created = srl(&["create", "vocab/fish", "--dir", d]);
+    assert_eq!(created.status.code(), Some(2));
     assert!(
-        stderr(&added).contains("no source accepts it (vocab: it matches none of `creates`)"),
+        stderr(&created).contains("no source accepts it (vocab: it matches none of `creates`)"),
         "{}",
-        stderr(&added)
+        stderr(&created)
+    );
+    calls(&tmp);
+    // A refused creation is the program's reason.
+    let tmp = store_with_program(&[], WORDS, "refuse = \"the database is read-only\"\n");
+    let created = srl(&["create", "fish", "--dir", dir(&tmp)]);
+    assert_eq!(
+        stderr(&created),
+        "srl: cannot create fish: the database is read-only; nothing was created\n"
     );
 }
 
@@ -3063,7 +3132,7 @@ fn a_source_program_s_answers_to_changes_are_checked_before_anything_counts() {
         assert_eq!(read(&tmp, "vocab.json"), WORDS);
     }
     // A program that can't say whether it creates a collection fails `srl
-    // add` as itself, not as a source that refuses the name.
+    // create` as itself, not as a source that refuses the name.
     for (answer, expected) in [
         ("{\\\"error\\\": \\\" \\\"}", "`error` is blank"),
         ("{\\\"ok\\\": false}", "a line is neither `ok` nor `error`"),
@@ -3074,10 +3143,7 @@ fn a_source_program_s_answers_to_changes_are_checked_before_anything_counts() {
             WORDS,
             &format!("raw_call = \"accepts\"\nraw_output = \"{answer}\\n\"\n"),
         );
-        let added = srl_with_input(
-            &["add", "vocab/fish", "--stdin", "--dir", dir(&tmp)],
-            "{\"Q\": \"q\", \"A\": \"a\"}",
-        );
+        let added = srl(&["create", "vocab/fish", "--dir", dir(&tmp)]);
         assert_refused(&added, "an accepts that fails");
         assert!(
             stderr(&added).starts_with(

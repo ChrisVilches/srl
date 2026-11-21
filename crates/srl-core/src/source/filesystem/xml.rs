@@ -521,6 +521,8 @@ pub(super) fn changed(
     let mut removed = Vec::new();
     for &(at, change) in changes {
         match change {
+            // A new file is given as the empty file of its format.
+            Change::Create { .. } => {}
             Change::Remove { before, .. } => {
                 if old.is_none() {
                     return Err(changed_meanwhile(path));

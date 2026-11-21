@@ -10,7 +10,7 @@ mod xml;
 use std::path::Path;
 
 use crate::Store;
-use crate::source::files::{CollectionFiles, Parsed, add_read, by_collection};
+use crate::source::files::{CollectionFiles, Parsed, add_read, by_collection, changed_meanwhile};
 use crate::source::{Change, Description, Listed, Read, Refusal, Source};
 
 /// A format of collection files, named by the files' extension.
@@ -47,8 +47,18 @@ impl Format {
         }
     }
 
+    /// The text of an empty file of this format (see `docs/formats.md`,
+    /// "How srl writes to collections").
+    fn empty(self) -> &'static str {
+        match self {
+            Self::Jsonl => "",
+            Self::Json => "[]\n",
+            Self::Xml => "<items>\n</items>\n",
+        }
+    }
+
     /// The text of a file of this format at `path`, `old` (`None` if it
-    /// doesn't exist yet), with `changes` made to it and checked, and the
+    /// doesn't exist), with `changes` made to it and checked, and the
     /// text of the items added. Each change comes with its place among all
     /// the changes.
     fn changed(
@@ -182,7 +192,19 @@ impl Source for Filesystem {
                 reason: unknown_format(),
             })?;
             let old = self.files.text_if_exists(path)?;
-            let (new, added) = format.changed(path, old.as_deref(), &changes)?;
+            let creating = changes
+                .iter()
+                .any(|(_, change)| matches!(change, Change::Create { .. }));
+            // A file created meanwhile, or gone since it was read.
+            if creating == old.is_some() {
+                return Err(changed_meanwhile(path));
+            }
+            let start = if creating {
+                Some(format.empty())
+            } else {
+                old.as_deref()
+            };
+            let (new, added) = format.changed(path, start, &changes)?;
             appended.push_str(&added);
             written.push((path, old, new));
         }

@@ -325,6 +325,7 @@ fn drafts_added_by_a_tool_are_studied_once_accepted() {
         "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Peru?\", \"A\": \"Lima\"}\n",
         "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Egypt?\", \"A\": \"Cairo\"}\n",
     );
+    store.ok(&now, &["create", "generated/capitals.jsonl"]);
     let added = store.expect(
         0,
         &now,
@@ -365,8 +366,13 @@ fn an_agents_questions_are_studied_like_any_other() {
     ]);
     let now = at(1, 19);
     assert_eq!(store.study(&now, 3).len(), 4);
-    // The agent adds drafts to a collection of its own: two about the
-    // person's notes, and one that stands alone.
+    // The agent creates a collection of its own, in the source that
+    // accepts it, and adds drafts to it: two about the person's notes, and
+    // one that stands alone.
+    assert_eq!(
+        store.ok(&now, &["create", "generated/capitals.jsonl"]),
+        "generated/capitals.jsonl  generated\n"
+    );
     let input = concat!(
         "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Peru?\", \"A\": \"Lima\"}\n",
         "{\"see\": \"geography/capitals.md\", \"draft\": true, \"Q\": \"Capital of Egypt?\", \"A\": \"Cairo\"}\n",

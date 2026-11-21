@@ -180,12 +180,14 @@ item you write needs an `id` of your own, unique in the store (see
 ## How srl writes to collections
 
 The commands that change items (see [items.md](items.md), "How srl
-changes items") change collections by these rules:
+changes items"), and `srl create`, which creates a collection for them,
+change collections by these rules:
 
 | Command | Changes in a collection |
 |---|---|
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
-| `srl add COLLECTION` | Appends the new items to the collection `COLLECTION`, or creates it. |
+| `srl create COLLECTION` | Creates the collection `COLLECTION`, an empty file of its format, with its folders. |
+| `srl add COLLECTION` | Appends the new items to the collection `COLLECTION`, which must exist. |
 | `srl edit --stdin` | Replaces the items it is given with new ones. |
 | `srl move ID... COLLECTION` | Appends the items to the collection `COLLECTION`, and removes them from their collections. |
 
@@ -231,7 +233,8 @@ changes items") change collections by these rules:
    read it, or the collection has an error now, the command stops and
    says so. Right before writing, the file is read again and compared
    with what `srl` read. If it differs, for example because your editor
-   saved it in between, the command stops and says so; files it wrote
+   saved it in between, or a file it creates exists now, or a file it
+   changes is gone, the command stops and says so; files it wrote
    before stay written, and running it again finishes the work, except
    for `srl move`, which then says what to fix (see [cli.md](cli.md),
    "Moving items"). Files that items are added to are written before
@@ -250,9 +253,9 @@ changes items") change collections by these rules:
    control and syncing"); it can be deleted at any time no `srl` command
    is running.
 
-A new collection starts empty, as each format writes one: an empty file
-for JSONL, `[]` for JSON, and `<items>` and `</items>` on two lines for
-XML.
+A collection `srl create` makes starts empty, as each format writes one:
+an empty file for JSONL, `[]` for JSON, and `<items>` and `</items>` on
+two lines for XML.
 
 > **TODO (platform):** not run on Windows yet. Windows refuses to rename
 > over a file that another program holds open without sharing it, as some

@@ -138,7 +138,7 @@ Only four commands ever change an item:
 | Command | Changes |
 |---|---|
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
-| `srl add COLLECTION` | Adds new items to the collection `COLLECTION`, or creates it. |
+| `srl add COLLECTION` | Adds new items to the collection `COLLECTION`, which must exist; `srl create` creates one, without items (see [cli.md](cli.md), "Creating collections"). |
 | `srl edit --stdin` | Replaces the items it is given with new ones, for scripts and other programs. |
 | `srl move ID... COLLECTION` | Moves the items to the collection `COLLECTION`, which must exist. |
 

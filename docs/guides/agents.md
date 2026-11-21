@@ -46,6 +46,7 @@ use. For example:
 | Tool | Runs |
 |---|---|
 | `srs_find`, `srs_show`, `srs_cards`, `srs_log`, `srs_stats`, `srs_collections`, `srs_notes`, `srs_sources`, `srs_kinds`, `srs_check` | Reading (`srs_collections` tells which collections exist and `srs_sources` what each source is and its settings, `srs_notes` which notes an item may name with `see`, `srs_kinds` which fields an item can have; `srs_check` finds mistakes in what was written) |
+| `srs_create` | `srl create COLLECTION` (a collection of the agent's own, before it adds to it) |
 | `srs_add` | `srl add COLLECTION --stdin` (always draft: the tool sets `"draft": true` on every line, for example with `jq -c '.draft = true'`) |
 | `srs_edit` | `srl edit --stdin` (only if you want agents to edit items) |
 | `srs_move` | `srl move ID... COLLECTION` (only if you want agents to move items) |
@@ -128,9 +129,11 @@ srl-agent generate "turn https://… into questions, at most 8"
 ```
 
 The agent reads the note, runs `srl find` and `srl show` to see which items
-already exist, and sends the new items as JSONL to:
+already exist, creates the collection if `srl collections` doesn't list
+it yet, and sends the new items as JSONL to it:
 
 ```sh
+srl create generated/wo-mono-tomo-sezu.jsonl
 srl add generated/wo-mono-tomo-sezu.jsonl --stdin
 ```
 

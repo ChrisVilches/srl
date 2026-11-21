@@ -35,8 +35,9 @@ note the item asks about, relative to the store's folder, for a frontend
 that opens it. An item is changed through `srl show ID --json` and `srl
 edit --stdin`, whatever its source. A form that adds items picks a
 collection from `srl collections`, or takes the name of a new one, which
-`srl add` creates in the one source that accepts it, or refuses with each
-source's reason; and a note for `see` from `srl notes`: the two are
+`srl create` creates in the one source that accepts it, or refuses with
+each source's reason, before `srl add` adds to it; and a note for `see`
+from `srl notes`: the two are
 separate lists, since a collection is never a context.
 
 ## The examples
@@ -56,7 +57,8 @@ them, what they need and what may differ elsewhere.
   from `srl collections`, or a new one typed by its name, and a note as
   context from `srl notes`, checked with
   `srl add --dry-run` and added with `srl add`, so it knows no rule of
-  any kind.
+  any kind. A new collection is checked with `srl create --dry-run` and
+  created with `srl create` right before the items are added.
 - **`srl-tui`**, in `examples/python-frontend/`: a terminal frontend in
   Python with Rich, with keys that act without Enter, and the card, the
   answer and the context rendered as Markdown on one screen.

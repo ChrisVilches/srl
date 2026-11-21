@@ -93,8 +93,9 @@ A collection that breaks a rule is an error in the store (see
 [items.md](items.md), "Errors"): it stops every command that reads items,
 and `srl check` reports it, as `COLLECTION: message`.
 
-**A new collection**, for `srl add`, is created in the one source that
-accepts its name. Each source decides by its own rule: `filesystem`
+**A new collection** is created by `srl create` (see [cli.md](cli.md),
+"Creating collections"), in the one source that accepts its name; `srl
+add` and `srl move` only write to collections that exist. Each source decides by its own rule: `filesystem`
 accepts a path that `include` matches and `exclude` doesn't, in a format
 it knows by its extension; a program accepts the names its `accepts`
 call takes (see "Calls"). Exactly one source must accept it; none or
@@ -102,16 +103,16 @@ several is an error, which names every source concerned, so that no one
 has to guess which source was asked:
 
 ```
-srl: cannot add to notes/a.md: no source accepts it (items: its `include` doesn't match the path; vocab: a table's name has no `/`); `srl sources` describes each one; nothing was added
-srl: cannot add to words.jsonl: more than one source accepts it (items, vocab); `srl sources` describes each one; nothing was added
+srl: cannot create notes/a.md: no source accepts it (items: its `include` doesn't match the path; vocab: a table's name has no `/`); `srl sources` describes each one; nothing was created
+srl: cannot create words.jsonl: more than one source accepts it (items, vocab); `srl sources` describes each one; nothing was created
 ```
 
 When none accepts it, every source gives its reason, after its name:
 its `include` doesn't match the path, its `exclude` matches it, or its
 extension names no format it knows, for `filesystem`; the reason its
 `accepts` gives, for a program. When several do, they are named. A
-program whose `accepts` fails, or prints invalid output, fails `srl add`
-as itself (see "What srl checks"), not as a source that doesn't accept
+program whose `accepts` fails, or prints invalid output, fails `srl
+create` as itself (see "What srl checks"), not as a source that doesn't accept
 the name.
 
 ## What a source does
@@ -123,14 +124,14 @@ Every source does the same few things, each its own way:
   and the problems it finds (see
   [items.md](items.md), "Errors"). A problem is about a collection, and
   says where in it, as the source can.
-- **It makes changes**: it adds items to a collection, creating it if
-  needed, and replaces items. It is given each item to replace as it was
+- **It makes changes**: it creates a collection without items, adds
+  items to a collection that exists, and replaces and removes items. It is given each item to replace as it was
   read, and refuses to change an item that is no longer as it was, since
   someone changed it in between. Every change to a source is made and
   checked before anything is written (see [items.md](items.md), "How srl
   changes items").
-- **It decides which new collections it creates**, for `srl add` (see
-  "Collections").
+- **It decides which new collections it creates**, for `srl create`
+  (see "Collections").
 - **It describes itself**, for `srl sources`: what it is, and the
   settings it shows, each by its name, as it chooses: the `filesystem`
   source's `include`, and its `exclude` if it has some, or the settings
@@ -199,10 +200,10 @@ with every process it started, when `srl` is stopped (see
 | Call | Input | Output |
 |---|---|---|
 | `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "settings": {"database": "vocab/vocab.json"}}`: what the source is, in a sentence, and the settings `srl sources` shows of it (`{}` for none) |
-| `accepts` | one line: `{"config": {…}, "collection": "words"}` | one line: `{"ok": true}` if `srl add` may create the collection in it, or `{"error": "…"}`, why not |
+| `accepts` | one line: `{"config": {…}, "collection": "words"}` | one line: `{"ok": true}` if `srl create` may create the collection in it, or `{"error": "…"}`, why not |
 | `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words"}`, or `{"collection": "words", "in": ["words", "vocab"]}` to give its `in` names |
 | `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "item": {…}}`; one line per problem: `{"collection": "words", "error": "…"}` |
-| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, `{…, "op": "replace", "collection": "words", "before": {…}, "after": {…}}`, or `{…, "op": "remove", "collection": "words", "before": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
+| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "create", "collection": "words"}`, `{…, "op": "add", "collection": "words", "item": {…}}`, `{…, "op": "replace", "collection": "words", "before": {…}, "after": {…}}`, or `{…, "op": "remove", "collection": "words", "before": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
 
 - **`read`** gives every item with its collection and `item`, its item
   object (see [items.md](items.md), "The item object"), read as strictly
@@ -220,7 +221,10 @@ with every process it started, when `srl` is stopped (see
   the `id` of `before`, which is how `srl` read it, and the program
   refuses it when that item is no longer `before`. **A program that
   answers `error` to any change writes none of them**; `srl` reports the
-  first such line. `srl accept` is a `replace` too, whose `after` removes
+  first such line. A `create` makes a collection without items, which
+  `collections` lists from then on, and which `srl create` asks for
+  alone; an `add` is to a collection that exists. `srl accept` is a
+  `replace` too, whose `after` removes
   `draft`. `srl move` gives the source its collection's
   `add`s, and the `remove`s of items moved out of its collections (see
   [cli.md](cli.md), "Moving items").
@@ -248,7 +252,7 @@ many items or cards it handles, never once per item or per card:
 |---|---|
 | every command that reads items | 1 `collections` and 1 `read` |
 | `add`, `edit`, `move`, `accept` | 1 `write` for the changes to the source, with 1 `read` before it and 1 after it, to verify it |
-| `add` to a new collection | 1 `accepts` |
+| `create` | 1 `accepts`, then 1 `write`, with 1 `read` before it, and 1 `collections` and 1 `read` after it, to verify it |
 | `collections` | 1 `collections` |
 | `sources` | 1 `describe` |
 
@@ -276,6 +280,7 @@ wherever it chooses, and is responsible for its freshness.
   store, as is breaking a rule of "Collections".
 - **After `write`, `srl` reads the source again**: every item not changed
   must be as before, every `add` must have added exactly its item, every
-  `replace` must give exactly `after`, and every `remove` must have
-  removed exactly its item. If not, the command fails,
+  `replace` must give exactly `after`, every `remove` must have
+  removed exactly its item, and every `create` must have made a
+  collection that `collections` lists. If not, the command fails,
   saying that the program didn't do what it was asked.

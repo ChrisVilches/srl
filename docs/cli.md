@@ -20,7 +20,8 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
   (`find`, `show`, `cards`, `collections`, `notes`, `sources`, `kinds`,
   `next`, `stats`, `log`) can print JSON instead (JSONL for lists). The
   default output is for people. Commands that change the store print the
-  IDs they changed, one per line; they have no `--json`.
+  IDs they changed, one per line, and `srl create` the collection it
+  created; they have no `--json`.
 - **Never interactive.** No command asks questions or waits for a person.
   Studying is up to frontends (see [frontends.md](frontends.md)), and
   writing items by hand is up to your editor, or to whatever keeps the
@@ -83,7 +84,8 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 | `srl find [SELECTOR] [--json]` | List matching cards, in the order they are written (by collection, the order of items in the collection, then card ID): one line each with the card ID, the collection and the first line of the item's first field, separated by two spaces. With `--json`, one object per card (see below). Exit 1 if none matches. |
 | `srl show ID… [--no-context] [--json]` | Print the item of each ID, with its context (see below). Unknown IDs are reported, and make the exit code 2. |
 | `srl cards ID… [--json]` | Print cards by ID, as a frontend requires them: a card ID gives that card, an item ID all of its cards (see below). |
-| `srl add COLLECTION --stdin` | Add new items to the collection `COLLECTION`, such as a file's path (see "Adding items" below). Prints the new item IDs. |
+| `srl create COLLECTION` | Create the collection `COLLECTION`, such as a file's path, without items, in the one source that accepts its name (see "Creating collections" below). Prints the collection and its source. |
+| `srl add COLLECTION --stdin` | Add new items to the collection `COLLECTION`, which must exist (see "Adding items" below). Prints the new item IDs. |
 | `srl edit --stdin` | Replace items, in any source, with the item objects of standard input, one per line, each naming the item it replaces by its `id` (see "Editing items" below). Nothing else of their collections changes. Prints the IDs of the items. |
 | `srl move ID… COLLECTION` | Move the items of the IDs, from any source, to the collection `COLLECTION`, which must exist (see "Moving items" below). Prints the IDs of the items moved. |
 | `srl accept SELECTOR` | Remove `draft` from the items of matching draft cards. |
@@ -193,8 +195,8 @@ moves each item, named by its item ID, to the collection named last, as
 where; an item may come from any source. The item keeps its ID, so its
 cards keep their history and their suspension.
 
-- **The collection must exist.** `srl move` never creates one; `srl add`
-  does.
+- **The collection must exist.** `srl move` never creates one; `srl
+  create` does.
 - **Nothing is written** if an ID is not an item's or is given twice,
   if the collection doesn't exist, or if the collection's source refuses
   an item, such as a text that XML can't hold. An item already in the
@@ -259,6 +261,46 @@ written, and each exits with 1 if it changed nothing. `srl accept` changes
 items (see [items.md](items.md), "How srl changes items"); the others
 only append to the log.
 
+### Creating collections
+
+```sh
+srl create generated/japanese.jsonl
+```
+
+creates the collection, without items, and prints its name and the
+source it was created in, separated by two spaces:
+
+```
+generated/japanese.jsonl  items
+```
+
+Creating a collection is always its own step: `srl add` and `srl move`
+only write to collections that exist, so a mistyped name is an error
+instead of a new collection.
+
+- `COLLECTION` is the name the new collection will have (see
+  [sources.md](sources.md), "Collections"): parts joined by `/`, none
+  empty, `.`, `..` or starting with `.`, without `\` or `:`. For the
+  `filesystem` source, it is a path relative to the store's folder.
+- **It is created in the one source that accepts its name**: for
+  `filesystem`, a file whose path its `include` matches and its
+  `exclude` doesn't, in a format it knows by its extension (see
+  [formats.md](formats.md), "Which files are collections"); for a source
+  program, a name its `accepts` takes (see [sources.md](sources.md),
+  "Calls"). No source accepting it, or more than one, is an error, which
+  lists every source with its reason, or the sources that accept it (see
+  [sources.md](sources.md), "Collections").
+- **A collection that exists, in any source, is an error**, which names
+  its source.
+- The `filesystem` driver creates the file with its folders, empty as
+  its format writes an empty collection (see [formats.md](formats.md),
+  "How srl writes to collections"). A source program creates it its own
+  way, and must list it afterwards (see [sources.md](sources.md),
+  "Calls").
+
+With `--dry-run` it asks the sources the same and prints the same, and
+creates nothing.
+
 ### Adding items
 
 ```sh
@@ -287,19 +329,13 @@ JSONL
 - **Uppercase keys are field names, and their values the fields' text**,
   in the order given. Which fields are accepted is up to the kind, so `srl
   add` works the same for every kind there is; `srl kinds` describes them.
-- `COLLECTION` is the name of a collection (see [sources.md](sources.md),
-  "Collections"): for the `filesystem` source, its path relative to the
-  store's folder, such as `japanese/grammar.jsonl`. If no collection has
-  that name, it is created in the one source that accepts it: for
-  `filesystem`, a file whose path its `include` matches and its `exclude`
-  doesn't, outside folders that start with `.`, in a format it knows by
-  its extension (see [formats.md](formats.md), "Which files are
-  collections"), created with its folders; for a source program, a name
-  its `accepts` takes (see [sources.md](sources.md), "Calls"). No source accepting it, or
-  more than one, is an error, which lists every source with its reason,
-  or the sources that accept it (see [sources.md](sources.md),
-  "Collections"). A note is no collection: `srl add` never
-  adds to a note.
+- `COLLECTION` is the name of a collection, as `srl collections` lists
+  it (see [sources.md](sources.md), "Collections"): for the `filesystem`
+  source, its path relative to the store's folder, such as
+  `japanese/grammar.jsonl`. **The collection must exist**: `srl add`
+  never creates one, and a name no collection has is an error that says
+  to create it with `srl create` (see "Creating collections" above). A
+  note is no collection: `srl add` never adds to a note.
 - A source program adds the items its own way (see
   [sources.md](sources.md), "Calls"). In a collection of the
   `filesystem` source, they are added in its format, following the rules

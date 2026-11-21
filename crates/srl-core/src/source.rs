@@ -33,7 +33,7 @@ pub(crate) trait Source: fmt::Debug {
     fn read(&self) -> Result<Read>;
 
     /// Why `collection`, which doesn't exist yet, can't be created by `srl
-    /// add`, or `None` if it can. Only failing to answer is an error.
+    /// create`, or `None` if it can. Only failing to answer is an error.
     fn refuses(&self, collection: &str) -> Result<Option<String>>;
 
     /// Makes `changes`, or, with `dry_run`, only checks them. Gives the
@@ -89,7 +89,9 @@ pub(crate) struct Description {
 /// A change to the items of a source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Change {
-    /// Adds `item` to `collection`, creating it if it doesn't exist.
+    /// Creates `collection`, without items. Refused if it exists.
+    Create { collection: String },
+    /// Adds `item` to `collection`, which exists.
     Add { collection: String, item: Object },
     /// Replaces the item of `collection` with the ID of `before`, which is
     /// how it was read, with `after`. Refused if the item is no longer
@@ -107,7 +109,8 @@ pub(crate) enum Change {
 impl Change {
     /// The collection the change is about.
     pub(crate) fn collection(&self) -> &str {
-        let (Self::Add { collection, .. }
+        let (Self::Create { collection }
+        | Self::Add { collection, .. }
         | Self::Replace { collection, .. }
         | Self::Remove { collection, .. }) = self;
         collection
@@ -186,10 +189,11 @@ impl Sources {
             .iter()
             .map(|named| named.source.refuses(collection))
             .collect::<Result<Vec<_>>>()?;
-        self.accepting(&answers).map_err(|reason| Error::CannotAdd {
-            collection: collection.to_owned(),
-            reason,
-        })
+        self.accepting(&answers)
+            .map_err(|reason| Error::CannotCreate {
+                collection: collection.to_owned(),
+                reason,
+            })
     }
 
     /// The one source whose answer in `answers`, given in the order of the
