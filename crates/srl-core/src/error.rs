@@ -34,12 +34,15 @@ pub enum Error {
     #[error("the file name {path} is not valid UTF-8; rename it")]
     NonUtf8Path { path: PathBuf },
 
-    #[error("`{text}` is not an item ID; item IDs are 1 to 32 characters a-z and 0-9")]
+    #[error(
+        "`{text}` is not an item ID; an item ID is words of a-z and 0-9 joined by single `-`, \
+         1 to 32 characters (x7k2m9, jp-grammar-desu)"
+    )]
     InvalidItemId { text: String },
 
     #[error(
-        "`{text}` is not a card ID; a card ID is an item ID, optionally followed by `-` and \
-         a suffix of a-z and 0-9 (x7k2m9, k3m9q1.2)"
+        "`{text}` is not a card ID; a card ID is an item ID, optionally followed by `.` and \
+         a suffix made the same way (x7k2m9, k3m9q1.2)"
     )]
     InvalidCardId { text: String },
 
