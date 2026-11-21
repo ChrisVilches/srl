@@ -58,7 +58,8 @@ write `srl find "\"some words\""`.
 A value can't be empty (`in:` or `in:a,,b`), and `source:`, `id:`, `kind:`
 and `is:` values must be sources of the store, valid IDs, kinds, and the
 values listed for `is:`. So a typo such as `kind:ja-word` fails instead of
-matching nothing.
+matching nothing. `in:` and `collection:` values are not checked: one that
+names no collection matches nothing.
 
 Three combining rules, and nothing else:
 

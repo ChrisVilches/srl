@@ -2,9 +2,17 @@ import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type KeyboardEvent } from 'react';
 
-import { type Collection } from './api';
 import { BAR_ICON_BUTTON, DANGER_BUTTON, ErrorView, Loading, MAIN_BUTTON, Skeleton } from './CardParts';
-import { filterCount, IS_VALUES, NO_FILTERS, writable, type Filters, type Menu, type Search } from './filters';
+import {
+  collectionNames,
+  filterCount,
+  IS_VALUES,
+  NO_FILTERS,
+  writable,
+  type Filters,
+  type Menu,
+  type Search,
+} from './filters';
 import { Modal } from './Modal';
 import { queries } from './queries';
 
@@ -109,14 +117,6 @@ const LABELS: Record<Exclude<Menu, 'leech' | 'id'>, string> = {
   status: 'Status',
   schedule: 'Schedule',
 };
-
-// The name of every collection, in the order srl lists them: the values
-// collection: takes. Several collections may share an in name, such as
-// a/questions.jsonl and b/questions.jsonl, so the whole name is what picks
-// one. A name collection: can't take, one with a space or a comma, isn't
-// offered.
-const collectionNames = (collections: Collection[]) =>
-  collections.map((collection) => collection.name).filter(writable);
 
 // The text and the menus, set to the page's search, APPLIED, when it is
 // made, which is each time it opens (FilterButton gives it a new key):

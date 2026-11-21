@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { filterCount, NO_FILTERS, selectorOfSearch, type Filters } from '../src/filters.ts';
+import { collectionNames, filterCount, NO_FILTERS, selectorOfSearch, type Filters } from '../src/filters.ts';
 
 const selector = (filters: Partial<Filters>, text = '') =>
   selectorOfSearch({ filters: { ...NO_FILTERS, ...filters }, text });
@@ -42,4 +42,19 @@ test('a double quote separates words', () => {
 test('counts the filters set, the ID among them', () => {
   assert.equal(filterCount(NO_FILTERS), 0);
   assert.equal(filterCount({ ...NO_FILTERS, collection: 'a', leech: 'leech', id: 'k3m9q1' }), 3);
+});
+
+test('the Collection menu offers every collection by its whole name, in the order srl lists them', () => {
+  assert.deepEqual(
+    collectionNames([{ name: 'b/questions.jsonl' }, { name: 'a/questions.jsonl' }, { name: 'words' }]),
+    ['b/questions.jsonl', 'a/questions.jsonl', 'words'],
+  );
+});
+
+test('a collection name a term cannot hold is not offered', () => {
+  assert.deepEqual(collectionNames([{ name: 'my notes/words.jsonl' }, { name: 'a,b' }, { name: 'ok.jsonl' }]), ['ok.jsonl']);
+});
+
+test('a collection filter is its whole name', () => {
+  assert.equal(selector({ collection: 'a/questions.jsonl' }), 'collection:a/questions.jsonl');
 });

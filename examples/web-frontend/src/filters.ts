@@ -47,6 +47,13 @@ export const isMenuOf = (value: string) =>
 // holding a space, a comma or a double quote, which would split it.
 export const writable = (value: string) => /^[^\s,"]+$/.test(value);
 
+// The name of every collection, in the order srl lists them: the values the
+// Collection menu offers, for collection:. Several collections may share an
+// in name, such as a/questions.jsonl and b/questions.jsonl, so the whole
+// name is what picks one. A name a term can't hold isn't offered.
+export const collectionNames = (collections: { name: string }[]) =>
+  collections.map((collection) => collection.name).filter(writable);
+
 // How many filters are set.
 export const filterCount = (filters: Filters) => MENUS.filter((menu) => filters[menu] !== null).length;
 

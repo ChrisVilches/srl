@@ -2501,6 +2501,9 @@ fn in_matches_a_source_program_s_collection_by_its_name_or_the_names_it_gives() 
     assert_eq!(found("in:words"), 2);
     assert_eq!(found("in:v1"), 0);
     assert_eq!(found("in:vocab/words"), 0);
+    // collection: takes its name whatever names it gives.
+    assert_eq!(found("collection:vocab/words"), 2);
+    assert_eq!(found("collection:words"), 0);
     assert_eq!(
         json_lines(&srl(&["collections", "--json", "--dir", d])),
         [

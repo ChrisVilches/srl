@@ -438,7 +438,7 @@ scheduling here; that belongs to `srl`.
 | `GET /api/log?id=…` | `srl log id:ID --json` | `{"events": […]}`: the card's events, in log order, as stored; those of other cards of an item of the same ID are left out |
 | `GET /api/card?id=…` | `srl cards ID --json` and `srl show ID --json` | `{"card": …}`: the card `srl cards` printed, with its item's `kind`, `collection`, `see` and `context`, as `srl next --json` gives them (not its `source`) |
 | `GET /api/kinds` | `srl kinds --json` | `{"kinds": […]}`, each kind as `srl kinds` printed it |
-| `GET /api/collections` | `srl collections --json` | `{"collections": [{"name": COLLECTION, "in": [NAME…]}…]}`: each collection and its `in` names |
+| `GET /api/collections` | `srl collections --json` | `{"collections": [{"name": COLLECTION}…]}`: each collection by its name, which `collection:` takes |
 | `GET /api/sources` | `srl sources --json` | `{"sources": [NAME…]}` |
 | `GET /api/notes` | `srl notes --json` | `{"notes": [PATH…]}` |
 | `POST /api/add` | `srl add COLLECTION --stdin`, with `--dry-run` for `{"dry_run": true}`, for `{"collection": COLLECTION, "item": ITEM}`; `ITEM` is its one line | `{"ids": […]}`, or `{"text": …}`, what `srl add --dry-run` printed: the item as its source would add it, as written in its collection or a source program's preview |

@@ -433,6 +433,9 @@ mod tests {
         assert_eq!(picked("in:net/routers"), ["aaa1"]);
         assert_eq!(picked("in:v1"), Vec::<String>::new());
         assert_eq!(picked("in:grammar"), Vec::<String>::new());
+        // collection: takes the collection's name, not its in names.
+        assert_eq!(picked("collection:V1.2"), ["aaa1"]);
+        assert_eq!(picked("collection:net/routers"), Vec::<String>::new());
     }
 
     #[test]
@@ -446,6 +449,9 @@ mod tests {
         assert_eq!(pick("collection:n5.jsonl"), Vec::<String>::new());
         assert_eq!(pick("collection:japanese"), Vec::<String>::new());
         assert_eq!(pick("collection:japanese/n5"), Vec::<String>::new());
+        assert_eq!(pick("in:japanese -collection:japanese/n5.jsonl"), ["aaa1"]);
+        assert!(Selector::parse("collection:", &Config::default()).is_err());
+        assert!(Selector::parse("collection:a,,b", &Config::default()).is_err());
     }
 
     #[test]

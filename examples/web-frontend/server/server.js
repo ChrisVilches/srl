@@ -35,7 +35,7 @@
 // Adding items, one at a time:
 //
 //   GET  /api/kinds        srl kinds --json            → { kinds: [kind…] }
-//   GET  /api/collections  srl collections --json      → { collections: [{ name, in }…] }
+//   GET  /api/collections  srl collections --json      → { collections: [{ name }…] }
 //   GET  /api/notes        srl notes --json            → { notes: [path…] }
 //   POST /api/add          srl add COLLECTION --stdin [--dry-run], with ITEM as its
 //                          one line                    ← { collection, item, dry_run }
