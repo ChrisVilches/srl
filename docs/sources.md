@@ -80,14 +80,17 @@ the name, whatever its source.
 The rules, the same for every source:
 
 1. **No collection's name may be given by two sources.** Two
-   `filesystem` sources whose globs match the same file, or a program that names a collection
-   as a file of another source is named, break it; leave the collection
-   out of one of them with `exclude`, or have the program name its
-   collections otherwise, such as under a folder of its own, `vocab/`.
+   `filesystem` sources whose globs match the same file break it, and so
+   does a program that gives a collection the name another source gives
+   one, such as a file's path; leave the file out of one of them with
+   `exclude`, or have the program name its collections otherwise, such
+   as under a folder of its own, `vocab/`.
 2. **A collection's name never names an item.** Every item of a
    collection is in the same collection, and items are told apart by
-   their IDs. `see`, `srl add` and `collection:` take collections' names
-   alone, and `in:` their `in` names.
+   their IDs. `collection:`, `srl create`, `srl add` and `srl move` take
+   a collection's name alone, and `in:` its `in` names. A collection is
+   never context: an item's `see` names a note, which holds no items
+   (see [items.md](items.md), "Context").
 
 A collection that breaks a rule is an error in the store (see
 [items.md](items.md), "Errors"): it stops every command that reads items,
@@ -95,25 +98,42 @@ and `srl check` reports it, as `COLLECTION: message`.
 
 **A new collection** is created by `srl create` (see [cli.md](cli.md),
 "Creating collections"), in the one source that accepts its name; `srl
-add` and `srl move` only write to collections that exist. Each source decides by its own rule: `filesystem`
-accepts a path that `include` matches and `exclude` doesn't, in a format
-it knows by its extension; a program accepts the names its `accepts`
-call takes (see "Calls"). Exactly one source must accept it; none or
-several is an error, which names every source concerned, so that no one
-has to guess which source was asked:
+add` and `srl move` only write to collections that exist. A name no
+collection may have, or that of a collection that exists, in any
+source, is refused before any source is asked. Each source decides by
+its own rule: `filesystem` accepts a path that `include` matches and
+`exclude` doesn't, in a format it knows by its extension; a program
+accepts the names its `accepts` call takes (see "Calls"). Exactly one
+source must accept it; none or several is an error, which names every
+source concerned, so that no one has to guess which source was asked.
+With the configuration above:
 
 ```
-srl: cannot create notes/a.md: no source accepts it (items: its `include` doesn't match the path; vocab: a table's name has no `/`); `srl sources` describes each one; nothing was created
-srl: cannot create words.jsonl: more than one source accepts it (items, vocab); `srl sources` describes each one; nothing was created
+srl: cannot create notes/a.md: no source accepts it (items: its `include` doesn't match the path; generated: its `include` doesn't match the path; vocab: a table's name has no `.` or `/`); `srl sources` describes each one; nothing was created
+```
+
+and if `items` didn't exclude `generated/**`:
+
+```
+srl: cannot create generated/words.jsonl: more than one source accepts it (items, generated); `srl sources` describes each one; nothing was created
 ```
 
 When none accepts it, every source gives its reason, after its name:
 its `include` doesn't match the path, its `exclude` matches it, or its
 extension names no format it knows, for `filesystem`; the reason its
-`accepts` gives, for a program. When several do, they are named. A
-program whose `accepts` fails, or prints invalid output, fails `srl
-create` as itself (see "What srl checks"), not as a source that doesn't accept
-the name.
+`accepts` gives, for a program. A store without sources says so
+instead. When several accept it, they are named. A program whose
+`accepts` fails, or prints invalid output, fails `srl create` as itself
+(see "What srl checks"), not as a source that doesn't accept the name.
+
+**What a source accepts matters only for new collections.** `srl` keeps
+no record of which source a collection is in: on every command, each
+source lists its collections, and a collection is in the source that
+lists it. Adding to it, or changing its items, goes to that source
+without asking `accepts`. So when a source changes what it accepts, the
+collections it has keep working, even those it would no longer accept;
+only a `filesystem` source's `include` and `exclude`, which also say
+which files it reads, change which collections it has.
 
 ## What a source does
 
@@ -125,11 +145,12 @@ Every source does the same few things, each its own way:
   [items.md](items.md), "Errors"). A problem is about a collection, and
   says where in it, as the source can.
 - **It makes changes**: it creates a collection without items, adds
-  items to a collection that exists, and replaces and removes items. It is given each item to replace as it was
-  read, and refuses to change an item that is no longer as it was, since
-  someone changed it in between. Every change to a source is made and
-  checked before anything is written (see [items.md](items.md), "How srl
-  changes items").
+  items to a collection that exists, and replaces and removes items. It
+  is given each item to replace or remove as it was read, and refuses to
+  change an item that is no longer as it was, since someone changed it
+  in between. Every change to a source is made and checked before
+  anything is written (see [items.md](items.md), "How srl changes
+  items").
 - **It decides which new collections it creates**, for `srl create`
   (see "Collections").
 - **It describes itself**, for `srl sources`: what it is, and the
@@ -174,10 +195,10 @@ database = "vocab/vocab.json"    # every key but program is the program's
   program checks them, refusing the keys it doesn't take, and a call that
   fails because of them is reported with the program's message.
 - **A program names its collections as it likes**, as paths with `/`
-  between parts, and `srl` names them so everywhere. A program that may share a
-  store with files of a `filesystem` source names its collections so that
-  they can't be taken for a file, such as under a folder of its own, or
-  takes the folder in its settings.
+  between parts, and `srl` names them so everywhere. A program that may
+  share a store with files of a `filesystem` source names its
+  collections so that they can't be taken for a file, such as under a
+  folder of its own or one its settings name, or without an extension.
 - **A program gives each collection's `in` names as it likes**, or
   leaves them out to have the collection's name alone. A program whose
   collections are files, such as one that reads items from Markdown
@@ -224,18 +245,23 @@ with every process it started, when `srl` is stopped (see
   first such line. A `create` makes a collection without items, which
   `collections` lists from then on, and which `srl create` asks for
   alone; an `add` is to a collection that exists. `srl accept` is a
-  `replace` too, whose `after` removes
-  `draft`. `srl move` gives the source its collection's
-  `add`s, and the `remove`s of items moved out of its collections (see
-  [cli.md](cli.md), "Moving items").
+  `replace` too, whose `after` removes `draft`. `srl move` gives the
+  source its collection's `add`s, and the `remove`s of items moved out
+  of its collections (see [cli.md](cli.md), "Moving items").
+- **`dry_run`** is the same in every line of a call: `true` for a
+  command's `--dry-run`. The program then writes nothing, and answers
+  each change as it would without it: `error` for a change it would
+  refuse, and otherwise `ok`, or, for an `add`, `preview`, the item as
+  it would write it, which `srl add --dry-run` prints.
 - **`describe`** gives `settings` as an object, each key a setting's
   name, in the order `srl sources` shows them, and each value any JSON:
   usually some of the program's keys as it read them. `srl` checks
   nothing in them.
 - **`accepts`** is asked only of a collection that doesn't exist yet, by
-  its name, and decides by the program's own rule, such as a folder its
-  settings name. Its `error` is shown after the source's name when no
-  source accepts the collection (see "Collections").
+  a name a collection may have (see "What srl checks"), and decides by
+  the program's own rule, such as a folder its settings name. Its
+  `error` is shown after the source's name when no source accepts the
+  collection (see "Collections").
 - `read` and `collections` answer one input with any number of lines;
   `describe`, `accepts` and `write` answer each input line with one
   line, in order.
@@ -256,6 +282,9 @@ many items or cards it handles, never once per item or per card:
 | `collections` | 1 `collections` |
 | `sources` | 1 `describe` |
 
+With `--dry-run`, a command calls `write` without the reads around it,
+since nothing is written to verify.
+
 So studying a card, `srl next` and then `srl review`, starts a program
 about four times. `srl` keeps nothing a program answers: it can't know
 when a database or a service changed. A program that is slow to answer,
@@ -268,11 +297,11 @@ wherever it chooses, and is responsible for its freshness.
   JSON object, a key a call doesn't give, a value of the wrong type, a
   text that is blank, empty or only spaces (every text a call gives, such
   as a `collection` or an `error`, says something), `settings` that aren't
-  an object, an item object that isn't valid, a collection's name that isn't parts
-  joined by `/` (none empty or starting with `.`), a collection listed
-  twice by `collections`, an `in` that is empty, holds a value `in:`
-  can't take, or gives a name twice, or a wrong
-  number of lines is a failure of the program. So
+  an object, an item object that isn't valid, a collection's name that
+  isn't parts joined by `/`, none empty or starting with `.`, without
+  `\` or `:`, a collection listed twice by `collections`, an `in` that
+  is empty, holds a value `in:` can't take, or gives a name twice, or a
+  wrong number of lines is a failure of the program. So
   is a call that fails as a whole. Either is reported once, as a problem
   of the source, and stops every command that reads items until it is
   fixed.
