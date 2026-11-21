@@ -100,7 +100,7 @@ macOS and Windows (it is tried on Linux only).
   address with a selector can be bookmarked or written by hand; without
   one, the page starts with no selector, every card. The address is the
   only place a selector comes from: `srl-web` takes none.
-- The **Filters** button (a funnel), at the right of the selector box,
+- The **Filters** button (sliders), at the right of the selector box,
   writes the selector with menus, for those who would rather not type
   one: Collection, Source, Kind, Status and Schedule, each with one value
   or Any, and **Leeches only**. Collection offers the `in` names of every
@@ -109,7 +109,9 @@ macOS and Windows (it is tried on Linux only).
   with a space or a comma, isn't offered. Source and Kind offer what `srl
   sources` and `srl kinds` list, read when the filters open and kept as
   Add's are; Status, Schedule and Leeches only are `is:`'s values, which
-  the page knows. The menus show the box's text, submitted or not: each
+  the page knows. As in Add, the menus wait for all of it, shown as one
+  skeleton of the whole form, and srl's first error, with Try again, is
+  shown in their place. The menus show the box's text, submitted or not: each
   reads the first term of its key with one value and no `-`, and the
   menus of `is:` the first `is:` with one of their values. **Apply**
   submits the box's text with those terms changed, taken out for Any, or

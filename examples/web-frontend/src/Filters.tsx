@@ -1,8 +1,8 @@
-import { FunnelIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
+import { ErrorView, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
 import { IS_VALUES, NO_FILTERS, readFilters, writable, writeFilters, type Filters, type Menu } from './filters';
 import { Modal } from './Modal';
 import { queries } from './queries';
@@ -20,7 +20,7 @@ export function FilterButton({ selector, onSelector }: { selector: string; onSel
         title="Filters: write the selector with menus"
         className={`shrink-0 py-1.5 ${QUIET_BUTTON}`}
       >
-        <FunnelIcon className="size-5" aria-hidden />
+        <AdjustmentsHorizontalIcon className="size-5" aria-hidden />
       </button>
       <FilterDialog
         open={open}
@@ -51,7 +51,9 @@ const inNames = (collections: { in: string[] }[]) =>
 
 // The menus, set from the selector each time it opens. What they offer is
 // read from srl when it opens, and kept as everything read is (src/main.tsx),
-// so it is the same as Add reads.
+// so it is the same as Add reads. The menus wait for all of it, shown as one
+// skeleton until then, as Add's form does; the first error is shown in
+// their place.
 function FilterDialog({
   open,
   selector,
@@ -70,30 +72,35 @@ function FilterDialog({
   const collections = useQuery({ ...queries.collections(), enabled: open, select: inNames });
   const sources = useQuery({ ...queries.sources(), enabled: open });
   const kinds = useQuery({ ...queries.kinds(), enabled: open });
+  const reads = [collections, sources, kinds];
+  const failed = reads.find((read) => read.isError && !read.isFetching);
+  const retry = () => reads.filter((read) => read.isError).forEach((read) => read.refetch());
   const set = (menu: Menu, value: string | null) => setFilters((before) => ({ ...before, [menu]: value }));
 
-  const menu = (name: Exclude<Menu, 'leech'>, read: { data?: string[]; error: Error | null; isPending: boolean }) => (
-    <label className="flex flex-col gap-1.5 text-sm text-stone-500">
-      {LABELS[name]}
-      {read.error ? (
-        <span className="text-rose-600 dark:text-rose-400">{read.error.message}</span>
-      ) : read.isPending ? (
-        <Skeleton className="h-10" />
-      ) : (
-        <Select value={filters[name]} options={read.data ?? []} onChange={(value) => set(name, value)} />
-      )}
-    </label>
-  );
-  const fixed = (values: string[]) => ({ data: values, error: null, isPending: false });
+  if (!(collections.isSuccess && sources.isSuccess && kinds.isSuccess)) {
+    return (
+      <Modal open={open} title="Filters" onClose={onClose}>
+        {failed?.error ? <ErrorView message={failed.error.message} onRetry={retry} /> : <FiltersSkeleton />}
+      </Modal>
+    );
+  }
 
+  const options: Record<Exclude<Menu, 'leech'>, string[]> = {
+    in: collections.data,
+    source: sources.data,
+    kind: kinds.data.map((kind) => kind.name),
+    status: IS_VALUES.status,
+    schedule: IS_VALUES.schedule,
+  };
   return (
     <Modal open={open} title="Filters" onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
-        {menu('in', collections)}
-        {menu('source', sources)}
-        {menu('kind', { ...kinds, data: kinds.data?.map((kind) => kind.name) })}
-        {menu('status', fixed(IS_VALUES.status))}
-        {menu('schedule', fixed(IS_VALUES.schedule))}
+        {(Object.keys(LABELS) as Exclude<Menu, 'leech'>[]).map((name) => (
+          <label key={name} className="flex flex-col gap-1.5 text-sm text-stone-500">
+            {LABELS[name]}
+            <Select value={filters[name]} options={options[name]} onChange={(value) => set(name, value)} />
+          </label>
+        ))}
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -116,6 +123,29 @@ function FilterDialog({
         </button>
       </div>
     </Modal>
+  );
+}
+
+// The filters while srl reads what they offer: the menus, the checkbox, the
+// note and the buttons, as grey bars.
+function FiltersSkeleton() {
+  return (
+    <Loading label="Reading the collections, sources and kinds" className="flex flex-col gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {Object.keys(LABELS).map((name) => (
+          <div key={name} className="flex flex-col gap-1.5">
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-10" />
+          </div>
+        ))}
+      </div>
+      <Skeleton className="h-5 w-32" />
+      <Skeleton className="h-4 w-80 max-w-full" />
+      <div className="flex gap-3">
+        <Skeleton className="h-11 w-20" />
+        <Skeleton className="h-9 w-16" />
+      </div>
+    </Loading>
   );
 }
 
