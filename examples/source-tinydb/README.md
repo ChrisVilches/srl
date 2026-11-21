@@ -54,12 +54,14 @@ Items of the database may name a note with `see`, as any item may.
 - **Each table is a collection**, and its name is the collection's
   name: the table `words` is the collection `words`. A source has one
   database, so a table's name is enough to tell its collections apart.
-  `srl add` may create any new one whose name has no `/` (`accepts` takes it). A table named
-  as a file of the store, such as `notes.jsonl`, would be a collection two
-  sources give, which is an error (see
-  [docs/sources.md](../../docs/sources.md), "Collections"). `collections`
-  gives no `in` names, so `in:` selects a table by its whole name:
-  `in:v1.2` selects the table `v1.2`, and `in:v1` doesn't.
+  `srl add` may create any new one whose name has no `.` or `/`
+  (`accepts` takes it), so a name with an extension, such as
+  `notes.jsonl`, is left to the store's files. A table named as a file of
+  the store some other way would be a collection two sources give, which
+  is an error (see [docs/sources.md](../../docs/sources.md),
+  "Collections"). `collections` gives no `in` names, so `in:` selects a
+  table by its whole name: `in:jlpt-n2` selects the table `jlpt-n2`, and
+  `in:jlpt` doesn't.
 - **Each item is a document `{"item": {...}}`**, holding its item object
   as `srl` writes one. A change finds the item in its table by its `id`.
   Other documents of a table are left alone.

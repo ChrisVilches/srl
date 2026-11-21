@@ -17,7 +17,8 @@ Windows, but tried on Linux only.
 
 - Each table of the database is a collection, named by the table: the
   table `words` is the collection `words`. `srl add` may create any new
-  one whose name has no `/`.
+  one whose name has no `.` or `/`, leaving names with an extension to
+  the store's files.
 - Each item is a document `{"item": {...}}` holding its item object. A
   change finds it in its table by the `id` of its item.
 
@@ -63,8 +64,9 @@ def describe(source, inputs):
 
 
 def accepts(_source, inputs):
-    """`srl add` may create any table whose name has no `/`."""
-    return [{"error": "a table's name has no `/`"} if "/" in change["collection"] else {"ok": True}
+    """`srl add` may create any table whose name has no `.` or `/`."""
+    return [{"error": "a table's name has no `.` or `/`"}
+            if "." in change["collection"] or "/" in change["collection"] else {"ok": True}
             for change in inputs]
 
 

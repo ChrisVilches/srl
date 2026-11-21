@@ -31,12 +31,13 @@ class Tests(unittest.TestCase):
             [{"collection": "words", "item": ITEM}],
         )
 
-    def test_describe_gives_the_database_and_accepts_a_name_without_slash(self):
+    def test_describe_gives_the_database_and_accepts_a_name_without_dot_or_slash(self):
         database = str(Path(self.folder.name) / "vocab" / "vocab.json")
         self.assertEqual(describe(self.source, [{}])[0]["settings"], {"database": database})
+        refused = {"error": "a table's name has no `.` or `/`"}
         self.assertEqual(
-            accepts(self.source, [{"collection": "words"}, {"collection": "a/b"}]),
-            [{"ok": True}, {"error": "a table's name has no `/`"}],
+            accepts(self.source, [{"collection": "words"}, {"collection": "a/b"}, {"collection": "words.jsonl"}]),
+            [{"ok": True}, refused, refused],
         )
 
     def test_a_change_finds_its_item_in_its_own_table(self):
