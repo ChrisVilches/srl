@@ -134,8 +134,9 @@ macOS and Windows (it is tried on Linux only).
   of it, shown as one skeleton of the whole form, and srl's first error,
   with Try again, is shown in their place. **Apply**, at the right of
   Cancel, submits the filters with the box's text, as Enter would, and is
-  disabled until the menus show; **Clear** sets every menu to Any,
-  and Cancel, or closing the filters any other way, changes nothing. While any filter
+  disabled until the menus show. **Clear**, in red at the left of the
+  same row, far from them, is shown while any menu is set, applied or
+  not, and sets every menu to Any; Cancel, or closing the filters any other way, changes nothing. While any filter
   is set, the button is filled and shows how many in a grey badge, since nothing else on
   the page says so.
 - The search submitted is kept in the address's query: one parameter per

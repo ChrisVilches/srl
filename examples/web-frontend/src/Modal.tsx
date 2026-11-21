@@ -16,13 +16,15 @@ import { DANGER_BUTTON, OUTLINE_BUTTON } from './CardParts';
 // whatever it shows, for one whose content comes in parts and would
 // otherwise grow and move with each. ACTIONS go at the right of its
 // button, at the bottom, which CLOSE_LABEL names (Close by default), as
-// Cancel before Apply.
+// Cancel before Apply; ASIDE goes at the left of the same row, far from
+// them, as Clear in the filters.
 export function Modal({
   open,
   title,
   tall,
   closeLabel = 'Close',
   actions,
+  aside,
   onClose,
   children,
 }: {
@@ -31,6 +33,7 @@ export function Modal({
   tall?: boolean;
   closeLabel?: string;
   actions?: ReactNode;
+  aside?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -40,8 +43,8 @@ export function Modal({
     if (open && !d.open) d.showModal();
     if (!open && d.open) d.close();
   }, [open]);
-  const shown = useRef({ title, children, closeLabel, actions });
-  if (open) shown.current = { title, children, closeLabel, actions };
+  const shown = useRef({ title, children, closeLabel, actions, aside });
+  if (open) shown.current = { title, children, closeLabel, actions, aside };
 
   return (
     <dialog
@@ -64,6 +67,7 @@ export function Modal({
           {shown.current.children}
         </div>
         <div className="mx-6 flex items-center justify-end gap-3">
+          {shown.current.aside && <div className="mr-auto">{shown.current.aside}</div>}
           <button onClick={onClose} className={OUTLINE_BUTTON}>
             {shown.current.closeLabel}
           </button>

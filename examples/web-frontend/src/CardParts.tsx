@@ -11,8 +11,8 @@ import { Markdown } from './Markdown';
 // like the card.
 export const MAIN_BUTTON =
   'rounded-lg border border-stone-300 bg-white font-medium text-stone-900 shadow-sm enabled:hover:bg-stone-100 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:enabled:hover:bg-stone-700';
-// The look of a button that confirms losing something, or taking a card
-// out of study: a red border and name, and a faint red on hover.
+// The look of a button that confirms losing something, takes a card out
+// of study or clears the filters: a red border and name, and a faint red on hover.
 // It has no Key: what it does takes a click.
 export const DANGER_BUTTON =
   'rounded-lg border border-rose-400 font-medium text-rose-700 enabled:hover:bg-rose-50 enabled:active:bg-rose-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 disabled:opacity-50 dark:border-rose-500/70 dark:text-rose-400 dark:enabled:hover:bg-rose-950/40 dark:enabled:active:bg-rose-950/70';

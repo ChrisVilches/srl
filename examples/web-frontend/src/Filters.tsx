@@ -2,7 +2,7 @@ import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { ErrorView, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
+import { DANGER_BUTTON, ErrorView, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
 import { filterCount, IS_VALUES, NO_FILTERS, writable, type Filters, type Menu } from './filters';
 import { Modal } from './Modal';
 import { queries } from './queries';
@@ -90,6 +90,8 @@ function FilterDialog({
   const set = (menu: Menu, value: string | null) => setFilters((before) => ({ ...before, [menu]: value }));
 
   // Apply, at the right of Cancel; disabled until the menus are shown.
+  // Clear, far at their left, is shown while any menu is set, applied or
+  // not.
   const apply = (ready: boolean) => (
     <button onClick={() => onApply(filters)} disabled={!ready} className={`px-4 py-2 text-sm ${MAIN_BUTTON}`}>
       Apply
@@ -112,7 +114,20 @@ function FilterDialog({
     schedule: IS_VALUES.schedule,
   };
   return (
-    <Modal open={open} title="Filters" closeLabel="Cancel" actions={apply(true)} onClose={onClose}>
+    <Modal
+      open={open}
+      title="Filters"
+      closeLabel="Cancel"
+      actions={apply(true)}
+      aside={
+        filterCount(filters) > 0 && (
+          <button onClick={() => setFilters(NO_FILTERS)} className={`px-4 py-2 text-sm ${DANGER_BUTTON}`}>
+            Clear
+          </button>
+        )
+      }
+      onClose={onClose}
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         {(Object.keys(LABELS) as Exclude<Menu, 'leech'>[]).map((name) => (
           <label key={name} className="flex flex-col gap-1.5 text-sm text-stone-500">
@@ -130,15 +145,12 @@ function FilterDialog({
         />
         Leeches only
       </label>
-      <button onClick={() => setFilters(NO_FILTERS)} className={`self-start ${OUTLINE_BUTTON}`}>
-        Clear
-      </button>
     </Modal>
   );
 }
 
-// The filters while srl reads what they offer: the menus, the checkbox and
-// Clear, as grey bars.
+// The filters while srl reads what they offer: the menus and the checkbox,
+// as grey bars.
 function FiltersSkeleton() {
   return (
     <Loading label="Reading the collections, sources and kinds" className="flex flex-col gap-4">
@@ -151,7 +163,6 @@ function FiltersSkeleton() {
         ))}
       </div>
       <Skeleton className="h-5 w-32" />
-      <Skeleton className="h-9 w-16" />
     </Loading>
   );
 }
