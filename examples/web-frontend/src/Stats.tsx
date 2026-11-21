@@ -11,14 +11,24 @@ import { TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
 // What srl says about studying, shown and never changed: the scheduling
 // settings in use, of the whole store, and the calendar of the search's
 // cards.
+//
+// Only the calendar follows the search. The settings are config.toml's
+// (srl config), of the whole store: they can't be of some cards, so the
+// table reads no selector. That is why the filters are opened from the
+// calendar's line (FilterLink) and not from the bar, where they would seem
+// to choose what the whole view shows. If a part is added that follows the
+// search too, such as srl stats' counts, put what opens the filters where
+// it is clear which parts they choose for: over all of them, or in the bar
+// once every part follows them.
 export function Stats() {
   const { search, submitted, onSearch } = useView();
   return (
     <div className="flex h-dvh flex-col">
-      {/* The search is set by the calendar, the only part it is for. */}
+      {/* No controls: the filters are the calendar's (see above). */}
       <TopBar view="stats">{null}</TopBar>
       <main className={VIEW_SCROLL}>
         <div className={`${VIEW_COLUMN} gap-10`}>
+          {/* Of the whole store, whatever the search. */}
           <section>
             <Label>Scheduling</Label>
             <ScheduleTable />
