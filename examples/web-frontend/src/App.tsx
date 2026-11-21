@@ -263,7 +263,9 @@ function StatsLine({ stats }: { stats: Today }) {
 
 // The next card while srl makes it, or finds none is left: CardView's
 // shape, the card and the bar of buttons. SINCE, when the card was asked
-// for, tells one wait from the next.
+// for, tells one wait from the next. Worth knowing: the seconds count from
+// when the skeleton shows, WAIT_SHOWN_AFTER_MS after SINCE, so they are
+// that much under srl's time, and first show that much later.
 function NextCardSkeleton({ since }: { since: number }) {
   return (
     <CardSkeleton of={since}>
