@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router';
 
 import { VIEW_PATHS, type View } from './address';
 import type { Search } from './filters';
-import { QUIET_BUTTON } from './CardParts';
+import { BAR_ICON_BUTTON, QUIET_BUTTON } from './CardParts';
 import { FilterButton } from './Filters';
 import { currentTheme, setTheme } from './theme';
 
@@ -15,8 +15,10 @@ import { currentTheme, setTheme } from './theme';
 // and loads the page anew. Wide (md and up) it is one row; narrow, the
 // name, the tabs and the theme button make the first row and the view's
 // controls the second. Below sm, its gaps and the tabs' padding are
-// smaller, and the theme button takes some of the bar's padding at its
-// right, so that the first row fits a phone 320 px wide.
+// smaller, and so is the padding of the theme button (BAR_ICON_BUTTON),
+// so that the first row fits a phone 320 px wide. The filters' button, at
+// the right of the second row under it, has the same padding, so that
+// their icons are aligned.
 //
 // A tab is a link to its view's path, keeping the search, and opens it in
 // a new tab when clicked with a modifier or the middle button.
@@ -86,7 +88,7 @@ function ThemeButton() {
       }}
       aria-label={`Switch to the ${other} theme`}
       title={`Switch to the ${other} theme, kept in this browser`}
-      className={`-mr-2 ml-auto py-1.5 sm:mr-0 ${QUIET_BUTTON}`}
+      className={`ml-auto py-1.5 ${QUIET_BUTTON} ${BAR_ICON_BUTTON}`}
     >
       <Icon className="size-5" aria-hidden />
     </button>

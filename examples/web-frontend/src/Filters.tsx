@@ -2,7 +2,7 @@ import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { DANGER_BUTTON, ErrorView, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
+import { BAR_ICON_BUTTON, DANGER_BUTTON, ErrorView, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
 import { filterCount, IS_VALUES, NO_FILTERS, writable, type Filters, type Menu } from './filters';
 import { Modal } from './Modal';
 import { queries } from './queries';
@@ -21,7 +21,7 @@ export function FilterButton({ filters, onFilters }: { filters: Filters; onFilte
         onClick={() => setOpen(true)}
         aria-label={count === 0 ? 'Filters' : `Filters, ${count} set`}
         title={count === 0 ? 'Filters' : `Filters: ${count} set`}
-        className={`relative shrink-0 py-1.5 ${QUIET_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'}`}
+        className={`relative shrink-0 py-1.5 ${QUIET_BUTTON} ${BAR_ICON_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'}`}
       >
         <AdjustmentsHorizontalIcon className="size-5" aria-hidden />
         {count > 0 && (

@@ -20,6 +20,10 @@ export const DANGER_BUTTON =
 export const OUTLINE_BUTTON =
   'rounded-lg border border-stone-300 px-4 py-2 text-sm enabled:hover:bg-stone-100 dark:border-stone-700 disabled:opacity-50 dark:enabled:hover:bg-stone-900';
 export const QUIET_BUTTON = 'rounded-lg px-3 text-stone-500 enabled:hover:bg-stone-200 disabled:opacity-50 dark:enabled:hover:bg-stone-800';
+// The narrower padding, below sm, of the quiet buttons at the right of the
+// top bar, the theme button and the filters' button, one above the other
+// there, so that their icons are aligned (src/TopBar.tsx).
+export const BAR_ICON_BUTTON = 'max-sm:px-2';
 // The layout of a button with a Key after its name, which centers the key
 // on the name's line: inline, the smaller key sits on the baseline, low.
 export const WITH_KEY = 'inline-flex items-center justify-center gap-1';
