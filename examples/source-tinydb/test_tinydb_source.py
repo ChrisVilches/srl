@@ -56,7 +56,7 @@ class Tests(unittest.TestCase):
         write(self.source, [self.change("add", item=ITEM)])
         after = {**ITEM, "A": "a cat"}
         stale = [self.change("replace", before={**ITEM, "A": "dog"}, after=after),
-                 self.change("add", item={"Q": "犬"})]
+                 self.change("add", item={"id": "dog001", "Q": "犬"})]
         self.assertTrue(all("error" in answer for answer in write(self.source, stale)))
         self.assertEqual(len(read(self.source, [{}])), 1)
         current = [self.change("replace", before=ITEM, after=after)]

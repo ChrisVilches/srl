@@ -111,7 +111,9 @@ object, laid out as you like:
 ## XML
 
 An XML collection is made for writing items by hand: a field of many
-lines is written as it reads, without escapes for line endings.
+lines is written as it reads, without escapes for line endings. Each
+item you write needs an `id` of your own, unique in the store (see
+[items.md](items.md), "Identity").
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>

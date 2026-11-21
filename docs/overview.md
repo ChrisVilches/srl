@@ -134,7 +134,8 @@ any particular note-taking app.
 
 1. You add an item to a collection, such as `japanese/grammar.jsonl`: a
    question, an answer, and the note it asks about, with `srl add`, a
-   frontend, an agent, or by hand. It gets an ID.
+   frontend, an agent, or by hand. It has an ID: `srl add` makes one, and
+   by hand you write one yourself.
 2. A frontend runs `srl next in:grammar --json`, which replays the log
    through FSRS, finds the most overdue card matching the selector, and
    prints it with its context.

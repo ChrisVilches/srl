@@ -70,8 +70,8 @@ kind (see [cards.md](cards.md), "Kinds"). An item has at least one field.
 - **An item is named by its ID and its collection**, never by
   where it is in its collection: listings and messages give the collection,
   and commands that change an item find it by its ID in its collection as
-  it is (see "How srl changes items"). An item without an ID yet is named
-  in messages by its position among its collection's items, counting
+  it is (see "How srl changes items"). An item without a valid ID, which
+  is an error, is named in messages by its position among its collection's items, counting
   from 1: `item 3`.
 - **Editing an item never resets its cards.** `srl reset` is the way to
   start over. When an edit makes a card disappear, its history is kept in

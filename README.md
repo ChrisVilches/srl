@@ -107,8 +107,8 @@ in:vocabulary` studies every collection named `vocabulary` or under a
 
 - **JSONL**, one item per line, for what frontends, agents and scripts
   write: `srl` changes an item by writing its line again.
-- **XML**, for writing items by hand, with fields of many lines laid out
-  as they read:
+- **XML**, for writing items by hand, each with an `id` of your own,
+  with fields of many lines laid out as they read:
 
   ```xml
   <items>
