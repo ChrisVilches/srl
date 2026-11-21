@@ -1176,6 +1176,49 @@ fn stats_counts_cards_reviews_and_retention() {
 }
 
 #[test]
+fn config_prints_every_key_in_use_with_the_defaults_filled_in() {
+    let tmp = store(&[
+        (
+            "a.jsonl",
+            "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}\n",
+        ),
+        (".srl/config.toml", "[schedule]\nnew_per_day = 3\n"),
+    ]);
+    let d = dir(&tmp);
+    let json = json_lines(&srl(&["config", "--json", "--dir", d]));
+    let schedule = &json[0]["schedule"];
+    assert_eq!(schedule["new_per_day"], 3);
+    assert_eq!(schedule["desired_retention"], 0.9);
+    assert_eq!(schedule["day_starts_at"], 4);
+    // Without weights, FSRS's default weights, as they read.
+    assert_eq!(schedule["weights"].as_array().unwrap().len(), 21);
+    assert_eq!(schedule["weights"][0], 0.212);
+    assert_eq!(json[0]["sources"]["items"]["driver"], "filesystem");
+    assert_eq!(json[0]["kind_programs"]["card_timeout"], 60);
+    // The TOML it prints is a configuration that gives the same.
+    let text = srl(&["config", "--dir", d]);
+    assert_eq!(text.status.code(), Some(0), "{}", stderr(&text));
+    assert!(stdout(&text).contains("[schedule]\ndesired_retention = 0.9\n"));
+    write(&tmp, ".srl/config.toml", &stdout(&text));
+    assert_eq!(json_lines(&srl(&["config", "--json", "--dir", d])), json);
+    write(&tmp, ".srl/config.toml", "[schedule]\nnew_per_dya = 3\n");
+    assert_eq!(srl(&["config", "--dir", d]).status.code(), Some(2));
+}
+
+#[test]
+fn a_source_program_s_config_keeps_its_own_keys() {
+    let tmp = store(&[(
+        ".srl/config.toml",
+        "[sources.db]\nprogram = [\"db-source\", \"--fast\"]\ntable = \"cards\"\n",
+    )]);
+    let json = json_lines(&srl(&["config", "--json", "--dir", dir(&tmp)]));
+    assert_eq!(
+        json[0]["sources"],
+        serde_json::json!({"db": {"program": ["db-source", "--fast"], "table": "cards"}})
+    );
+}
+
+#[test]
 fn stats_counts_the_reviews_of_each_recent_study_day() {
     let tmp = japanese();
     let d = dir(&tmp);

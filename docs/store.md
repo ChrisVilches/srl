@@ -96,7 +96,9 @@ systems can hold both.
 
 ## Configuration: `.srl/config.toml`
 
-Every key is optional. These are the defaults:
+Every key is optional. `srl config` prints every key in use, with the
+default of each the file leaves out (see [cli.md](cli.md), "Store").
+These are the defaults:
 
 ```toml
 [sources.items]              # the one source of a store without [sources]

@@ -927,6 +927,7 @@ dependencies = [
  "signal-hook",
  "srl-core",
  "tempfile",
+ "toml",
 ]
 
 [[package]]

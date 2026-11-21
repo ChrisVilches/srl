@@ -6,7 +6,7 @@ use std::fs;
 
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use jiff::civil::{Date, DateTime};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::domain::item::is_id_text;
 use crate::store::nfc;
@@ -15,7 +15,7 @@ use crate::{Error, Result, Store};
 /// Every setting of `config.toml`. A key the file leaves out has its
 /// default; a key the file has but `srl` doesn't know is an error, so that
 /// a typo never goes unnoticed.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     /// The sources of items, by name (see `docs/sources.md`).
@@ -46,7 +46,7 @@ impl Default for Config {
 /// The name of the one source of a store without `[sources]`.
 pub(crate) const DEFAULT_SOURCE: &str = "items";
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct KindPrograms {
     /// The seconds a kind program may take to make a card.
@@ -61,7 +61,7 @@ impl Default for KindPrograms {
 
 /// `[context]`: the files of the store that items may name with `see`,
 /// its study material, as globs relative to the store's folder.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ContextConfig {
     pub include: Vec<String>,
@@ -135,6 +135,30 @@ pub struct SourceConfig {
 impl Default for SourceConfig {
     fn default() -> Self {
         Self::filesystem(DEFAULT_INCLUDE)
+    }
+}
+
+impl Serialize for SourceConfig {
+    /// As written in `config.toml`: a `filesystem` source with its
+    /// `driver`, `include` and `exclude`; a source program with its
+    /// `program` and its own keys.
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        let mut table = serde_json::Map::new();
+        match &self.driver {
+            Driver::Filesystem { include, exclude } => {
+                table.insert("driver".to_owned(), "filesystem".into());
+                table.insert("include".to_owned(), include.clone().into());
+                table.insert("exclude".to_owned(), exclude.clone().into());
+            }
+            Driver::Program { command, settings } => {
+                table.insert("program".to_owned(), command.clone().into());
+                table.extend(settings.clone());
+            }
+        }
+        table.serialize(serializer)
     }
 }
 
@@ -236,7 +260,7 @@ pub(crate) fn globs(patterns: &[impl AsRef<str>]) -> std::result::Result<GlobSet
         .map_err(|error| format!("the globs are not valid ({error})"))
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Schedule {
     pub desired_retention: f64,
@@ -245,7 +269,35 @@ pub struct Schedule {
     pub max_skip: u32,
     pub leech_lapses: u32,
     pub mature_days: u32,
+    /// Written as the weights FSRS uses: these, or its defaults when
+    /// `None`.
+    #[serde(serialize_with = "weights_used")]
     pub weights: Option<Vec<f64>>,
+}
+
+/// The weights FSRS uses: `weights`, or its default weights. Those are
+/// `f32`s, written as they read (`0.212`), not as the `f64` nearest them.
+#[expect(
+    clippy::ref_option,
+    reason = "serde's serialize_with passes a reference"
+)]
+fn weights_used<S: serde::Serializer>(
+    weights: &Option<Vec<f64>>,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error> {
+    match weights {
+        Some(weights) => weights.serialize(serializer),
+        None => fsrs::DEFAULT_PARAMETERS
+            .iter()
+            .map(|weight| {
+                weight
+                    .to_string()
+                    .parse::<f64>()
+                    .expect("an f32 written out should read as an f64")
+            })
+            .collect::<Vec<_>>()
+            .serialize(serializer),
+    }
 }
 
 impl Default for Schedule {

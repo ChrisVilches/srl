@@ -36,6 +36,7 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         Command::Notes { json } => notes(&store()?, json.json),
         Command::Kinds { json } => kinds(&store()?, json.json),
         Command::Sources { json } => sources(&store()?, json.json),
+        Command::Config { json } => config(&store()?, json.json),
         Command::Find {
             selector: terms,
             json,
@@ -263,6 +264,18 @@ fn sources(store: &Store, json: bool) -> anyhow::Result<Outcome> {
         output::json_lines(&described)?;
     } else {
         output::sources(&described);
+    }
+    Ok(Outcome::Done)
+}
+
+/// `srl config`: the configuration in use, every key with its value, the
+/// defaults of those `config.toml` leaves out included, as TOML or JSON.
+fn config(store: &Store, json: bool) -> anyhow::Result<Outcome> {
+    let config = Config::load(store)?;
+    if json {
+        output::json_lines(&[&config])?;
+    } else {
+        output::config(&config)?;
     }
     Ok(Outcome::Done)
 }

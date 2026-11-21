@@ -100,6 +100,11 @@ pub(crate) enum Command {
         #[command(flatten)]
         json: Json,
     },
+    /// Print the configuration in use, every key with its value.
+    Config {
+        #[command(flatten)]
+        json: Json,
+    },
     /// List matching cards.
     Find {
         #[command(flatten)]

@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use serde::Serialize;
 use serde_json::Value;
 use srl_core::{
-    Card, CardId, CollectionInfo, Event, Item, KindDescription, SourceDescription, Stats, Warning,
-    Written,
+    Card, CardId, CollectionInfo, Config, Event, Item, KindDescription, SourceDescription, Stats,
+    Warning, Written,
 };
 
 /// A line on standard output, as `println!` writes it, but ending `srl`
@@ -293,6 +293,13 @@ pub(crate) fn text(text: &str) {
             .and_then(|()| stdout.flush()),
         Stream::Output,
     );
+}
+
+/// Prints the configuration as TOML, as `config.toml` is written: its
+/// keys, then its tables.
+pub(crate) fn config(config: &Config) -> anyhow::Result<()> {
+    out!("{}", toml::to_string(config)?.trim_end());
+    Ok(())
 }
 
 /// Prints each item as one line of JSON.
