@@ -142,8 +142,6 @@ pub(crate) struct Origin {
     pub(crate) collection: String,
     /// The `in` names of the collection, as its source gives them.
     pub(crate) in_names: Vec<String>,
-    /// What names the item to its source when it is changed.
-    pub(crate) handle: String,
     /// The item's position among the items its source read in its
     /// collection, counting from 1: for messages about an item without an
     /// ID, and to keep problems in order.

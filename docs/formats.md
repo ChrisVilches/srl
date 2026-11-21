@@ -181,7 +181,6 @@ changes items") change collections by these rules:
 
 | Command | Changes in a collection |
 |---|---|
-| `srl id` | Adds `id` to each item without one. |
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
 | `srl add COLLECTION` | Appends the new items to the collection `COLLECTION`, or creates it. |
 | `srl edit --stdin` | Replaces the items it is given with new ones. |
@@ -224,9 +223,8 @@ changes items") change collections by these rules:
      as in JSONL, and a removed one not at all. The file's layout is not
      kept.
 2. **A collection that changed while `srl` was working is not written.**
-   Each item to change is found in the collection as it is right before
-   it is written: by its ID, or, for `srl id`, by its place among the
-   collection's items. If an item is not there any more, or not as `srl`
+   Each item to change is found by its ID in the collection as it is
+   right before it is written. If an item is not there any more, or not as `srl`
    read it, or the collection has an error now, the command stops and
    says so. Right before writing, the file is read again and compared
    with what `srl` read. If it differs, for example because your editor

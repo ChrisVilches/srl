@@ -29,7 +29,6 @@ pub struct Catalog {
     items: Vec<Item>,
     problems: Vec<Error>,
     collections: Vec<Located>,
-    unidentified: Vec<Origin>,
     programs: Programs,
     notes: Notes,
 }
@@ -67,7 +66,6 @@ impl Catalog {
         let mut collections = Vec::new();
         let mut written = Vec::new();
         let mut problems = Vec::new();
-        let mut unidentified = Vec::new();
         for (index, named) in sources.all().iter().enumerate() {
             let listed = named.source.collections()?;
             let known = listed
@@ -104,20 +102,12 @@ impl Catalog {
                     source_name: named.name.clone(),
                     in_names: in_names.unwrap_or_else(|| vec![item.collection.clone()]),
                     collection: item.collection,
-                    handle: item.handle,
                     position: *count,
                     read: item.item,
                 };
                 match written_item(origin, &programs) {
                     Ok(item) => written.push(item),
-                    Err(Unread::Problem(problem)) => problems.push(problem),
-                    Err(Unread::Unidentified(origin)) => {
-                        problems.push(Error::MissingId {
-                            collection: origin.collection.clone(),
-                            position: origin.position,
-                        });
-                        unidentified.push(*origin);
-                    }
+                    Err(problem) => problems.push(problem),
                 }
             }
         }
@@ -125,7 +115,6 @@ impl Catalog {
         // their sources; items of one collection in the order read.
         collections.sort_by_cached_key(|located| by_collection(&located.collection));
         written.sort_by_cached_key(|item: &Item| by_collection(&item.origin.collection));
-        unidentified.sort_by_cached_key(|origin| by_collection(&origin.collection));
         problems.extend(clashes(&sources, &collections));
         let (items, checked) = check_items(written, &programs, cache);
         problems.extend(checked);
@@ -150,7 +139,6 @@ impl Catalog {
             items,
             problems,
             collections,
-            unidentified,
             programs,
             notes,
         })
@@ -164,11 +152,6 @@ impl Catalog {
     /// The sources the items were read from.
     pub(crate) fn sources(&self) -> &Sources {
         &self.sources
-    }
-
-    /// The items read without an ID, which `srl id` gives one, in order.
-    pub(crate) fn unidentified(&self) -> &[Origin] {
-        &self.unidentified
     }
 
     /// The collection named `collection`, compared in NFC (see
@@ -485,7 +468,6 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
             source_name: crate::config::DEFAULT_SOURCE.to_owned(),
             collection: path.to_owned(),
             in_names: crate::source::file_in_names(path),
-            handle: index.to_string(),
             position: index + 1,
             read: Object {
                 entries: item.entries,
@@ -494,11 +476,7 @@ pub(crate) fn read_items(path: &str, text: &str, programs: &Programs) -> (Vec<It
         };
         match written_item(origin, programs) {
             Ok(item) => written.push(item),
-            Err(Unread::Problem(problem)) => problems.push(problem),
-            Err(Unread::Unidentified(origin)) => problems.push(Error::MissingId {
-                collection: origin.collection,
-                position: origin.position,
-            }),
+            Err(problem) => problems.push(problem),
         }
     }
     let (items, checked) = check_items(written, programs, &mut Cache::None);
@@ -599,17 +577,12 @@ pub(crate) fn check_new(new: &[Object], programs: &Programs) -> Vec<Error> {
             source_name: String::new(),
             collection: String::new(),
             in_names: Vec::new(),
-            handle: String::new(),
             position: index + 1,
             read: object.clone(),
         };
         match written_item(origin, programs) {
             Ok(item) => items.push(item),
-            Err(Unread::Problem(problem)) => problems.push(problem),
-            Err(Unread::Unidentified(origin)) => problems.push(Error::MissingId {
-                collection: origin.collection,
-                position: origin.position,
-            }),
+            Err(problem) => problems.push(problem),
         }
     }
     problems.extend(check_items(items, programs, &mut Cache::None).1);
@@ -617,26 +590,16 @@ pub(crate) fn check_new(new: &[Object], programs: &Programs) -> Vec<Error> {
     problems
 }
 
-/// Why an item read from a source is not an item yet.
-enum Unread {
-    /// A problem with its entries or fields.
-    Problem(Error),
-    /// It has no ID, which `srl id` gives it.
-    Unidentified(Box<Origin>),
-}
-
 /// The item read at `origin`, without its cards yet, or why it is not an
 /// item.
-fn written_item(origin: Origin, programs: &Programs) -> std::result::Result<Item, Unread> {
-    let at = |reason: String| {
-        Unread::Problem(Error::At {
-            collection: origin.collection.clone(),
-            spot: Some(Spot {
-                position: origin.position,
-                id: origin.read.entries.id.as_ref().map(ToString::to_string),
-            }),
-            reason,
-        })
+fn written_item(origin: Origin, programs: &Programs) -> Result<Item> {
+    let at = |reason: String| Error::At {
+        collection: origin.collection.clone(),
+        spot: Some(Spot {
+            position: origin.position,
+            id: origin.read.entries.id.as_ref().map(ToString::to_string),
+        }),
+        reason,
     };
     let read = &origin.read;
     let kind = read
@@ -648,7 +611,7 @@ fn written_item(origin: Origin, programs: &Programs) -> std::result::Result<Item
         })
         .map_err(at)?;
     let Some(id) = read.entries.id.clone() else {
-        return Err(Unread::Unidentified(Box::new(origin)));
+        return Err(at("it has no ID; give it one".to_owned()));
     };
     if let Some(reason) = repeated_field(&read.fields) {
         return Err(at(reason));
@@ -690,8 +653,7 @@ fn unique(items: Vec<Item>) -> (Vec<Item>, Vec<Error>) {
                     id: None,
                 }),
                 reason: format!(
-                    "the ID {} is also used by an item of {collection}; delete the ID from the copy \
-                     and run `srl id`",
+                    "the ID {} is also used by an item of {collection}; give the copy another ID",
                     item.id,
                 ),
             });
@@ -762,10 +724,7 @@ mod tests {
         assert_eq!(items, [] as [Item; 0]);
         let messages = problems.iter().map(ToString::to_string).collect::<Vec<_>>();
         assert_eq!(messages.len(), 3, "{messages:?}");
-        assert_eq!(
-            messages[0],
-            "n.jsonl: item 1 has no ID; run `srl id` to give it one"
-        );
+        assert_eq!(messages[0], "n.jsonl: item 1: it has no ID; give it one");
         assert!(
             messages[1].starts_with("n.jsonl: item abc: "),
             "{messages:?}"

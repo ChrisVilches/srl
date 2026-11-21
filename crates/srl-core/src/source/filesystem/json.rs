@@ -73,23 +73,18 @@ pub(super) fn changed(
     let mut removed = Vec::new();
     for &(_, change) in changes {
         match change {
-            Change::Remove { handle, before, .. } => {
+            Change::Remove { before, .. } => {
                 if old.is_none() {
                     return Err(changed_meanwhile(path));
                 }
                 any = true;
-                removed.push(position_of(&expected, handle, before, path)?);
+                removed.push(position_of(&expected, before, path)?);
             }
-            Change::Replace {
-                handle,
-                before,
-                after,
-                ..
-            } => {
+            Change::Replace { before, after, .. } => {
                 if old.is_none() {
                     return Err(changed_meanwhile(path));
                 }
-                let position = position_of(&expected, handle, before, path)?;
+                let position = position_of(&expected, before, path)?;
                 if before != after {
                     any = true;
                     let written = object::written(&after.entries, &after.fields);
@@ -247,7 +242,6 @@ mod tests {
         after.entries.draft = true;
         let replace = Change::Replace {
             collection: "a.json".to_owned(),
-            handle: "1".to_owned(),
             before: before.clone(),
             after,
         };
@@ -260,7 +254,6 @@ mod tests {
         // Changing nothing writes nothing.
         let same = Change::Replace {
             collection: "a.json".to_owned(),
-            handle: "1".to_owned(),
             before: before.clone(),
             after: before.clone(),
         };
@@ -290,7 +283,6 @@ mod tests {
         let item = parse(text).items.remove(1);
         let remove = Change::Remove {
             collection: "a.json".to_owned(),
-            handle: "1".to_owned(),
             before: Object {
                 entries: item.entries,
                 fields: item.fields,

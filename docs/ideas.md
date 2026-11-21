@@ -244,7 +244,7 @@ questions", once it is planned.
     `--expect`. It takes the log's lock, for the check and the removal
     together, like every append.
   - **The log only.** It doesn't undo changes to items (`srl add`,
-    `srl edit`, `srl accept`, `srl id`), which are made in collections and
+    `srl edit`, `srl accept`, `srl move`), which are made in collections and
     sources, where your editor, git or the source program undo them.
     No other command writes the log, so nothing else is left that can't
     be taken back.

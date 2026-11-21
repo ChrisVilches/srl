@@ -129,8 +129,7 @@ pub(crate) struct ParsedItem {
 /// A file read for items.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Parsed {
-    /// The items, in the order they are written: an item's position here
-    /// is its handle.
+    /// The items, in the order they are written.
     pub(crate) items: Vec<ParsedItem>,
     /// Each problem, saying where in the file it is when the format can.
     pub(crate) errors: Vec<String>,
@@ -149,22 +148,18 @@ pub(super) fn keyed(parsed: Parsed) -> Vec<Keyed> {
 }
 
 /// The position among `items`, the items of the file at `path` as it is
-/// now, of the item named by `handle` and read as `before`: by its ID if it
-/// had one, else by its position. An item that is not there any more, or
-/// not as it was read, changed since the file was read.
+/// now, of the item with the ID of `before`, which is how it was read. An
+/// item that is not there any more, or not as it was read, changed since
+/// the file was read.
 pub(super) fn position_of(
     items: &[Keyed],
-    handle: &str,
     before: &Object,
     path: &str,
 ) -> std::result::Result<usize, Refusal> {
-    let position = match &before.entries.id {
-        Some(id) => items
-            .iter()
-            .position(|(entries, _)| entries.id.as_ref() == Some(id)),
-        None => handle.parse().ok(),
-    };
-    position
+    let id = before.entries.id.as_ref();
+    items
+        .iter()
+        .position(|(entries, _)| id.is_some() && entries.id.as_ref() == id)
         .filter(|position| {
             items.get(*position).is_some_and(|(entries, fields)| {
                 *entries == before.entries && *fields == before.fields
@@ -265,20 +260,14 @@ pub(super) fn add_read(read: &mut Read, path: &str, parsed: Parsed) {
             collection: path.to_owned(),
             reason,
         }));
-    read.items.extend(
-        parsed
-            .items
-            .into_iter()
-            .enumerate()
-            .map(|(position, item)| ReadItem {
-                collection: path.to_owned(),
-                handle: position.to_string(),
-                item: Object {
-                    entries: item.entries,
-                    fields: item.fields,
-                },
-            }),
-    );
+    read.items
+        .extend(parsed.items.into_iter().map(|item| ReadItem {
+            collection: path.to_owned(),
+            item: Object {
+                entries: item.entries,
+                fields: item.fields,
+            },
+        }));
 }
 
 /// `changes` by the collection they are about, each with its place.

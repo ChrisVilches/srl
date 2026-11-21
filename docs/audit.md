@@ -329,7 +329,7 @@ restating it (the rules of context, for example, are restated in
 - `srl check` exits 0 when it found only orphans, which can be lost
   history (see H4), or only warnings, so neither can gate a commit hook
   or CI as written.
-- Write commands exit 1 when they changed nothing (`srl id`, `srl accept`,
+- Write commands exit 1 when they changed nothing (`srl accept`,
   `srl move`, `srl reset`, `srl suspend`). The grep convention fits queries; for
   writes it breaks `set -e` scripts on the normal "already done" case.
 

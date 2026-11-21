@@ -828,7 +828,7 @@ mod tests {
         assert_eq!(problems.len(), 4, "{problems:?}");
         assert_eq!(problems[0], "a.jsonl: item aaa: in a");
         assert!(
-            problems[1].starts_with("a.jsonl: item 3 has no ID"),
+            problems[1].starts_with("a.jsonl: item 3: it has no ID"),
             "{problems:?}"
         );
         assert_eq!(problems[2], "b.jsonl: item bbb: in b");

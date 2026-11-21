@@ -132,9 +132,9 @@ IPA dictionary (for the `ja-words` cards; see `../kind-ja-words/`).
   in Browse). `srl next SELECTOR --json` on the copied store tells which
   card a selector shows.
 - **Other notes and items:** edit or add notes and collections in
-  `store/` (a collection's items name their note with `see`), then give
-  new items their IDs in place, so every copy gets the same cards:
-  `SRL_DIR="$PWD/store" srl id` (after step 2). Write notes and items as
+  `store/` (a collection's items name their note with `see`), and write
+  each new item with an `id` of its own, unique in the store, so every
+  copy gets the same cards. Write notes and items as
   plain Markdown that a terminal can show: sub- and superscripts as Unicode
   characters (R₁, I²), which terminals show; no LaTeX math, which
   `srl-web` renders but `srl-tui` shows as written.

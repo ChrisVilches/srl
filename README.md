@@ -93,7 +93,7 @@ japanese/vocabulary.jsonl         # the items about it
 
 That's a complete collection with two items, one card each. `srl add`
 and `srl edit` take items in that same form, whatever source they go
-to, and `srl id` gives IDs to the items that have none. Which files can
+to, and `srl add` makes an ID for an item given without one. Which files can
 be notes is set once for the store, `**/*.md` and `**/*.txt` unless
 `[context]` in `.srl/config.toml` says otherwise; `srl notes` lists them.
 
@@ -283,8 +283,8 @@ srl stats                 # what's new, due, young, mature
 
 `srl add` sends items as JSON lines to any collection: a JSONL or XML
 file, created if needed, or a collection of a source program. To write
-items by hand, write an XML collection in your editor and run `srl id`
-to give them IDs.
+items by hand, write an XML collection in your editor, giving each item
+an ID of its own.
 
 Cloze deletions use Anki's syntax (`{{c1::text}}` and `{{c1::text::hint}}`).
 Multi-line fields, code blocks and drafts are supported too. `srl kinds`

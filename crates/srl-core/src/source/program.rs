@@ -147,7 +147,6 @@ impl Source for Program {
     fn read(&self) -> Result<Read> {
         let call = "read";
         let mut read = Read::default();
-        let mut handles = HashSet::new();
         for line in self.call(call, vec![Map::new()])? {
             let reason = |reason: String| self.invalid(call, &reason);
             if line.contains_key("error") {
@@ -158,11 +157,7 @@ impl Source for Program {
                 });
                 continue;
             }
-            only(&line, &["collection", "handle", "item"]).map_err(reason)?;
-            let handle = text(&line, "handle").map_err(reason)?;
-            if !handles.insert(handle.clone()) {
-                return Err(reason(format!("the handle `{handle}` is given twice")));
-            }
+            only(&line, &["collection", "item"]).map_err(reason)?;
             let item = line
                 .get("item")
                 .ok_or_else(|| reason("a line has no `item`".to_owned()))?;
@@ -170,7 +165,6 @@ impl Source for Program {
                 .map_err(|why| reason(format!("an `item` is not an item object: {why}")))?;
             read.items.push(ReadItem {
                 collection: collection(&line).map_err(reason)?,
-                handle,
                 item,
             });
         }
@@ -209,24 +203,17 @@ impl Source for Program {
                     }
                     Change::Replace {
                         collection,
-                        handle,
                         before,
                         after,
                     } => {
                         input.insert("op".to_owned(), Value::from("replace"));
                         input.insert("collection".to_owned(), Value::from(collection.as_str()));
-                        input.insert("handle".to_owned(), Value::from(handle.as_str()));
                         input.insert("before".to_owned(), as_line(before));
                         input.insert("after".to_owned(), as_line(after));
                     }
-                    Change::Remove {
-                        collection,
-                        handle,
-                        before,
-                    } => {
+                    Change::Remove { collection, before } => {
                         input.insert("op".to_owned(), Value::from("remove"));
                         input.insert("collection".to_owned(), Value::from(collection.as_str()));
-                        input.insert("handle".to_owned(), Value::from(handle.as_str()));
                         input.insert("before".to_owned(), as_line(before));
                     }
                 }
@@ -260,16 +247,13 @@ impl Source for Program {
                         collection,
                         before,
                         after,
-                        ..
                     } => {
                         let old = (collection.clone(), as_line(before).to_string());
                         if let Some(slot) = expected.iter_mut().find(|item| **item == old) {
                             *slot = (collection.clone(), as_line(after).to_string());
                         }
                     }
-                    Change::Remove {
-                        collection, before, ..
-                    } => {
+                    Change::Remove { collection, before } => {
                         let old = (collection.clone(), as_line(before).to_string());
                         if let Some(at) = expected.iter().position(|item| *item == old) {
                             expected.remove(at);

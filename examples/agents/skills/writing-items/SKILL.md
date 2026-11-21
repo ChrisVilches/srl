@@ -28,7 +28,7 @@ Whatever the collection, an item is added and changed with `srl add` and
 
   | Entry | Meaning |
   |---|---|
-  | `id` | The item's ID. `srl add` and `srl id` make one; lowercase letters and digits, words joined by single `-` (`jp-grammar-desu`), 1 to 32 characters, never `.`. |
+  | `id` | The item's ID. `srl add` makes one when it is left out; an item written by hand needs its own, unique in the store. Lowercase letters and digits, words joined by single `-` (`jp-grammar-desu`), 1 to 32 characters, never `.`. |
   | `draft` | `true`: not studied until `srl accept`. |
   | `see` | The note shown as the item's context: a path relative to the store's folder that `srl notes` lists, such as `japanese/grammar/wo.md`. Without it, the item has no context. |
   | `kind` | The kind. `qa` is the default; any other is a kind program named in `[kinds]` of `.srl/config.toml`, whose fields are its own. `srl kinds` describes every kind and its fields. |
@@ -41,9 +41,8 @@ Whatever the collection, an item is added and changed with `srl add` and
   `context`, which `srl show --json` adds and every reader ignores. A key
   written twice is an error.
 
-An item without an ID is an error for every command except `srl id`, which
-fixes it. Two items with the same ID (usually a copied item) is an error:
-delete the ID from the copy and run `srl id`.
+An item without an ID is an error for every command. Two items with the
+same ID (usually a copied item) is an error: give the copy another ID.
 
 The ID is the item's identity: editing it, moving it within or between
 collections, or renaming its collection never changes its schedule.

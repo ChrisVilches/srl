@@ -195,9 +195,9 @@ fn every_format_names_an_item_in_error_by_its_id_or_position() {
         problems,
         [
             format!("srl: a.jsonl: item jsl1: {answer}"),
-            "srl: b.json: item 1 has no ID; run `srl id` to give it one".to_owned(),
+            "srl: b.json: item 1: it has no ID; give it one".to_owned(),
             format!("srl: b.json: item jsn1: {answer}"),
-            "srl: c.xml: item 1 has no ID; run `srl id` to give it one".to_owned(),
+            "srl: c.xml: item 1: it has no ID; give it one".to_owned(),
             format!("srl: c.xml: item xml1: {answer}"),
         ]
     );
@@ -500,29 +500,23 @@ fn errors_in_collections_stop_commands_until_fixed() {
             "{stderr}"
         );
         assert!(
-            stderr.contains("broken.jsonl: item 1 has no ID; run `srl id` to give it one"),
+            stderr.contains("broken.jsonl: item 1: it has no ID; give it one"),
             "{stderr}"
         );
     }
     let check = srl(&["check", "--dir", d]);
     assert_eq!(check.status.code(), Some(2));
     assert!(stderr(&check).contains("broken.jsonl: line 1:"));
-    // srl id refuses while another problem remains.
+    // Writes are refused too, and change nothing.
     let before = read(&tmp, "broken.jsonl");
-    let refused = srl(&["id", "--dir", d]);
+    let refused = srl(&["accept", "--dir", d]);
     assert_eq!(refused.status.code(), Some(2));
     assert_eq!(read(&tmp, "broken.jsonl"), before);
-    write(&tmp, "broken.jsonl", "{\"Q\": \"no id\", \"A\": \"x\"}\n");
-    let assigned = srl(&["id", "--dir", d]);
-    assert_eq!(assigned.status.code(), Some(0), "{}", stderr(&assigned));
-    let line = stdout(&assigned);
-    let id = line.split_whitespace().next().unwrap();
-    assert_eq!(line, format!("{id}  broken.jsonl\n"));
-    assert_eq!(
-        read(&tmp, "broken.jsonl"),
-        format!("{{\"id\":\"{id}\",\"Q\":\"no id\",\"A\":\"x\"}}\n")
+    write(
+        &tmp,
+        "broken.jsonl",
+        "{\"id\": \"fixed1\", \"Q\": \"no id\", \"A\": \"x\"}\n",
     );
-    assert_eq!(srl(&["id", "--dir", d]).status.code(), Some(1));
     assert_eq!(srl(&["check", "--dir", d]).status.code(), Some(0));
     assert_eq!(srl(&["find", "--dir", d]).status.code(), Some(0));
 }
@@ -817,20 +811,16 @@ fn edit_stdin_replaces_the_items_in_place() {
 fn see_names_study_material_and_items_without_it_have_no_context() {
     let tmp = japanese();
     let d = dir(&tmp);
-    let items = "{\"Q\": \"鯛\", \"A\": \"たい — sea bream\"}\n{\"id\": \"wo0001\", \"see\": \"japanese/grammar/wo.md\", \"Q\": \"{{c1::嵐}}をものともせず\"}\n";
+    let items = "{\"id\": \"tai001\", \"Q\": \"鯛\", \"A\": \"たい — sea bream\"}\n{\"id\": \"wo0001\", \"see\": \"japanese/grammar/wo.md\", \"Q\": \"{{c1::嵐}}をものともせず\"}\n";
     write(&tmp, "generated/items.jsonl", items);
-    let ids = srl(&["id", "--dir", d]);
-    assert_eq!(ids.status.code(), Some(0), "{}", stderr(&ids));
-    assert!(stdout(&ids).ends_with("  generated/items.jsonl\n"));
     let found = srl(&["find", "in:generated", "--dir", d]);
     let found = lines(&found);
     assert_eq!(found.len(), 2);
     assert!(found[1].starts_with("wo0001.1  generated/items.jsonl  "));
-    let id = found[0].split_whitespace().next().unwrap().to_owned();
     // Without `see`, an item has no context: its collection is data.
-    let own = srl(&["show", &id, "--json", "--dir", d]);
+    let own = srl(&["show", "tai001", "--json", "--dir", d]);
     assert_eq!(json_lines(&own)[0]["context"], serde_json::Value::Null);
-    let own = next_card(d, &[&format!("id:{id}")]);
+    let own = next_card(d, &["id:tai001"]);
     assert_eq!(own["collection"], "generated/items.jsonl");
     assert_eq!(own["see"], serde_json::Value::Null);
     assert_eq!(own["context"], serde_json::Value::Null);
@@ -2071,15 +2061,22 @@ fn srl_now_is_the_time_of_reviews_and_of_the_study_day() {
 #[test]
 fn srl_seed_makes_new_ids_repeatable() {
     let ids = || {
-        let tmp = store(&[(
-            "n.jsonl",
-            "{\"Q\": \"a\", \"A\": \"b\"}\n{\"Q\": \"c\", \"A\": \"d\"}\n",
-        )]);
-        let output = srl_command()
-            .args(["id", "--dir", dir(&tmp)])
+        let tmp = store(&[]);
+        let mut child = srl_command()
+            .args(["add", "n.jsonl", "--stdin", "--dir", dir(&tmp)])
             .env("SRL_SEED", "7")
-            .output()
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
             .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(b"{\"Q\": \"a\", \"A\": \"b\"}\n{\"Q\": \"c\", \"A\": \"d\"}\n")
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
         assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
         read(&tmp, "n.jsonl")
     };
@@ -2303,16 +2300,16 @@ fn store_with_program(files: &[(&str, &str)], data: &str, more: &str) -> TempDir
 }
 
 /// The data of the test source: a collection `vocab/words` with an item
-/// without an ID that names `lesson.md`, and a draft.
-const VOCAB: &str = r#"{"next": 3, "collections": {"vocab/words": {"items": [
-  {"handle": "h1", "item": {"see": "lesson.md", "Q": "犬", "A": "dog"}},
-  {"handle": "h2", "item": {"id": "cat001", "draft": true, "Q": "猫", "A": "cat"}}]}}}"#;
+/// that names `lesson.md`, and a draft.
+const VOCAB: &str = r#"{"collections": {"vocab/words": {"items": [
+  {"id": "dog001", "see": "lesson.md", "Q": "犬", "A": "dog"},
+  {"id": "cat001", "draft": true, "Q": "猫", "A": "cat"}]}}}"#;
 
 /// Valid data of the test source: a collection `vocab/words` with two
 /// items.
-const WORDS: &str = r#"{"next": 3, "collections": {"vocab/words": {"items": [
-  {"handle": "h1", "item": {"id": "dog001", "Q": "犬", "A": "dog"}},
-  {"handle": "h2", "item": {"id": "cat001", "Q": "猫", "A": "cat"}}]}}}"#;
+const WORDS: &str = r#"{"collections": {"vocab/words": {"items": [
+  {"id": "dog001", "Q": "犬", "A": "dog"},
+  {"id": "cat001", "Q": "猫", "A": "cat"}]}}}"#;
 
 /// The calls the test source got, as `CALL LINES`, and forgets them.
 #[expect(clippy::unwrap_used, reason = "a test helper should fail loudly")]
@@ -2326,27 +2323,20 @@ fn calls(tmp: &TempDir) -> Vec<String> {
 }
 
 #[test]
-fn a_source_program_s_items_are_given_ids_studied_changed_and_shown() {
+fn a_source_program_s_items_are_studied_changed_and_shown() {
     let tmp = store_with_program(
         &[("lesson.md", "# Lesson\n\nAnimals.\n")],
         VOCAB,
         "creates = [\"vocab/*\"]\n",
     );
     let d = dir(&tmp);
-    let ids = srl(&["id", "--dir", d]);
-    assert_eq!(ids.status.code(), Some(0), "{}", stderr(&ids));
-    let given = lines(&ids);
-    assert_eq!(given.len(), 1);
-    assert!(given[0].ends_with("  vocab/words"), "{given:?}");
     let found = srl(&["find", "source:vocab", "--json", "--dir", d]);
     let found = json_lines(&found);
     assert_eq!(found.len(), 2);
     assert_eq!(found[0]["collection"], "vocab/words");
     assert!(found[0].get("file").is_none() && found[0].get("line").is_none());
     // An item of the program names study material, as any item does.
-    let dog = &json_lines(&srl(&["find", "犬", "--json", "--dir", d]))[0]["item"];
-    let dog = dog.as_str().unwrap().to_owned();
-    let shown = &json_lines(&srl(&["show", &dog, "--json", "--dir", d]))[0];
+    let shown = &json_lines(&srl(&["show", "dog001", "--json", "--dir", d]))[0];
     assert_eq!(shown["context"], "# Lesson\n\nAnimals.\n");
     // It is shown as an item of any source is.
     let plain = srl(&["show", "cat001", "--no-context", "--dir", d]);
@@ -2416,8 +2406,8 @@ fn items_move_between_a_source_program_and_files() {
 fn moving_within_a_source_program_is_one_call() {
     let tmp = store_with_program(
         &[],
-        r#"{"next": 3, "collections": {"vocab/words": {"items": [
-  {"handle": "h1", "item": {"id": "dog001", "Q": "犬", "A": "dog"}}]},
+        r#"{"collections": {"vocab/words": {"items": [
+  {"id": "dog001", "Q": "犬", "A": "dog"}]},
   "vocab/animals": {"items": []}}}"#,
         "",
     );
@@ -2499,11 +2489,11 @@ fn a_source_program_that_fails_or_breaks_the_protocol_stops_commands() {
             "its call `read` printed invalid output",
         ),
         (
-            "raw_call = \"read\"\nraw_output = '{\"collection\": \"words\", \"handle\": \"a\", \"item\": {\"Q\": \"q\"}, \"extra\": 1}'\n",
+            "raw_call = \"read\"\nraw_output = '{\"collection\": \"words\", \"item\": {\"Q\": \"q\"}, \"extra\": 1}'\n",
             "the key `extra`",
         ),
         (
-            "raw_call = \"read\"\nraw_output = '{\"collection\": \"words\", \"handle\": \"a\", \"line\": null, \"item\": {\"Q\": \"q\"}}'\n",
+            "raw_call = \"read\"\nraw_output = '{\"collection\": \"words\", \"line\": null, \"item\": {\"Q\": \"q\"}}'\n",
             "the key `line`",
         ),
         (
@@ -2511,7 +2501,7 @@ fn a_source_program_that_fails_or_breaks_the_protocol_stops_commands() {
             "the key `file`",
         ),
         (
-            "raw_call = \"read\"\nraw_output = '{\"collection\": \"../x\", \"handle\": \"a\", \"item\": {\"Q\": \"q\"}}'\n",
+            "raw_call = \"read\"\nraw_output = '{\"collection\": \"../x\", \"item\": {\"Q\": \"q\"}}'\n",
             "is not a collection's name",
         ),
     ] {
@@ -2921,9 +2911,9 @@ fn an_id_in_two_sources_or_a_collection_a_program_takes_from_a_file_is_an_error(
 
 #[test]
 fn a_source_program_that_lies_about_its_items_stops_commands() {
-    let item = |collection: &str, handle: &str, id: &str| {
+    let item = |collection: &str, id: &str| {
         format!(
-            "{{\\\"collection\\\": \\\"{collection}\\\", \\\"handle\\\": \\\"{handle}\\\", \\\"item\\\": {{\\\"id\\\": \\\"{id}\\\", \\\"Q\\\": \\\"q\\\", \\\"A\\\": \\\"a\\\"}}}}"
+            "{{\\\"collection\\\": \\\"{collection}\\\", \\\"item\\\": {{\\\"id\\\": \\\"{id}\\\", \\\"Q\\\": \\\"q\\\", \\\"A\\\": \\\"a\\\"}}}}"
         )
     };
     let answer = |output: String| format!("raw_call = \"read\"\nraw_output = \"{output}\\n\"\n");
@@ -2931,17 +2921,17 @@ fn a_source_program_that_lies_about_its_items_stops_commands() {
         (
             answer(format!(
                 "{}\\n{}",
-                item("vocab/words", "h1", "aaa001"),
-                item("vocab/words", "h1", "bbb001")
+                item("vocab/words", "aaa001"),
+                item("vocab/words", "aaa001")
             )),
-            "the handle `h1` is given twice".to_owned(),
+            "vocab/words: item 2: the ID aaa001 is also used by an item of vocab/words".to_owned(),
         ),
         (
-            answer(item("elsewhere", "h1", "aaa001")),
+            answer(item("elsewhere", "aaa001")),
             "elsewhere: the source vocab gives an item in it, but doesn't list it".to_owned(),
         ),
         (
-            answer(item("vocab/words", "h1", "AAA001")),
+            answer(item("vocab/words", "AAA001")),
             "`AAA001` is not an item ID".to_owned(),
         ),
     ];
@@ -2959,10 +2949,6 @@ fn a_source_program_that_lies_about_its_items_stops_commands() {
     cases.push((
         answer("{\\\"collection\\\": \\\"vocab/words\\\", \\\"error\\\": \\\" \\\"}".to_owned()),
         "its call `read` printed invalid output: `error` is blank".to_owned(),
-    ));
-    cases.push((
-        answer(item("vocab/words", "", "aaa001")),
-        "its call `read` printed invalid output: `handle` is blank".to_owned(),
     ));
     cases.push((
         "raw_call = \"collections\"\nraw_output = \"{\\\"collection\\\": \\\"\\\"}\\n\"\n"

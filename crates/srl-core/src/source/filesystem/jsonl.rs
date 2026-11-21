@@ -49,22 +49,17 @@ pub(super) fn changed(
     let mut removed = Vec::new();
     for &(_, change) in changes {
         match change {
-            Change::Remove { handle, before, .. } => {
+            Change::Remove { before, .. } => {
                 if old.is_none() {
                     return Err(changed_meanwhile(path));
                 }
-                removed.push(position_of(&expected, handle, before, path)?);
+                removed.push(position_of(&expected, before, path)?);
             }
-            Change::Replace {
-                handle,
-                before,
-                after,
-                ..
-            } => {
+            Change::Replace { before, after, .. } => {
                 if old.is_none() {
                     return Err(changed_meanwhile(path));
                 }
-                let position = position_of(&expected, handle, before, path)?;
+                let position = position_of(&expected, before, path)?;
                 if before != after {
                     let line = item_lines(&text)
                         .nth(position)
@@ -205,7 +200,6 @@ mod tests {
         after.fields[0].text = "new".to_owned();
         let change = Change::Replace {
             collection: "a.jsonl".to_owned(),
-            handle: "1".to_owned(),
             before,
             after,
         };
@@ -222,7 +216,6 @@ mod tests {
         let item = parse(text).items.remove(position);
         Change::Remove {
             collection: "a.jsonl".to_owned(),
-            handle: position.to_string(),
             before: Object {
                 entries: item.entries,
                 fields: item.fields,

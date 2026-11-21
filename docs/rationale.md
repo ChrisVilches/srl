@@ -195,8 +195,9 @@ programs").
   write a program for `srl`, not two, and a command calls a source
   program a small, fixed number of times, never once per item.
 - **Its items are item objects**, the one JSON format of an item (see
-  "Why three formats"), read as strictly as `srl add` reads one. A
-  program never makes IDs: `srl id` gives them, as for every source.
+  "Why three formats"), read as strictly as `srl add` reads one, each
+  with its ID, which names it when it changes (see "Why IDs, not
+  positions or lines"): the protocol needs no key of its own.
 - **`srl` verifies every write by reading the source again.** It can
   check a file it parsed itself, but not a program's storage. Reading the
   program before and after its `write`, and comparing the items with what
@@ -286,8 +287,16 @@ the item. For the same reason nothing names an item by its line: items
 are named by their collection and their ID, and a line, where a
 format has one, only appears in the message of an error.
 
-Trade-off: every item carries an ID, and copying an item copies its ID,
-which is an error until you remove it.
+An item gets its ID when it is written, and `srl` never gives one later:
+`srl add` makes one for an item without it, and an item written any
+other way, by hand, by a script or by a source program, comes with its
+own. An item without an ID is an error like any other. So every item
+`srl` reads has an ID, and a change, in a file or in a source program,
+finds its item by its ID alone, with nothing else for a source to keep.
+
+Trade-off: every item carries an ID, and whoever writes an item outside
+`srl add` makes up one, unique in the store; copying an item copies its
+ID, which is an error until you give the copy another.
 
 ## Why `.` separates a card's suffix
 

@@ -123,8 +123,8 @@ srl-web         # studies them in the browser, once srl-web is installed
 
 An item is one JSON object, the **item object**:
 
-- Lowercase keys are its header entries: `id` (added by `srl add` or
-  `srl id`), `draft` (`true` or `false`), `see` (the path of the note
+- Lowercase keys are its header entries: `id` (made by `srl add` when
+  you leave it out), `draft` (`true` or `false`), `see` (the path of the note
   shown as its context), `kind` (`qa` by default, or a kind program named
   in `[kinds]` of `.srl/config.toml`).
 - Uppercase keys are its fields, such as `Q` and `A`; their values are
@@ -154,9 +154,10 @@ The formats of collection files:
 - **JSON** (`.json`): one array of item objects, read when a source's
   `include` names JSON files.
 
-Items written by hand without an `id` get one from `srl id`. After writing
-items by hand, run `srl check`: it reports errors with their line, and
-warns of likely mistakes.
+Add items with `srl add`, which gives each one an ID. An item written into
+a file by hand needs an `id` of its own, unique in the store: an item
+without one is an error. After writing items by hand, run `srl check`: it
+reports errors with their line, and warns of likely mistakes.
 
 **Cloze deletions**, written as in Anki, hide parts of `Q`:
 `{{c1::text}}`, or `{{c1::text::hint}}`. Each number makes one card; the
@@ -243,7 +244,6 @@ srl find in:rust -is:new        # rust cards already studied
 | Command | Does |
 |---|---|
 | `srl init [DIR]` | create a store |
-| `srl id` | give IDs to new items |
 | `srl find [SEL]` | list cards |
 | `srl collections` | list the collections (files of items, or a source program's tables) by name, also those without items (for `srl add COLLECTION`) |
 | `srl notes` | list the notes items may name with `see` |

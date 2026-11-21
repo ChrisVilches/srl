@@ -200,27 +200,27 @@ with every process it started, when `srl` is stopped (see
 | `describe` | one line: `{"config": {…}}` | one line: `{"description": "…", "settings": {"database": "vocab/vocab.json"}}`: what the source is, in a sentence, and the settings `srl sources` shows of it (`{}` for none) |
 | `accepts` | one line: `{"config": {…}, "collection": "words"}` | one line: `{"ok": true}` if `srl add` may create the collection in it, or `{"error": "…"}`, why not |
 | `collections` | one line: `{"config": {…}}` | one line per collection: `{"collection": "words"}`, or `{"collection": "words", "in": ["words", "vocab"]}` to give its `in` names |
-| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "handle": "17", "item": {…}}`; one line per problem: `{"collection": "words", "error": "…"}` |
-| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, `{…, "op": "replace", "collection": "words", "handle": "17", "before": {…}, "after": {…}}`, or `{…, "op": "remove", "collection": "words", "handle": "17", "before": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
+| `read` | one line: `{"config": {…}}` | one line per item: `{"collection": "words", "item": {…}}`; one line per problem: `{"collection": "words", "error": "…"}` |
+| `write` | one line per change: `{"config": {…}, "dry_run": false, "op": "add", "collection": "words", "item": {…}}`, `{…, "op": "replace", "collection": "words", "before": {…}, "after": {…}}`, or `{…, "op": "remove", "collection": "words", "before": {…}}` | one line per input line: `{"ok": true}`, `{"preview": "…"}` for an `add` with `dry_run`, or `{"error": "…"}` |
 
-- **`read`** gives every item with its collection; its `handle`, what
-  names it when it is changed, unique in the source, such as a key of a
-  database; and `item`, its item object
-  (see [items.md](items.md), "The item object"), read as strictly as `srl
-  add` reads one. An item may come without an `id`, for `srl id` to give
-  it one: a program never makes IDs itself. A problem is reported as an
-  error in the store, at its collection; a program says in its message
-  where in the collection it is, if that helps.
+- **`read`** gives every item with its collection and `item`, its item
+  object (see [items.md](items.md), "The item object"), read as strictly
+  as `srl add` reads one. Its `id` is what names it, to `srl` and to the
+  program when it is changed: an item without one is an error in the
+  store, as it is in a file. A problem is reported as an error in the
+  store, at its collection; a program says in its message where in the
+  collection it is, if that helps.
 - **`collections`** gives every collection, and may give its `in` names
   as a list of at least one, each a value `in:` can take: without
   spaces or commas. A collection without `in` has its name alone.
 - **`write`** gets every change one command makes to the source, in one
   call. An `item`, `before` or `after` is an item object as `srl` writes
-  one. A program refuses a `replace` or a `remove` when the item under
-  the handle is no longer `before`, and **a program that answers `error`
-  to any change writes none of them**; `srl` reports the first such line.
-  `srl id` and `srl accept` are `replace`s too, whose `after` adds an `id`
-  or removes `draft`. `srl move` gives the source its collection's
+  one. A `replace` or a `remove` is of the item of its collection with
+  the `id` of `before`, which is how `srl` read it, and the program
+  refuses it when that item is no longer `before`. **A program that
+  answers `error` to any change writes none of them**; `srl` reports the
+  first such line. `srl accept` is a `replace` too, whose `after` removes
+  `draft`. `srl move` gives the source its collection's
   `add`s, and the `remove`s of items moved out of its collections (see
   [cli.md](cli.md), "Moving items").
 - **`describe`** gives `settings` as an object, each key a setting's
@@ -246,7 +246,7 @@ many items or cards it handles, never once per item or per card:
 | Command | Calls |
 |---|---|
 | every command that reads items | 1 `collections` and 1 `read` |
-| `add`, `edit`, `move`, `accept`, `id` | 1 `write` for the changes to the source, with 1 `read` before it and 1 after it, to verify it |
+| `add`, `edit`, `move`, `accept` | 1 `write` for the changes to the source, with 1 `read` before it and 1 after it, to verify it |
 | `add` to a new collection | 1 `accepts` |
 | `collections` | 1 `collections` |
 | `sources` | 1 `describe` |
@@ -262,11 +262,11 @@ wherever it chooses, and is responsible for its freshness.
 - **Every line a program prints is read strictly**: a line that is not a
   JSON object, a key a call doesn't give, a value of the wrong type, a
   text that is blank, empty or only spaces (every text a call gives, such
-  as a `handle` or an `error`, says something), `settings` that aren't
+  as a `collection` or an `error`, says something), `settings` that aren't
   an object, an item object that isn't valid, a collection's name that isn't parts
   joined by `/` (none empty or starting with `.`), a collection listed
   twice by `collections`, an `in` that is empty, holds a value `in:`
-  can't take, or gives a name twice, a handle given twice in one `read`, or a wrong
+  can't take, or gives a name twice, or a wrong
   number of lines is a failure of the program. So
   is a call that fails as a whole. Either is reported once, as a problem
   of the source, and stops every command that reads items until it is

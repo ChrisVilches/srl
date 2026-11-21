@@ -75,11 +75,6 @@ pub(crate) enum Command {
     },
     /// Check the sources, the configuration and the log, and warn of items probably not written as meant.
     Check,
-    /// Give an ID to every item without one.
-    Id {
-        #[command(flatten)]
-        dry_run: DryRun,
-    },
     /// List the collections of the store, which hold its items, without reading them.
     Collections {
         #[command(flatten)]

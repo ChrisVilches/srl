@@ -31,7 +31,7 @@ crates/
     src/domain/random.rs     reproducible random numbers for new IDs and `srl next`
     src/app.rs          the application: what the commands do with the domain and the ports
     src/app/catalog.rs       every item of the store, read from its sources and checked by their kinds; the notes, and the context `see` names
-    src/app/write.rs         items.md, "How srl changes items": what `srl id`, `srl accept`, `srl add`, `srl edit` and `srl move` change, checked before any source writes it
+    src/app/write.rs         items.md, "How srl changes items": what `srl accept`, `srl add`, `srl edit` and `srl move` change, checked before any source writes it
     src/app/check.rs         cli.md, "Checking": orphans and the warnings of `srl check`
     src/app/review.rs        log.md and scheduling.md: recording reviews, resets, suspensions
     src/app/next.rs          scheduling.md, "Choosing the next card" and "Siblings"
@@ -475,14 +475,14 @@ knows how it keeps its items.
 | Method | Gives |
 |---|---|
 | `collections()` | The names of the source's collections, by which `srl` names them everywhere. A file of the `filesystem` source is a collection, named by its path. |
-| `read()` | Every item, with its collection, its handle (what names it to the source when it changes) and its entries and fields; and every problem found, each at its collection. |
+| `read()` | Every item, with its collection and its entries and fields; and every problem found, each at its collection. |
 | `refuses(collection)` | Why `srl add` can't create a collection, or nothing, by the source's own rule: `filesystem`'s globs and formats, or a source program's `accepts`. |
-| `write(changes, dry_run)` | Makes a list of changes: `Add` an item to a collection, `Replace` the item of a handle, read as `before`, with `after`, or `Remove` the item of a handle, read as `before`. Every change is made and checked before anything is written; a change refused is named by its place. |
+| `write(changes, dry_run)` | Makes a list of changes: `Add` an item to a collection, `Replace` the item with the ID of `before`, read as `before`, with `after`, or `Remove` the item with the ID of `before`, read as `before`. Every change is made and checked before anything is written; a change refused is named by its place. |
 | `describe()` | What the source is, in a sentence, and the settings it shows, each by its name, for `srl sources`. |
 
 - **The catalog holds every item in memory** (`app/catalog.rs`, the type
   `Catalog`). It reads every source, turns what they read into `Item`s,
-  each with its `Origin` (source, collection, handle, its position in its
+  each with its `Origin` (source, collection, its position in its
   collection, and the item as read), checks them with their kinds, and
   keeps the rules that cross sources: IDs unique in the store, no
   collection's name given by two sources, `see` naming a note, collections
@@ -551,9 +551,9 @@ programs too.
 **Nothing in `srl` names an item by where it is in its collection.** An
 item is its collection and its ID:
 
-- **Changes find the item again in the collection as it is right before
-  the change**: by its ID, or, for `srl id`, by its handle, its position
-  among the collection's items (see "Collection editing").
+- **Changes find the item again by its ID, in the collection as it is
+  right before the change** (see "Collection editing"); a source keeps
+  nothing else to name it.
 - **Messages name an item** as `COLLECTION: item ID`, or, for an item read
   without a valid ID, by its position, `item N` (`Spot` in `error.rs`).
   A format that can say where in a file a problem is says it in the
@@ -576,8 +576,7 @@ these rules, with the helpers of `source/files.rs`:
    new text gets the line ending of the file's first line, or `\n` in a
    file without one.
 2. **It finds each item in the collection as it is now.** It reads the
-   file again, and finds the item by its ID, or, for `srl id`, by its
-   handle, its position. An item that is gone, or no longer as it was read
+   file again, and finds the item by its ID. An item that is gone, or no longer as it was read
    (the `before` of the change), or a file that has an error now, means the
    file changed since it was read: the command stops, and says so.
 3. **It verifies its own work.** After editing, it parses the new text and

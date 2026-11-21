@@ -27,7 +27,7 @@ the same for every source.
 
 | Entry | Meaning | Default |
 |---|---|---|
-| `id` | The item's ID (see "Identity"). | none: an item without an ID is an error until `srl id` gives it one |
+| `id` | The item's ID (see "Identity"). | none: an item without an ID is an error |
 | `kind` | How the fields become cards (see [cards.md](cards.md), "Kinds"). | `qa` |
 | `see` | The path of the note shown as the item's context (see "Context"). | no context |
 | `draft` | The item is a draft (see "Status"). | not a draft |
@@ -51,13 +51,14 @@ kind (see [cards.md](cards.md), "Kinds"). An item has at least one field.
   digits, joined by single `-`, 1 to 32 characters: `x7k2m9`, or
   `jp-grammar-desu` when you name it yourself. `-` is never first, last
   or doubled, and `.` is never part of an ID: it separates a card's
-  suffix. `srl id` and `srl add` make random ones of 6 characters
-  (`SRL_SEED` makes them repeatable; see [cli.md](cli.md),
-  "Conventions"); you may also give one yourself, in the item or to `srl
-  add`.
+  suffix. `srl add` makes a random one of 6 characters for an item it is
+  given without one (`SRL_SEED` makes them repeatable; see
+  [cli.md](cli.md), "Conventions"). An item written any other way, by
+  hand, by a script or by a source program, is written with its ID:
+  `srl` never gives an ID to an item that exists.
 - **IDs are unique in the store**, across every source. Two items with the
-  same ID are an error, which happens when an item is copied: delete the
-  ID from the copy and run `srl id`.
+  same ID are an error, which happens when an item is copied: give the
+  copy another ID.
 - **The ID is the identity.** Edit the item, move it within its
   collection, to another collection or to another source (by hand or
   with `srl move`), rename its collection: the item keeps its cards and
@@ -132,11 +133,10 @@ from the path in `see`, as it likes, with any fallbacks it wants (see
 
 ## How srl changes items
 
-Only five commands ever change an item:
+Only four commands ever change an item:
 
 | Command | Changes |
 |---|---|
-| `srl id` | Gives an ID to the items that have none. |
 | `srl accept SELECTOR` | Removes `draft` from the matching items. |
 | `srl add COLLECTION` | Adds new items to the collection `COLLECTION`, or creates it. |
 | `srl edit --stdin` | Replaces the items it is given with new ones, for scripts and other programs. |
@@ -148,18 +148,15 @@ Every other command only reads items. The rules, for every source:
    the items it is about to write (item objects, IDs, kinds, `see`), and
    each source checks its own changes, before any source writes. If any
    change is refused, or any source has an error, the command reports
-   every error and changes nothing. For `srl id`, an item without an ID
-   is not an error, since that is what it fixes.
+   every error and changes nothing.
 2. **An item that changed while `srl` was working is not written.** Each
-   item to change is found in its collection as it is when its source
-   writes it: by its ID, or, for `srl id`, by its place among its
-   collection's items. If it is not there any more, or not as `srl` read
+   item to change is found by its ID in its collection as it is when its
+   source writes it. If it is not there any more, or not as `srl` read
    it, the command stops and says so; changes written before stay
    written, and running it again finishes the work.
-3. **Every change is reported.** `srl id` prints one line per item it gave
-   an ID: the ID and its collection, separated by two spaces. `srl accept`,
-   `srl add`, `srl edit` and `srl move` print the IDs of the items they
-   changed, added or moved (see [cli.md](cli.md)). With `--dry-run` they
+3. **Every change is reported.** `srl accept`, `srl add`, `srl edit` and
+   `srl move` print the IDs of the items they changed, added or moved
+   (see [cli.md](cli.md)). With `--dry-run` they
    write nothing, and print the same (`srl add`: the items as their
    source would add them).
 
@@ -185,8 +182,8 @@ message says where in the collection it is, when its source can, such as
 and, for every source:
 
 - an unknown, repeated or empty header entry;
-- an item without an ID (`srl id` fixes it), an invalid ID, or an ID that
-  another item already has;
+- an item without an ID, an invalid ID, or an ID that another item
+  already has;
 - a field name written twice in one item, whatever its kind;
 - an unknown kind, or fields that the kind doesn't accept (see
   [cards.md](cards.md));
@@ -200,8 +197,7 @@ and, for every source:
 - a collection that breaks a rule of collections (see
   [sources.md](sources.md), "Collections"), reported as `COLLECTION: message`.
 
-`srl id` is the exception for items without an ID: that is the error it
-fixes. `srl check` reports the same errors and more (see [cli.md](cli.md)).
+`srl check` reports the same errors and more (see [cli.md](cli.md)).
 
 > **TODO (design):** stopping at every error can get in the way. Ways to
 > make it less annoying are wanted, among them turning some errors into

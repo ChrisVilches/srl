@@ -521,27 +521,22 @@ pub(super) fn changed(
     let mut removed = Vec::new();
     for &(at, change) in changes {
         match change {
-            Change::Remove { handle, before, .. } => {
+            Change::Remove { before, .. } => {
                 if old.is_none() {
                     return Err(changed_meanwhile(path));
                 }
-                let position = position_of(&expected, handle, before, path)?;
+                let position = position_of(&expected, before, path)?;
                 let span = spans
                     .get(position)
                     .expect("the position of an item should be among the file's items");
                 edits.push((whole_lines(text, span), String::new()));
                 removed.push(position);
             }
-            Change::Replace {
-                handle,
-                before,
-                after,
-                ..
-            } => {
+            Change::Replace { before, after, .. } => {
                 if old.is_none() {
                     return Err(changed_meanwhile(path));
                 }
-                let position = position_of(&expected, handle, before, path)?;
+                let position = position_of(&expected, before, path)?;
                 if before != after {
                     let span = spans
                         .get(position)
@@ -921,7 +916,6 @@ mod tests {
         let before = object("aaa1", &[("Q", "old")]);
         let replace = Change::Replace {
             collection: "a.xml".to_owned(),
-            handle: "0".to_owned(),
             before,
             after: object("aaa1", &[("Q", "new"), ("A", "two\nlines")]),
         };
@@ -942,7 +936,6 @@ mod tests {
         let item = parse(text).items.remove(position);
         Change::Remove {
             collection: "a.xml".to_owned(),
-            handle: position.to_string(),
             before: Object {
                 entries: item.entries,
                 fields: item.fields,

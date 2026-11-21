@@ -66,8 +66,6 @@ pub(crate) struct Read {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReadItem {
     pub(crate) collection: String,
-    /// What names the item to its source when it is changed.
-    pub(crate) handle: String,
     pub(crate) item: Object,
 }
 
@@ -93,22 +91,17 @@ pub(crate) struct Description {
 pub(crate) enum Change {
     /// Adds `item` to `collection`, creating it if it doesn't exist.
     Add { collection: String, item: Object },
-    /// Replaces the item of `collection` named by `handle`, which was read
-    /// as `before`, with `after`. Refused if the item is no longer
+    /// Replaces the item of `collection` with the ID of `before`, which is
+    /// how it was read, with `after`. Refused if the item is no longer
     /// `before`.
     Replace {
         collection: String,
-        handle: String,
         before: Object,
         after: Object,
     },
-    /// Removes the item of `collection` named by `handle`, which was read
-    /// as `before`. Refused if the item is no longer `before`.
-    Remove {
-        collection: String,
-        handle: String,
-        before: Object,
-    },
+    /// Removes the item of `collection` with the ID of `before`, which is
+    /// how it was read. Refused if the item is no longer `before`.
+    Remove { collection: String, before: Object },
 }
 
 impl Change {

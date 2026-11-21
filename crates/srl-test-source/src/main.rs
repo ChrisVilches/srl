@@ -4,9 +4,9 @@
 //! of its source in `[sources]`, decide what it does:
 //!
 //! - `data`: the file, relative to the folder it runs in:
-//!   `{"next": 1, "collections": {"vocab/words": {"items": [{"handle": "h1",
-//!   "item": {…}}]}}}`. A file that doesn't exist is a source without
-//!   collections.
+//!   `{"collections": {"vocab/words": {"items": [{…}]}}}`, each item an
+//!   item object, found by its `id` when it is changed. A file that
+//!   doesn't exist is a source without collections.
 //! - `creates`: the names of the new collections `accepts` takes, where a
 //!   trailing `*` stands for any text without `/`; `["*"]` without it.
 //!   `describe` gives it as a setting, with `data`.
@@ -145,9 +145,7 @@ fn answer(
                     .cloned()
                     .unwrap_or_default()
                     .into_iter()
-                    .map(move |item| {
-                        json!({"collection": name, "handle": at(&item, "handle"), "item": at(&item, "item")})
-                    })
+                    .map(move |item| json!({"collection": name, "item": item}))
             })
             .collect()),
         "write" => write(config, inputs, &mut data, &place, version.as_deref()),
@@ -199,10 +197,8 @@ fn write(
     let mut refused = false;
     for input in inputs {
         let name = text(input, "collection").to_owned();
-        let next = data.get("next").and_then(Value::as_u64).unwrap_or(1);
-        if text(input, "op") == "add" {
-            data["next"] = json!(next + 1);
-        }
+        let before = input.get("before");
+        let id = before.map(|before| at(before, "id"));
         let collections = data
             .get_mut("collections")
             .and_then(Value::as_object_mut)
@@ -217,7 +213,7 @@ fn write(
                     .and_then(Value::as_array_mut)
                     .ok_or("a collection's `items` is not a list")?;
                 let item = input.get("item").cloned().unwrap_or_default();
-                items.push(json!({"handle": format!("h{next}"), "item": item}));
+                items.push(item.clone());
                 answers.push(if dry_run {
                     json!({"preview": item.to_string()})
                 } else {
@@ -229,14 +225,10 @@ fn write(
                     .get_mut(&name)
                     .and_then(|collection| collection.get_mut("items"))
                     .and_then(Value::as_array_mut)
-                    .and_then(|items| {
-                        items
-                            .iter_mut()
-                            .find(|item| item.get("handle") == input.get("handle"))
-                    })
-                    .filter(|item| item.get("item") == input.get("before"));
+                    .and_then(|items| items.iter_mut().find(|item| Some(at(item, "id")) == id))
+                    .filter(|item| Some(&**item) == before);
                 if let Some(item) = found {
-                    item["item"] = input.get("after").cloned().unwrap_or_default();
+                    *item = input.get("after").cloned().unwrap_or_default();
                     answers.push(json!({"ok": true}));
                 } else {
                     refused = true;
@@ -249,11 +241,10 @@ fn write(
                     .and_then(|collection| collection.get_mut("items"))
                     .and_then(Value::as_array_mut);
                 let found = items.and_then(|items| {
-                    let at = items.iter().position(|item| {
-                        item.get("handle") == input.get("handle")
-                            && item.get("item") == input.get("before")
-                    })?;
-                    Some(items.remove(at))
+                    let place = items
+                        .iter()
+                        .position(|item| Some(at(item, "id")) == id && Some(item) == before)?;
+                    Some(items.remove(place))
                 });
                 if found.is_some() {
                     answers.push(json!({"ok": true}));
@@ -316,7 +307,7 @@ impl Place {
                     None,
                 )),
                 Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                    Ok((json!({"next": 1, "collections": {}}), None))
+                    Ok((json!({"collections": {}}), None))
                 }
                 Err(error) => Err(format!("cannot read {file}: {error}")),
             },

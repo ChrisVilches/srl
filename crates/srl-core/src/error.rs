@@ -58,9 +58,6 @@ pub enum Error {
     #[error("{collection}: {reason}")]
     Collection { collection: String, reason: String },
 
-    #[error("{collection}: item {position} has no ID; run `srl id` to give it one")]
-    MissingId { collection: String, position: usize },
-
     #[error(
         "{count} problem(s) in the store's sources, listed above; fix them first, since srl \
          reads every item strictly"
@@ -195,13 +192,6 @@ impl Error {
                 collection.as_str(),
                 spot.as_ref().map_or(0, |spot| spot.position),
             ));
-        }
-        if let Self::MissingId {
-            collection,
-            position,
-        } = self
-        {
-            return Some((collection.as_str(), *position));
         }
         None
     }

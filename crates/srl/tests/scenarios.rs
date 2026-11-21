@@ -31,8 +31,7 @@ fn at(day: i64, hour: u8) -> String {
     format!("{}T{hour:02}:00:00Z", date(day))
 }
 
-/// A person's store, made with `srl init`, with files written by hand,
-/// items given IDs with `srl id`.
+/// A person's store, made with `srl init`, with files written by hand.
 #[derive(Debug)]
 struct Store {
     tmp: TempDir,
@@ -47,9 +46,6 @@ impl Store {
         store.ok(&at(1, 9), &["init"]);
         for (path, text) in files {
             store.write(path, text);
-        }
-        if !files.is_empty() {
-            store.ok(&at(1, 9), &["id"]);
         }
         store
     }
@@ -176,10 +172,10 @@ impl Store {
 }
 
 /// Four questions about capitals, about the notes of `NOTES`.
-const CAPITALS: &str = r#"{"see": "geography/capitals.md", "Q": "Capital of France?", "A": "Paris"}
-{"see": "geography/capitals.md", "Q": "Capital of Japan?", "A": "Tokyo"}
-{"see": "geography/capitals.md", "Q": "Capital of Chile?", "A": "Santiago"}
-{"see": "geography/capitals.md", "Q": "Capital of Kenya?", "A": "Nairobi"}
+const CAPITALS: &str = r#"{"id": "france", "see": "geography/capitals.md", "Q": "Capital of France?", "A": "Paris"}
+{"id": "japan", "see": "geography/capitals.md", "Q": "Capital of Japan?", "A": "Tokyo"}
+{"id": "chile", "see": "geography/capitals.md", "Q": "Capital of Chile?", "A": "Santiago"}
+{"id": "kenya", "see": "geography/capitals.md", "Q": "Capital of Kenya?", "A": "Nairobi"}
 "#;
 
 /// The person's notes about capitals, the context of `CAPITALS`.
@@ -203,7 +199,7 @@ fn text(object: &Value, key: &str) -> String {
 /// `count` questions, one item per line.
 fn questions(count: usize) -> String {
     (1..=count)
-        .map(|n| format!("{{\"Q\": \"Question {n}?\", \"A\": \"Answer {n}\"}}\n"))
+        .map(|n| format!("{{\"id\": \"q{n}\", \"Q\": \"Question {n}?\", \"A\": \"Answer {n}\"}}\n"))
         .collect::<Vec<_>>()
         .concat()
 }
@@ -308,7 +304,7 @@ fn a_session_past_midnight_belongs_to_the_day_it_began() {
 fn cloze_cards_of_one_item_are_introduced_one_a_day() {
     let store = Store::new(&[(
         "japanese/kanji.jsonl",
-        "{\"Q\": \"{{c1::東京}}は{{c2::日本}}の{{c3::首都}}です。\", \"A\": \"Tokyo is the capital of Japan.\"}\n",
+        "{\"id\": \"tokyo\", \"Q\": \"{{c1::東京}}は{{c2::日本}}の{{c3::首都}}です。\", \"A\": \"Tokyo is the capital of Japan.\"}\n",
     )]);
     let item = store.cards(&at(1, 19))[0]["item"]
         .as_str()
@@ -457,7 +453,7 @@ fn text_of(value: &Value) -> &str {
 fn fixing_a_typo_keeps_the_cards_schedule() {
     let store = Store::new(&[(
         "geography/capitals.jsonl",
-        "{\"Q\": \"Capital of Austrailia?\", \"A\": \"Canberra\"}\n",
+        "{\"id\": \"canberra\", \"Q\": \"Capital of Austrailia?\", \"A\": \"Canberra\"}\n",
     )]);
     let now = at(1, 19);
     let card = store.study(&now, 3).remove(0);

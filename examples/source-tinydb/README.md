@@ -61,10 +61,8 @@ Items of the database may name a note with `see`, as any item may.
   gives no `in` names, so `in:` selects a table by its whole name:
   `in:v1.2` selects the table `v1.2`, and `in:v1` doesn't.
 - **Each item is a document `{"item": {...}}`**, holding its item object
-  as `srl` writes one. Its handle is its table and TinyDB's document
-  ID, such as `words/17`, since TinyDB numbers the documents of each
-  table from 1 and a handle must be unique in the source. Other
-  documents of a table are left alone.
+  as `srl` writes one. A change finds the item in its table by its `id`.
+  Other documents of a table are left alone.
 - **A change that can't be made refuses every change of the command**:
   a `replace` whose item is no longer as `srl` read it fails the whole
   call, and nothing is written. `srl` then reads the database again to

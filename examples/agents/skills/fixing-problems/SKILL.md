@@ -20,8 +20,8 @@ log can't be read without it. Fix it and run `srl check` again.
 
 | Error | Usual cause | Fix |
 |---|---|---|
-| item without an ID | a new item written by hand | Run `srl id`. |
-| duplicate ID | an item was copied | Delete the `id` from the copy, then `srl id`. |
+| item without an ID | a new item written by hand | Give it an `id`, unique in the store, such as `rust-drop-1`. |
+| duplicate ID | an item was copied | Give the copy another `id`. |
 | a line of a JSONL collection that is not a valid item object | text that isn't JSON, an object over several lines, an unknown or misspelled key, a key written twice, a value of the wrong type (`"draft": "yes"`, a number for text) | Make the line one JSON object with the keys `id`, `kind`, `see`, `draft` and uppercase field names (see the `writing-items` skill). |
 | `line N: …` in an XML collection | XML that isn't well-formed, an attribute other than `id`, `kind`, `see`, `draft`, a lowercase element in an `<item>`, `<` or `&` in a field outside CDATA | Fix the line as the message says; write a field with `<` or `&` as `<![CDATA[…]]>`. |
 | `it is not a JSON array` or `item N: …` in a JSON collection | the file isn't one array of item objects | Fix the element at that position. |

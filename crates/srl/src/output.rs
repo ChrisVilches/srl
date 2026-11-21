@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde_json::Value;
 use srl_core::{
     Card, CardId, CollectionInfo, Config, Event, Item, KindDescription, SourceDescription, Stats,
-    Warning, Written,
+    Warning,
 };
 
 /// A line on standard output, as `println!` writes it, but ending `srl`
@@ -78,14 +78,6 @@ pub(crate) fn ids<T: Display>(ids: &[T]) {
 pub(crate) fn collections(collections: &[CollectionInfo]) {
     for collection in collections {
         out!("{}", collection.collection);
-    }
-}
-
-/// Prints one line per changed item: its ID and its
-/// collection, separated by two spaces.
-pub(crate) fn written(written: &[Written]) {
-    for done in written {
-        out!("{}  {}", done.id, done.collection);
     }
 }
 

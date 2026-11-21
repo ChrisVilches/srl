@@ -31,7 +31,6 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
     match cli.command {
         Command::Init { dir, dry_run } => init(cli.dir, dir, dry_run.dry_run),
         Command::Check => check(&store()?),
-        Command::Id { dry_run } => id(&store()?, dry_run.dry_run),
         Command::Collections { json } => collections(&store()?, json.json),
         Command::Notes { json } => notes(&store()?, json.json),
         Command::Kinds { json } => kinds(&store()?, json.json),
@@ -209,24 +208,6 @@ fn check(store: &Store) -> anyhow::Result<Outcome> {
     } else {
         Outcome::Failed
     })
-}
-
-/// `srl id`: gives an ID to every item without one, and prints them. Exit
-/// 1 if every item had one.
-fn id(store: &Store, dry_run: bool) -> anyhow::Result<Outcome> {
-    let config = Config::load(store)?;
-    let mut index = Index::open(store);
-    let catalog = Catalog::load(store, &config, &mut index);
-    report_cache(&mut index);
-    let catalog = catalog?;
-    catalog
-        .problems()
-        .iter()
-        .filter(|problem| !matches!(problem, Error::MissingId { .. }))
-        .for_each(output::problem);
-    let written = srl_core::assign_ids(&catalog, seed("for new IDs")?, dry_run)?;
-    output::written(&written);
-    Ok(found_anything(!written.is_empty()))
 }
 
 /// `srl collections`: lists every collection, without reading any item, so
@@ -479,10 +460,9 @@ fn accept(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Result<O
         .map(|(item, _)| item)
         .filter(|item| item.is_draft() && seen.insert(item.id().clone()))
         .collect::<Vec<_>>();
-    let written = srl_core::accept(&loaded.catalog, &items, dry_run)?;
-    let ids = written.iter().map(|done| &done.id).collect::<Vec<_>>();
-    output::ids(&ids);
-    Ok(found_anything(!written.is_empty()))
+    let accepted = srl_core::accept(&loaded.catalog, &items, dry_run)?;
+    output::ids(&accepted.iter().collect::<Vec<_>>());
+    Ok(found_anything(!accepted.is_empty()))
 }
 
 /// `srl suspend`: prints the IDs of the cards that changed. An empty

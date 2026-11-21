@@ -18,10 +18,8 @@ Windows, but tried on Linux only.
 - Each table of the database is a collection, named by the table: the
   table `words` is the collection `words`. `srl add` may create any new
   one whose name has no `/`.
-- Each item is a document `{"item": {...}}` holding its item object, and
-  its handle is its table and TinyDB's document ID, `words/17`: TinyDB
-  numbers the documents of each table from 1, so the ID alone would name
-  items of two tables alike.
+- Each item is a document `{"item": {...}}` holding its item object. A
+  change finds it in its table by the `id` of its item.
 
 Every call reads one JSON object per line up to the end of standard
 input, and prints its answer, one JSON object per line.
@@ -70,14 +68,10 @@ def accepts(_source, inputs):
             for change in inputs]
 
 
-def handle(table, doc_id):
-    return f"{table}/{doc_id}"
-
-
-def doc_id(handle):
-    """The document ID of HANDLE, as `read` gave it: a table's name may
-    hold `/`, its document ID never does."""
-    return int(handle.rsplit("/", 1)[1])
+def find(table, item):
+    """The document of TABLE whose item has the `id` of ITEM, or None."""
+    return next((document for document in table.all()
+                 if document.get("item", {}).get("id") == item.get("id")), None)
 
 
 def collections(source, _inputs):
@@ -90,8 +84,7 @@ def read(source, _inputs):
         for document in source.db.table(name).all():
             if "item" not in document:
                 continue
-            lines.append({"collection": name, "handle": handle(name, document.doc_id),
-                          "item": document["item"]})
+            lines.append({"collection": name, "item": document["item"]})
     return lines
 
 
@@ -101,7 +94,7 @@ def write(source, inputs):
     for change in inputs:
         table = source.db.table(change["collection"])
         if change["op"] in ("replace", "remove"):
-            document = table.get(doc_id=doc_id(change["handle"]))
+            document = find(table, change["before"])
             if document is None or document.get("item") != change["before"]:
                 return [{"error": "the item changed in the database since srl read it; run the command again"} for _ in inputs]
         answers.append({"preview": json.dumps(change["item"], ensure_ascii=False)} if change["op"] == "add" and change["dry_run"] else {"ok": True})
@@ -112,9 +105,9 @@ def write(source, inputs):
         if change["op"] == "add":
             table.insert({"item": change["item"]})
         elif change["op"] == "remove":
-            table.remove(doc_ids=[doc_id(change["handle"])])
+            table.remove(doc_ids=[find(table, change["before"]).doc_id])
         else:
-            table.update({"item": change["after"]}, doc_ids=[doc_id(change["handle"])])
+            table.update({"item": change["after"]}, doc_ids=[find(table, change["before"]).doc_id])
     return answers
 
 

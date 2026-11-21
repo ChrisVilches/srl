@@ -1,5 +1,5 @@
-//! The commands that change items: `srl id`, `srl accept`, `srl add`,
-//! `srl edit --stdin` and `srl move` (see `docs/items.md`, "How srl changes
+//! The commands that change items: `srl accept`, `srl add`, `srl edit
+//! --stdin` and `srl move` (see `docs/items.md`, "How srl changes
 //! items").
 //!
 //! This module decides what changes, and checks every change before
@@ -18,14 +18,6 @@ use crate::domain::random;
 use crate::source::{Change, Refusal};
 use crate::{Catalog, Error, Item, ItemId, Result};
 
-/// One change to an item: which item, where.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Written {
-    pub id: ItemId,
-    /// The item's collection.
-    pub collection: String,
-}
-
 /// What `srl add` did, or would do.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Added {
@@ -34,45 +26,10 @@ pub struct Added {
     pub text: String,
 }
 
-/// `srl id`: gives an ID to every item without one. `catalog` must have no
-/// problem other than items without an ID.
-pub fn assign_ids(catalog: &Catalog, seed: u64, dry_run: bool) -> Result<Vec<Written>> {
-    refuse_problems(catalog, true)?;
-    let mut fresh = fresh_ids(catalog, HashSet::new(), seed);
-    let given = catalog
-        .unidentified()
-        .iter()
-        .map(|origin| {
-            let id = fresh.next().expect("random IDs should never run out");
-            (origin, id)
-        })
-        .collect::<Vec<_>>();
-    let changes = given
-        .iter()
-        .map(|(origin, id)| {
-            let after = Object {
-                entries: Entries {
-                    id: Some(id.clone()),
-                    ..origin.read.entries.clone()
-                },
-                fields: origin.read.fields.clone(),
-            };
-            (origin.source, replacement(origin, after))
-        })
-        .collect::<Vec<_>>();
-    write(catalog, &changes, dry_run).map_err(unexpected)?;
-    Ok(given
-        .into_iter()
-        .map(|(origin, id)| Written {
-            id,
-            collection: origin.collection.clone(),
-        })
-        .collect())
-}
-
-/// `srl accept`: removes `draft` from `items` that have it.
-pub fn accept(catalog: &Catalog, items: &[&Item], dry_run: bool) -> Result<Vec<Written>> {
-    refuse_problems(catalog, false)?;
+/// `srl accept`: removes `draft` from `items` that have it. Gives the IDs
+/// of those items, in the order of `items`.
+pub fn accept(catalog: &Catalog, items: &[&Item], dry_run: bool) -> Result<Vec<ItemId>> {
+    refuse_problems(catalog)?;
     let drafts = items
         .iter()
         .filter(|item| item.is_draft())
@@ -92,13 +49,7 @@ pub fn accept(catalog: &Catalog, items: &[&Item], dry_run: bool) -> Result<Vec<W
         })
         .collect::<Vec<_>>();
     write(catalog, &changes, dry_run).map_err(unexpected)?;
-    Ok(drafts
-        .into_iter()
-        .map(|item| Written {
-            id: item.id().clone(),
-            collection: item.collection().to_owned(),
-        })
-        .collect())
+    Ok(drafts.into_iter().map(|item| item.id().clone()).collect())
 }
 
 /// `srl add COLLECTION`: adds the items of `input`, one item object per
@@ -111,7 +62,7 @@ pub fn add(
     seed: u64,
     dry_run: bool,
 ) -> Result<Added> {
-    refuse_problems(catalog, false)?;
+    refuse_problems(catalog)?;
     check_collection(collection)?;
     let (source, collection) = match catalog.located(collection) {
         Some(located) => (located.source, located.collection.clone()),
@@ -180,7 +131,7 @@ pub fn add(
 /// change made and verified, before anything is written. Gives the IDs of
 /// the items, in the order of `input`.
 pub fn edit(catalog: &Catalog, input: &str, dry_run: bool) -> Result<Vec<ItemId>> {
-    refuse_problems(catalog, false)?;
+    refuse_problems(catalog)?;
     let lines = read_input(catalog, input)?;
     let mut seen = HashSet::new();
     let mut targets = Vec::new();
@@ -236,7 +187,7 @@ pub fn move_items(
     collection: &str,
     dry_run: bool,
 ) -> Result<Vec<ItemId>> {
-    refuse_problems(catalog, false)?;
+    refuse_problems(catalog)?;
     let refuse = |reason: String| Error::CannotMove {
         collection: collection.to_owned(),
         reason,
@@ -266,7 +217,6 @@ pub fn move_items(
             item.origin.source,
             Change::Remove {
                 collection: item.origin.collection.clone(),
-                handle: item.origin.handle.clone(),
                 before: item.origin.read.clone(),
             },
         )
@@ -319,7 +269,6 @@ pub fn move_items(
 fn replacement(origin: &Origin, after: Object) -> Change {
     Change::Replace {
         collection: origin.collection.clone(),
-        handle: origin.handle.clone(),
         before: origin.read.clone(),
         after,
     }
@@ -415,18 +364,11 @@ fn fresh_ids(
         .filter(move |id| taken.insert(id.clone()))
 }
 
-/// Fails if `catalog` has problems, except items without an ID when
-/// `missing_ids` allows them.
-fn refuse_problems(catalog: &Catalog, missing_ids: bool) -> Result<()> {
-    let count = catalog
-        .problems()
-        .iter()
-        .filter(|problem| !(missing_ids && matches!(problem, Error::MissingId { .. })))
-        .count();
-    if count == 0 {
-        Ok(())
-    } else {
-        Err(Error::ItemsInvalid { count })
+/// Fails if `catalog` has problems.
+fn refuse_problems(catalog: &Catalog) -> Result<()> {
+    match catalog.problems().len() {
+        0 => Ok(()),
+        count => Err(Error::ItemsInvalid { count }),
     }
 }
 
@@ -503,7 +445,6 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::domain::item::is_id_text as is_id;
     use crate::{Config, Index, Lookup, Store};
 
     fn store(files: &[(&str, &str)]) -> (TempDir, Store) {
@@ -535,33 +476,19 @@ mod tests {
     }
 
     #[test]
-    fn ids_are_added_to_items_without_one_and_nothing_else_changes() {
-        let text = "\u{feff}{\"Q\": \"a\", \"A\": \"b\"}\r\n\r\n{\"draft\":true,  \"Q\": \"c\", \"A\": \"d\"}\r\n{\"id\": \"keep\", \"Q\": \"e\", \"A\": \"f\"}";
+    fn an_item_without_an_id_stops_every_write() {
+        let text = "{\"id\": \"aaa1\", \"draft\": true, \"Q\": \"a\", \"A\": \"b\"}\n{\"Q\": \"c\", \"A\": \"d\"}\n";
         let (_tmp, store) = store(&[("a.jsonl", text)]);
-        let written = assign_ids(&catalog(&store), 7, false).unwrap();
-        assert_eq!(written.len(), 2);
-        assert!(written.iter().all(|done| is_id(done.id.as_str())));
-        assert!(written.iter().all(|done| done.collection == "a.jsonl"));
-        let (one, two) = (&written[0].id, &written[1].id);
-        assert_eq!(
-            read(&store, "a.jsonl"),
-            format!(
-                "\u{feff}{{\"id\":\"{one}\",\"Q\":\"a\",\"A\":\"b\"}}\r\n\r\n{{\"id\":\"{two}\",\"draft\":true,\"Q\":\"c\",\"A\":\"d\"}}\r\n{{\"id\": \"keep\", \"Q\": \"e\", \"A\": \"f\"}}"
-            )
-        );
-        assert!(catalog(&store).problems().is_empty());
-        assert_eq!(
-            assign_ids(&catalog(&store), 7, false).unwrap(),
-            [] as [Written; 0]
-        );
-    }
-
-    #[test]
-    fn ids_are_not_added_while_other_problems_remain() {
-        let text = "{\"Q\": \"a\", \"A\": \"b\"}\n{\"darft\": true, \"Q\": \"c\"}\n";
-        let (_tmp, store) = store(&[("a.jsonl", text)]);
+        let catalog = catalog(&store);
+        let problems = catalog
+            .problems()
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+        assert_eq!(problems, ["a.jsonl: item 2: it has no ID; give it one"]);
+        let drafts = catalog.items().iter().collect::<Vec<_>>();
         assert!(matches!(
-            assign_ids(&catalog(&store), 7, false),
+            accept(&catalog, &drafts, false),
             Err(Error::ItemsInvalid { count: 1 })
         ));
         assert_eq!(read(&store, "a.jsonl"), text);
@@ -569,9 +496,11 @@ mod tests {
 
     #[test]
     fn dry_runs_write_nothing() {
-        let text = "{\"Q\": \"a\", \"A\": \"b\"}\n";
+        let text = "{\"id\": \"aaa1\", \"draft\": true, \"Q\": \"a\", \"A\": \"b\"}\n";
         let (_tmp, store) = store(&[("a.jsonl", text)]);
-        assert_eq!(assign_ids(&catalog(&store), 7, true).unwrap().len(), 1);
+        let catalog = catalog(&store);
+        let drafts = catalog.items().iter().collect::<Vec<_>>();
+        assert_eq!(accept(&catalog, &drafts, true).unwrap().len(), 1);
         assert_eq!(read(&store, "a.jsonl"), text);
     }
 
@@ -742,19 +671,15 @@ mod tests {
     }
 
     #[test]
-    fn ids_and_accept_write_json_lines_again() {
-        let text = "{\"Q\": \"q\", \"A\": \"a\", \"draft\": true}\r\n\r\n{\"id\": \"keep\", \"Q\": \"r\", \"A\": \"b\"}\r\n";
+    fn accept_writes_json_lines_again_and_keeps_every_other_byte() {
+        let text = "\u{feff}{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\", \"draft\": true}\r\n\r\n{\"id\": \"keep\", \"Q\": \"r\", \"A\": \"b\"}";
         let (_tmp, store) = store(&[("a.jsonl", text)]);
-        let written = assign_ids(&catalog(&store), 7, false).unwrap();
-        let id = &written[0].id;
         let catalog = catalog(&store);
         let drafts = catalog.items().iter().collect::<Vec<_>>();
         accept(&catalog, &drafts, false).unwrap();
         assert_eq!(
             read(&store, "a.jsonl"),
-            format!(
-                "{{\"id\":\"{id}\",\"Q\":\"q\",\"A\":\"a\"}}\r\n\r\n{{\"id\": \"keep\", \"Q\": \"r\", \"A\": \"b\"}}\r\n"
-            )
+            "\u{feff}{\"id\":\"aaa1\",\"Q\":\"q\",\"A\":\"a\"}\r\n\r\n{\"id\": \"keep\", \"Q\": \"r\", \"A\": \"b\"}"
         );
     }
 
@@ -821,21 +746,6 @@ mod tests {
             assert_eq!(read(&store, "a.jsonl"), a);
         }
         assert_eq!(edit(&catalog, "\n\n", false).unwrap(), [] as [ItemId; 0]);
-    }
-
-    #[test]
-    fn ids_go_to_the_items_without_one_by_their_position() {
-        // Two items alike in everything, but where they are, are told apart
-        // by their position.
-        let (_tmp, store) = store(&[(
-            "a.jsonl",
-            "{\"Q\": \"q\", \"A\": \"a\"}\n{\"Q\": \"q\", \"A\": \"a\"}\n",
-        )]);
-        let written = assign_ids(&catalog(&store), 7, false).unwrap();
-        assert_eq!(written.len(), 2);
-        assert_ne!(written[0].id, written[1].id);
-        assert_eq!(catalog(&store).items().len(), 2);
-        assert!(catalog(&store).problems().is_empty());
     }
 
     #[test]
@@ -913,29 +823,15 @@ mod tests {
     }
 
     #[test]
-    fn ids_and_accept_rewrite_only_the_elements_of_an_xml_collection() {
-        let text = "<items>\n  <!-- Kept as written. -->\n  <item draft=\"true\">\n    <Q>\n      Two\n      lines\n    </Q>\n    <A>a</A>\n  </item>\n  <item id=\"keep\"><Q>q</Q><A>b</A></item>\n</items>\n";
+    fn accept_rewrites_only_the_elements_of_an_xml_collection() {
+        let text = "<items>\n  <!-- Kept as written. -->\n  <item id=\"aaa1\" draft=\"true\">\n    <Q>\n      Two\n      lines\n    </Q>\n    <A>a</A>\n  </item>\n  <item id=\"keep\"><Q>q</Q><A>b</A></item>\n</items>\n";
         let (_tmp, store) = store(&[("a.xml", text)]);
-        let written = assign_ids(&catalog(&store), 7, false).unwrap();
-        let [Written { id, collection }] = written.as_slice() else {
-            panic!("expected one ID: {written:?}");
-        };
-        assert_eq!(collection, "a.xml");
-        assert_eq!(
-            read(&store, "a.xml"),
-            format!(
-                "<items>\n  <!-- Kept as written. -->\n  <item id=\"{id}\" draft=\"true\">\n    <Q>\n      Two\n      lines\n    </Q>\n    <A>a</A>\n  </item>\n  <item id=\"keep\"><Q>q</Q><A>b</A></item>\n</items>\n"
-            )
-        );
         let catalog = catalog(&store);
         assert!(catalog.problems().is_empty(), "{:?}", catalog.problems());
         let drafts = catalog.items().iter().collect::<Vec<_>>();
         assert_eq!(accept(&catalog, &drafts, false).unwrap().len(), 1);
         let accepted = read(&store, "a.xml");
-        assert!(
-            accepted.contains(&format!("<item id=\"{id}\">\n")),
-            "{accepted}"
-        );
+        assert!(accepted.contains("<item id=\"aaa1\">\n"), "{accepted}");
         assert!(accepted.contains("<!-- Kept as written. -->"), "{accepted}");
         assert!(
             accepted.contains("<item id=\"keep\"><Q>q</Q><A>b</A></item>"),
@@ -947,22 +843,17 @@ mod tests {
     fn a_json_collection_is_written_again_only_when_it_changes() {
         let mut config = Config::default();
         config.sources = crate::config::sources_of(&["**/*.json"]);
-        let text = "\u{feff}[{\"id\": \"aaa1\", \"kind\": \"qa\", \"Q\": \"q\", \"A\": \"a\"},\r\n {\"Q\": \"r\", \"A\": \"b\"}]";
+        let text = "\u{feff}[{\"id\": \"aaa1\", \"kind\": \"qa\", \"Q\": \"q\", \"A\": \"a\"},\r\n {\"id\": \"aaa2\", \"Q\": \"r\", \"A\": \"b\"}]";
         let (_tmp, store) = store(&[("a.json", text)]);
         let unchanged = "{\"id\": \"aaa1\", \"Q\": \"q\", \"A\": \"a\"}";
-        // Without its ID, the second item is a problem only `srl id` passes.
-        assert!(edit(&catalog_with(&store, &config), unchanged, false).is_err());
-        let written = assign_ids(&catalog_with(&store, &config), 7, false).unwrap();
-        let id = &written[0].id;
+        edit(&catalog_with(&store, &config), unchanged, false).unwrap();
+        assert_eq!(read(&store, "a.json"), text);
+        let changed = "{\"id\": \"aaa2\", \"Q\": \"r\", \"A\": \"c\"}";
+        edit(&catalog_with(&store, &config), changed, false).unwrap();
         assert_eq!(
             read(&store, "a.json"),
-            format!(
-                "\u{feff}[\r\n  {{\r\n    \"id\": \"aaa1\",\r\n    \"kind\": \"qa\",\r\n    \"Q\": \"q\",\r\n    \"A\": \"a\"\r\n  }},\r\n  {{\r\n    \"id\": \"{id}\",\r\n    \"Q\": \"r\",\r\n    \"A\": \"b\"\r\n  }}\r\n]\r\n"
-            )
+            "\u{feff}[\r\n  {\r\n    \"id\": \"aaa1\",\r\n    \"kind\": \"qa\",\r\n    \"Q\": \"q\",\r\n    \"A\": \"a\"\r\n  },\r\n  {\r\n    \"id\": \"aaa2\",\r\n    \"Q\": \"r\",\r\n    \"A\": \"c\"\r\n  }\r\n]\r\n"
         );
-        let before = read(&store, "a.json");
-        edit(&catalog_with(&store, &config), unchanged, false).unwrap();
-        assert_eq!(read(&store, "a.json"), before);
         let added = add(
             &catalog_with(&store, &config),
             "a.json",

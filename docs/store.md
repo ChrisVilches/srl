@@ -31,7 +31,7 @@ study/
 
 | Path | Source of truth? | Written by |
 |---|---|---|
-| collections (`**/*.jsonl` and `**/*.xml` by default) | yes | you, any editor, scripts and other programs; `srl id`, `srl accept`, `srl add` and `srl edit --stdin` (see [formats.md](formats.md), "How srl writes to collections") |
+| collections (`**/*.jsonl` and `**/*.xml` by default) | yes | you, any editor, scripts and other programs; `srl accept`, `srl add`, `srl edit --stdin` and `srl move` (see [formats.md](formats.md), "How srl writes to collections") |
 | notes (`**/*.md` and `**/*.txt` by default) | yes | you, any editor, scripts and other programs; never `srl` |
 | `.srl/config.toml` | yes | you |
 | `.srl/log/` | yes | `srl review`, `srl reset`, `srl suspend` and `srl unsuspend` only. Never edit by hand. |

@@ -20,8 +20,7 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
   (`find`, `show`, `cards`, `collections`, `notes`, `sources`, `kinds`,
   `next`, `stats`, `log`) can print JSON instead (JSONL for lists). The
   default output is for people. Commands that change the store print the
-  IDs they changed, one per line (`srl id` adds the collection); they have
-  no `--json`.
+  IDs they changed, one per line; they have no `--json`.
 - **Never interactive.** No command asks questions or waits for a person.
   Studying is up to frontends (see [frontends.md](frontends.md)), and
   writing items by hand is up to your editor, or to whatever keeps the
@@ -37,8 +36,8 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
   `head` does in `srl find | head -1`, and otherwise saying why on
   standard error, if it can.
 - **Errors in sources stop every command that reads items** (see
-  [items.md](items.md), "Errors"), except `srl id` for items without an ID,
-  and `srl check`, which reports them.
+  [items.md](items.md), "Errors"), except `srl check`, which reports
+  them.
 - **`--dry-run`** on every command that writes: show what would change, change
   nothing.
 - **`--dir DIR`** on every command, to choose the store (see
@@ -71,7 +70,6 @@ aren't kept (see [cards.md](cards.md), "Kind programs").
 |---|---|
 | `srl init [DIR]` | Create a store in `DIR`, `--dir`, `SRL_DIR` or the current directory (see [store.md](store.md)). |
 | `srl check` | Check the sources, the configuration and the log, and look for likely mistakes in the items; report each on standard error and exit with 2 if there are problems (see "Checking" below). |
-| `srl id` | Give an ID to every item without one (see [items.md](items.md), "How srl changes items"). Prints `ID  COLLECTION` per item; exit 1 if every item already had one. |
 | `srl collections [--json]` | List the collections of the store, of every source (see [sources.md](sources.md)): one collection per line, in the order of their names, as `srl find` sorts them. With `--json`, one object per collection, with its name, its source and its `in` names, the values of `in:` that select it (see [selectors.md](selectors.md)): `{"collection": "japanese/grammar.jsonl", "source": "items", "in": ["japanese", "grammar.jsonl", "grammar"]}`. It doesn't read any item, so errors in them don't stop it. Exit 1 if the store has none. |
 | `srl notes [--json]` | List the notes of the store: the files `[context]` allows, which items may name with `see` (see [items.md](items.md), "Context"). One path per line, relative to the store's folder, in the order of their paths in NFC. With `--json`, one object per note: `{"path": "japanese/grammar/wo.md"}`. It reads no item and no note. Exit 1 if the store has none. |
 | `srl sources [--json]` | Describe the sources of the store, in the order of their names (see [sources.md](sources.md)): for each, a line with its name and description, then lines, indented by two spaces, for its driver (`filesystem`, or `program` for a source program) and for each of its settings, in order, each name and value separated by two spaces. A setting's text is shown as it is, a list of texts joined by one space, and any other value as JSON. The settings are those the source shows of itself (see [sources.md](sources.md), "What a source does"): for `filesystem`, its `include`, and its `exclude` if it has some; for a source program, those its `describe` gives. With `--json`, one object per source: `{"name": "items", "driver": "filesystem", "description": "…", "settings": {"include": ["**/*.jsonl", "**/*.xml"]}}`. It doesn't read any item. |
