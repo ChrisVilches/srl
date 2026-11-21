@@ -89,7 +89,7 @@ macOS and Windows (it is tried on Linux only).
   when Study is shown and again after each review (see "What srl
   answers"), so a reload keeps them and they include reviews recorded
   elsewhere.
-- The **box** at the top is the text: words the items must contain, in
+- The **box** at the top, "Search text…", is the text: words the items must contain, in
   any field, ignoring case. Each word is searched for on its own, as
   text whatever it looks like (`in:x` or `-x` too): srl gets each in
   double quotes, and a double quote separates words, as a space does.
@@ -106,10 +106,11 @@ macOS and Windows (it is tried on Linux only).
   open and kept as Add's are; Status, Schedule and Leeches only are
   `is:`'s values, which the page knows. As in Add, the menus wait for all
   of it, shown as one skeleton of the whole form, and srl's first error,
-  with Try again, is shown in their place. **Apply** submits the filters
-  with the box's text, as Enter would; **Clear** sets every menu to Any,
-  and closing the filters without Apply changes nothing. While any filter
-  is set, the button is filled and shows how many, since nothing else on
+  with Try again, is shown in their place. **Apply**, at the right of
+  Cancel, submits the filters with the box's text, as Enter would, and is
+  disabled until the menus show; **Clear** sets every menu to Any,
+  and Cancel, or closing the filters any other way, changes nothing. While any filter
+  is set, the button is filled and shows how many in a grey badge, since nothing else on
   the page says so.
 - The search submitted is kept in the address's query: one parameter per
   filter set, named by its key, in the order of the menus, then the text,

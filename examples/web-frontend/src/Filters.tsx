@@ -27,7 +27,7 @@ export function FilterButton({ filters, onFilters }: { filters: Filters; onFilte
         {count > 0 && (
           <span
             aria-hidden
-            className="absolute -top-1.5 -right-1.5 flex size-4.5 items-center justify-center rounded-full bg-stone-900 text-[11px] leading-none font-semibold text-white dark:bg-stone-100 dark:text-stone-900"
+            className="absolute -top-1.5 -right-1.5 flex size-4.5 items-center justify-center rounded-full bg-stone-300 text-[11px] leading-none font-semibold text-stone-700 dark:bg-stone-700 dark:text-stone-200"
           >
             {count}
           </span>
@@ -89,9 +89,16 @@ function FilterDialog({
   const retry = () => reads.filter((read) => read.isError).forEach((read) => read.refetch());
   const set = (menu: Menu, value: string | null) => setFilters((before) => ({ ...before, [menu]: value }));
 
+  // Apply, at the right of Cancel; disabled until the menus are shown.
+  const apply = (ready: boolean) => (
+    <button onClick={() => onApply(filters)} disabled={!ready} className={`px-4 py-2 text-sm ${MAIN_BUTTON}`}>
+      Apply
+    </button>
+  );
+
   if (!(collections.isSuccess && sources.isSuccess && kinds.isSuccess)) {
     return (
-      <Modal open={open} title="Filters" onClose={onClose}>
+      <Modal open={open} title="Filters" closeLabel="Cancel" actions={apply(false)} onClose={onClose}>
         {failed?.error ? <ErrorView message={failed.error.message} onRetry={retry} /> : <FiltersSkeleton />}
       </Modal>
     );
@@ -105,7 +112,7 @@ function FilterDialog({
     schedule: IS_VALUES.schedule,
   };
   return (
-    <Modal open={open} title="Filters" onClose={onClose}>
+    <Modal open={open} title="Filters" closeLabel="Cancel" actions={apply(true)} onClose={onClose}>
       <div className="grid gap-4 sm:grid-cols-2">
         {(Object.keys(LABELS) as Exclude<Menu, 'leech'>[]).map((name) => (
           <label key={name} className="flex flex-col gap-1.5 text-sm text-stone-500">
@@ -123,20 +130,15 @@ function FilterDialog({
         />
         Leeches only
       </label>
-      <div className="flex gap-3">
-        <button onClick={() => onApply(filters)} className={`px-5 py-2 ${MAIN_BUTTON}`}>
-          Apply
-        </button>
-        <button onClick={() => setFilters(NO_FILTERS)} className={OUTLINE_BUTTON}>
-          Clear
-        </button>
-      </div>
+      <button onClick={() => setFilters(NO_FILTERS)} className={`self-start ${OUTLINE_BUTTON}`}>
+        Clear
+      </button>
     </Modal>
   );
 }
 
 // The filters while srl reads what they offer: the menus, the checkbox and
-// the buttons, as grey bars.
+// Clear, as grey bars.
 function FiltersSkeleton() {
   return (
     <Loading label="Reading the collections, sources and kinds" className="flex flex-col gap-4">
@@ -149,10 +151,7 @@ function FiltersSkeleton() {
         ))}
       </div>
       <Skeleton className="h-5 w-32" />
-      <div className="flex gap-3">
-        <Skeleton className="h-11 w-20" />
-        <Skeleton className="h-9 w-16" />
-      </div>
+      <Skeleton className="h-9 w-16" />
     </Loading>
   );
 }

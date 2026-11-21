@@ -98,11 +98,12 @@ export function SearchInput({ search, onSearch }: { search: Search; onSearch: (s
           ref={input}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
+          placeholder="Search text…"
           aria-label="Search the items' text"
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
-          className="w-full rounded-md border border-stone-300 bg-transparent py-1.5 pr-9 pl-3 text-sm outline-none focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
+          className="w-full rounded-md border border-stone-300 bg-transparent py-1.5 pr-9 pl-3 text-sm outline-none placeholder:text-stone-400 focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
         />
         {draft !== '' && (
           <button

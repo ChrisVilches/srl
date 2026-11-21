@@ -14,17 +14,23 @@ import { DANGER_BUTTON, OUTLINE_BUTTON } from './CardParts';
 // opens one keeps its buttons disabled until it closes (README.md, "A
 // button whose answer is a modal"). A TALL one is as tall as the window
 // whatever it shows, for one whose content comes in parts and would
-// otherwise grow and move with each.
+// otherwise grow and move with each. ACTIONS go at the right of its
+// button, at the bottom, which CLOSE_LABEL names (Close by default), as
+// Cancel before Apply.
 export function Modal({
   open,
   title,
   tall,
+  closeLabel = 'Close',
+  actions,
   onClose,
   children,
 }: {
   open: boolean;
   title: string;
   tall?: boolean;
+  closeLabel?: string;
+  actions?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -34,8 +40,8 @@ export function Modal({
     if (open && !d.open) d.showModal();
     if (!open && d.open) d.close();
   }, [open]);
-  const shown = useRef({ title, children });
-  if (open) shown.current = { title, children };
+  const shown = useRef({ title, children, closeLabel, actions });
+  if (open) shown.current = { title, children, closeLabel, actions };
 
   return (
     <dialog
@@ -56,9 +62,12 @@ export function Modal({
         <div className="-my-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-1">
           {shown.current.children}
         </div>
-        <button onClick={onClose} className={`mx-6 self-end ${OUTLINE_BUTTON}`}>
-          Close
-        </button>
+        <div className="mx-6 flex items-center justify-end gap-3">
+          <button onClick={onClose} className={OUTLINE_BUTTON}>
+            {shown.current.closeLabel}
+          </button>
+          {shown.current.actions}
+        </div>
       </div>
     </dialog>
   );
