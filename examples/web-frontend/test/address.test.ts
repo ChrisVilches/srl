@@ -1,6 +1,5 @@
-// The selector kept in the address (src/address.ts): written as one query
-// parameter per key term and the text terms together in q, and read back as
-// the same selector.
+// The search kept in the address (src/address.ts): one parameter per
+// filter and the text in q, and read back as the same search.
 //
 // Run with npm test. It is outside src/ so that the page's typecheck, which
 // has no Node types, leaves it out.
@@ -8,63 +7,42 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { queryOfSelector, selectorOfQuery } from '../src/address.ts';
+import { queryOfSearch, searchOfQuery } from '../src/address.ts';
+import { NO_FILTERS, type Filters, type Search } from '../src/filters.ts';
 
-// Each selector, its query, and back.
-const ROUND_TRIPS: [string, string][] = [
-  ['', ''],
-  ['in:grammar', 'in=grammar'],
-  ['in:a,b,c kind:qa', 'in=a,b,c&kind=qa'],
-  // Two terms of one key are two parameters, not one with a comma: and,
-  // not or.
-  ['in:a in:b', 'in=a&in=b'],
-  ['in:a,b in:c', 'in=a,b&in=c'],
-  ['in:a kind:qa in:b', 'in=a&kind=qa&in=b'],
-  ['-in:n5', '-in=n5'],
-  ['in:a -in:a', 'in=a&-in=a'],
-  ['is:new is:active', 'is=new&is=active'],
-  ['in:net/routers', 'in=net%2Frouters'],
-  ['id:k3m9q1.2', 'id=k3m9q1.2'],
-  ['word', 'q=word'],
-  // Words, each searched for on its own, stay words, and a quoted term
-  // keeps its quotes, so that it stays one.
-  ['hello how are you', 'q=hello+how+are+you'],
-  ['"two words"', 'q=%22two+words%22'],
-  ['-"two words" -x', 'q=-%22two+words%22+-x'],
-  ['"std::move"', 'q=%22std::move%22'],
-  ['"in:a"', 'q=%22in:a%22'],
-  ['ものともせず', 'q=%E3%82%82%E3%81%AE%E3%81%A8%E3%82%82%E3%81%9B%E3%81%9A'],
-  ['a&b=c+d', 'q=a%26b%3Dc%2Bd'],
-  ['in:a,b -kind:qa in:c hello "two words"', 'in=a,b&-kind=qa&in=c&q=hello+%22two+words%22'],
+const search = (filters: Partial<Filters>, text = ''): Search => ({ filters: { ...NO_FILTERS, ...filters }, text });
+
+// Each search, its query, and back.
+const ROUND_TRIPS: [Search, string][] = [
+  [search({}), ''],
+  [search({ in: 'grammar' }), 'in=grammar'],
+  [search({ in: 'grammar', source: 'items', kind: 'ja_word' }), 'in=grammar&source=items&kind=ja_word'],
+  [search({ status: 'active', schedule: 'due', leech: 'leech' }), 'is=active&is=due&is=leech'],
+  [search({ in: 'v1.2' }, 'hello you'), 'in=v1.2&q=hello+you'],
+  [search({}, '"std::move" -x'), 'q=%22std::move%22+-x'],
+  [search({}, 'ものともせず'), 'q=%E3%82%82%E3%81%AE%E3%81%A8%E3%82%82%E3%81%9B%E3%81%9A'],
+  [search({}, 'a&b=c+d'), 'q=a%26b%3Dc%2Bd'],
 ];
 
-for (const [selector, query] of ROUND_TRIPS) {
-  test(`${JSON.stringify(selector)} is ?${query} and back`, () => {
-    assert.equal(queryOfSelector(selector), query);
-    assert.equal(selectorOfQuery(query), selector);
-    assert.equal(selectorOfQuery(`?${query}`), selector);
+for (const [searched, query] of ROUND_TRIPS) {
+  test(`${JSON.stringify(searched)} is ?${query} and back`, () => {
+    assert.equal(queryOfSearch(searched), query);
+    assert.deepEqual(searchOfQuery(query), searched);
+    assert.deepEqual(searchOfQuery(`?${query}`), searched);
   });
 }
 
-test('spaces between terms are not kept', () => {
-  assert.equal(queryOfSelector('  in:a   in:b '), 'in=a&in=b');
-  assert.equal(queryOfSelector(' hello   you '), 'q=hello+you');
+test('the text is trimmed', () => {
+  assert.equal(queryOfSearch(search({}, '  hello  ')), 'q=hello');
+  assert.equal(queryOfSearch(search({}, '   ')), '');
 });
 
-test('text goes after the key terms', () => {
-  assert.equal(queryOfSelector('hello in:a "two words" kind:qa'), 'in=a&kind=qa&q=hello+%22two+words%22');
+test('the parameters are read in any order, each is to its menu', () => {
+  assert.deepEqual(searchOfQuery('q=x&is=leech&kind=qa&is=new&in=a'), search({ in: 'a', kind: 'qa', schedule: 'new', leech: 'leech' }, 'x'));
 });
 
-test('the terms come back in the order of the parameters', () => {
-  assert.equal(selectorOfQuery('kind=qa&in=b&in=a'), 'kind:qa in:b in:a');
-  assert.equal(selectorOfQuery('q=x&in=a'), 'x in:a');
-});
-
-test('a query written by hand is read too', () => {
-  assert.equal(selectorOfQuery('in=a%2Cb&q=two%20words'), 'in:a,b two words');
-  assert.equal(selectorOfQuery('q=&in=a'), 'in:a');
-});
-
-test('any other parameter is a key, for srl to say is wrong', () => {
-  assert.equal(selectorOfQuery('text=hello'), 'text:hello');
+test('a menu takes the first value it can, and the rest is left out', () => {
+  assert.deepEqual(searchOfQuery('in=a&in=b&is=new&is=due'), search({ in: 'a', schedule: 'new' }));
+  assert.deepEqual(searchOfQuery('in=a,b&in=my+notes&in=c'), search({ in: 'c' }));
+  assert.deepEqual(searchOfQuery('-in=a&id=k3m9q1&is=sleeping&text=x'), search({}));
 });

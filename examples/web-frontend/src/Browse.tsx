@@ -10,7 +10,7 @@ import { JsonView } from './JsonView';
 import { useView } from './App';
 import { useKeys, useSettled } from './hooks';
 import { queries } from './queries';
-import { SelectorInput, TopBar } from './TopBar';
+import { SearchInput, TopBar } from './TopBar';
 
 // The card browser: the cards of a selector as `srl find` lists them, and any
 // one of them made and shown as studying shows it, without studying it. For
@@ -54,8 +54,7 @@ const CHOICE_DELAY = 300; // ms
 const MOVES: Record<string, number> = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 };
 
 export function Browse() {
-  const { submitted, onSelector } = useView();
-  const { selector } = submitted;
+  const { search, submitted, onSearch } = useView();
 
   // The cards of the selector submitted: of this submission, so that a
   // selector submitted again finds its cards anew. The list is always that
@@ -77,16 +76,16 @@ export function Browse() {
   const selected = params.card ?? null;
   const side = SIDES.find((s) => s === params.side) ?? 'prompt';
   const navigate = useNavigate();
-  const { search } = useLocation();
+  const { search: query } = useLocation();
   const setSelected = (card: string) => {
-    if (card !== selected) navigate({ pathname: browsePath(card, side), search });
+    if (card !== selected) navigate({ pathname: browsePath(card, side), search: query });
   };
   const setSide = (s: Side) => {
-    if (s !== side) navigate({ pathname: browsePath(selected, s), search });
+    if (s !== side) navigate({ pathname: browsePath(selected, s), search: query });
   };
   // Narrow, the button back to the list: it leaves the card, as Browse's
   // tab does, so the address says whether the list or a card is shown.
-  const toList = () => navigate({ pathname: browsePath(null, 'prompt'), search });
+  const toList = () => navigate({ pathname: browsePath(null, 'prompt'), search: query });
   // The chosen card, made with srl cards (queries.made): once, when first
   // chosen, and again only when asked (Make again), when the selector is
   // submitted again, or after its item is saved. It is made once it has
@@ -151,7 +150,7 @@ export function Browse() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar view="browse">
-        <SelectorInput selector={selector} onSelector={onSelector} />
+        <SearchInput search={search} onSearch={onSearch} />
         {list.kind === 'loading' && <Skeleton className="h-4 w-16" />}
         {list.kind === 'ready' && <Counts counts={[[cards.length, cards.length === 1 ? 'card' : 'cards']]} />}
       </TopBar>
@@ -191,7 +190,7 @@ export function Browse() {
               not be among them: the preview waits, with its sides but not
               the card's details. A card chosen among the cards found before
               stays as it was meanwhile, so that its Edit form isn't read
-              again, nor its edits lost, when another selector is submitted. */}
+              again, nor its edits lost, when another search is submitted. */}
           {(selected === null || list.kind !== 'error') && (
             <Preview
               loading={selected !== null && list.kind === 'loading'}
@@ -327,7 +326,7 @@ function Preview({
   if (missing !== null) {
     return (
       <Notice>
-        No card <code className="font-mono">{missing}</code> is among the cards of this selector. Choose another one.{' '}
+        No card <code className="font-mono">{missing}</code> is among the cards of this search. Choose another one.{' '}
         <Key>↑</Key>
         <Key>↓</Key>
       </Notice>

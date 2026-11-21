@@ -79,56 +79,60 @@ macOS and Windows (it is tried on Linux only).
   the page waits for, such as the cards of Browse, an item to edit or what
   Add needs, is shown as a skeleton, grey bars laid out as it will be, in
   place of a text saying it is loading.
-- The selector can be changed in the page, and the X at the right of its
-  box, shown while the box holds text, empties it and applies no
-  selector, every card; the counters at the top are the
+- The cards are chosen with a **search**: the filters, set with menus,
+  and a text. The page never shows or takes a selector: it makes the one
+  srl gets from the search (`src/filters.ts`). The page has one search,
+  the same in Study and Browse: submitting it in either changes it in
+  both, as the other view finds when it is shown. The counters at the top are the
   cards reviewed today, the new ones among them, and the Again ratings,
-  of every card whatever the selector, as `srl stats` counts them: read
+  of every card whatever the search, as `srl stats` counts them: read
   when Study is shown and again after each review (see "What srl
   answers"), so a reload keeps them and they include reviews recorded
-  elsewhere. The
-  page has one selector, the same in Study and Browse: submitting it in
-  either changes it in both, as the other view finds when it is shown.
-  The selector
-  submitted is kept in the address's query, one parameter per key term,
-  `key:value` as `key=value` (a negated term puts its `-` before the
-  name), and its text terms together, as written, in one `q`, after the
-  keys: `in:a,b -kind:qa hello "two words"` is
-  `?in=a,b&-kind=qa&q=hello+%22two+words%22`, and `in:a in:b` is
-  `?in=a&in=b`. Reloading the page rebuilds the selector from the
-  parameters, in their order, whichever view the address shows, and an
-  address with a selector can be bookmarked or written by hand; without
-  one, the page starts with no selector, every card. The address is the
-  only place a selector comes from: `srl-web` takes none.
-- The **Filters** button (sliders), at the right of the selector box,
-  writes the selector with menus, for those who would rather not type
-  one: Collection, Source, Kind, Status and Schedule, each with one value
-  or Any, and **Leeches only**. Collection offers the `in` names of every
-  collection, each once (folders and file names, as `srl collections
-  --json` gives them), since `in:` takes those; a name `in:` can't take,
-  with a space or a comma, isn't offered. Source and Kind offer what `srl
-  sources` and `srl kinds` list, read when the filters open and kept as
-  Add's are; Status, Schedule and Leeches only are `is:`'s values, which
-  the page knows. As in Add, the menus wait for all of it, shown as one
-  skeleton of the whole form, and srl's first error, with Try again, is
-  shown in their place. The menus show the box's text, submitted or not: each
-  reads the first term of its key with one value and no `-`, and the
-  menus of `is:` the first `is:` with one of their values. **Apply**
-  submits the box's text with those terms changed, taken out for Any, or
-  added after the rest, and every other term, such as text, `-in:x`,
-  `in:a,b` or a second `in:`, left as written. **Clear** sets every menu
-  to Any. The rules are `src/filters.ts`.
+  elsewhere.
+- The **box** at the top is the text: words the items must contain, in
+  any field, ignoring case. Each word is searched for on its own, as
+  text whatever it looks like (`in:x` or `-x` too): srl gets each in
+  double quotes, and a double quote separates words, as a space does.
+  Enter submits it, and the X at the right of the box, shown while it
+  holds text, empties it and submits no text, keeping the filters.
+- The **Filters** button (sliders), at the right of the box, opens the
+  filters: Collection, Source, Kind, Status and Schedule, each with one
+  value or Any, and **Leeches only**. Each one set is a term of the
+  selector, so a card must match them all. Collection offers the `in`
+  names of every collection, each once (folders and file names, as `srl
+  collections --json` gives them), since `in:` takes those; a name `in:`
+  can't take, with a space or a comma, isn't offered. Source and Kind
+  offer what `srl sources` and `srl kinds` list, read when the filters
+  open and kept as Add's are; Status, Schedule and Leeches only are
+  `is:`'s values, which the page knows. As in Add, the menus wait for all
+  of it, shown as one skeleton of the whole form, and srl's first error,
+  with Try again, is shown in their place. **Apply** submits the filters
+  with the box's text, as Enter would; **Clear** sets every menu to Any,
+  and closing the filters without Apply changes nothing. While any filter
+  is set, the button is filled and shows how many, since nothing else on
+  the page says so.
+- The search submitted is kept in the address's query: one parameter per
+  filter set, named by its key, in the order of the menus, then the text,
+  as typed, in `q`. Collection `grammar`, Status `active`, Schedule `due`
+  and the text `hello you` are `?in=grammar&is=active&is=due&q=hello+you`.
+  Reloading the page rebuilds the search from the parameters, whichever
+  view the address shows, and an address with a search can be bookmarked
+  or written by hand: a menu takes the first parameter of its key whose
+  value it can take (for `is`, one of its values), and any other
+  parameter is left out. Without one, the page starts with no search,
+  every card. The address is the only place a search comes from:
+  `srl-web` takes none.
 - Each view has its own path: `/` for Study, `/browse` and `/add`. The
-  address is the only place the view, the selector and Browse's card and
+  address is the only place the view, the search and Browse's card and
   side are kept: the page shows whatever address it is on, and changing
   any of them goes to another address. So back and forward go through
-  them all, and the page follows: coming back to another selector applies
-  it as if submitted, so the box shows it and the cards are found or
-  asked for again. Switching views with the tabs, submitting another
-  selector (or emptying the box with its X), choosing a card in Browse
+  them all, and the page follows: coming back to another search applies
+  it as if submitted, so the box and the filters show it and the cards
+  are found or asked for again. Switching views with the tabs, submitting another
+  search (or emptying the box with its X), choosing a card in Browse
   and turning it to another side each add to the browser's history. Doing again what the address already shows, such as
-  submitting its selector or clicking the side shown, adds nothing. A
-  tab goes to its view's path, keeping the selector: Browse's tab goes
+  submitting its search or clicking the side shown, adds nothing. A
+  tab goes to its view's path, keeping the search: Browse's tab goes
   to the list, with no card chosen. A view starts anew each time it is
   shown, and what it had is gone once it is left (see "Routing the
   usual way"); leaving with text typed and not saved, in Add or in
@@ -137,7 +141,7 @@ macOS and Windows (it is tried on Linux only).
   dialog. Leaving Study while `srl next` makes a card, or Browse while a
   card is made, stops `srl` and the kind program making it. The name
   srl at the left of the top bar links to the root, loading the page
-  anew on the study view with the selector cleared.
+  anew on the study view with the search cleared.
 - Dark, or light with the button at the right of the top bar, which
   shows the theme it switches to: a sun in dark, a moon in light. The choice
   is kept in the browser's localStorage, not taken from the system's
@@ -148,7 +152,7 @@ It also has a **card browser** (the Browse tab, or `/browse` in the
 address), for seeing what a store holds and how a kind's cards look, such
 as how `ja_word` marks words, without studying:
 
-- It lists the cards of a selector as `srl find` does, in the order they
+- It lists the cards of the search as `srl find` does, in the order they
   are written and under the name of each collection: each card's ID,
   kind (unless built in), status (when not active), place in the schedule
   and whether it is a leech, and the
@@ -178,7 +182,7 @@ as how `ja_word` marks words, without studying:
   JSON only, since Edit shows the item and Details what srl says about
   the card, not the card made from it. A card made stays made when
   another is chosen and when Browse is left and shown again, and a
-  change to the store doesn't make it again; submitting the selector
+  change to the store doesn't make it again; submitting the search
   shown again forgets every card made, as it finds the cards again,
   while submitting another one keeps them, so a card made before shows
   at once. Saving an item forgets its cards, and
@@ -187,19 +191,19 @@ as how `ja_word` marks words, without studying:
   mouse only, so that space and Enter stay free for typing.
 - The chosen card and side are kept in the address, as
   `/browse/CARD/SIDE`, the side left out for Prompt: `/browse/x7k2m9`,
-  `/browse/x7k2m9/edit`, `/browse/x7k2m9/details`, before the selector's query if there is one. Reloading
+  `/browse/x7k2m9/edit`, `/browse/x7k2m9/details`, before the search's query if there is one. Reloading
   the page opens the same card on the same side, and scrolls the list to
   it once the cards are found. Back turns the card back to the side it
-  was on before, and back to the card it was on before another selector
+  was on before, and back to the card it was on before another search
   was submitted. The list always scrolls the chosen card to its
-  middle, whether after a reload or when choosing another with the keys. A card that isn't among the selector's cards,
+  middle, whether after a reload or when choosing another with the keys. A card that isn't among the search's cards,
   such as one whose item was deleted, is said so in place of the card,
   and an unknown side is Prompt.
 - On a narrow screen, such as a phone's, the list and the card don't fit
   side by side: the list takes the page until a card is chosen, and the
   card then takes it, with a **← Cards** button back to the list, which
   is as it was left, scrolled where it was. The button leaves the card,
-  going to `/browse` with the selector as Browse's tab does, so the address always says whether the list or a
+  going to `/browse` with the search as Browse's tab does, so the address always says whether the list or a
   card is shown. Which of the two layouts shows is up to the page's width only,
   so widening or narrowing the window moves between them as it goes.
 - It records nothing: no review, no suspension. Studying starts only when
@@ -222,7 +226,7 @@ and Draft as srl has the item, as read or as last saved, and stays on
 Edit. Choosing another card, turning to another side or leaving Browse
 while the fields or Draft differ from the item as srl has it asks
 first, in a dialog, whether to leave and lose the edits; submitting
-another selector doesn't, since the form stays.
+another search doesn't, since the form stays.
 
 It also **adds items** (the Add tab, or `/add`), one at a time:
 
@@ -302,7 +306,7 @@ srl-web
 
 `srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open]`
 serves on `http://localhost:4317/` and opens the browser. To start on a
-selector, open its address, such as
+search, open its address, such as
 `http://localhost:4317/?in=grammar`, or bookmark it. `--dir` is given
 to every `srl` command it runs; without it, `srl` finds the store as
 always (see [docs/store.md](../../docs/store.md), "Finding the store"),
@@ -380,11 +384,7 @@ program making the card, with every process it started (see
 answer no longer wanted stops being made.
 
 When `srl` fails, the route answers with `{"error": MESSAGE}`, `MESSAGE`
-being what `srl` printed, and the page shows it. Under every error about
-the selector (a message with `invalid selector term`, which starts every
-such error of `srl`), whatever the error, it shows the same guide to
-writing a selector, `src/SelectorHelp.tsx`: the rules, and examples of
-common selectors. The selector is never changed.
+being what `srl` printed, and the page shows it.
 
 Every dialog of the page is `src/Modal.tsx`, the browser's own `<dialog>`.
 Radix UI's dialog, say, would need the `Content-Security-Policy` below to
@@ -432,10 +432,9 @@ npm run dev       # Vite with hot reload on :5173, the API on :4318
 npm runs it in this folder, so choose the store with `SRL_DIR`, or `srl`
 uses the default store. `npm run build` checks the types and builds
 `dist/`. `npm test` runs the tests of `test/` with Node's own test
-runner: how the selector is written in the address's query and read back
-from it, and what the filters read from a selector and write back, among
-others. Node finds a module of `src/` that another imports only by its
-whole name, `./address.ts`, which `tsconfig.json` allows.
+runner: how the search is written in the address's query and read back
+from it, and the selector srl gets for it, among others. Node finds a module of `src/` that another imports only by its
+whole name, `./filters.ts`, which `tsconfig.json` allows.
 
 ### The server never blocks
 
@@ -478,10 +477,10 @@ the user typed uses it too.
 What a view shows from srl must be the answer for what its address asks
 now, whatever order srl's answers come in. So what the views read is read
 with TanStack Query's `useQuery`, kept by what was asked: Browse's cards
-by the selector submitted and the cards it made by their ID, Add's kinds,
+by the selector of the search submitted and the cards it made by their ID, Add's kinds,
 collections and notes, a card's details and history and an
 item to edit by their ID, Study's counts, and the `--on-change`
-program's status. A list that comes late for a selector submitted before
+program's status. A list that comes late for a search submitted before
 never replaces the one asked for. Every read is in `src/queries.ts`, its
 key, what it asks and how, so that two views asking the same thing share
 it (Add and Edit share the kinds). Read what a view shows the same way,
@@ -523,7 +522,7 @@ stops a request no longer wanted.
 ### Where the page is: the address, through the router
 
 Where the page is, what back should undo, is kept in the address and
-nowhere else: the view, the selector, Browse's card and side. Anything
+nowhere else: the view, the search, Browse's card and side. Anything
 new of that kind, such as another view, a part of a view to go to, or
 a filter, goes there too, in the path or the query (`src/address.ts`
 lists them all). It follows one set of rules, so that every part works
@@ -541,7 +540,7 @@ the same way with back, forward, reload and bookmarks:
   step through everything shown, such as each card chosen in Browse,
   with ↑/↓ or the mouse. Going to the address already shown adds
   nothing: `<Link>` replaces by itself, and `navigate()` needs a check,
-  as `setSelected` and `setSide` in `src/Browse.tsx` and `onSelector` in
+  as `setSelected` and `setSide` in `src/Browse.tsx` and `onSearch` in
   `src/App.tsx` do.
 - **What follows from the address runs because the address changed**, not
   in the handler that changes it. A view loads its cards when the
@@ -549,7 +548,7 @@ the same way with back, forward, reload and bookmarks:
   back and forward load them as submitting does.
 - **A new view is a route.** Add it to the routes of `src/main.tsx` and
   to `VIEW_PATHS` in `src/address.ts`, which its tab links to. It gets
-  the selector from App with `useView()`.
+  the search from App with `useView()`.
 
 What isn't where the page is stays in React state: data from srl, the
 text of a form, the study session, an open dialog, the theme. Back

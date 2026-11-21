@@ -13,13 +13,18 @@ so you can't run it for them. The `srl` repository's `examples/` has two:
 
 | Frontend | Where | Needs |
 |---|---|---|
-| `srl-web [SELECTOR]` | the browser, with Markdown rendered | Node.js; installed with npm from `examples/web-frontend/` |
+| `srl-web` | the browser, with Markdown rendered | Node.js; installed with npm from `examples/web-frontend/` |
 | `srl-tui [SELECTOR]` | the terminal, with Markdown rendered | uv; installed with `uv tool install` from `examples/python-frontend/` |
 
 ```sh
-srl-web                     # every active card
-srl-web in:grammar          # only collections in a folder named grammar
+srl-tui                     # every active card
+srl-tui in:grammar          # only collections in a folder named grammar
 ```
+
+`srl-web` chooses the cards in the page: a text to search for, and
+filters (collection, source, kind, status, schedule, leeches) set with
+menus. The search is kept in its address, so
+`http://localhost:4317/?in=grammar` starts on it.
 
 For each card, space or Enter shows the answer, then the context (the
 note the item names with `see`; none for an item without `see`); `1`–`4` records the

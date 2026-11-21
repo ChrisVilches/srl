@@ -66,7 +66,7 @@ export function Modal({
 
 // Asks before going to another path while UNSAVED, since the form showing
 // it goes with its view: Leave goes on, and closing the modal stays.
-// WHAT says what would be lost. Another selector, which keeps the path,
+// WHAT says what would be lost. Another search, which keeps the path,
 // isn't asked about. Reloading or closing the page, which the router never
 // sees, is asked about by the browser, in its own words (beforeunload).
 export function UnsavedGuard({ unsaved, what }: { unsaved: boolean; what: string }) {

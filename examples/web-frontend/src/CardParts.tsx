@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import type { FoundCard, ShownCard } from './api';
 import { Markdown } from './Markdown';
-import { isSelectorError, SelectorHelp } from './SelectorHelp';
 
 // Every button changes color on hover only while it is enabled (`enabled:hover:`),
 // so one disabled while srl works, or until its form is complete, doesn't look
@@ -183,7 +182,6 @@ export function ErrorView({ message, onRetry }: { message: string; onRetry: () =
       <button onClick={onRetry} className={`self-start ${OUTLINE_BUTTON}`}>
         Try again
       </button>
-      {isSelectorError(message) && <SelectorHelp />}
     </div>
   );
 }

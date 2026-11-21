@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { VIEW_PATHS, type View } from './address';
+import type { Search } from './filters';
 import { QUIET_BUTTON } from './CardParts';
 import { FilterButton } from './Filters';
 import { currentTheme, setTheme } from './theme';
@@ -10,12 +11,12 @@ import { currentTheme, setTheme } from './theme';
 // The bar at the top of each view: the switch between views, then the
 // view's own controls. It spans the whole window in every view, however
 // wide the view's content is, so it doesn't change width between tabs. The
-// name links to the root, the study view with no selector in the address,
+// name links to the root, the study view with no search in the address,
 // and loads the page anew. Wide (md and up) it is one row; narrow, the
 // name, the tabs and the theme button make the first row and the view's
 // controls the second.
 //
-// A tab is a link to its view's path, keeping the selector, and opens it in
+// A tab is a link to its view's path, keeping the search, and opens it in
 // a new tab when clicked with a modifier or the middle button.
 export function TopBar({ view, children }: { view: View; children: ReactNode }) {
   const { search } = useLocation();
@@ -72,22 +73,16 @@ function ThemeButton() {
   );
 }
 
-// The selector box of a view. Submitting it calls ON_SELECTOR. Its
-// placeholder is a selector that works, the same in every view. While it
-// holds text, an X at its right empties it and, if a selector is
-// submitted, submits none, every card, keeping the box focused to type
-// another. The filters' button, at its right, writes the selector with
-// menus, from the box's text (src/Filters.tsx).
-export function SelectorInput({
-  selector,
-  onSelector,
-}: {
-  selector: string;
-  onSelector: (selector: string) => void;
-}) {
-  const [draft, setDraft] = useState(selector);
+// The search of a view (src/filters.ts): a box for the text, the words the
+// items must contain, and at its right the filters' button (src/Filters.tsx).
+// Submitting the box, or applying the filters, calls ON_SEARCH with both,
+// the box's text as it is. While the box holds text, an X at its right
+// empties it and, if a text is submitted, submits none, keeping the
+// filters and the box focused to type another.
+export function SearchInput({ search, onSearch }: { search: Search; onSearch: (search: Search) => void }) {
+  const [draft, setDraft] = useState(search.text);
   const input = useRef<HTMLInputElement>(null);
-  useEffect(() => setDraft(selector), [selector]);
+  useEffect(() => setDraft(search.text), [search.text]);
 
   return (
     <div className="flex min-w-48 flex-1 items-center gap-1">
@@ -96,36 +91,39 @@ export function SelectorInput({
         onSubmit={(event) => {
           event.preventDefault();
           input.current?.blur();
-          onSelector(draft.trim());
+          onSearch({ ...search, text: draft.trim() });
         }}
       >
         <input
           ref={input}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="is:young in:grammar"
+          aria-label="Search the items' text"
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
-          className="w-full rounded-md border border-stone-300 bg-transparent py-1.5 pr-9 pl-3 font-mono text-sm outline-none placeholder:text-stone-400 focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
+          className="w-full rounded-md border border-stone-300 bg-transparent py-1.5 pr-9 pl-3 text-sm outline-none focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
         />
         {draft !== '' && (
           <button
             type="button"
             onClick={() => {
               setDraft('');
-              if (selector !== '') onSelector('');
+              if (search.text !== '') onSearch({ ...search, text: '' });
               input.current?.focus();
             }}
-            aria-label="Clear the selector"
-            title="Clear the selector"
+            aria-label="Clear the text"
+            title="Clear the text"
             className="absolute inset-y-0 right-1 my-auto h-fit rounded-md p-1 text-stone-400 hover:bg-stone-200 hover:text-stone-600 dark:hover:bg-stone-800 dark:hover:text-stone-300"
           >
             <XMarkIcon className="size-4" aria-hidden />
           </button>
         )}
       </form>
-      <FilterButton selector={draft.trim()} onSelector={onSelector} />
+      <FilterButton
+        filters={search.filters}
+        onFilters={(filters) => onSearch({ filters, text: draft.trim() })}
+      />
     </div>
   );
 }

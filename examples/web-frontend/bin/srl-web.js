@@ -16,7 +16,7 @@ import { createSrlServer } from '../server/server.js';
 const USAGE = `usage: srl-web [--port N] [--dir DIR] [--on-change PROGRAM] [--no-open]
 
 Starts a web viewer for srl on http://localhost:PORT and opens it. The
-selector is chosen in the page and kept in its address, as
+search is chosen in the page and kept in its address, as
 http://localhost:PORT/?in=grammar&q=hello, which can be bookmarked.
 
   --port N              the port to listen on (default 4317; 0 picks a free one)

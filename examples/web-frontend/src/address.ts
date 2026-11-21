@@ -1,14 +1,15 @@
-// The page's address: its path names the view, its query the selector.
+// The page's address: its path names the view, its query the search.
 // Each view is a route (src/main.tsx):
 //
 //   /                     study, as is any path not below
 //   /browse[/CARD[/SIDE]] the card browser, with Browse's own parts (src/Browse.tsx)
 //   /add                  adding items
 //
-// The query holds the selector last submitted, so that reloading the page
-// keeps it: one parameter per key term, and the text terms together in q, as
-// written. in:a,b -kind:qa hello "two words" is
-// ?in=a,b&-kind=qa&q=hello+%22two+words%22. Switching views keeps the query.
+// The query holds the search last submitted (src/filters.ts), so that
+// reloading the page keeps it: one parameter per filter, named by its key,
+// in the order of the menus, then the text, as typed, in q. Collection
+// grammar, status active, schedule due and the text "hello you" are
+// ?in=grammar&is=active&is=due&q=hello+you. Switching views keeps the query.
 //
 // The address is the only place this state is kept: the page reads it from
 // the address on every render, through the router (react-router), and
@@ -17,47 +18,43 @@
 // rules of README.md, "Where the page is: the address, through the router",
 // when adding to it.
 
+// With its extension, for Node to find it in npm test.
+import { isMenuOf, keyOf, MENUS, NO_FILTERS, writable, type Search } from './filters.ts';
+
 // The views: studying (the page's start), the card browser and adding items.
 export type View = 'study' | 'browse' | 'add';
 
 // The path of each view, which its tab links to.
 export const VIEW_PATHS: Record<View, string> = { study: '/', browse: '/browse', add: '/add' };
 
-// The key term KEY:VALUE, negated or not, as the parameter KEY=VALUE, the -
-// going to its name; null for a text term (docs/selectors.md: a term is a
-// key term when it starts with lowercase letters and a colon).
-function keyParam(term: string): [string, string] | null {
-  const keyed = /^(-?[a-z]+):(.*)$/s.exec(term);
-  return keyed ? [keyed[1], keyed[2]] : null;
-}
-
-// The terms of a selector, as docs/selectors.md splits them: by spaces, but a
-// quoted term, which runs to the next ", spaces included.
-export const terms = (selector: string) => selector.match(/-?"[^"]*"?|\S+/g) ?? [];
-
 // Commas and colons are left as they are, and spaces are +, so that the
-// address reads as the selector does.
+// address reads as the search does.
 const encode = (s: string) =>
   encodeURIComponent(s).replace(/%2C/gi, ',').replace(/%3A/gi, ':').replace(/%20/g, '+');
 
-// The selector of the query QUERY, its terms in the order of the
-// parameters; empty, every card, if there is none. q is selector text, read
-// as written. Every other parameter is a key, even one srl doesn't know,
-// which srl then says is wrong.
-export function selectorOfQuery(query: string): string {
-  return [...new URLSearchParams(query)]
-    .map(([name, value]) => (name === 'q' ? value.trim() : `${name}:${value}`))
-    .filter((term) => term !== '')
-    .join(' ');
+// The search of the query QUERY: no filter and no text if it has none. A
+// menu takes the first parameter of its key whose value it can take, and
+// the menus of is: the first is of one of their values; every other
+// parameter is left out.
+export function searchOfQuery(query: string): Search {
+  const filters = { ...NO_FILTERS };
+  let text = '';
+  for (const [name, value] of new URLSearchParams(query)) {
+    if (name === 'q') {
+      if (text === '') text = value.trim();
+      continue;
+    }
+    const menu = name === 'is' ? isMenuOf(value) : MENUS.find((m) => keyOf(m) === name);
+    if (menu && filters[menu] === null && writable(value)) filters[menu] = value;
+  }
+  return { filters, text };
 }
 
-// The query of SELECTOR, without its ?: empty for the empty selector. Its
-// key terms, in order, then its text terms together in q, as written.
-export function queryOfSelector(selector: string): string {
-  const all = terms(selector);
-  const keys = all.map(keyParam).filter((param) => param !== null);
-  const text = all.filter((term) => keyParam(term) === null).join(' ');
-  return [...keys, ...(text === '' ? [] : [['q', text]])]
-    .map(([name, value]) => `${encode(name)}=${encode(value)}`)
-    .join('&');
+// The query of SEARCH, without its ?: empty for no filter and no text.
+export function queryOfSearch({ filters, text }: Search): string {
+  const params: [string, string][] = MENUS.flatMap((menu) =>
+    filters[menu] === null ? [] : [[keyOf(menu), filters[menu]] as [string, string]],
+  );
+  if (text.trim() !== '') params.push(['q', text.trim()]);
+  return params.map(([name, value]) => `${encode(name)}=${encode(value)}`).join('&');
 }

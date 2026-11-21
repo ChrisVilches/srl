@@ -3,31 +3,42 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { ErrorView, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
-import { IS_VALUES, NO_FILTERS, readFilters, writable, writeFilters, type Filters, type Menu } from './filters';
+import { filterCount, IS_VALUES, NO_FILTERS, writable, type Filters, type Menu } from './filters';
 import { Modal } from './Modal';
 import { queries } from './queries';
 
-// A button that opens the filters (src/filters.ts) of SELECTOR, the text of
-// the selector box. Apply calls ON_SELECTOR with the selector they write.
-export function FilterButton({ selector, onSelector }: { selector: string; onSelector: (selector: string) => void }) {
+// A button that opens the menus of FILTERS, the page's (src/filters.ts).
+// Apply calls ON_FILTERS with what they are set to. While any filter is
+// set, the button is filled and shows how many, since nothing else on the
+// page says so.
+export function FilterButton({ filters, onFilters }: { filters: Filters; onFilters: (filters: Filters) => void }) {
   const [open, setOpen] = useState(false);
+  const count = filterCount(filters);
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Filters"
-        title="Filters: write the selector with menus"
-        className={`shrink-0 py-1.5 ${QUIET_BUTTON}`}
+        aria-label={count === 0 ? 'Filters' : `Filters, ${count} set`}
+        title={count === 0 ? 'Filters' : `Filters: ${count} set`}
+        className={`relative shrink-0 py-1.5 ${QUIET_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'}`}
       >
         <AdjustmentsHorizontalIcon className="size-5" aria-hidden />
+        {count > 0 && (
+          <span
+            aria-hidden
+            className="absolute -top-1.5 -right-1.5 flex size-4.5 items-center justify-center rounded-full bg-stone-900 text-[11px] leading-none font-semibold text-white dark:bg-stone-100 dark:text-stone-900"
+          >
+            {count}
+          </span>
+        )}
       </button>
       <FilterDialog
         open={open}
-        selector={selector}
-        onApply={(filters) => {
+        filters={filters}
+        onApply={(set) => {
           setOpen(false);
-          onSelector(writeFilters(selector, filters));
+          onFilters(set);
         }}
         onClose={() => setOpen(false)}
       />
@@ -49,26 +60,27 @@ const LABELS: Record<Exclude<Menu, 'leech'>, string> = {
 const inNames = (collections: { in: string[] }[]) =>
   [...new Set(collections.flatMap((collection) => collection.in))].filter(writable).sort((a, b) => a.localeCompare(b));
 
-// The menus, set from the selector each time it opens. What they offer is
-// read from srl when it opens, and kept as everything read is (src/main.tsx),
-// so it is the same as Add reads. The menus wait for all of it, shown as one
+// The menus, set to the page's filters, APPLIED, each time it opens: what
+// they are set to counts only once applied. What they offer is read from
+// srl when it opens, and kept as everything read is (src/main.tsx), so it
+// is the same as Add reads. The menus wait for all of it, shown as one
 // skeleton until then, as Add's form does; the first error is shown in
 // their place.
 function FilterDialog({
   open,
-  selector,
+  filters: applied,
   onApply,
   onClose,
 }: {
   open: boolean;
-  selector: string;
+  filters: Filters;
   onApply: (filters: Filters) => void;
   onClose: () => void;
 }) {
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [filters, setFilters] = useState<Filters>(applied);
   useEffect(() => {
-    if (open) setFilters(readFilters(selector));
-  }, [open, selector]);
+    if (open) setFilters(applied);
+  }, [open, applied]);
   const collections = useQuery({ ...queries.collections(), enabled: open, select: inNames });
   const sources = useQuery({ ...queries.sources(), enabled: open });
   const kinds = useQuery({ ...queries.kinds(), enabled: open });
@@ -111,9 +123,6 @@ function FilterDialog({
         />
         Leeches only
       </label>
-      <p className="text-xs text-stone-400">
-        The other terms of the selector, such as text, are kept as written.
-      </p>
       <div className="flex gap-3">
         <button onClick={() => onApply(filters)} className={`px-5 py-2 ${MAIN_BUTTON}`}>
           Apply
@@ -126,8 +135,8 @@ function FilterDialog({
   );
 }
 
-// The filters while srl reads what they offer: the menus, the checkbox, the
-// note and the buttons, as grey bars.
+// The filters while srl reads what they offer: the menus, the checkbox and
+// the buttons, as grey bars.
 function FiltersSkeleton() {
   return (
     <Loading label="Reading the collections, sources and kinds" className="flex flex-col gap-4">
@@ -140,7 +149,6 @@ function FiltersSkeleton() {
         ))}
       </div>
       <Skeleton className="h-5 w-32" />
-      <Skeleton className="h-4 w-80 max-w-full" />
       <div className="flex gap-3">
         <Skeleton className="h-11 w-20" />
         <Skeleton className="h-9 w-16" />
@@ -149,8 +157,8 @@ function FiltersSkeleton() {
   );
 }
 
-// A menu of OPTIONS and Any, null. A VALUE that isn't among them, as one typed
-// in the box, is offered too, so that it isn't lost.
+// A menu of OPTIONS and Any, null. A VALUE that isn't among them, as one
+// written in the address by hand, is offered too, so that it isn't lost.
 function Select({
   value,
   options,

@@ -3,21 +3,23 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router';
 
-import { queryOfSelector, selectorOfQuery } from './address';
+import { queryOfSearch, searchOfQuery } from './address';
 import { api, type Card, type Rating, type Today } from './api';
 import { CardDetailsDialog } from './CardDetails';
 import { CardBadges, CardFace, Counts, DANGER_BUTTON, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Waiting, WITH_KEY } from './CardParts';
+import { selectorOfSearch, type Search } from './filters';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
 import { queries } from './queries';
-import { SelectorInput, TopBar } from './TopBar';
+import { SearchInput, TopBar } from './TopBar';
 
-// What App gives the view of its route: the page's selector, one for every
-// view, with how to submit another.
+// What App gives the view of its route: the page's search, one for every
+// view, with how to submit another, and the selector srl gets for it.
 export type ViewContext = {
+  search: Search;
   submitted: Submitted;
-  onSelector: (selector: string) => void;
+  onSearch: (search: Search) => void;
 };
 
 export const useView = () => useOutletContext<ViewContext>();
@@ -56,43 +58,44 @@ async function nextPhase(selector: string, signal: AbortSignal): Promise<Phase> 
 // The page: the view of the route (src/main.tsx), which is mounted while
 // its route is shown, and the error of the --on-change program.
 export default function App() {
-  const { pathname, search } = useLocation();
+  const { pathname, search: query } = useLocation();
 
-  // The selector in the address, or else none, which is every card, with
-  // the number of times a selector was submitted again, so that submitting
-  // the same one again finds its cards again.
-  const selector = selectorOfQuery(search);
+  // The search in the address, or else none, which is every card, and its
+  // selector, with the number of times a search was submitted again, so
+  // that submitting the same one again finds its cards again.
+  const search = useMemo(() => searchOfQuery(query), [query]);
+  const selector = selectorOfSearch(search);
   const [n, setN] = useState(0);
   const submitted = useMemo<Submitted>(() => ({ selector, n }), [selector, n]);
-  // Submitting another selector goes to its address, a new entry of the
+  // Submitting another search goes to its address, a new entry of the
   // browser's history, which is a new submission by itself; submitting the
   // one there again stays on it, and counts. Only one of the two changes,
   // never both: the router changes the address a render after React
   // changes N, so changing both would make a render with the old selector
   // and the new N, which would read the old selector's cards again.
   const navigate = useNavigate();
-  const onSelector = useCallback(
-    (next: string) => {
-      const search = queryOfSelector(next);
-      if (search === queryOfSelector(selector)) {
+  const onSearch = useCallback(
+    (next: Search) => {
+      const nextQuery = queryOfSearch(next);
+      if (nextQuery === queryOfSearch(search)) {
         setN((n) => n + 1);
       } else {
-        navigate({ pathname, search });
+        navigate({ pathname, search: nextQuery });
       }
     },
-    [navigate, pathname, selector],
+    [navigate, pathname, search],
   );
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      <Outlet context={{ submitted, onSelector } satisfies ViewContext} />
+      <Outlet context={{ search, submitted, onSearch } satisfies ViewContext} />
       <OnChangeError />
     </div>
   );
 }
 
 export function Study() {
-  const { submitted, onSelector } = useView();
+  const { search, submitted, onSearch } = useView();
   const { selector } = submitted;
   const [phase, setPhase] = useState<Phase>(() => ({ kind: 'loading', since: performance.now() }));
   // The counts are the study day's, from srl: they include reviews recorded
@@ -216,7 +219,7 @@ export function Study() {
   return (
     <div className="flex min-h-screen flex-col">
       <TopBar view="study">
-        <SelectorInput selector={selector} onSelector={onSelector} />
+        <SearchInput search={search} onSearch={onSearch} />
         {today && <StatsLine stats={today} />}
       </TopBar>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
@@ -404,15 +407,7 @@ function DoneView({ selector, today, onCheck }: { selector: string; today: Today
     <div className="m-auto flex flex-col items-center gap-4 text-center">
       <CheckIcon aria-hidden className="h-10 w-10" />
       <h1 className="text-xl font-semibold">Nothing left to study</h1>
-      <p className="text-stone-500">
-        {selector ? (
-          <>
-            No card is due for <code className="font-mono">{selector}</code>.
-          </>
-        ) : (
-          'No card is due.'
-        )}
-      </p>
+      <p className="text-stone-500">{selector ? 'No card is due for this search.' : 'No card is due.'}</p>
       {today && <StatsLine stats={today} />}
       <button onClick={onCheck} className={OUTLINE_BUTTON}>
         Check again
