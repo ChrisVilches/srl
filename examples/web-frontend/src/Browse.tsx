@@ -10,7 +10,7 @@ import { JsonView } from './JsonView';
 import { useView } from './App';
 import { useKeys, useSettled } from './hooks';
 import { queries } from './queries';
-import { SearchInput, TopBar } from './TopBar';
+import { SearchInput, TopBar, VIEW_OVERSCROLL } from './TopBar';
 
 // The card browser: the cards of a selector as `srl find` lists them, and any
 // one of them made and shown as studying shows it, without studying it. For
@@ -163,7 +163,7 @@ export function Browse() {
           the card its Edit form. */}
       <main className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] lg:grid-cols-[26rem_minmax(0,1fr)]">
         <div
-          className={`col-start-1 row-start-1 overflow-y-auto border-stone-200 [scrollbar-gutter:stable] lg:visible lg:border-r dark:border-stone-800 ${
+          className={`col-start-1 row-start-1 overflow-y-auto border-stone-200 [scrollbar-gutter:stable] ${VIEW_OVERSCROLL} lg:visible lg:border-r dark:border-stone-800 ${
             detail ? 'invisible' : ''
           }`}
         >
@@ -179,7 +179,7 @@ export function Browse() {
           )}
         </div>
         <div
-          className={`col-start-1 row-start-1 overflow-y-auto [scrollbar-gutter:stable] lg:visible lg:col-start-2 ${
+          className={`col-start-1 row-start-1 overflow-y-auto [scrollbar-gutter:stable] ${VIEW_OVERSCROLL} lg:visible lg:col-start-2 ${
             detail ? '' : 'invisible'
           }`}
         >

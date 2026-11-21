@@ -158,7 +158,9 @@ macOS and Windows (it is tried on Linux only).
   scrolls, only what is under the bar, in its own box spanning to the
   window's edge, so its scrollbar is there. Study's buttons stay at the
   bottom while the card scrolls under them, and Browse's list and card
-  each scroll on their own (`src/TopBar.tsx`).
+  each scroll on their own (`src/TopBar.tsx`). Scrolling past the end of
+  one stops there, so on a phone the page doesn't move, and its address
+  bar stays.
 - Dark, or light with the button at the right of the top bar, which
   shows the theme it switches to: a sun in dark, a moon in light. The choice
   is kept in the browser's localStorage, not taken from the system's

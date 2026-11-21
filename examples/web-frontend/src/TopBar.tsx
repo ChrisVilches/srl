@@ -23,12 +23,16 @@ import { currentTheme, setTheme } from './theme';
 // the window itself never scrolls, only the view's parts under the bar do,
 // each in its own box spanning to the window's edge or a border, so that its
 // scrollbar is there and not beside the content. The scrollbar's room is
-// kept in each, so the content doesn't shift as it comes and goes.
+// kept in each, so the content doesn't shift as it comes and goes. A swipe
+// or a wheel past either end of one stops there (VIEW_OVERSCROLL) rather
+// than going on to the window, which would hide a phone's address bar, or
+// stretch or bounce the whole page with its top bar.
+export const VIEW_OVERSCROLL = 'overscroll-y-contain';
 
 // The part of Study and Add under the bar, which scrolls, and the column in
 // it, centered, as tall as the part at least, so that something can be put
 // at its bottom with mt-auto.
-export const VIEW_SCROLL = 'min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]';
+export const VIEW_SCROLL = `min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] ${VIEW_OVERSCROLL}`;
 export const VIEW_COLUMN = 'mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 py-8 sm:px-6';
 
 export function TopBar({ view, children }: { view: View; children: ReactNode }) {

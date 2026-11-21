@@ -87,7 +87,10 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
+    // No height of its own: the view's, h-dvh (src/TopBar.tsx). min-h-screen,
+    // 100vh, is the window's height with a phone's address bar hidden, so
+    // while the bar shows, the window could scroll by its height.
+    <div className="bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
       <Outlet context={{ search, submitted, onSearch } satisfies ViewContext} />
       <OnChangeError />
     </div>

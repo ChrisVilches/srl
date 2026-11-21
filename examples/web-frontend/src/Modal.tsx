@@ -56,10 +56,11 @@ export function Modal({
           would be shown when closed too. Its height is the dialog's, less
           the dialog's border; in a tall one, what it shows fills the room
           left, keeping the button at the bottom. Its 4px more above and
-          below keep a focus ring inside it whole. */}
+          below keep a focus ring inside it whole. A swipe past its ends
+          stops there, as in the views (src/TopBar.tsx). */}
       <div className="flex h-full max-h-[calc(100dvh-2rem-2px)] flex-col gap-4 py-6">
         <h2 className="px-6 text-lg font-semibold">{shown.current.title}</h2>
-        <div className="-my-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-1">
+        <div className="-my-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain px-6 py-1">
           {shown.current.children}
         </div>
         <div className="mx-6 flex items-center justify-end gap-3">
