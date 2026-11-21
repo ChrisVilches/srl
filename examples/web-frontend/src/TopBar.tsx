@@ -12,9 +12,11 @@ import { currentTheme, setTheme } from './theme';
 // view's own controls. It spans the whole window in every view, however
 // wide the view's content is, so it doesn't change width between tabs. The
 // name links to the root, the study view with no search in the address,
-// and loads the page anew. Wide (md and up) it is one row; narrow, the
-// name, the tabs and the theme button make the first row and the view's
-// controls the second. Below sm, its gaps and the tabs' padding are
+// and loads the page anew. Wide (md and up) it is one row, the view's
+// controls taking the room between the tabs and the theme button, at its
+// right, unless one of them grows to fill it, as Browse's search box does;
+// narrow, the name, the tabs and the theme button make the first row and
+// the view's controls the second. Below sm, its gaps and the tabs' padding are
 // smaller, so that the first row fits a phone 320 px wide. The theme
 // button's icon ends at the bar's padding, as far from the right as the
 // name is from the left: the button takes as much of the padding as it has
@@ -68,7 +70,9 @@ export function TopBar({ view, children }: { view: View; children: ReactNode }) 
           {tab('stats', 'Stats')}
         </nav>
         {children != null && (
-          <div className="order-last flex w-full flex-wrap items-center gap-x-4 gap-y-2 md:contents">{children}</div>
+          <div className="order-last flex w-full flex-wrap items-center gap-x-4 gap-y-2 md:order-none md:w-auto md:min-w-0 md:flex-1 md:flex-nowrap md:justify-end">
+            {children}
+          </div>
         )}
         <ThemeButton />
       </div>
