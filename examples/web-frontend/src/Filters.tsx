@@ -2,7 +2,7 @@ import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { BAR_ICON_BUTTON, DANGER_BUTTON, ErrorView, Loading, MAIN_BUTTON, QUIET_BUTTON, Skeleton } from './CardParts';
+import { BAR_ICON_BUTTON, DANGER_BUTTON, ErrorView, Loading, MAIN_BUTTON, Skeleton } from './CardParts';
 import { filterCount, IS_VALUES, NO_FILTERS, writable, type Filters, type Menu } from './filters';
 import { Modal } from './Modal';
 import { queries } from './queries';
@@ -10,7 +10,8 @@ import { queries } from './queries';
 // A button that opens the menus of FILTERS, the page's (src/filters.ts).
 // Apply calls ON_FILTERS with what they are set to. While any filter is
 // set, the button is filled and shows how many, since nothing else on the
-// page says so.
+// page says so: inside it, at the left of its icon, so that the icon stays
+// where it is (src/TopBar.tsx).
 export function FilterButton({ filters, onFilters }: { filters: Filters; onFilters: (filters: Filters) => void }) {
   const [open, setOpen] = useState(false);
   const count = filterCount(filters);
@@ -21,17 +22,14 @@ export function FilterButton({ filters, onFilters }: { filters: Filters; onFilte
         onClick={() => setOpen(true)}
         aria-label={count === 0 ? 'Filters' : `Filters, ${count} set`}
         title={count === 0 ? 'Filters' : `Filters: ${count} set`}
-        className={`relative shrink-0 py-1.5 ${QUIET_BUTTON} ${BAR_ICON_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'}`}
+        className={`flex shrink-0 items-center gap-1.5 max-md:-mr-2 ${BAR_ICON_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'}`}
       >
-        <AdjustmentsHorizontalIcon className="size-5" aria-hidden />
         {count > 0 && (
-          <span
-            aria-hidden
-            className="absolute -top-1.5 -right-1.5 flex size-4.5 items-center justify-center rounded-full bg-stone-300 text-[11px] leading-none font-semibold text-stone-700 dark:bg-stone-700 dark:text-stone-200"
-          >
+          <span aria-hidden className="text-sm font-semibold tabular-nums">
             {count}
           </span>
         )}
+        <AdjustmentsHorizontalIcon className="size-5" aria-hidden />
       </button>
       <FilterDialog
         open={open}

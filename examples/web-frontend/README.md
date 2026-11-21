@@ -124,8 +124,8 @@ macOS and Windows (it is tried on Linux only).
   disabled until the menus show. **Clear**, in red at the left of the
   same row, far from them, is shown while any menu is set, applied or
   not, and sets every menu to Any; Cancel, or closing the filters any other way, changes nothing. While any filter
-  is set, the button is filled and shows how many in a grey badge, since nothing else on
-  the page says so.
+  is set, the button is filled and shows how many at the left of its
+  icon, since nothing else on the page says so.
 - The search submitted is kept in the address's query: one parameter per
   filter set, named by its key, in the order of the menus, then the text,
   as typed, in `q`. Collection `grammar`, Status `active`, Schedule `due`

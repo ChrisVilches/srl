@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router';
 
 import { VIEW_PATHS, type View } from './address';
 import type { Search } from './filters';
-import { BAR_ICON_BUTTON, QUIET_BUTTON } from './CardParts';
+import { BAR_ICON_BUTTON } from './CardParts';
 import { FilterButton } from './Filters';
 import { currentTheme, setTheme } from './theme';
 
@@ -15,10 +15,12 @@ import { currentTheme, setTheme } from './theme';
 // and loads the page anew. Wide (md and up) it is one row; narrow, the
 // name, the tabs and the theme button make the first row and the view's
 // controls the second. Below sm, its gaps and the tabs' padding are
-// smaller, and so is the padding of the theme button (BAR_ICON_BUTTON),
-// so that the first row fits a phone 320 px wide. The filters' button, at
-// the right of the second row under it, has the same padding, so that
-// their icons are aligned.
+// smaller, so that the first row fits a phone 320 px wide. The theme
+// button's icon ends at the bar's padding, as far from the right as the
+// name is from the left: the button takes as much of the padding as it has
+// at its sides (BAR_ICON_BUTTON). So does the filters' button while there
+// are two rows, so that its icon, under the theme button's, is aligned
+// with it.
 //
 // A tab is a link to its view's path, keeping the search, and opens it in
 // a new tab when clicked with a modifier or the middle button.
@@ -88,7 +90,7 @@ function ThemeButton() {
       }}
       aria-label={`Switch to the ${other} theme`}
       title={`Switch to the ${other} theme, kept in this browser`}
-      className={`ml-auto py-1.5 ${QUIET_BUTTON} ${BAR_ICON_BUTTON}`}
+      className={`-mr-2 ml-auto ${BAR_ICON_BUTTON}`}
     >
       <Icon className="size-5" aria-hidden />
     </button>
