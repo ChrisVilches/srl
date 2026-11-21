@@ -281,9 +281,13 @@ function StillLoading() {
 // so the page doesn't jump when it comes. LABEL says what is loading to a
 // screen reader. A card has CardSkeleton, which also shows the seconds
 // once the card is slow to come.
+//
+// It is relative so that the label, absolute (sr-only), is placed within
+// it: else it is placed against the page, and one below the fold, such as
+// the calendar's in Stats, makes the page itself scroll while it loads.
 export function Loading({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
   return (
-    <div role="status" aria-busy className={className}>
+    <div role="status" aria-busy className={`relative ${className ?? ''}`}>
       <span className="sr-only">{label}</span>
       {children}
     </div>
