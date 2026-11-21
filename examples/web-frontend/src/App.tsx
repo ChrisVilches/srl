@@ -6,7 +6,7 @@ import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router
 import { queryOfSearch, searchOfQuery } from './address';
 import { api, type Card, type Rating, type Today } from './api';
 import { CardDetailsDialog } from './CardDetails';
-import { CardBadges, CardFace, Counts, DANGER_BUTTON, ErrorView, Key, Loading, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, seconds, Skeleton, useElapsed, WITH_KEY } from './CardParts';
+import { CardBadges, CardFace, CardSkeleton, Counts, DANGER_BUTTON, ErrorView, Key, MAIN_BUTTON, OUTLINE_BUTTON, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
 import { selectorsOfSearch, type Search } from './filters';
 import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
@@ -43,13 +43,6 @@ const RATINGS: { rating: Rating; name: string; style: string }[] = [
 // How long the card shown stays while srl next makes the next one, before
 // the page says it is waiting: most cards come sooner, and swap at once.
 const WAIT_SHOWN_AFTER_MS = 300;
-
-// How long the skeleton of the next card shows before it adds the seconds
-// srl has taken: most cards, and finding none is left, come sooner, so the
-// skeleton alone, in faint colors, comes and goes without a flash. A card
-// slower than this, as one a kind program asks an LLM for, gets the seconds,
-// which say it is still coming.
-const SECONDS_SHOWN_AFTER_MS = 3000;
 
 // How long the ratings wait after the answer shows before they can be
 // pressed, so that a key or a tap pressed twice in a row doesn't rate the
@@ -230,7 +223,7 @@ export function Study() {
         {today && <StatsLine stats={today} />}
       </TopBar>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
-        {phase.kind === 'loading' && <CardSkeleton since={phase.since} />}
+        {phase.kind === 'loading' && <NextCardSkeleton since={phase.since} />}
         {phase.kind === 'error' && (
           <ErrorView message={phase.message} onRetry={() => loadNext(selectors)} />
         )}
@@ -269,30 +262,17 @@ function StatsLine({ stats }: { stats: Today }) {
 }
 
 // The next card while srl makes it, or finds none is left: CardView's
-// shape in Skeleton bars, the card and the bar of buttons, and, once it has
-// taken SECONDS_SHOWN_AFTER_MS since SINCE, the seconds.
-function CardSkeleton({ since }: { since: number }) {
-  const elapsed = useElapsed(since);
+// shape, the card and the bar of buttons.
+function NextCardSkeleton({ since }: { since: number }) {
   return (
-    <Loading label="Loading the next card" className="flex flex-1 flex-col gap-6">
-      <div className="rounded-2xl border border-stone-200 bg-white px-6 pt-4 pb-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="mt-4 mb-3 h-3 w-16" />
-        <Skeleton className="h-6 w-full" />
-        <Skeleton className="mt-2 h-6 w-2/3" />
-      </div>
-      {elapsed >= SECONDS_SHOWN_AFTER_MS && (
-        <p className="text-center text-sm text-stone-500">
-          Still loading… <span className="tabular-nums">{seconds(elapsed)}</span>
-        </p>
-      )}
+    <CardSkeleton since={since}>
       <div className="-mx-4 mt-auto border-t border-stone-200 px-4 py-4 sm:-mx-6 sm:px-6 dark:border-stone-800">
         <div className="flex items-center gap-2">
           <Skeleton className="h-12 flex-1" />
           <Skeleton className="h-12 w-24" />
         </div>
       </div>
-    </Loading>
+    </CardSkeleton>
   );
 }
 

@@ -79,11 +79,10 @@ macOS and Windows (it is tried on Linux only).
   left. Cards that come in under 300 ms replace the last one without it.
   When the card takes over 3 seconds, as when its kind program asks an
   LLM, the skeleton also says it is still loading, with the seconds it
-  has taken (`SECONDS_SHOWN_AFTER_MS` in `src/App.tsx`). Everything else
-  the page waits for, such as the cards of Browse, an item to edit or what
-  Add needs, is shown as a skeleton too, in place of a text saying it is
-  loading; only a card being made in Browse shows a spinner and its
-  seconds from the start.
+  has taken (`SECONDS_SHOWN_AFTER_MS` in `src/CardParts.tsx`). Everything
+  else the page waits for, such as the cards of Browse, a card made in
+  Browse, an item to edit or what Add needs, is shown as a skeleton too,
+  in place of a text saying it is loading.
 - The cards are chosen with a **search**: the filters, set with menus,
   and a text. The page never shows or takes a selector: it makes the one
   srl gets from the search (`src/filters.ts`). The page has one search,
@@ -182,8 +181,9 @@ as how `ja_word` marks words, without studying:
   the list, so they show at once; only the history is read, with `srl
   log`, once a card has stayed chosen for a moment, and again whenever
   the cards are found again.
-- A kind program can take a while: the page counts the seconds while it
-  runs. A card is made once it has stayed chosen
+- Prompt, Revealed and JSON show the card's skeleton from the page's
+  opening until the card is made, with the seconds once it has taken over
+  3 seconds, as Study does. A card is made once it has stayed chosen
   for a moment, so moving through the list makes no card on the way, and
   choosing another card stops the one being made (see "How it works").
   It is made only on a side that shows it, Prompt, Revealed or JSON:
@@ -606,16 +606,6 @@ The rest comes with `src/Modal.tsx`: show the answer in `ResultBox`
 the modal give the focus back to the form when it closes.
 
 ## TODO
-
-- In the card browser, Prompt, Revealed and JSON show nothing under the
-  sides at first: while the cards are being found, and then for the
-  moment (`CHOICE_DELAY` in `src/Browse.tsx`) before the card starts to be
-  made. Only then does "Making the card…" show. Ideally something would
-  show from the start, as Edit's form skeleton does, and lead into
-  "Making the card…" without a blank, then a change. Not critical, since
-  "Making the card…" does come soon. (The skeleton of a card shared by
-  every side was tried and removed: it vanished, then "Making the card…"
-  replaced it, which looked odd.)
 
 - The collection and note pickers of the Add tab (`PathPicker` in
   `src/Add.tsx`) are written by hand, a plain `<input>` and a `<ul>` under it, and are not

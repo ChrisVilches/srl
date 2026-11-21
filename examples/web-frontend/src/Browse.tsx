@@ -1,10 +1,10 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
 import { type FoundCard, type ShownCard } from './api';
 import { CardDetails, CardDetailsSkeleton } from './CardDetails';
-import { CardBadges, CardFace, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, Waiting, WITH_KEY } from './CardParts';
+import { CardBadges, CardFace, CardSkeleton, Counts, ErrorView, KindBadge, Key, Loading, Notice, QUIET_BUTTON, Skeleton, WITH_KEY } from './CardParts';
 import { EditItem } from './EditItem';
 import { JsonView } from './JsonView';
 import { useView } from './App';
@@ -292,12 +292,8 @@ function CardList({
 }
 
 // The chosen card, on the chosen side. While LOADING, the cards being found,
-// the sides are shown, with a skeleton for the form on Edit and for the
-// details on Details; the other sides show nothing until the card is made,
-// which Making shows.
-// TODO: Prompt, Revealed and JSON are blank under the sides until Making
-// shows, while the cards are found and for CHOICE_DELAY after; they should
-// show something from the start. See the README's TODO.
+// the sides are shown, with a skeleton for the form on Edit, for the
+// details on Details, and for the card on the other sides until it is made.
 function Preview({
   loading,
   found,
@@ -388,7 +384,9 @@ function Preview({
       {/* Until the cards are found, the form waits for the card's item, as
           one skeleton from the page's opening to the form. */}
       {side === 'edit' && <EditItem id={found === null ? null : found.item} onSaved={onSaved} />}
-      {found !== null && showsMade && made?.kind === 'making' && <Making key={found.id} kind={found.kind} />}
+      {/* From the page's opening, through CHOICE_DELAY, to the card made,
+          one skeleton per card, so its seconds count from when it is chosen. */}
+      {showsMade && (made === undefined || made.kind === 'making') && <CardSkeleton key={found?.id ?? ''} />}
       {showsMade && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
       {found !== null &&
         showsMade &&
@@ -413,18 +411,3 @@ function Preview({
   );
 }
 
-// A card being made, with how long it has taken so far, from when this was
-// first shown: a kind program can take a while. A card of a built-in kind
-// gets no line under it.
-function Making({ kind }: { kind: string }) {
-  const [since] = useState(() => performance.now());
-  return (
-    <Waiting title="Making the card…" since={since}>
-      {kind !== 'qa' && (
-        <>
-          Being made by the program <code className="font-mono">{kind}</code>.
-        </>
-      )}
-    </Waiting>
-  );
-}
