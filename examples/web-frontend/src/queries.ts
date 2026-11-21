@@ -51,6 +51,10 @@ export const queries = {
   // The counts of today's study day.
   today: () => queryOptions({ queryKey: ['today'], queryFn: api.today }),
 
+  // The counts of each of the last DAYS study days of a search's selectors.
+  days: (selectors: string[], days: number) =>
+    queryOptions({ queryKey: ['days', selectors, days], queryFn: () => api.daysOf(selectors, days) }),
+
   // Whether srl-web was started with --on-change: fixed while it runs.
   hasOnChange: () => queryOptions({ queryKey: ['has-on-change'], queryFn: api.hasOnChange, staleTime: Infinity }),
 

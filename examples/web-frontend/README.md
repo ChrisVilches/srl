@@ -93,6 +93,21 @@ macOS and Windows (it is tried on Linux only).
   when Study is shown and again after each review (see "What srl
   answers"), so a reload keeps them and they include reviews recorded
   elsewhere.
+- **Activity** (a calendar), between the filters and the counters,
+  opens a calendar like GitHub's in a modal, as tall as the window so
+  that it doesn't move as the calendar replaces its skeleton: the last 9
+  weeks (`DAYS` in `src/Activity.tsx`), a column per week from Sunday, a
+  square per study day, greener for more reviews, of the cards of the
+  search, as `srl stats --days` counts them. With one word that is an ID
+  too, it is the ID's cards when it has some, as in Study, and the
+  text's otherwise: the two aren't added up, which would count a card of
+  both twice. The day pointed at, focused or tapped is told under it,
+  today until then, with the reviews, new cards and Again ratings of the
+  day, and the total under that. srl says which days are shown, so the
+  last is srl's study day, which starts at its `day_starts_at` (4:00 by
+  default): until then, the day before is today. It is read when opened,
+  and again after each review, like the counters, so nothing is kept on
+  the server and it is never out of date.
 - The **box** at the top, "Search text…", is the text: words the items must contain, in
   any field, ignoring case. Each word is searched for on its own, as
   text whatever it looks like (`in:x` or `-x` too): srl gets each in
@@ -530,7 +545,7 @@ now, whatever order srl's answers come in. So what the views read is read
 with TanStack Query's `useQuery`, kept by what was asked: Browse's cards
 by the search submitted and the cards it made by their ID, Add's kinds,
 collections and notes, a card's details and history and an
-item to edit by their ID, Study's counts, and the `--on-change`
+item to edit by their ID, Study's counts and calendar, and the `--on-change`
 program's status. A list that comes late for a search submitted before
 never replaces the one asked for. Every read is in `src/queries.ts`, its
 key, what it asks and how, so that two views asking the same thing share

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router';
 
+import { ActivityButton } from './Activity';
 import { queryOfSearch, searchOfQuery } from './address';
 import { api, type Card, type Rating, type Today } from './api';
 import { CardDetailsDialog } from './CardDetails';
@@ -223,6 +224,7 @@ export function Study() {
     <div className="flex h-dvh flex-col">
       <TopBar view="study">
         <SearchInput search={search} onSearch={onSearch} />
+        <ActivityButton selectors={selectors} />
         {today && <StatsLine stats={today} />}
       </TopBar>
       <main className={VIEW_SCROLL}>

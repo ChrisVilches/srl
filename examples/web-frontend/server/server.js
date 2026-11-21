@@ -8,7 +8,9 @@
 //   POST /api/review       srl review CARD --rating N  ← { card, rating }
 //   POST /api/suspend      srl suspend id:CARD --reason REASON [--days N]
 //                                                      ← { card, reason?, days? }
-//   GET  /api/stats        srl stats --json            → { stats } or, with no
+//   GET  /api/stats?sel=…&days=N
+//                          srl stats SEL --json [--days N]
+//                                                      → { stats } or, with no
 //                                                        card, { stats: null }
 //
 // The filters, which write a selector from menus, also read /api/kinds and
@@ -146,9 +148,16 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       return {};
     },
 
-    // The statistics of every card: the store has no card when none matches.
-    'GET /api/stats': async () => {
-      const { found, stdout } = await srl(['stats', '--json']);
+    // The statistics of the cards of the selector, every card without one,
+    // with the counts of each of the last DAYS study days if given: null
+    // when no card matches.
+    'GET /api/stats': async (url) => {
+      const days = url.searchParams.get('days');
+      if (days !== null && !/^[1-9][0-9]*$/.test(days)) {
+        throw new BadRequest('days must be a whole number from 1');
+      }
+      const daysArgs = days === null ? [] : [`--days=${days}`];
+      const { found, stdout } = await srl(['stats', '--json', ...daysArgs, ...selectorArgs(url)]);
       return { stats: found ? JSON.parse(stdout) : null };
     },
 

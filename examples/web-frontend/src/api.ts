@@ -22,6 +22,11 @@ export type Card = ShownCard & { schedule: 'new' | 'due'; leech: boolean };
 // The counts of today's study day (api.today).
 export type Today = { reviewed: number; new: number; again: number };
 
+// The counts of one study day, as srl stats --days gives them
+// (docs/cli.md, "Analysis"): its reviews, the first reviews of new cards
+// among them, and those rated Again.
+export type DayCounts = { day: string; reviews: number; new: number; again: number };
+
 // A card as `srl find --json` lists it (docs/cli.md, "Items and cards"),
 // with the first line of its item's first field.
 export type FoundCard = {
@@ -152,6 +157,26 @@ export const api = {
       '/api/stats',
     );
     return { reviewed: stats?.reviews_today ?? 0, new: stats?.new_today ?? 0, again: stats?.again_today ?? 0 };
+  },
+  // The counts of each of the last DAYS study days of SELECTOR's cards,
+  // oldest first, or null when it matches no card.
+  days: async (selector: string, days: number) => {
+    const { stats } = await call<{ stats: { days: DayCounts[] } | null }>(
+      `/api/stats?${new URLSearchParams({ sel: selector, days: String(days) })}`,
+    );
+    return stats?.days ?? null;
+  },
+  // The same of a search's SELECTORS (src/filters.ts), taken as Study takes
+  // its card: the first one's, or, if it matches no card, the next one's.
+  // Their cards' counts aren't added up, which would count twice a card of
+  // both, such as one with the word in its text and as its ID. Null when
+  // none matches a card.
+  daysOf: async (selectors: string[], days: number): Promise<DayCounts[] | null> => {
+    for (const [i, selector] of selectors.entries()) {
+      const counts = await orNone(() => api.days(selector, days), i === selectors.length - 1, null);
+      if (counts) return counts;
+    }
+    return null;
   },
   find: async (selector: string) =>
     (await call<{ cards: FoundCard[] }>(`/api/find?${new URLSearchParams({ sel: selector })}`)).cards,
