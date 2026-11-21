@@ -438,6 +438,37 @@ does so by default, Caddy's `reverse_proxy` needs `header_up Host
 localhost`. A card made by a slow kind program can take longer than a
 proxy's default timeout (60 s in nginx: `proxy_read_timeout`).
 
+### Installing it as an app
+
+Reached over HTTPS, as behind a proxy, it can be installed from a
+phone's browser: "Add to Home screen" or "Install app" in its menu
+(Chrome, Opera, Edge), or Share, "Add to Home Screen" (Safari). It then
+opens from its icon as an app, without the browser's bars, so the whole
+screen is the page's: the browser's address bar would otherwise always
+show, since only the window scrolling hides it, and srl-web's never does.
+Over plain HTTP, other than on localhost, the browser installs a link that
+opens in the browser instead.
+
+It is `public/manifest.webmanifest` (`display: standalone`), fetched with
+the browser's credentials so that it passes the proxy's basic auth. The
+color of the status bar is the top bar's, for the theme
+(`src/theme.ts`). The icons are `public/favicon.svg`, and for the ones a
+phone cuts to its own shape (`maskable`, and Safari's), `icons/maskable.svg`,
+the same with its background to the edges and the cards inside the circle
+that is always kept. To make them again after changing those:
+
+```sh
+rsvg-convert -w 192 -h 192 public/favicon.svg -o public/icon-192.png
+rsvg-convert -w 512 -h 512 public/favicon.svg -o public/icon-512.png
+rsvg-convert -w 512 -h 512 icons/maskable.svg -o public/icon-maskable-512.png
+rsvg-convert -w 180 -h 180 icons/maskable.svg -o public/apple-touch-icon.png
+```
+
+Installed, there is no back button but the phone's own (Android's back
+gesture; none on an iPhone), and no reload: the page's tabs and buttons
+get everywhere, and it reads the store again by itself (see "What srl
+answers").
+
 Highlights are paired in order, each `==` with the next one, as `srl-tui`
 does (`src/highlight.ts`). Plugins that treat `==` like `*`, with
 CommonMark's rules, get text without spaces wrong: in `==[...]==を==[...]==`

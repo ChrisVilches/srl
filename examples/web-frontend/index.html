@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>srl</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Installed from a phone's browser, it opens as an app, without the
+         browser's bars (README.md, "Installing it as an app"). Fetched with
+         credentials, which a browser leaves out for a manifest otherwise, so
+         that it passes the basic auth of a reverse proxy. -->
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- The color of a phone's status bar, the top bar's: set for the theme
+         by public/theme.js and src/theme.ts. -->
+    <meta name="theme-color" content="#171413" />
     <!-- The theme, set before the page is drawn (public/theme.js). -->
     <script src="/theme.js"></script>
   </head>
