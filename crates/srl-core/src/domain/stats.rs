@@ -1,16 +1,21 @@
 //! `srl stats`: cards per place in the schedule, leeches, reviews today
-//! with the new cards and Again ratings among them, recent retention (see
+//! with the new cards and Again ratings among them, recent retention, and
+//! with `--days`, the same counts for each recent study day (see
 //! `docs/cli.md`, "Analysis").
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use jiff::Span;
+use jiff::civil::Date;
 use serde::Serialize;
 
 use crate::{CardId, Item, Memories, Place, Reviewed};
 
 /// How many study days, today included, retention looks back.
 const RETENTION_DAYS: i64 = 30;
+
+/// The most study days `srl stats --days` gives, about a hundred years.
+pub const MAX_STATS_DAYS: u32 = 36_500;
 
 /// What `srl stats` reports about a set of cards.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -32,6 +37,21 @@ pub struct Stats {
     pub retention: Option<f64>,
     /// How many reviews `retention` is computed from.
     pub retention_reviews: usize,
+    /// With `--days N`, the counts of each of the last N study days, today
+    /// included, oldest first; `None` without it.
+    pub days: Option<Vec<DayCounts>>,
+}
+
+/// The reviews of one study day, counted as those of today are.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct DayCounts {
+    #[serde(serialize_with = "day_text")]
+    pub day: Date,
+    pub reviews: usize,
+    /// Of `reviews`, the first reviews of cards that were new.
+    pub new: usize,
+    /// Of `reviews`, those rated Again.
+    pub again: usize,
 }
 
 /// Cards per place in the schedule, which add up to all cards.
@@ -44,8 +64,13 @@ pub struct ScheduleCounts {
 }
 
 /// The statistics of `cards`, from their memories and every review of the
-/// log.
-pub fn stats(cards: &[(&Item, &CardId)], memories: &Memories, reviews: &[Reviewed]) -> Stats {
+/// log, with the counts of each of the last `days` study days if given.
+pub fn stats(
+    cards: &[(&Item, &CardId)],
+    memories: &Memories,
+    reviews: &[Reviewed],
+    days: Option<u32>,
+) -> Stats {
     let schedule =
         cards.iter().fold(
             ScheduleCounts::default(),
@@ -90,22 +115,54 @@ pub fn stats(cards: &[(&Item, &CardId)], memories: &Memories, reviews: &[Reviewe
         let kept = recalled.iter().filter(|kept| **kept).count();
         ratio(kept, recalled.len())
     });
-    let today_reviews = reviews
+    let by_day = reviews
         .iter()
-        .filter(|review| review.day == today)
-        .collect::<Vec<_>>();
+        .fold(HashMap::<Date, DayCounts>::new(), |mut by_day, review| {
+            let counts = by_day
+                .entry(review.day)
+                .or_insert_with(|| empty(review.day));
+            counts.reviews += 1;
+            counts.new += usize::from(review.was_new);
+            counts.again += usize::from(review.rating == 1);
+            by_day
+        });
+    let counts = |day: Date| by_day.get(&day).copied().unwrap_or_else(|| empty(day));
+    let counts_today = counts(today);
     Stats {
         cards: cards.len(),
         schedule,
         leech,
-        reviews_today: today_reviews.len(),
-        new_today: today_reviews.iter().filter(|review| review.was_new).count(),
-        again_today: today_reviews
-            .iter()
-            .filter(|review| review.rating == 1)
-            .count(),
+        reviews_today: counts_today.reviews,
+        new_today: counts_today.new,
+        again_today: counts_today.again,
         retention,
         retention_reviews: recalled.len(),
+        days: days.map(|days| {
+            (0..i64::from(days))
+                .rev()
+                .filter_map(|ago| today.checked_sub(Span::new().days(ago)).ok())
+                .map(counts)
+                .collect()
+        }),
+    }
+}
+
+/// A study day as written everywhere, such as `"2026-10-27"`.
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde's serialize_with passes a reference"
+)]
+fn day_text<S: serde::Serializer>(day: &Date, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.collect_str(day)
+}
+
+/// A study day without reviews.
+fn empty(day: Date) -> DayCounts {
+    DayCounts {
+        day,
+        reviews: 0,
+        new: 0,
+        again: 0,
     }
 }
 
@@ -171,7 +228,7 @@ mod tests {
             .iter()
             .map(|item| (item, &item.cards()[0]))
             .collect::<Vec<_>>();
-        let stats = stats(&cards, &memories, &history.reviews);
+        let stats = stats(&cards, &memories, &history.reviews, None);
         assert_eq!(stats.cards, 3);
         assert_eq!(stats.schedule.new, 1);
         assert_eq!(stats.schedule.young, 2);
@@ -180,6 +237,45 @@ mod tests {
         assert_eq!(stats.again_today, 1);
         assert_eq!(stats.retention_reviews, 2);
         assert_eq!(stats.retention, Some(0.5));
+        assert_eq!(stats.days, None);
+    }
+
+    #[test]
+    fn days_count_each_study_day_oldest_first() {
+        let today = date(2026, 10, 26);
+        let entries = vec![
+            reviewed("aaa1", date(2026, 10, 23), 3),
+            reviewed("aaa1", date(2026, 10, 24), 1),
+            reviewed("aaa2", today, 3),
+            reviewed("aaa1", today, 3),
+        ];
+        let log = Log {
+            entries,
+            problems: Vec::new(),
+        };
+        let config = Config::default();
+        let history = History::replay(&log, &config).unwrap();
+        let memories = Memories::new(history.memories, &config, today);
+        let items = items();
+        let cards = items
+            .iter()
+            .map(|item| (item, &item.cards()[0]))
+            .collect::<Vec<_>>();
+        let stats = stats(&cards, &memories, &history.reviews, Some(3));
+        let counts = |day, reviews, new, again| DayCounts {
+            day,
+            reviews,
+            new,
+            again,
+        };
+        assert_eq!(
+            stats.days,
+            Some(vec![
+                counts(date(2026, 10, 24), 1, 0, 1),
+                counts(date(2026, 10, 25), 0, 0, 0),
+                counts(today, 2, 1, 0),
+            ])
+        );
     }
 
     #[test]
@@ -190,7 +286,7 @@ mod tests {
         };
         let memories = Memories::replay(&log, &Config::default(), date(2026, 10, 26)).unwrap();
         let items = items();
-        let stats = stats(&[(&items[0], &items[0].cards()[0])], &memories, &[]);
+        let stats = stats(&[(&items[0], &items[0].cards()[0])], &memories, &[], None);
         assert_eq!(stats.retention, None);
         assert_eq!(stats.schedule.new, 1);
     }

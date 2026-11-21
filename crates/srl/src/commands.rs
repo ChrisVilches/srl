@@ -88,8 +88,9 @@ pub(crate) fn run(cli: Cli) -> anyhow::Result<Outcome> {
         } => reset(&store()?, &selector(&terms.terms)?, dry_run.dry_run),
         Command::Stats {
             selector: terms,
+            days,
             json,
-        } => stats(&store()?, &selector(&terms.terms)?, json.json),
+        } => stats(&store()?, &selector(&terms.terms)?, days, json.json),
         Command::Log {
             selector: terms,
             json,
@@ -579,9 +580,15 @@ fn reset(store: &Store, selector: &Selector, dry_run: bool) -> anyhow::Result<Ou
     Ok(found_anything(!reset.is_empty()))
 }
 
-/// `srl stats`: cards per state, reviews today and recent retention, for
-/// the matching cards. Exit 1 if no card matches.
-fn stats(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outcome> {
+/// `srl stats`: cards per state, reviews today and recent retention, and
+/// the reviews of each of the last `days` study days if given, for the
+/// matching cards. Exit 1 if no card matches.
+fn stats(
+    store: &Store,
+    selector: &Selector,
+    days: Option<u32>,
+    json: bool,
+) -> anyhow::Result<Outcome> {
     let mut index = Index::open(store);
     let (config, catalog) = load_with(store, &mut index)?;
     let history = index.history(&config);
@@ -590,7 +597,7 @@ fn stats(store: &Store, selector: &Selector, json: bool) -> anyhow::Result<Outco
     problems.iter().for_each(output::problem);
     let memories = Memories::new(history.memories, &config, today(&config)?);
     let selected = selector.select(catalog.cards(), &memories);
-    let stats = srl_core::stats(&selected, &memories, &history.reviews);
+    let stats = srl_core::stats(&selected, &memories, &history.reviews, days);
     if json {
         output::json_lines(&[&stats])?;
     } else {

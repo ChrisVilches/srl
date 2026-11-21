@@ -191,7 +191,8 @@ pub(crate) fn events(events: &[&Event]) {
 
 /// Prints statistics, one `NAME  VALUE` line each. Retention is a
 /// percentage with the number of reviews it comes from, or `-` without
-/// reviews.
+/// reviews. Each study day of `days` follows as `DAY  reviews N  new N  again
+/// N`.
 pub(crate) fn stats(report: &Stats) {
     let schedule = &report.schedule;
     for (name, value) in [
@@ -214,6 +215,15 @@ pub(crate) fn stats(report: &Stats) {
             report.retention_reviews
         ),
         None => out!("retention  -"),
+    }
+    for day in report.days.iter().flatten() {
+        out!(
+            "{}  reviews {}  new {}  again {}",
+            day.day,
+            day.reviews,
+            day.new,
+            day.again
+        );
     }
 }
 

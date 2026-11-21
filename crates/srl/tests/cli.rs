@@ -1172,6 +1172,41 @@ fn stats_counts_cards_reviews_and_retention() {
     );
     let json = json_lines(&srl(&["stats", "in:fish", "--json", "--dir", d]));
     assert_eq!(json[0]["cards"], 2);
+    assert_eq!(json[0]["days"], serde_json::Value::Null);
+}
+
+#[test]
+fn stats_counts_the_reviews_of_each_recent_study_day() {
+    let tmp = japanese();
+    let d = dir(&tmp);
+    let reviewed = srl_at(
+        "2026-01-04T09:00:00Z",
+        &["review", "x7k2m9", "--rating", "1", "--dir", d],
+    );
+    assert_eq!(reviewed.status.code(), Some(0), "{}", stderr(&reviewed));
+    let now = "2026-01-06T09:00:00Z";
+    let output = srl_at(now, &["stats", "--days", "3", "--dir", d]);
+    assert!(
+        stdout(&output).ends_with(
+            "retention  -\n2026-01-04  reviews 1  new 1  again 1\n\
+             2026-01-05  reviews 0  new 0  again 0\n2026-01-06  reviews 0  new 0  again 0\n"
+        ),
+        "{}",
+        stdout(&output)
+    );
+    let json = json_lines(&srl_at(
+        now,
+        &["stats", "--days", "2", "--json", "--dir", d],
+    ));
+    assert_eq!(
+        json[0]["days"],
+        serde_json::json!([
+            {"day": "2026-01-05", "reviews": 0, "new": 0, "again": 0},
+            {"day": "2026-01-06", "reviews": 0, "new": 0, "again": 0},
+        ])
+    );
+    let zero = srl(&["stats", "--days", "0", "--dir", d]);
+    assert_eq!(zero.status.code(), Some(2));
 }
 
 #[test]

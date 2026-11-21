@@ -27,7 +27,7 @@ pub use domain::card::{Card, CardId, SUFFIX_SEPARATOR};
 pub use domain::item::{Field, Item, ItemId};
 pub use domain::schedule::{History, Memories, Memory, Place, Reviewed, Seen};
 pub use domain::selector::{Selector, Status};
-pub use domain::stats::{ScheduleCounts, Stats, stats};
+pub use domain::stats::{DayCounts, MAX_STATS_DAYS, ScheduleCounts, Stats, stats};
 pub use error::{Error, Result, Spot};
 pub use index::Index;
 pub use kind::{FieldDescription, Kind, KindDescription, kinds};

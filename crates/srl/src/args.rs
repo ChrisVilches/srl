@@ -207,6 +207,11 @@ pub(crate) enum Command {
     Stats {
         #[command(flatten)]
         selector: Selector,
+        /// Also count the reviews of each of the last N study days, today
+        /// included.
+        #[arg(long, value_name = "N",
+              value_parser = clap::value_parser!(u32).range(1..=i64::from(srl_core::MAX_STATS_DAYS)))]
+        days: Option<u32>,
         #[command(flatten)]
         json: Json,
     },

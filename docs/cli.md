@@ -365,7 +365,7 @@ is not enough, because a review is about one card. With `--dry-run`,
 
 | Command | Does |
 |---|---|
-| `srl stats [SELECTOR] [--json]` | Cards per place in the schedule, leeches, reviews today with the new cards and Again ratings among them, retention over the last 30 days (share of non-Again ratings on cards that were not new), for the matching cards (see below). Exit 1 if none matches. |
+| `srl stats [SELECTOR] [--days N] [--json]` | Cards per place in the schedule, leeches, reviews today with the new cards and Again ratings among them, retention over the last 30 days (share of non-Again ratings on cards that were not new), and with `--days`, the same counts as today's for each of the last N study days, for the matching cards (see below). Exit 1 if none matches. |
 | `srl log [SELECTOR] [--json]` | Print the log events of matching cards, in log order (see below); with `--json`, the events as stored. Exit 1 if there are none. |
 
 `srl stats` applies the selector as written, so it counts drafts and
@@ -396,6 +396,11 @@ retention  88.5% of 400 reviews in 30 days
 - `retention` looks at the last 30 study days, today included. It counts
   the reviews of matching cards that were not new at the time, and gives
   the share that were not Again. Without such reviews it is `-`.
+- `--days N`, from 1 to 36500, adds a line for each of the last N study
+  days, today included, oldest first, with the day's counts as `reviews
+  today`, `new today` and `again today` count today's, zeros for a day
+  without reviews: `2026-10-27  reviews 25  new 8  again 3`. A frontend
+  can draw a calendar of study from them.
 
 Even the counts of today need every log file: whether a review today was
 a card's first since its last reset depends on its whole history, and the
@@ -412,8 +417,10 @@ every review.
 With `--json` it prints one object:
 `{"cards": N, "schedule": {"new": N, "due": N, "young": N, "mature": N},
 "leech": N, "reviews_today": N, "new_today": N, "again_today": N,
-"retention": R, "retention_reviews": N}`,
-where `retention` is a number from 0 to 1, or `null`.
+"retention": R, "retention_reviews": N, "days": D}`,
+where `retention` is a number from 0 to 1, or `null`, and `days` is
+`null` without `--days`, or else the days' counts in the same order:
+`[{"day": "2026-10-27", "reviews": N, "new": N, "again": N}, …]`.
 
 `srl log` prints one line per event, its fields separated by two spaces:
 the time, the card, and then `review` and the rating;
