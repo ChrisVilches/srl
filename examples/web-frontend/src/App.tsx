@@ -388,7 +388,21 @@ function SuspendDialog({
   const daysValid = dayCount === null || (Number.isInteger(dayCount) && dayCount >= 1 && dayCount <= 36500);
 
   return (
-    <Modal open={open} title="Suspend this card" onClose={onClose}>
+    <Modal
+      open={open}
+      title="Suspend this card"
+      closeLabel="Cancel"
+      actions={
+        <button
+          onClick={() => onSuspend(reason, dayCount)}
+          disabled={!daysValid}
+          className={`px-4 py-2 text-sm ${DANGER_BUTTON}`}
+        >
+          Suspend
+        </button>
+      }
+      onClose={onClose}
+    >
       <label className="flex flex-col gap-4 text-sm text-stone-500">
         Why? What to fix before studying it again (optional)
         <textarea
@@ -415,13 +429,6 @@ function SuspendDialog({
           className="w-32 rounded-lg border border-stone-300 bg-white p-2 text-base text-stone-900 aria-[invalid=true]:border-rose-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
         />
       </label>
-      <button
-        onClick={() => onSuspend(reason, dayCount)}
-        disabled={!daysValid}
-        className={`self-start px-5 py-2.5 ${DANGER_BUTTON}`}
-      >
-        Suspend
-      </button>
     </Modal>
   );
 }

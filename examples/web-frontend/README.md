@@ -62,7 +62,8 @@ macOS and Windows (it is tried on Linux only).
   card without recording a review, after asking why in a dialog: what to
   fix before studying it again. The reason may be left empty, or take
   several lines, kept as they are: Enter starts a new line, Escape
-  cancels, and only a click on the dialog's Suspend suspends. The dialog
+  cancels, and only a click on the dialog's Suspend, at its bottom right
+  beside Cancel, suspends. The dialog
   also asks for how many days, after which srl makes the card active
   again by itself; left empty, it stays suspended until it is
   unsuspended, and anything but a whole number from 1 to 36500 disables
