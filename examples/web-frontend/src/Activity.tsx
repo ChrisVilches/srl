@@ -1,10 +1,8 @@
-import { CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { type DayCounts } from './api';
-import { Loading, QUIET_BUTTON, Skeleton } from './CardParts';
-import { Modal } from './Modal';
+import { Loading, Skeleton } from './CardParts';
 import { queries } from './queries';
 
 // The study of the last DAYS study days, as a calendar like GitHub's: a
@@ -39,32 +37,11 @@ const weekdayOf = (day: string) => new Date(`${day}T00:00:00Z`).getUTCDay();
 const monthOf = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleString(undefined, { month: 'short', timeZone: 'UTC' });
 
-// Opens the calendar of the cards of a search's SELECTORS, in a modal.
-export function ActivityButton({ selectors }: { selectors: string[] }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Activity"
-        title="Reviews of each of the last weeks, for this search"
-        className={`shrink-0 py-1.5 ${QUIET_BUTTON}`}
-      >
-        <CalendarDaysIcon className="size-5" aria-hidden />
-      </button>
-      <Modal open={open} title="Activity" onClose={() => setOpen(false)}>
-        <Activity selectors={selectors} read={open} />
-      </Modal>
-    </>
-  );
-}
-
-// The calendar, read once READ is true, and again after each change to the
-// store (src/main.tsx). Its skeleton has the calendar's shape, so the modal
-// keeps its height as the calendar replaces it.
-function Activity({ selectors, read }: { selectors: string[]; read: boolean }) {
-  const days = useQuery({ ...queries.days(selectors, DAYS), enabled: read });
+// The calendar of the cards of a search's SELECTORS, read again after each
+// change to the store (src/main.tsx). Its skeleton has the calendar's
+// shape, so what is under it doesn't move as the calendar replaces it.
+export function Activity({ selectors }: { selectors: string[] }) {
+  const days = useQuery(queries.days(selectors, DAYS));
   const searched = selectors[0] !== '';
   return (
     <div className="flex flex-col gap-4 text-sm">

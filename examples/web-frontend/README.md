@@ -3,7 +3,8 @@
 `srl-web` is a web viewer, a frontend in the sense of
 [docs/frontends.md](../../docs/frontends.md): a small server on localhost
 that runs `srl` commands, and a page in the browser that shows the cards
-to study, a browser of any card, and a form that adds items. It
+to study, a browser of any card, a form that adds items, and the
+scheduling settings with a calendar of study. It
 needs `srl` on `PATH` and Node.js 22.22 or later (for React Router and
 Vite), and should work on Linux,
 macOS and Windows (it is tried on Linux only).
@@ -93,21 +94,6 @@ macOS and Windows (it is tried on Linux only).
   when Study is shown and again after each review (see "What srl
   answers"), so a reload keeps them and they include reviews recorded
   elsewhere.
-- **Activity** (a calendar), between the filters and the counters,
-  opens a calendar like GitHub's in a modal, whose skeleton is the
-  calendar's size, so the modal doesn't move as one replaces the other: the last 9
-  weeks (`DAYS` in `src/Activity.tsx`), a column per week from Sunday, a
-  square per study day, greener for more reviews, of the cards of the
-  search, as `srl stats --days` counts them. With one word that is an ID
-  too, it is the ID's cards when it has some, as in Study, and the
-  text's otherwise: the two aren't added up, which would count a card of
-  both twice. The day pointed at, focused or tapped is told under it,
-  today until then, with the reviews, new cards and Again ratings of the
-  day, and the total under that. srl says which days are shown, so the
-  last is srl's study day, which starts at its `day_starts_at` (4:00 by
-  default): until then, the day before is today. It is read when opened,
-  and again after each review, like the counters, so nothing is kept on
-  the server and it is never out of date.
 - The **box** at the top, "Search text…", is the text: words the items must contain, in
   any field, ignoring case. Each word is searched for on its own, as
   text whatever it looks like (`in:x` or `-x` too): srl gets each in
@@ -328,6 +314,34 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
   Close button focused, so Enter, space or Escape closes it and gives the
   focus back to the form, to write the next item.
 
+**Stats** (`src/Stats.tsx`) shows what srl says about studying, and
+changes nothing:
+
+- **Scheduling**: a table of the settings of `[schedule]` srl
+  schedules with, those `.srl/config.toml` leaves out at their
+  defaults, each with what it is and its key, as `srl config --json`
+  gives them, so the page knows no default: the desired retention, the
+  hour the study day starts, new cards a day, the most cards skipped,
+  the lapses of a leech, the stability of a mature card, and the FSRS
+  weights, FSRS's own when the file has none. They are of the whole
+  store, whatever the search.
+- **Activity**: a calendar like GitHub's (`src/Activity.tsx`) of the
+  last 9 weeks (`DAYS`), a column per week from Sunday, a square per
+  study day, greener for more reviews, of the cards of the search, as
+  `srl stats --days` counts them. With one word that is an ID too, it
+  is the ID's cards when it has some, as in Study, and the text's
+  otherwise: the two aren't added up, which would count a card of both
+  twice. The day pointed at, focused or tapped is told under it, today
+  until then, with the reviews, new cards and Again ratings of the
+  day, and the total under that. srl says which days are shown, so the
+  last is srl's study day, which starts at its `day_starts_at`: until
+  then, the day before is today. It is read again after each review,
+  like Study's counters, so nothing is kept on the server and it is
+  never out of date.
+- Each has a skeleton of its shape while srl answers, the calendar's
+  the same size as the calendar, so what is under them moves little
+  as they come.
+
 It is an npm package of its own, kept apart from `srl` and from the other
 examples: everything it needs is in this folder.
 
@@ -546,7 +560,7 @@ now, whatever order srl's answers come in. So what the views read is read
 with TanStack Query's `useQuery`, kept by what was asked: Browse's cards
 by the search submitted and the cards it made by their ID, Add's kinds,
 collections and notes, a card's details and history and an
-item to edit by their ID, Study's counts and calendar, and the `--on-change`
+item to edit by their ID, Study's counts, Stats' settings and calendar, and the `--on-change`
 program's status. A list that comes late for a search submitted before
 never replaces the one asked for. Every read is in `src/queries.ts`, its
 key, what it asks and how, so that two views asking the same thing share

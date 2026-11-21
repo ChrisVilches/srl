@@ -4,6 +4,7 @@
 //   /                     study, as is any path not below
 //   /browse[/CARD[/SIDE]] the card browser, with Browse's own parts (src/Browse.tsx)
 //   /add                  adding items
+//   /stats                the store's scheduling settings and a calendar of study
 //
 // The query holds the search last submitted (src/filters.ts), so that
 // reloading the page keeps it: one parameter per filter, named by its key,
@@ -21,11 +22,12 @@
 // With its extension, for Node to find it in npm test.
 import { isMenuOf, keyOf, MENUS, NO_FILTERS, writable, type Search } from './filters.ts';
 
-// The views: studying (the page's start), the card browser and adding items.
-export type View = 'study' | 'browse' | 'add';
+// The views: studying (the page's start), the card browser, adding items,
+// and the statistics.
+export type View = 'study' | 'browse' | 'add' | 'stats';
 
 // The path of each view, which its tab links to.
-export const VIEW_PATHS: Record<View, string> = { study: '/', browse: '/browse', add: '/add' };
+export const VIEW_PATHS: Record<View, string> = { study: '/', browse: '/browse', add: '/add', stats: '/stats' };
 
 // Commas and colons are left as they are, and spaces are +, so that the
 // address reads as the search does.

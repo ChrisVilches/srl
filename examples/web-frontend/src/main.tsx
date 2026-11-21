@@ -10,6 +10,7 @@ import { Browse } from './Browse';
 import 'katex/dist/katex.min.css';
 import './index.css';
 import { ONLY_WHEN_ASKED } from './queries';
+import { Stats } from './Stats';
 
 // The views, one route each, under App (see src/address.ts). Any other path
 // is Study.
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
       { index: true, element: <Study /> },
       { path: 'browse/:card?/:side?', element: <Browse /> },
       { path: 'add', element: <Add /> },
+      { path: 'stats', element: <Stats /> },
       { path: '*', element: <Study /> },
     ],
   },

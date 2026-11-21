@@ -14,7 +14,9 @@ import { currentTheme, setTheme } from './theme';
 // name links to the root, the study view with no search in the address,
 // and loads the page anew. Wide (md and up) it is one row; narrow, the
 // name, the tabs and the theme button make the first row and the view's
-// controls the second.
+// controls the second. Below sm, its gaps and the tabs' padding are
+// smaller, and the theme button takes some of the bar's padding at its
+// right, so that the first row fits a phone 320 px wide.
 //
 // A tab is a link to its view's path, keeping the search, and opens it in
 // a new tab when clicked with a modifier or the middle button.
@@ -42,8 +44,8 @@ export function TopBar({ view, children }: { view: View; children: ReactNode }) 
       to={{ pathname: VIEW_PATHS[target], search }}
       className={
         view === target
-          ? 'rounded-md bg-stone-200 px-2.5 py-1 font-medium dark:bg-stone-800'
-          : 'rounded-md px-2.5 py-1 text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-900'
+          ? 'rounded-md bg-stone-200 px-1.5 py-1 sm:px-2.5 font-medium dark:bg-stone-800'
+          : 'rounded-md px-1.5 py-1 sm:px-2.5 text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-900'
       }
     >
       {name}
@@ -51,14 +53,15 @@ export function TopBar({ view, children }: { view: View; children: ReactNode }) 
   );
   return (
     <header className="border-b border-stone-200 bg-white/70 backdrop-blur dark:border-stone-800 dark:bg-stone-900/70">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-4 sm:gap-x-4 py-3 sm:px-6">
         <a href="/" className="font-mono text-lg font-bold tracking-tight">
           srl
         </a>
-        <nav className="flex gap-1 text-sm">
+        <nav className="flex gap-0.5 text-sm sm:gap-1">
           {tab('study', 'Study')}
           {tab('browse', 'Browse')}
           {tab('add', 'Add')}
+          {tab('stats', 'Stats')}
         </nav>
         {children != null && (
           <div className="order-last flex w-full flex-wrap items-center gap-x-4 gap-y-2 md:contents">{children}</div>
@@ -83,7 +86,7 @@ function ThemeButton() {
       }}
       aria-label={`Switch to the ${other} theme`}
       title={`Switch to the ${other} theme, kept in this browser`}
-      className={`ml-auto py-1.5 ${QUIET_BUTTON}`}
+      className={`-mr-2 ml-auto py-1.5 sm:mr-0 ${QUIET_BUTTON}`}
     >
       <Icon className="size-5" aria-hidden />
     </button>

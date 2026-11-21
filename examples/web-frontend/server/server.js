@@ -12,6 +12,7 @@
 //                          srl stats SEL --json [--days N]
 //                                                      → { stats } or, with no
 //                                                        card, { stats: null }
+//   GET  /api/store-config srl config --json           → { config }
 //
 // The filters, which write a selector from menus, also read /api/kinds and
 // /api/collections (below):
@@ -146,6 +147,12 @@ export function createSrlServer({ dir, staticDir, onChange }) {
       await srl(args);
       changed();
       return {};
+    },
+
+    // The store's configuration, every key with the value in use.
+    'GET /api/store-config': async () => {
+      const { stdout } = await srl(['config', '--json']);
+      return { config: JSON.parse(stdout) };
     },
 
     // The statistics of the cards of the selector, every card without one,

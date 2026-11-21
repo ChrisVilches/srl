@@ -22,6 +22,20 @@ export type Card = ShownCard & { schedule: 'new' | 'due'; leech: boolean };
 // The counts of today's study day (api.today).
 export type Today = { reviewed: number; new: number; again: number };
 
+// The [schedule] of the store's configuration, as srl config --json gives
+// it (docs/cli.md, "Store"): every key with the value in use, its default
+// when config.toml leaves it out, and FSRS's default weights when it has
+// none (docs/store.md, "Configuration").
+export type Schedule = {
+  desired_retention: number;
+  day_starts_at: number;
+  new_per_day: number;
+  max_skip: number;
+  leech_lapses: number;
+  mature_days: number;
+  weights: number[];
+};
+
 // The counts of one study day, as srl stats --days gives them
 // (docs/cli.md, "Analysis"): its reviews, the first reviews of new cards
 // among them, and those rated Again.
@@ -158,6 +172,8 @@ export const api = {
     );
     return { reviewed: stats?.reviews_today ?? 0, new: stats?.new_today ?? 0, again: stats?.again_today ?? 0 };
   },
+  // The scheduling settings in use.
+  schedule: async () => (await call<{ config: { schedule: Schedule } }>('/api/store-config')).config.schedule,
   // The counts of each of the last DAYS study days of SELECTOR's cards,
   // oldest first, or null when it matches no card.
   days: async (selector: string, days: number) => {
