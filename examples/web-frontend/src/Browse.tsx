@@ -194,6 +194,7 @@ export function Browse() {
           {(selected === null || list.kind !== 'error') && (
             <Preview
               loading={selected !== null && list.kind === 'loading'}
+              chosen={selected}
               missing={selected !== null && list.kind === 'ready' && !listed ? selected : null}
               found={(list.kind === 'loading' ? list.before : cards).find((c) => c.id === selected) ?? null}
               made={made}
@@ -296,6 +297,7 @@ function CardList({
 // details on Details, and for the card on the other sides until it is made.
 function Preview({
   loading,
+  chosen,
   found,
   made,
   settled,
@@ -306,6 +308,8 @@ function Preview({
   missing,
 }: {
   loading: boolean;
+  // The ID of the chosen card, from the address, and the card, once found.
+  chosen: string | null;
   found: FoundCard | null;
   // The card the address names when the selector's cards don't include it.
   missing: string | null;
@@ -384,9 +388,11 @@ function Preview({
       {/* Until the cards are found, the form waits for the card's item, as
           one skeleton from the page's opening to the form. */}
       {side === 'edit' && <EditItem id={found === null ? null : found.item} onSaved={onSaved} />}
-      {/* From the page's opening, through CHOICE_DELAY, to the card made,
-          one skeleton per card, so its seconds count from when it is chosen. */}
-      {showsMade && (made === undefined || made.kind === 'making') && <CardSkeleton key={found?.id ?? ''} />}
+      {/* From the page's opening, through the cards found and CHOICE_DELAY,
+          to the card made, one skeleton, which counts the seconds from when
+          the card was chosen. It is the chosen card of the address, known
+          before the cards are found, so that finding them changes nothing. */}
+      {showsMade && (made === undefined || made.kind === 'making') && <CardSkeleton card={chosen ?? ''} />}
       {showsMade && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
       {found !== null &&
         showsMade &&

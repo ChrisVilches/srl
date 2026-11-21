@@ -233,17 +233,21 @@ const SECONDS_SHOWN_AFTER_MS = 3000;
 
 // A card while srl makes it, or, in Study, finds none is left: CardFace's
 // shape in Skeleton bars, then, once it has taken SECONDS_SHOWN_AFTER_MS
-// since SINCE, a performance.now(), or else since it was first shown, the
-// seconds, then CHILDREN, the shape of what goes under the card. NOW can
-// lag a new SINCE by a tick, hence the clamp.
-export function CardSkeleton({ since, children }: { since?: number; children?: ReactNode }) {
-  const [shown] = useState(() => performance.now());
+// since SINCE, a performance.now(), the seconds, then CHILDREN, the shape
+// of what goes under the card. Without SINCE, the seconds count from when
+// it was first shown for the card CARD, so that choosing another card
+// starts them again without showing a new skeleton, whose bars would start
+// pulsing again, a jump. NOW can lag a new SINCE by a tick, hence the
+// clamp.
+export function CardSkeleton({ since, card, children }: { since?: number; card?: string; children?: ReactNode }) {
+  const [shown, setShown] = useState(() => ({ card, at: performance.now() }));
+  if (shown.card !== card) setShown({ card, at: performance.now() });
   const [now, setNow] = useState(performance.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(performance.now()), 200);
     return () => clearInterval(timer);
   }, []);
-  const elapsed = Math.max(0, now - (since ?? shown));
+  const elapsed = Math.max(0, now - (since ?? shown.at));
   return (
     <Loading label="Loading the card" className="flex flex-1 flex-col gap-6">
       <div className="rounded-2xl border border-stone-200 bg-white px-6 pt-4 pb-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
