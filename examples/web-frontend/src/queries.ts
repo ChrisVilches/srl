@@ -9,10 +9,10 @@ import type { Submitted } from './hooks';
 // A view reads with useQuery(queries.X(…)) and never sets what it shows from
 // an answer itself (README.md, "What srl answers").
 export const queries = {
-  // The cards of a search's selectors, for one submission of it: submitting
+  // The cards of a search's selector, for one submission of it: submitting
   // it again finds them anew.
-  find: ({ selectors, n }: Submitted) =>
-    queryOptions({ queryKey: ['find', selectors, n], queryFn: () => api.findAll(selectors) }),
+  find: ({ selector, n }: Submitted) =>
+    queryOptions({ queryKey: ['find', selector, n], queryFn: () => api.find(selector) }),
 
   // Card ID made from its item, by its kind program, which may take long or
   // cost something (an LLM): made only when asked, so not again after a
@@ -54,9 +54,9 @@ export const queries = {
   // The scheduling settings in use.
   schedule: () => queryOptions({ queryKey: ['schedule'], queryFn: api.schedule }),
 
-  // The counts of each of the last DAYS study days of a search's selectors.
-  days: (selectors: string[], days: number) =>
-    queryOptions({ queryKey: ['days', selectors, days], queryFn: () => api.daysOf(selectors, days) }),
+  // The counts of each of the last DAYS study days of a selector's cards.
+  days: (selector: string, days: number) =>
+    queryOptions({ queryKey: ['days', selector, days], queryFn: () => api.days(selector, days) }),
 
   // Whether srl-web was started with --on-change: fixed while it runs.
   hasOnChange: () => queryOptions({ queryKey: ['has-on-change'], queryFn: api.hasOnChange, staleTime: Infinity }),

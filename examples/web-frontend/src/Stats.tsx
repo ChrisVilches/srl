@@ -25,7 +25,7 @@ export function Stats() {
           </section>
           <section>
             <Label>Activity</Label>
-            <Activity selectors={submitted.selectors} />
+            <Activity selector={submitted.selector} />
           </section>
         </div>
       </main>

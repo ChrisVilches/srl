@@ -8,7 +8,7 @@
 //
 // The query holds the search last submitted (src/filters.ts), so that
 // reloading the page keeps it: one parameter per filter, named by its key,
-// in the order of the menus, then the text, as typed, in q. Collection
+// in the order of the menus (the ID last), then the text, as typed, in q. Collection
 // grammar, status active, schedule due and the text "hello you" are
 // ?in=grammar&is=active&is=due&q=hello+you. Switching views keeps the query.
 //

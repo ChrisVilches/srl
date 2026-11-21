@@ -45,7 +45,7 @@ export function FilterButton({ filters, onFilters }: { filters: Filters; onFilte
 }
 
 // The labels of the menus, for the values srl lists and those of is:.
-const LABELS: Record<Exclude<Menu, 'leech'>, string> = {
+const LABELS: Record<Exclude<Menu, 'leech' | 'id'>, string> = {
   in: 'Collection',
   source: 'Source',
   kind: 'Kind',
@@ -87,11 +87,18 @@ function FilterDialog({
   const retry = () => reads.filter((read) => read.isError).forEach((read) => read.refetch());
   const set = (menu: Menu, value: string | null) => setFilters((before) => ({ ...before, [menu]: value }));
 
-  // Apply, at the right of Cancel; disabled until the menus are shown.
-  // Clear, far at their left, is shown while any menu is set, applied or
-  // not.
+  // The ID as typed, which applies without the spaces around it, and only
+  // while a term can hold it: whether it is an ID is srl's to say, when the
+  // search is made.
+  const id = filters.id?.trim() || null;
+  const idValid = id === null || writable(id);
+  const applyFilters = () => onApply({ ...filters, id });
+
+  // Apply, at the right of Cancel; disabled until the menus are shown, and
+  // while the ID can't be one. Clear, far at their left, is shown while any
+  // filter is set, applied or not.
   const apply = (ready: boolean) => (
-    <button onClick={() => onApply(filters)} disabled={!ready} className={`px-4 py-2 text-sm ${MAIN_BUTTON}`}>
+    <button onClick={applyFilters} disabled={!ready || !idValid} className={`px-4 py-2 text-sm ${MAIN_BUTTON}`}>
       Apply
     </button>
   );
@@ -104,7 +111,7 @@ function FilterDialog({
     );
   }
 
-  const options: Record<Exclude<Menu, 'leech'>, string[]> = {
+  const options: Record<Exclude<Menu, 'leech' | 'id'>, string[]> = {
     in: collections.data,
     source: sources.data,
     kind: kinds.data.map((kind) => kind.name),
@@ -127,12 +134,30 @@ function FilterDialog({
       onClose={onClose}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        {(Object.keys(LABELS) as Exclude<Menu, 'leech'>[]).map((name) => (
+        {(Object.keys(LABELS) as Exclude<Menu, 'leech' | 'id'>[]).map((name) => (
           <label key={name} className="flex flex-col gap-1.5 text-sm text-stone-500">
             {LABELS[name]}
             <Select value={filters[name]} options={options[name]} onChange={(value) => set(name, value)} />
           </label>
         ))}
+        {/* The search box searches text only: an ID, of an item (all its
+            cards) or of a card, is typed here. Enter applies. */}
+        <label className="flex flex-col gap-1.5 text-sm text-stone-500">
+          ID
+          <input
+            value={filters.id ?? ''}
+            onChange={(event) => set('id', event.target.value === '' ? null : event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && idValid) applyFilters();
+            }}
+            placeholder="Of an item or a card"
+            aria-invalid={!idValid}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            className="h-10 w-full rounded-lg border border-stone-300 bg-white px-2 font-mono text-base text-stone-900 placeholder:font-sans placeholder:text-stone-400 aria-[invalid=true]:border-rose-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+          />
+        </label>
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -147,13 +172,13 @@ function FilterDialog({
   );
 }
 
-// The filters while srl reads what they offer: the menus and the checkbox,
-// as grey bars.
+// The filters while srl reads what they offer: the menus, the ID and the
+// checkbox, as grey bars.
 function FiltersSkeleton() {
   return (
     <Loading label="Reading the collections, sources and kinds" className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        {Object.keys(LABELS).map((name) => (
+        {[...Object.keys(LABELS), 'id'].map((name) => (
           <div key={name} className="flex flex-col gap-1.5">
             <Skeleton className="h-5 w-20" />
             <Skeleton className="h-10" />

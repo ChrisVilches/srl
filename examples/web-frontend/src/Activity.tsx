@@ -37,12 +37,12 @@ const weekdayOf = (day: string) => new Date(`${day}T00:00:00Z`).getUTCDay();
 const monthOf = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleString(undefined, { month: 'short', timeZone: 'UTC' });
 
-// The calendar of the cards of a search's SELECTORS, read again after each
+// The calendar of the cards of SELECTOR, the search's, read again after each
 // change to the store (src/main.tsx). Its skeleton has the calendar's
 // shape, so what is under it doesn't move as the calendar replaces it.
-export function Activity({ selectors }: { selectors: string[] }) {
-  const days = useQuery(queries.days(selectors, DAYS));
-  const searched = selectors[0] !== '';
+export function Activity({ selector }: { selector: string }) {
+  const days = useQuery(queries.days(selector, DAYS));
+  const searched = selector !== '';
   return (
     <div className="flex flex-col gap-4 text-sm">
       <p className="text-stone-500">

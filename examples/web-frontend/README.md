@@ -99,19 +99,19 @@ macOS and Windows (it is tried on Linux only).
   any field, ignoring case. Each word is searched for on its own, as
   text whatever it looks like (`in:x` or `-x` too): srl gets each in
   double quotes, and a double quote separates words, as a space does.
-  A single word is also an ID, of an item or a card: the page asks srl
-  for `id:WORD` too, with the filters, and shows the cards of both, those
-  of the ID first (Browse lists each card once; Study gives the ID's next
-  card, and makes a card of the text only when the ID has none). Whether
-  the word is an ID is srl's to say: when srl refuses it as one, the page
-  searches the word as text only, so the page knows no rule of IDs. Two
-  words or more are only text.
+  The box searches text only, even a word that looks like an ID: an ID
+  is a filter (below), so a search is always one selector.
   Enter submits it, and the X at the right of the box, shown while it
   holds text, empties it and submits no text, keeping the filters.
 - The **Filters** button (sliders), at the right of the box, opens the
   filters: Collection, Source, Kind, Status and Schedule, each with one
-  value or Any, and **Leeches only**. Each one set is a term of the
-  selector, so a card must match them all. Collection offers the `in`
+  value or Any, an **ID**, of an item (all its cards) or of a card, typed
+  in a box, and **Leeches only**. Each one set is a term of the
+  selector, so a card must match them all. The ID is applied without
+  the spaces around it, and Apply is disabled while it holds a space, a
+  comma or a double quote, which a term can't hold; Enter in it applies.
+  Whether it is an ID is srl's to say: one srl refuses shows srl's
+  error in the view, so the page knows no rule of IDs. Collection offers the `in`
   names of every collection, each once (folders and file names, as `srl
   collections --json` gives them), since `in:` takes those; a name `in:`
   can't take, with a space or a comma, isn't offered. Source and Kind
@@ -122,12 +122,13 @@ macOS and Windows (it is tried on Linux only).
   with Try again, is shown in their place. **Apply**, at the right of
   Cancel, submits the filters with the box's text, as Enter would, and is
   disabled until the menus show. **Clear**, in red at the left of the
-  same row, far from them, is shown while any menu is set, applied or
-  not, and sets every menu to Any; Cancel, or closing the filters any other way, changes nothing. While any filter
+  same row, far from them, is shown while any filter is set, applied or
+  not, and sets every menu to Any and empties the ID; Cancel, or closing the filters any other way, changes nothing. While any filter
   is set, the button is filled and shows how many at the left of its
   icon, since nothing else on the page says so.
 - The search submitted is kept in the address's query: one parameter per
-  filter set, named by its key, in the order of the menus, then the text,
+  filter set, named by its key, in the order of the menus, the ID last
+  (`id`), then the text,
   as typed, in `q`. Collection `grammar`, Status `active`, Schedule `due`
   and the text `hello you` are `?in=grammar&is=active&is=due&q=hello+you`.
   Reloading the page rebuilds the search from the parameters, whichever
@@ -330,10 +331,7 @@ changes nothing:
 - **Activity**: a calendar like GitHub's (`src/Activity.tsx`) of the
   last 9 weeks (`DAYS`), a column per week from Sunday, a square per
   study day, greener for more reviews, of the cards of the search, as
-  `srl stats --days` counts them. With one word that is an ID too, it
-  is the ID's cards when it has some, as in Study, and the text's
-  otherwise: the two aren't added up, which would count a card of both
-  twice. The day pointed at, focused or tapped is told under it, today
+  `srl stats --days` counts them. The day pointed at, focused or tapped is told under it, today
   until then, with the reviews, new cards and Again ratings of the
   day, and the total under that. srl says which days are shown, so the
   last is srl's study day, which starts at its `day_starts_at`: until

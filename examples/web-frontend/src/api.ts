@@ -100,23 +100,6 @@ export type NewItem = Record<string, string | boolean>;
 // has had its run.
 export type OnChangeStatus = { busy: boolean; last: { seq: number; error: string | null } | null };
 
-// Whether srl's message says a selector is wrong: srl starts every such
-// error with these words. A search's word that isn't an ID is wrong as
-// id:WORD (src/filters.ts).
-const isSelectorError = (error: unknown) => error instanceof Error && error.message.includes('invalid selector term');
-
-// What srl gives for SELECTOR through READ, or NONE when srl says it is
-// wrong and it isn't the LAST of a search's selectors, as for a word that
-// isn't an ID: the last one's error is the search's, and shown.
-async function orNone<T>(read: () => Promise<T>, last: boolean, none: T): Promise<T> {
-  try {
-    return await read();
-  } catch (error) {
-    if (!last && isSelectorError(error)) return none;
-    throw error;
-  }
-}
-
 // Called after each change the page makes to the store.
 const changeListeners = new Set<() => void>();
 
@@ -183,38 +166,8 @@ export const api = {
     );
     return stats?.days ?? null;
   },
-  // The same of a search's SELECTORS (src/filters.ts), taken as Study takes
-  // its card: the first one's, or, if it matches no card, the next one's.
-  // Their cards' counts aren't added up, which would count twice a card of
-  // both, such as one with the word in its text and as its ID. Null when
-  // none matches a card.
-  daysOf: async (selectors: string[], days: number): Promise<DayCounts[] | null> => {
-    for (const [i, selector] of selectors.entries()) {
-      const counts = await orNone(() => api.days(selector, days), i === selectors.length - 1, null);
-      if (counts) return counts;
-    }
-    return null;
-  },
   find: async (selector: string) =>
     (await call<{ cards: FoundCard[] }>(`/api/find?${new URLSearchParams({ sel: selector })}`)).cards,
-  // The cards of a search's SELECTORS (src/filters.ts): those of each, in
-  // their order, each card once.
-  findAll: async (selectors: string[]): Promise<FoundCard[]> => {
-    const found = await Promise.all(
-      selectors.map((selector, i) => orNone(() => api.find(selector), i === selectors.length - 1, [])),
-    );
-    const seen = new Set<string>();
-    return found.flat().filter((card) => !seen.has(card.id) && seen.add(card.id));
-  },
-  // The next card of a search's SELECTORS: the first one's, or, if it has
-  // none, the next one's, so that one is made only when needed.
-  nextOf: async (selectors: string[], signal: AbortSignal): Promise<Card | null> => {
-    for (const [i, selector] of selectors.entries()) {
-      const card = await orNone(() => api.next(selector, signal), i === selectors.length - 1, null);
-      if (card) return card;
-    }
-    return null;
-  },
   // Makes the card, running its kind program. Aborting SIGNAL stops srl.
   card: async (id: string, signal: AbortSignal) =>
     (await call<{ card: ShownCard }>(`/api/card?${new URLSearchParams({ id })}`, undefined, signal)).card,

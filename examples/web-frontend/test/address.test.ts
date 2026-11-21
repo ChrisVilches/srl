@@ -17,6 +17,7 @@ const ROUND_TRIPS: [Search, string][] = [
   [search({}), ''],
   [search({ in: 'grammar' }), 'in=grammar'],
   [search({ in: 'grammar', source: 'items', kind: 'ja_word' }), 'in=grammar&source=items&kind=ja_word'],
+  [search({ in: 'grammar', id: 'k3m9q1.2' }, 'verb'), 'in=grammar&id=k3m9q1.2&q=verb'],
   [search({ status: 'active', schedule: 'due', leech: 'leech' }), 'is=active&is=due&is=leech'],
   [search({ in: 'v1.2' }, 'hello you'), 'in=v1.2&q=hello+you'],
   [search({}, '"std::move" -x'), 'q=%22std::move%22+-x'],
@@ -44,5 +45,6 @@ test('the parameters are read in any order, each is to its menu', () => {
 test('a menu takes the first value it can, and the rest is left out', () => {
   assert.deepEqual(searchOfQuery('in=a&in=b&is=new&is=due'), search({ in: 'a', schedule: 'new' }));
   assert.deepEqual(searchOfQuery('in=a,b&in=my+notes&in=c'), search({ in: 'c' }));
-  assert.deepEqual(searchOfQuery('-in=a&id=k3m9q1&is=sleeping&text=x'), search({}));
+  assert.deepEqual(searchOfQuery('-in=a&id=a,b&is=sleeping&text=x'), search({}));
+  assert.deepEqual(searchOfQuery('id=a+b&id=k3m9q1'), search({ id: 'k3m9q1' }));
 });
