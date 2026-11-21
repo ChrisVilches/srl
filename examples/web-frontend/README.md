@@ -73,12 +73,17 @@ macOS and Windows (it is tried on Linux only).
   greyed out, before they rate: a key or a tap pressed twice in a row by
   accident doesn't rate a card before its answer is read
   (`RATE_AFTER_MS` in `src/App.tsx`).
-- When the next card takes a while to make, as when its kind program asks
-  an LLM, a spinner says so, with the seconds it has taken. Cards that
-  come in under 300 ms replace the last one without it. Everything else
+- While the next card is coming, Study shows a skeleton of it, grey bars
+  laid out as the card and its buttons will be, in faint colors, so that
+  it comes and goes without a flash, as when Check again finds nothing
+  left. Cards that come in under 300 ms replace the last one without it.
+  When the card takes over 3 seconds, as when its kind program asks an
+  LLM, the skeleton also says it is still loading, with the seconds it
+  has taken (`SECONDS_SHOWN_AFTER_MS` in `src/App.tsx`). Everything else
   the page waits for, such as the cards of Browse, an item to edit or what
-  Add needs, is shown as a skeleton, grey bars laid out as it will be, in
-  place of a text saying it is loading.
+  Add needs, is shown as a skeleton too, in place of a text saying it is
+  loading; only a card being made in Browse shows a spinner and its
+  seconds from the start.
 - The cards are chosen with a **search**: the filters, set with menus,
   and a text. The page never shows or takes a selector: it makes the one
   srl gets from the search (`src/filters.ts`). The page has one search,

@@ -224,20 +224,32 @@ export function Key({ children }: { children: ReactNode }) {
   );
 }
 
-// Waiting for srl, with a spinner and the seconds since SINCE, a
-// performance.now(): making a card can take a while, as when its kind program
-// asks an LLM. NOW can lag a new SINCE by a tick, hence the clamp.
-export function Waiting({ title, since, children }: { title: string; since: number; children?: ReactNode }) {
+// The milliseconds since SINCE, a performance.now(), read five times a
+// second. NOW can lag a new SINCE by a tick, hence the clamp.
+export function useElapsed(since: number) {
   const [now, setNow] = useState(performance.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(performance.now()), 200);
     return () => clearInterval(timer);
   }, []);
+  return Math.max(0, now - since);
+}
+
+// Seconds as Waiting shows them: 3.4 s.
+export function seconds(ms: number) {
+  return `${(ms / 1000).toFixed(1)} s`;
+}
+
+// Waiting for srl, with a spinner and the seconds since SINCE, a
+// performance.now(): making a card can take a while, as when its kind program
+// asks an LLM.
+export function Waiting({ title, since, children }: { title: string; since: number; children?: ReactNode }) {
+  const elapsed = useElapsed(since);
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center dark:border-stone-700">
       <div className="h-6 w-6 animate-spin rounded-full border-2 border-stone-300 border-t-amber-500 dark:border-stone-700 dark:border-t-amber-400" />
       <div className="font-medium">
-        {title} <span className="tabular-nums">{(Math.max(0, now - since) / 1000).toFixed(1)} s</span>
+        {title} <span className="tabular-nums">{seconds(elapsed)}</span>
       </div>
       {children && <p className="max-w-md text-sm text-stone-500">{children}</p>}
     </div>
@@ -247,8 +259,9 @@ export function Waiting({ title, since, children }: { title: string; since: numb
 // The shape of what is loading, in place of a text that says so: a view
 // shows one built from Skeleton bars, laid out like what will replace it,
 // so the page doesn't jump when it comes. LABEL says what is loading to a
-// screen reader. Waiting is for a card being made, which can take long
-// enough that the seconds are worth showing.
+// screen reader. Waiting is for a card being made in Browse, which can take
+// long enough that the seconds are worth showing. (Study's skeleton of a
+// card shows them too, once the card is slow to come.)
 export function Loading({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
   return (
     <div role="status" aria-busy className={className}>
