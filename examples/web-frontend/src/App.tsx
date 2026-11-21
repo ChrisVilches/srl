@@ -262,10 +262,11 @@ function StatsLine({ stats }: { stats: Today }) {
 }
 
 // The next card while srl makes it, or finds none is left: CardView's
-// shape, the card and the bar of buttons.
+// shape, the card and the bar of buttons. SINCE, when the card was asked
+// for, tells one wait from the next.
 function NextCardSkeleton({ since }: { since: number }) {
   return (
-    <CardSkeleton since={since}>
+    <CardSkeleton of={since}>
       <div className="-mx-4 mt-auto border-t border-stone-200 px-4 py-4 sm:-mx-6 sm:px-6 dark:border-stone-800">
         <div className="flex items-center gap-2">
           <Skeleton className="h-12 flex-1" />

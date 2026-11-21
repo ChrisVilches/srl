@@ -390,9 +390,9 @@ function Preview({
       {side === 'edit' && <EditItem id={found === null ? null : found.item} onSaved={onSaved} />}
       {/* From the page's opening, through the cards found and CHOICE_DELAY,
           to the card made, one skeleton, which counts the seconds from when
-          the card was chosen. It is the chosen card of the address, known
-          before the cards are found, so that finding them changes nothing. */}
-      {showsMade && (made === undefined || made.kind === 'making') && <CardSkeleton card={chosen ?? ''} />}
+          the card was chosen: the card of the address, known before the
+          cards are found, so that finding them changes nothing. */}
+      {showsMade && (made === undefined || made.kind === 'making') && <CardSkeleton of={chosen ?? ''} />}
       {showsMade && made?.kind === 'error' && <ErrorView message={made.message} onRetry={onMake} />}
       {found !== null &&
         showsMade &&
