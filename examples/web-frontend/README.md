@@ -108,8 +108,11 @@ macOS and Windows (it is tried on Linux only).
   submits it, and the X at its right, shown while it holds text, empties
   it and submits no text, keeping the filters.
 - The **Filters** button (sliders), at the right of Browse's box, and
-  in Study and Stats at the right of their bar (of its second row on a
-  phone, under the theme button), opens the filters: the **Text**,
+  in Study at the right of its bar (of its second row on a phone, under
+  the theme button), opens the filters; in Stats, a link in the line
+  over the calendar, the only part the search is for, opens them, saying
+  how many are set ("Set filters", or "2 filters set, change them"). The
+  filters are the **Text**,
   Collection, Source, Kind, Status and Schedule, each with one
   value or Any, an **ID**, of an item (all its cards) or of a card, typed
   in a box, and **Leeches only**. Each one set is a term of the
@@ -340,7 +343,10 @@ changes nothing:
 - **Activity**: a calendar like GitHub's (`src/Activity.tsx`) of the
   last 9 weeks (`DAYS`), a column per week from Sunday, a square per
   study day, greener for more reviews, of the cards of the search, as
-  `srl stats --days` counts them. The day pointed at, focused or tapped is told under it, today
+  `srl stats --days` counts them. The line over it says whether that is
+  every card or the cards the filters choose, and ends with the link
+  that opens the filters, Stats' only way to them: its bar has no
+  controls. The day pointed at, focused or tapped is told under it, today
   until then, with the reviews, new cards and Again ratings of the
   day, and the total under that. srl says which days are shown, so the
   last is srl's study day, which starts at its `day_starts_at`: until

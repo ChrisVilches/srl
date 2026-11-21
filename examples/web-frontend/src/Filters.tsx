@@ -11,49 +11,24 @@ import { queries } from './queries';
 // Browse's search box's, so that the two are one box (src/TopBar.tsx).
 export type TextDraft = { value: string; onChange: (text: string) => void };
 
-// A button that opens the dialog of SEARCH, the page's (src/filters.ts): its
-// text and its filters. Apply calls ON_SEARCH with what they are set to.
-// The text is TEXT, another box's, when given; without it, the dialog has
-// its own, set to the search's each time it opens. While the text or any
-// filter is set, the button is filled and shows how many, since nothing
-// else on the page may say so: inside it, at the left of its icon, so that
-// the icon stays where it is (src/TopBar.tsx). CLASSNAME places it.
-export function FilterButton({
-  search,
-  onSearch,
-  text,
-  className = '',
-}: {
-  search: Search;
-  onSearch: (search: Search) => void;
-  text?: TextDraft;
-  className?: string;
-}) {
+// What opens the dialog of SEARCH, the page's (src/filters.ts): its text and
+// its filters, which Apply calls ON_SEARCH with. The text is TEXT, another
+// box's, when given; without it, the dialog has its own, set to the
+// search's each time it opens. Gives how to open it, how many of the text
+// and the filters are set, and the dialog, to render beside what opens it.
+function useFilters(search: Search, onSearch: (search: Search) => void, text?: TextDraft) {
   const [open, setOpen] = useState(false);
   // How many times the dialog was opened: its key, so that each opening
   // makes it anew, set to the search, while closing keeps it as it is to
   // fade out (src/Modal.tsx).
   const [openings, setOpenings] = useState(0);
-  const count = filterCount(search.filters) + (search.text === '' ? 0 : 1);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(true);
-          setOpenings((n) => n + 1);
-        }}
-        aria-label={count === 0 ? 'Filters' : `Filters, ${count} set`}
-        title={count === 0 ? 'Filters' : `Filters: ${count} set`}
-        className={`flex shrink-0 items-center gap-1.5 max-md:-mr-2 ${BAR_ICON_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'} ${className}`}
-      >
-        {count > 0 && (
-          <span aria-hidden className="text-sm font-semibold tabular-nums">
-            {count}
-          </span>
-        )}
-        <AdjustmentsHorizontalIcon className="size-5" aria-hidden />
-      </button>
+  return {
+    open: () => {
+      setOpen(true);
+      setOpenings((n) => n + 1);
+    },
+    count: filterCount(search.filters) + (search.text === '' ? 0 : 1),
+    dialog: (
       <FilterDialog
         key={openings}
         open={open}
@@ -65,6 +40,62 @@ export function FilterButton({
         }}
         onClose={() => setOpen(false)}
       />
+    ),
+  };
+}
+
+// The filters' button, of a bar: it opens their dialog (useFilters). While
+// the text or any filter is set, it is filled and shows how many, since
+// nothing else on the page may say so: inside it, at the left of its icon,
+// so that the icon stays where it is (src/TopBar.tsx). CLASSNAME places it.
+export function FilterButton({
+  search,
+  onSearch,
+  text,
+  className = '',
+}: {
+  search: Search;
+  onSearch: (search: Search) => void;
+  text?: TextDraft;
+  className?: string;
+}) {
+  const { open, count, dialog } = useFilters(search, onSearch, text);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={open}
+        aria-label={count === 0 ? 'Filters' : `Filters, ${count} set`}
+        title={count === 0 ? 'Filters' : `Filters: ${count} set`}
+        className={`flex shrink-0 items-center gap-1.5 max-md:-mr-2 ${BAR_ICON_BUTTON} ${count === 0 ? '' : 'bg-stone-200 text-stone-900 dark:bg-stone-800 dark:text-stone-100'} ${className}`}
+      >
+        {count > 0 && (
+          <span aria-hidden className="text-sm font-semibold tabular-nums">
+            {count}
+          </span>
+        )}
+        <AdjustmentsHorizontalIcon className="size-5" aria-hidden />
+      </button>
+      {dialog}
+    </>
+  );
+}
+
+// The filters as a link in a text, where there is room to say how many are
+// set: "Set filters", or "3 filters set, change them". It opens their
+// dialog (useFilters), so it is a button, which looks like a link.
+export function FilterLink({ search, onSearch }: { search: Search; onSearch: (search: Search) => void }) {
+  const { open, count, dialog } = useFilters(search, onSearch);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={open}
+        className="text-stone-700 underline decoration-stone-400 underline-offset-2 hover:decoration-stone-700 dark:text-stone-300 dark:decoration-stone-600 dark:hover:decoration-stone-300"
+      >
+        {count === 0 ? 'Set filters' : `${count} ${count === 1 ? 'filter' : 'filters'} set, change them`}
+      </button>
+      {dialog}
     </>
   );
 }

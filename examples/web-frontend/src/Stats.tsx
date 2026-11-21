@@ -4,7 +4,7 @@ import { Activity } from './Activity';
 import { type Schedule } from './api';
 import { useView } from './App';
 import { Label, Loading, Skeleton } from './CardParts';
-import { FilterButton } from './Filters';
+import { FilterLink } from './Filters';
 import { queries } from './queries';
 import { TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
 
@@ -15,10 +15,8 @@ export function Stats() {
   const { search, submitted, onSearch } = useView();
   return (
     <div className="flex h-dvh flex-col">
-      <TopBar view="stats">
-        {/* The search, for the calendar, with its text in the filters. */}
-        <FilterButton search={search} onSearch={onSearch} className="max-md:ml-auto" />
-      </TopBar>
+      {/* The search is set by the calendar, the only part it is for. */}
+      <TopBar view="stats">{null}</TopBar>
       <main className={VIEW_SCROLL}>
         <div className={`${VIEW_COLUMN} gap-10`}>
           <section>
@@ -27,7 +25,7 @@ export function Stats() {
           </section>
           <section>
             <Label>Activity</Label>
-            <Activity selector={submitted.selector} />
+            <Activity selector={submitted.selector} filters={<FilterLink search={search} onSearch={onSearch} />} />
           </section>
         </div>
       </main>

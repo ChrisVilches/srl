@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { type DayCounts } from './api';
 import { Loading, Skeleton } from './CardParts';
@@ -40,13 +40,15 @@ const monthOf = (day: string) =>
 // The calendar of the cards of SELECTOR, the search's, read again after each
 // change to the store (src/main.tsx). Its skeleton has the calendar's
 // shape, so what is under it doesn't move as the calendar replaces it.
-export function Activity({ selector }: { selector: string }) {
+// FILTERS, what sets the search, follows the line saying which cards.
+export function Activity({ selector, filters }: { selector: string; filters: ReactNode }) {
   const days = useQuery(queries.days(selector, DAYS));
   const searched = selector !== '';
   return (
     <div className="flex flex-col gap-4 text-sm">
       <p className="text-stone-500">
-        Reviews of each of the last {DAYS / 7} weeks, {searched ? 'of the cards of this search' : 'of every card'}.
+        Reviews of each of the last {DAYS / 7} weeks, {searched ? 'of the cards the filters choose' : 'of every card'}
+        . {filters}
       </p>
       {days.isSuccess ? (
         days.data === null ? (
