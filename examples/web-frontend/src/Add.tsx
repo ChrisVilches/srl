@@ -6,7 +6,7 @@ import { DraftCheckbox, ErrorView, Key, KindBadge, Label, Loading, MAIN_BUTTON, 
 import { Modal, ResultBox, UnsavedGuard } from './Modal';
 import { clozeHint, clozeShortcut } from './qaCloze';
 import { queries } from './queries';
-import { TopBar } from './TopBar';
+import { TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
 
 // Adding items, one at a time: a kind from `srl kinds`, its fields, and the
 // collection to add it to, of any source, picked from
@@ -165,107 +165,109 @@ export function Add() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       <TopBar view="add">{null}</TopBar>
       <UnsavedGuard unsaved={unsaved} what="The item being written isn't added yet, and leaving Add loses it." />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
-        {store.kind === 'loading' && <FormSkeleton />}
-        {store.kind === 'error' && <ErrorView message={store.message} onRetry={retry} />}
-        {store.kind === 'ready' && kind !== undefined && (
-          <div className="flex flex-col gap-6" onKeyDown={onKeyDown}>
-            <Section label="Kind">
-              <div className="flex flex-wrap items-center gap-3">
-                <select
-                  value={kind.name}
-                  onChange={(event) => {
-                    setKindName(event.target.value);
-                    setCollection(undefined);
-                  }}
-                  className={`${INPUT} w-auto font-mono`}
-                >
-                  {kinds.map((k) => (
-                    <option key={k.name} value={k.name}>
-                      {k.name}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-sm text-stone-500">
-                  {kind.description}
-                  {/* Not on a touch screen, which has no keys to press. */}
-                  {cloze && (
-                    <span className="pointer-coarse:hidden">
-                      {' '}
-                      <Key>{cloze.key}</Key> {cloze.text}
-                    </span>
-                  )}
-                </span>
-              </div>
-            </Section>
+      <main className={VIEW_SCROLL}>
+        <div className={VIEW_COLUMN}>
+          {store.kind === 'loading' && <FormSkeleton />}
+          {store.kind === 'error' && <ErrorView message={store.message} onRetry={retry} />}
+          {store.kind === 'ready' && kind !== undefined && (
+            <div className="flex flex-col gap-6" onKeyDown={onKeyDown}>
+              <Section label="Kind">
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={kind.name}
+                    onChange={(event) => {
+                      setKindName(event.target.value);
+                      setCollection(undefined);
+                    }}
+                    className={`${INPUT} w-auto font-mono`}
+                  >
+                    {kinds.map((k) => (
+                      <option key={k.name} value={k.name}>
+                        {k.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-sm text-stone-500">
+                    {kind.description}
+                    {/* Not on a touch screen, which has no keys to press. */}
+                    {cloze && (
+                      <span className="pointer-coarse:hidden">
+                        {' '}
+                        <Key>{cloze.key}</Key> {cloze.text}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </Section>
 
-            {kind.fields.map((field) => (
-              // The field's text in the item last added of this kind is its
-              // placeholder, or, before one is or if it was left blank, the
-              // kind's description of the field: there while the box is
-              // empty, out of the way once it is written in.
-              <Section key={field.name} label={fieldLabel(field)}>
-                <textarea
-                  value={texts[field.name] ?? ''}
-                  placeholder={lastAdded[kind.name]?.[field.name]?.trim() ? lastAdded[kind.name][field.name] : field.description}
-                  onChange={(event) => setTexts((t) => ({ ...t, [field.name]: event.target.value }))}
-                  onKeyDown={clozeShortcut(kind.name, field.name)}
-                  rows={3}
-                  spellCheck={false}
-                  className={`${INPUT} resize-y`}
+              {kind.fields.map((field) => (
+                // The field's text in the item last added of this kind is its
+                // placeholder, or, before one is or if it was left blank, the
+                // kind's description of the field: there while the box is
+                // empty, out of the way once it is written in.
+                <Section key={field.name} label={fieldLabel(field)}>
+                  <textarea
+                    value={texts[field.name] ?? ''}
+                    placeholder={lastAdded[kind.name]?.[field.name]?.trim() ? lastAdded[kind.name][field.name] : field.description}
+                    onChange={(event) => setTexts((t) => ({ ...t, [field.name]: event.target.value }))}
+                    onKeyDown={clozeShortcut(kind.name, field.name)}
+                    rows={3}
+                    spellCheck={false}
+                    className={`${INPUT} resize-y`}
+                  />
+                </Section>
+              ))}
+
+              <Section
+                label="Collection"
+                hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its name, which srl creates in the one source of the store that accepts it."
+              >
+                <PathPicker
+                  paths={collections}
+                  value={collection}
+                  onChange={setCollection}
+                  placeholder={
+                    collections.length === 0 ? 'Type the name of a new collection…' : 'Find a collection, or type a new one…'
+                  }
+                  creatable={wellFormed}
                 />
               </Section>
-            ))}
 
-            <Section
-              label="Collection"
-              hint="Where the item is added: an existing collection of any source, such as a JSONL or XML file or a database table, or a new one, typed as its name, which srl creates in the one source of the store that accepts it."
-            >
-              <PathPicker
-                paths={collections}
-                value={collection}
-                onChange={setCollection}
-                placeholder={
-                  collections.length === 0 ? 'Type the name of a new collection…' : 'Find a collection, or type a new one…'
-                }
-                creatable={wellFormed}
-              />
-            </Section>
-
-            <Section
-              label="Context"
-              hint={'Optional: the note shown for context along with the answer (the item\'s "see" entry), one of your study notes (srl notes). Default: no context.'}
-            >
-              <PathPicker
-                paths={notes}
-                value={see}
-                onChange={setSee}
-                placeholder={notes.length === 0 ? 'The store has no notes' : 'Find a note…'}
-                clearable
-              />
-            </Section>
-
-            <DraftCheckbox checked={draft} onChange={setDraft} />
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={add}
-                disabled={collection === null || waiting}
-                className={`px-5 py-2.5 ${WITH_KEY} ${MAIN_BUTTON}`}
+              <Section
+                label="Context"
+                hint={'Optional: the note shown for context along with the answer (the item\'s "see" entry), one of your study notes (srl notes). Default: no context.'}
               >
-                Add <Key>ctrl+enter</Key>
-              </button>
-              <button onClick={check} disabled={collection === null || waiting} className={OUTLINE_BUTTON}>
-                Check
-              </button>
-            </div>
+                <PathPicker
+                  paths={notes}
+                  value={see}
+                  onChange={setSee}
+                  placeholder={notes.length === 0 ? 'The store has no notes' : 'Find a note…'}
+                  clearable
+                />
+              </Section>
 
-            <ResultModal result={result} kind={kind.name} onClose={() => setResult({ kind: 'none' })} />
-          </div>
-        )}
+              <DraftCheckbox checked={draft} onChange={setDraft} />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={add}
+                  disabled={collection === null || waiting}
+                  className={`px-5 py-2.5 ${WITH_KEY} ${MAIN_BUTTON}`}
+                >
+                  Add <Key>ctrl+enter</Key>
+                </button>
+                <button onClick={check} disabled={collection === null || waiting} className={OUTLINE_BUTTON}>
+                  Check
+                </button>
+              </div>
+
+              <ResultModal result={result} kind={kind.name} onClose={() => setResult({ kind: 'none' })} />
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

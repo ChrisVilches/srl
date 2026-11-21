@@ -66,11 +66,17 @@ async function web(out) {
       return page.setViewport({ width, height, deviceScaleFactor: 2 });
     };
     const shot = async (name) => {
-      // The window is made as tall as the page. A full-page shot of a page
-      // taller than the window keeps the window's layout, so Study's
-      // rating bar, sticky at the window's bottom, would cover the middle
-      // of the page instead of resting below the card.
-      const height = await page.evaluate(() => document.documentElement.scrollHeight);
+      // The window is made as tall as the page. srl-web's window never
+      // scrolls, only the view under its top bar, in its <main> in Study
+      // and Add, so the page is as tall as the window plus what <main>
+      // scrolls; Browse's <main> scrolls nothing, its list and card scroll
+      // inside it. A full-page shot of the window alone would leave out
+      // what scrolls, and Study's rating bar, sticky at the bottom of
+      // <main>, would cover the middle of the card.
+      const height = await page.evaluate(() => {
+        const main = document.querySelector('main');
+        return window.innerHeight + (main ? main.scrollHeight - main.clientHeight : 0);
+      });
       await size(width, Math.max(900, height));
       // Firefox's scrollbars stay light in the dark scheme. The style is a
       // constructed sheet: srl-web's Content-Security-Policy blocks a

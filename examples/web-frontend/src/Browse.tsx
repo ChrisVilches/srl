@@ -154,12 +154,14 @@ export function Browse() {
         {list.kind === 'loading' && <Skeleton className="h-4 w-16" />}
         {list.kind === 'ready' && <Counts counts={[[cards.length, cards.length === 1 ? 'card' : 'cards']]} />}
       </TopBar>
-      {/* Wide, the list and the card side by side. Narrow (under lg), one
-          at a time in the same cell: the list while no card is chosen, the
-          card once one is, with a button back to the list. The one not
-          shown is made invisible rather than removed, so the list keeps
-          its scroll and the card its Edit form. */}
-      <main className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] lg:grid-cols-[26rem_minmax(0,1fr)] lg:gap-4">
+      {/* Wide, the list and the card side by side, the list at the
+          window's left and the card's box up to its right, the card
+          centered in it as in Study. Narrow (under lg), one at a time in
+          the same cell: the list while no card is chosen, the card once
+          one is, with a button back to the list. The one not shown is made
+          invisible rather than removed, so the list keeps its scroll and
+          the card its Edit form. */}
+      <main className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] lg:grid-cols-[26rem_minmax(0,1fr)]">
         <div
           className={`col-start-1 row-start-1 overflow-y-auto border-stone-200 [scrollbar-gutter:stable] lg:visible lg:border-r dark:border-stone-800 ${
             detail ? 'invisible' : ''
@@ -177,34 +179,36 @@ export function Browse() {
           )}
         </div>
         <div
-          className={`col-start-1 row-start-1 overflow-y-auto px-4 py-6 [scrollbar-gutter:stable] sm:px-6 lg:visible lg:col-start-2 ${
+          className={`col-start-1 row-start-1 overflow-y-auto [scrollbar-gutter:stable] lg:visible lg:col-start-2 ${
             detail ? '' : 'invisible'
           }`}
         >
-          {detail && (
-            <button onClick={toList} className={`mb-4 py-1 text-sm lg:hidden ${QUIET_BUTTON}`}>
-              ← Cards
-            </button>
-          )}
-          {/* Until the cards are found, a card the address names may or may
-              not be among them: the preview waits, with its sides but not
-              the card's details. A card chosen among the cards found before
-              stays as it was meanwhile, so that its Edit form isn't read
-              again, nor its edits lost, when another search is submitted. */}
-          {(selected === null || list.kind !== 'error') && (
-            <Preview
-              loading={selected !== null && list.kind === 'loading'}
-              chosen={selected}
-              missing={selected !== null && list.kind === 'ready' && !listed ? selected : null}
-              found={(list.kind === 'loading' ? list.before : cards).find((c) => c.id === selected) ?? null}
-              made={made}
-              settled={selected !== null && settled === selected}
-              side={side}
-              onSide={setSide}
-              onMake={makeAgain}
-              onSaved={refresh}
-            />
-          )}
+          <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+            {detail && (
+              <button onClick={toList} className={`mb-4 py-1 text-sm lg:hidden ${QUIET_BUTTON}`}>
+                ← Cards
+              </button>
+            )}
+            {/* Until the cards are found, a card the address names may or may
+                not be among them: the preview waits, with its sides but not
+                the card's details. A card chosen among the cards found before
+                stays as it was meanwhile, so that its Edit form isn't read
+                again, nor its edits lost, when another search is submitted. */}
+            {(selected === null || list.kind !== 'error') && (
+              <Preview
+                loading={selected !== null && list.kind === 'loading'}
+                chosen={selected}
+                missing={selected !== null && list.kind === 'ready' && !listed ? selected : null}
+                found={(list.kind === 'loading' ? list.before : cards).find((c) => c.id === selected) ?? null}
+                made={made}
+                settled={selected !== null && settled === selected}
+                side={side}
+                onSide={setSide}
+                onMake={makeAgain}
+                onSaved={refresh}
+              />
+            )}
+          </div>
         </div>
       </main>
     </div>

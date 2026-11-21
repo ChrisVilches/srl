@@ -18,6 +18,19 @@ import { currentTheme, setTheme } from './theme';
 //
 // A tab is a link to its view's path, keeping the search, and opens it in
 // a new tab when clicked with a modifier or the middle button.
+//
+// Every view takes the window's height, h-dvh, and puts the bar at its top:
+// the window itself never scrolls, only the view's parts under the bar do,
+// each in its own box spanning to the window's edge or a border, so that its
+// scrollbar is there and not beside the content. The scrollbar's room is
+// kept in each, so the content doesn't shift as it comes and goes.
+
+// The part of Study and Add under the bar, which scrolls, and the column in
+// it, centered, as tall as the part at least, so that something can be put
+// at its bottom with mt-auto.
+export const VIEW_SCROLL = 'min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]';
+export const VIEW_COLUMN = 'mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 py-8 sm:px-6';
+
 export function TopBar({ view, children }: { view: View; children: ReactNode }) {
   const { search } = useLocation();
   const tab = (target: View, name: string) => (

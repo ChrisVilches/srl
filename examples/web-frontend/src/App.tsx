@@ -12,7 +12,7 @@ import { useKeys, useSubmitted, type Submitted } from './hooks';
 import { Modal } from './Modal';
 import { OnChangeError } from './OnChange';
 import { queries } from './queries';
-import { SearchInput, TopBar } from './TopBar';
+import { SearchInput, TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
 
 // What App gives the view of its route: the page's search, one for every
 // view, with how to submit another, and the selector srl gets for it.
@@ -217,33 +217,35 @@ export function Study() {
   });
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       <TopBar view="study">
         <SearchInput search={search} onSearch={onSearch} />
         {today && <StatsLine stats={today} />}
       </TopBar>
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6">
-        {phase.kind === 'loading' && <NextCardSkeleton since={phase.since} />}
-        {phase.kind === 'error' && (
-          <ErrorView message={phase.message} onRetry={() => loadNext(selectors)} />
-        )}
-        {phase.kind === 'done' && (
-          <DoneView searched={selectors[0] !== ''} today={today} onCheck={() => loadNext(selectors)} />
-        )}
-        {(phase.kind === 'prompt' || phase.kind === 'answer') && (
-          <>
-            <CardView
-              phase={phase}
-              busy={busy}
-              onReveal={reveal}
-              onRate={rate}
-              onSuspend={askWhy}
-              onDetails={showDetails}
-            />
-            <CardDetailsDialog id={phase.card.id} open={showingDetails} onClose={() => setShowingDetails(false)} />
-          </>
-        )}
-        <SuspendDialog open={askingWhy} onSuspend={suspend} onClose={() => setAskingWhy(false)} />
+      <main className={VIEW_SCROLL}>
+        <div className={VIEW_COLUMN}>
+          {phase.kind === 'loading' && <NextCardSkeleton since={phase.since} />}
+          {phase.kind === 'error' && (
+            <ErrorView message={phase.message} onRetry={() => loadNext(selectors)} />
+          )}
+          {phase.kind === 'done' && (
+            <DoneView searched={selectors[0] !== ''} today={today} onCheck={() => loadNext(selectors)} />
+          )}
+          {(phase.kind === 'prompt' || phase.kind === 'answer') && (
+            <>
+              <CardView
+                phase={phase}
+                busy={busy}
+                onReveal={reveal}
+                onRate={rate}
+                onSuspend={askWhy}
+                onDetails={showDetails}
+              />
+              <CardDetailsDialog id={phase.card.id} open={showingDetails} onClose={() => setShowingDetails(false)} />
+            </>
+          )}
+          <SuspendDialog open={askingWhy} onSuspend={suspend} onClose={() => setAskingWhy(false)} />
+        </div>
       </main>
     </div>
   );

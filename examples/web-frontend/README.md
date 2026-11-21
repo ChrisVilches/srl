@@ -43,8 +43,8 @@ macOS and Windows (it is tried on Linux only).
   Details side shows too. The modal is as tall as the window, so it
   doesn't move as the card, then its history, come in.
 - Showing the answer scrolls smoothly to put it in the middle of the
-  window, or, when it is taller than the window, its top at the top of
-  the window, so its start shows. Browse doesn't: turning a card to its answer there leaves the
+  view under the top bar, or, when it is taller than the view, its top
+  at the top of the view, so its start shows. Browse doesn't: turning a card to its answer there leaves the
   page where it is.
 - After the answer it shows the context, the note the item names with
   `see`, under the note's path. A note in anything but Markdown (by the
@@ -154,6 +154,11 @@ macOS and Windows (it is tried on Linux only).
   card is made, stops `srl` and the kind program making it. The name
   srl at the left of the top bar links to the root, loading the page
   anew on the study view with the search cleared.
+- The top bar stays in place in every view: the window itself never
+  scrolls, only what is under the bar, in its own box spanning to the
+  window's edge, so its scrollbar is there. Study's buttons stay at the
+  bottom while the card scrolls under them, and Browse's list and card
+  each scroll on their own (`src/TopBar.tsx`).
 - Dark, or light with the button at the right of the top bar, which
   shows the theme it switches to: a sun in dark, a moon in light. The choice
   is kept in the browser's localStorage, not taken from the system's
@@ -404,7 +409,7 @@ Radix UI's dialog, say, would need the `Content-Security-Policy` below to
 allow inline styles, since it adds `<style>` elements to the page. While a
 dialog is open, the views take no keys. A dialog taller than the window
 scrolls what it shows, keeping its title and Close button in view, and
-the page under an open dialog doesn't scroll (`src/index.css`). Every
+the view under an open dialog doesn't scroll. Every
 dialog fades in while
 growing to its size, and out while shrinking, in 150 ms, by its class
 `modal` in `src/index.css`, and not at all with reduced motion. The
