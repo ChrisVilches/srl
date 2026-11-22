@@ -80,6 +80,9 @@ const LINE = 'flex h-5 items-center';
 
 // The day last pointed at, focused or tapped is told below the calendar,
 // today until then, so that a phone, which shows no tooltips, tells it too.
+// A finger points at a square as soon as it touches it, so a touch picks a
+// day only once it lifts, as a link's tap does, and not as a scroll starts
+// on it.
 function Calendar({ days }: { days: DayCounts[] }) {
   const today = days[days.length - 1];
   // Kept by its date, so that the counts read again after a review show.
@@ -120,7 +123,7 @@ function Calendar({ days }: { days: DayCounts[] }) {
                   type="button"
                   title={describe(day)}
                   aria-label={describe(day)}
-                  onPointerEnter={() => setPointed(day.day)}
+                  onPointerEnter={(event) => event.pointerType !== 'touch' && setPointed(day.day)}
                   onFocus={() => setPointed(day.day)}
                   onClick={() => setPointed(day.day)}
                   className={`aspect-square rounded-sm ${shadeOf(day.reviews, most)} ${day === shown ? 'ring-2 ring-stone-500 ring-offset-1 ring-offset-white dark:ring-stone-400 dark:ring-offset-stone-900' : ''}`}
