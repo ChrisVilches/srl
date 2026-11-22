@@ -357,7 +357,10 @@ changes nothing:
   that opens the filters, Stats' only way to them: its bar has no
   controls. The day pointed at, focused or tapped is told under it, today
   until then, with the reviews, new cards and Again ratings of the
-  day, and the total under that. srl says which days are shown, so the
+  day, and the total under that, with how many of the cards of the
+  search are still new (`is:new`, drafts and suspended cards too unless
+  the filters leave them out), which `srl stats` counts in the same run.
+  srl says which days are shown, so the
   last is srl's study day, which starts at its `day_starts_at`: until
   then, the day before is today. It is read again after each review,
   like Study's counters, so nothing is kept on the server and it is

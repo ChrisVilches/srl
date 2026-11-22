@@ -42,6 +42,12 @@ export type Schedule = {
 // among them, and those rated Again.
 export type DayCounts = { day: string; reviews: number; new: number; again: number };
 
+// The study days of a selector's cards (api.activity), and how many of its
+// cards are new: never reviewed since their last reset, drafts and
+// suspended cards too unless the selector leaves them out, as srl stats
+// counts them.
+export type ActivityCounts = { days: DayCounts[]; new: number };
+
 // A card as `srl find --json` lists it (docs/cli.md, "Items and cards"),
 // with the first line of its item's first field.
 export type FoundCard = {
@@ -159,12 +165,13 @@ export const api = {
   // The scheduling settings in use.
   schedule: async () => (await call<{ config: { schedule: Schedule } }>('/api/store-config')).config.schedule,
   // The counts of each of the last DAYS study days of SELECTOR's cards,
-  // oldest first, or null when it matches no card.
-  days: async (selector: string, days: number) => {
-    const { stats } = await call<{ stats: { days: DayCounts[] } | null }>(
+  // oldest first, and how many of its cards are new, or null when it
+  // matches no card.
+  activity: async (selector: string, days: number): Promise<ActivityCounts | null> => {
+    const { stats } = await call<{ stats: { days: DayCounts[]; schedule: { new: number } } | null }>(
       `/api/stats?${new URLSearchParams({ sel: selector, days: String(days) })}`,
     );
-    return stats?.days ?? null;
+    return stats && { days: stats.days, new: stats.schedule.new };
   },
   find: async (selector: string) =>
     (await call<{ cards: FoundCard[] }>(`/api/find?${new URLSearchParams({ sel: selector })}`)).cards,

@@ -54,9 +54,10 @@ export const queries = {
   // The scheduling settings in use.
   schedule: () => queryOptions({ queryKey: ['schedule'], queryFn: api.schedule }),
 
-  // The counts of each of the last DAYS study days of a selector's cards.
-  days: (selector: string, days: number) =>
-    queryOptions({ queryKey: ['days', selector, days], queryFn: () => api.days(selector, days) }),
+  // The counts of each of the last DAYS study days of a selector's cards,
+  // and how many of them are new.
+  activity: (selector: string, days: number) =>
+    queryOptions({ queryKey: ['activity', selector, days], queryFn: () => api.activity(selector, days) }),
 
   // Whether srl-web was started with --on-change: fixed while it runs.
   hasOnChange: () => queryOptions({ queryKey: ['has-on-change'], queryFn: api.hasOnChange, staleTime: Infinity }),

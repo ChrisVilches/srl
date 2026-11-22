@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 
-import { type DayCounts } from './api';
+import { type ActivityCounts, type DayCounts } from './api';
 import { Loading, Skeleton } from './CardParts';
 import { queries } from './queries';
 
@@ -42,7 +42,7 @@ const monthOf = (day: string) =>
 // shape, so what is under it doesn't move as the calendar replaces it.
 // FILTERS, what sets the search, follows the line saying which cards.
 export function Activity({ selector, filters }: { selector: string; filters: ReactNode }) {
-  const days = useQuery(queries.days(selector, DAYS));
+  const activity = useQuery(queries.activity(selector, DAYS));
   const searched = selector !== '';
   return (
     <div className="flex flex-col gap-4 text-sm">
@@ -50,14 +50,14 @@ export function Activity({ selector, filters }: { selector: string; filters: Rea
         Reviews of each of the last {DAYS / 7} weeks, {searched ? 'of the cards the filters choose' : 'of every card'}
         . {filters}
       </p>
-      {days.isSuccess ? (
-        days.data === null ? (
+      {activity.isSuccess ? (
+        activity.data === null ? (
           <p className="text-stone-400">{searched ? 'No card matches this search.' : 'The store has no card.'}</p>
         ) : (
-          <Calendar days={days.data} />
+          <Calendar {...activity.data} />
         )
-      ) : days.isError && !days.isFetching ? (
-        <p className="whitespace-pre-wrap text-rose-600 dark:text-rose-400">{days.error.message}</p>
+      ) : activity.isError && !activity.isFetching ? (
+        <p className="whitespace-pre-wrap text-rose-600 dark:text-rose-400">{activity.error.message}</p>
       ) : (
         <CalendarSkeleton />
       )}
@@ -80,10 +80,11 @@ const LINE = 'flex h-5 items-center';
 
 // The day last pointed at, focused or tapped is told below the calendar,
 // today until then, so that a phone, which shows no tooltips, tells it too.
+// Under it, the total of the days, and the cards still new, of any day.
 // A finger points at a square as soon as it touches it, so a touch picks a
 // day only once it lifts, as a link's tap does, and not as a scroll starts
 // on it.
-function Calendar({ days }: { days: DayCounts[] }) {
+function Calendar({ days, new: fresh }: ActivityCounts) {
   const today = days[days.length - 1];
   // Kept by its date, so that the counts read again after a review show.
   const [pointed, setPointed] = useState<string | null>(null);
@@ -140,7 +141,8 @@ function Calendar({ days }: { days: DayCounts[] }) {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-stone-500">
         <span className="tabular-nums">
           <b className="text-stone-800 dark:text-stone-200">{total}</b> reviews ·{' '}
-          <b className="text-stone-800 dark:text-stone-200">{studied}</b> of {days.length} days studied
+          <b className="text-stone-800 dark:text-stone-200">{studied}</b> of {days.length} days studied ·{' '}
+          <b className="text-stone-800 dark:text-stone-200">{fresh}</b> new cards left
         </span>
         <span className="flex items-center gap-1 text-xs text-stone-400" aria-hidden>
           Less
@@ -180,7 +182,7 @@ function CalendarSkeleton() {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className={LINE}>
-          <Skeleton className="h-4 w-56" />
+          <Skeleton className="h-4 w-96 max-w-full" />
         </div>
         <div className="flex h-4 items-center">
           <Skeleton className="h-3 w-36" />
