@@ -39,6 +39,9 @@ from rich.theme import Theme
 # changed here.
 THEME = Theme({"markdown.mark": "bold yellow", "markdown.h1": "bold magenta"})
 
+# The borders of the panel in focus and of the other one.
+FOCUSED, UNFOCUSED = "green", "dim"
+
 RATINGS = [("again", "red"), ("hard", "yellow"), ("good", "green"), ("easy", "blue")]
 
 console = Console(theme=THEME, highlight=False)
@@ -336,18 +339,17 @@ class Session:
         if with_context:
             context_lines = console.render_lines(CardMarkdown(context_markdown(card)), options)
             card_height, context_height = split(height, len(card_lines) + 4, len(context_lines) + 2)
-        # The panel in focus has the brighter border.
-        color = "green" if answered else "cyan"
+        # The panel in focus has a green border, the other a grey one.
         panel, scroll["card"], card_shown = scrolled(
             card_lines, card_height, scroll["card"], focus == "card",
-            border_style=color if focus == "card" else f"dim {color}", padding=(1, 2))
+            border_style=FOCUSED if focus == "card" else UNFOCUSED, padding=(1, 2))
         screen = [self.header(card), panel]
         shown = {"card": card_shown, "context": 0}
         if with_context:
             context, scroll["context"], shown["context"] = scrolled(
                 context_lines, context_height, scroll["context"], focus == "context",
                 title=Text(card["see"] or "", "dim"), title_align="left",
-                border_style="white" if focus == "context" else "dim", padding=(0, 2))
+                border_style=FOCUSED if focus == "context" else UNFOCUSED, padding=(0, 2))
             screen.append(context)
         elif answered:
             line = "no context" if card["see"] is None else f"{card['see']}: no text to show"

@@ -30,8 +30,8 @@ screen needs a modern terminal such as Windows Terminal.
   their own panel. When both are too long for the screen, each gets half
   of it; when one is shorter than half, the other takes the rest. A panel
   that can't show everything says which lines it shows.
-- One panel has the focus, with the brighter border: the card on the
-  question side, the context once the answer is shown (the card when
+- One panel has the focus, with a green border (the other's is grey):
+  the card on the question side, the context once the answer is shown (the card when
   there is no context). Tab moves the focus to the other panel.
 - When `srl` takes a while, as when `srl next` runs a kind program that
   asks an LLM, the screen shows a spinner, "Loading…", and the seconds
