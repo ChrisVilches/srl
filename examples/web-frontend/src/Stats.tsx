@@ -8,9 +8,9 @@ import { FilterLink } from './Filters';
 import { queries } from './queries';
 import { TopBar, VIEW_COLUMN, VIEW_SCROLL } from './TopBar';
 
-// What srl says about studying, shown and never changed: the scheduling
-// settings in use, of the whole store, and the calendar of the search's
-// cards.
+// What srl says about studying, shown and never changed: the calendar of
+// the search's cards, and under it the scheduling settings in use, of the
+// whole store.
 //
 // Only the calendar follows the search. The settings are config.toml's
 // (srl config), of the whole store: they can't be of some cards, so the
@@ -28,14 +28,14 @@ export function Stats() {
       <TopBar view="stats">{null}</TopBar>
       <main className={VIEW_SCROLL}>
         <div className={`${VIEW_COLUMN} gap-10`}>
+          <section>
+            <Label>Activity</Label>
+            <Activity selector={submitted.selector} filters={<FilterLink search={search} onSearch={onSearch} />} />
+          </section>
           {/* Of the whole store, whatever the search. */}
           <section>
             <Label>Scheduling</Label>
             <ScheduleTable />
-          </section>
-          <section>
-            <Label>Activity</Label>
-            <Activity selector={submitted.selector} filters={<FilterLink search={search} onSearch={onSearch} />} />
           </section>
         </div>
       </main>

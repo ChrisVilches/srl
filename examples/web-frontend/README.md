@@ -4,7 +4,7 @@
 [docs/frontends.md](../../docs/frontends.md): a small server on localhost
 that runs `srl` commands, and a page in the browser that shows the cards
 to study, a browser of any card, a form that adds items, and the
-scheduling settings with a calendar of study. It
+calendar of study with the scheduling settings. It
 needs `srl` on `PATH` and Node.js 22.22 or later (for React Router and
 Vite), and should work on Linux,
 macOS and Windows (it is tried on Linux only).
@@ -340,15 +340,6 @@ It also **adds items** (the Add tab, or `/add`), one at a time:
 **Stats** (`src/Stats.tsx`) shows what srl says about studying, and
 changes nothing:
 
-- **Scheduling**: a table of the settings of `[schedule]` srl
-  schedules with, those `.srl/config.toml` leaves out at their
-  defaults, each with what it is and its key, as `srl config --json`
-  gives them, so the page knows no default: the desired retention, the
-  hour the study day starts, new cards a day, the most cards skipped,
-  the lapses of a leech, the stability of a mature card, and the
-  weights FSRS uses, its own when the file has none, and those of an
-  older FSRS (17 or 19) filled in to its 21. They are of the whole
-  store, whatever the search.
 - **Activity**: a calendar like GitHub's (`src/Activity.tsx`) of the
   last 9 weeks (`DAYS`), a column per week from Sunday, a square per
   study day, greener for more reviews, of the cards of the search, as
@@ -365,6 +356,15 @@ changes nothing:
   then, the day before is today. It is read again after each review,
   like Study's counters, so nothing is kept on the server and it is
   never out of date.
+- **Scheduling**, under it: a table of the settings of `[schedule]` srl
+  schedules with, those `.srl/config.toml` leaves out at their
+  defaults, each with what it is and its key, as `srl config --json`
+  gives them, so the page knows no default: the desired retention, the
+  hour the study day starts, new cards a day, the most cards skipped,
+  the lapses of a leech, the stability of a mature card, and the
+  weights FSRS uses, its own when the file has none, and those of an
+  older FSRS (17 or 19) filled in to its 21. They are of the whole
+  store, whatever the search.
 - Each has a skeleton of its shape while srl answers, the calendar's
   the same size as the calendar, so what is under them moves little
   as they come.
