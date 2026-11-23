@@ -401,10 +401,9 @@ class Session:
                     return False
                 if key in (" ", "\n"):
                     # The card starts again from its top, now with the
-                    # answer, and the focus goes to the context, if any.
+                    # answer, and keeps the focus.
                     answered = True
                     scroll["card"] = 0
-                    focus = "card" if card["context"] is None else "context"
                 elif key in ("1", "2", "3", "4"):
                     self.review(card, int(key))
                     break
